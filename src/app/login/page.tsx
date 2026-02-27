@@ -22,7 +22,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const router = useRouter();
 
-  const brandLogoDark = PlaceHolderImages.find(img => img.id === 'brand-logo-dark')?.imageUrl || '';
+  const brandLogoLight = PlaceHolderImages.find(img => img.id === 'brand-logo-light')?.imageUrl || '';
 
   useEffect(() => {
     // Select a random sports image from the library
@@ -71,13 +71,13 @@ export default function LoginPage() {
       {/* Logo Header */}
       <div className="relative z-20 mb-8 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-1000">
         <div className="relative h-16 w-48">
-          {brandLogoDark && (
+          {brandLogoLight && (
             <Image 
-              src={brandLogoDark} 
+              src={brandLogoLight} 
               alt="The Squad Brand" 
               fill 
-              className="object-contain drop-shadow-2xl brightness-0 invert"
-              data-ai-hint="brand logo"
+              className="object-contain drop-shadow-2xl"
+              data-ai-hint="white logo"
             />
           )}
         </div>
