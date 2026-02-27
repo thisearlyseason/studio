@@ -100,6 +100,10 @@
         "members": {
           "type": "object",
           "description": "A map of user IDs to their roles for authorization."
+        },
+        "isPro": {
+          "type": "boolean",
+          "description": "Indicates if the team is on a Pro plan."
         }
       },
       "required": [
@@ -338,6 +342,26 @@
         "members": { "type": "object" }
       },
       "required": ["id", "teamId", "title", "message", "createdBy", "createdAt", "members"]
+    },
+    "Drill": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Drill",
+      "type": "object",
+      "description": "Represents a training drill for the team.",
+      "properties": {
+        "id": { "type": "string" },
+        "teamId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnailUrl": { "type": "string", "format": "uri" },
+        "photoUrl": { "type": "string", "format": "uri" },
+        "videoUrl": { "type": "string", "format": "uri" },
+        "category": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "members": { "type": "object" }
+      },
+      "required": ["id", "teamId", "title", "description", "createdBy", "createdAt", "members"]
     }
   },
   "auth": {
@@ -416,6 +440,16 @@
             "$ref": "#/backend/entities/TeamAlert"
           },
           "description": "Stores high-priority team alerts."
+        }
+      },
+      {
+        "path": "/teams/{teamId}/drills/{drillId}",
+        "definition": {
+          "entityName": "Drill",
+          "schema": {
+            "$ref": "#/backend/entities/Drill"
+          },
+          "description": "Stores training drills for the team."
         }
       }
     ]

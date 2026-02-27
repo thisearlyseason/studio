@@ -16,7 +16,8 @@ import {
   Trophy,
   Bell,
   Info,
-  Lock
+  Lock,
+  Dumbbell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const tabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: false },
   { name: 'Schedule', href: '/events', icon: CalendarDays, pro: false },
   { name: 'Games', href: '/games', icon: Trophy, pro: true },
+  { name: 'Drills', href: '/drills', icon: Dumbbell, pro: true },
   { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
   { name: 'Roster', href: '/roster', icon: Users2, pro: true },
   { name: 'Library', href: '/files', icon: FolderClosed, pro: true },
@@ -138,7 +140,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-xl glass rounded-2xl shadow-2xl border-white/40 p-1.5 transition-all hover:scale-[1.01]">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-2xl glass rounded-2xl shadow-2xl border-white/40 p-1.5 transition-all hover:scale-[1.01]">
         <div className="flex items-center justify-around h-14">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -150,7 +152,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 key={tab.name}
                 href={tab.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl transition-all relative",
+                  "flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[50px]",
                   isActive 
                     ? "text-primary bg-primary/5" 
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -164,7 +166,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     </div>
                   )}
                 </div>
-                <span className={cn("text-[9px] font-bold tracking-tight uppercase", !isActive && "opacity-70")}>
+                <span className={cn("text-[8px] font-black tracking-tight uppercase truncate", !isActive && "opacity-70")}>
                   {tab.name}
                 </span>
                 {isActive && (

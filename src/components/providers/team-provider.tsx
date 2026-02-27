@@ -168,6 +168,19 @@ export type TeamFile = {
   url?: string;
 };
 
+export type Drill = {
+  id: string;
+  teamId: string;
+  title: string;
+  description: string;
+  thumbnailUrl?: string;
+  photoUrl?: string;
+  videoUrl?: string; // e.g. YouTube
+  category?: string;
+  createdBy: string;
+  createdAt: string;
+};
+
 export type TeamAlert = {
   id: string;
   teamId: string;
@@ -211,6 +224,9 @@ interface TeamContextType {
   files: TeamFile[];
   addFile: (name: string, type: string, size: string, url: string) => void;
   deleteFile: (fileId: string) => void;
+  drills: Drill[];
+  addDrill: (drill: Omit<Drill, 'id' | 'teamId' | 'createdBy' | 'createdAt'>) => void;
+  deleteDrill: (drillId: string) => void;
   alerts: TeamAlert[];
   createAlert: (title: string, message: string) => void;
   createNewTeam: (name: string, organizerPosition: string) => Promise<void>;
@@ -397,6 +413,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     message: a.message,
     createdBy: a.createdBy,
     createdAt: a.createdAt
+  }));
+
+  const drillsQuery = useMemoFirebase(() => {
+    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'drills'),
+      orderBy('createdAt', 'desc')
+    );
+  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
+  const { data: drillsData } = useCollection(drillsQuery);
+  const drills: Drill[] = (drillsData || []).map(d => ({
+    id: d.id,
+    teamId: d.teamId,
+    title: d.title,
+    description: d.description,
+    thumbnailUrl: d.thumbnailUrl,
+    photoUrl: d.photoUrl,
+    videoUrl: d.videoUrl,
+    category: d.category,
+    createdBy: d.createdBy,
+    createdAt: d.createdAt
   }));
 
   const chatsQuery = useMemoFirebase(() => {
@@ -743,6 +780,25 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toast({ title: "File Deleted", description: "The resource has been removed from the library." });
   };
 
+  const addDrill = async (drillData: Omit<Drill, 'id' | 'teamId' | 'createdBy' | 'createdAt'>) => {
+    if (!activeTeam || !firebaseUser || (!activeTeam.isPro && !isSuperAdmin)) return;
+    const colRef = collection(db, 'teams', activeTeam.id, 'drills');
+    addDocumentNonBlocking(colRef, {
+      ...drillData,
+      teamId: activeTeam.id,
+      createdBy: firebaseUser.uid,
+      createdAt: new Date().toISOString(),
+      members: activeTeam.membersMap || {}
+    });
+  };
+
+  const deleteDrill = (drillId: string) => {
+    if (!activeTeam || (!activeTeam.isPro && !isSuperAdmin)) return;
+    const docRef = doc(db, 'teams', activeTeam.id, 'drills', drillId);
+    deleteDocumentNonBlocking(docRef);
+    toast({ title: "Drill Removed", description: "The drill has been deleted from your library." });
+  };
+
   const createAlert = async (title: string, message: string) => {
     if (!activeTeam || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'alerts');
@@ -832,7 +888,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     <TeamContext.Provider value={{ 
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike,
-      events, addEvent, updateEvent, updateRSVP, games, addGame, updateGame, files, addFile, deleteFile, alerts, createAlert,
+      events, addEvent, updateEvent, updateRSVP, games, addGame, updateGame, files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
       createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime, 
       isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
     }}>

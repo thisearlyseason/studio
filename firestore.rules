@@ -83,6 +83,11 @@ service cloud.firestore {
         allow create, update, delete: if isAdminOfTeam(teamId);
       }
 
+      match /drills/{drillId} {
+        allow list, get: if isMemberOfTeam(teamId) && isProTeam(teamId);
+        allow create, update, delete: if isAdminOfTeam(teamId) && isProTeam(teamId);
+      }
+
       match /files/{fileId} {
         allow list, get: if isMemberOfTeam(teamId) && isProTeam(teamId);
         allow create: if isMemberOfTeam(teamId) && isProTeam(teamId);
