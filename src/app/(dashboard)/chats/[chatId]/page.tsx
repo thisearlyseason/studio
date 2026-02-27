@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Dialog, 
   DialogContent, 
@@ -29,34 +28,12 @@ import { Progress } from '@/components/ui/progress';
 import { suggestPollQuestionAndOptions } from '@/ai/flows/poll-question-and-option-suggestion';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-
-const MOCK_MESSAGES = [
-  { id: '1', author: 'Coach', content: 'Hey team, let\'s vote on the dinner spot for Friday.', type: 'text', createdAt: '10:00 AM' },
-  { 
-    id: '2', 
-    author: 'Coach', 
-    type: 'poll', 
-    poll: {
-      id: 'p1',
-      question: 'Friday Night Team Dinner?',
-      options: [
-        { text: 'Luigi\'s Pizza', votes: 8 },
-        { text: 'Burger Barn', votes: 4 },
-        { text: 'Sushi Express', votes: 2 }
-      ],
-      totalVotes: 14,
-      userVoted: 0,
-      isClosed: false
-    },
-    createdAt: '10:01 AM'
-  },
-  { id: '3', author: 'Alex', content: 'I voted for pizza!', type: 'text', createdAt: '10:05 AM' },
-];
+import { useTeam } from '@/components/providers/team-provider';
 
 export default function ChatRoomPage() {
   const { chatId } = useParams();
   const router = useRouter();
-  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const { chats, messages, addMessage } = useTeam();
   const [input, setInput] = useState('');
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
   const [pollPrompt, setPollPrompt] = useState('');
@@ -64,22 +41,18 @@ export default function ChatRoomPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const currentChat = chats.find(c => c.id === chatId);
+  const chatMessages = messages.filter(m => m.chatId === chatId);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [chatMessages]);
 
   const handleSendMessage = () => {
-    if (!input.trim()) return;
-    const newMessage = {
-      id: Date.now().toString(),
-      author: 'Me',
-      content: input,
-      type: 'text' as const,
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages([...messages, newMessage]);
+    if (!input.trim() || !currentChat) return;
+    addMessage(currentChat.id, 'Me', input, 'text');
     setInput('');
   };
 
@@ -97,26 +70,21 @@ export default function ChatRoomPage() {
   };
 
   const handleCreatePoll = () => {
-    if (!suggestedPoll) return;
-    const newMessage = {
-      id: Date.now().toString(),
-      author: 'Me',
-      type: 'poll' as const,
-      poll: {
-        id: 'p' + Date.now(),
-        question: suggestedPoll.question,
-        options: suggestedPoll.options.map(o => ({ text: o, votes: 0 })),
-        totalVotes: 0,
-        userVoted: undefined as any,
-        isClosed: false
-      },
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    if (!suggestedPoll || !currentChat) return;
+    const pollData = {
+      id: 'p' + Date.now(),
+      question: suggestedPoll.question,
+      options: suggestedPoll.options.map(o => ({ text: o, votes: 0 })),
+      totalVotes: 0,
+      isClosed: false
     };
-    setMessages([...messages, newMessage]);
+    addMessage(currentChat.id, 'Me', '', 'poll', pollData);
     setIsPollDialogOpen(false);
     setSuggestedPoll(null);
     setPollPrompt('');
   };
+
+  if (!currentChat) return <div>Chat not found</div>;
 
   return (
     <div className="flex flex-col h-[calc(100vh-130px)] -mt-4 -mx-4">
@@ -126,8 +94,8 @@ export default function ChatRoomPage() {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h2 className="font-bold truncate text-lg">General Discussion</h2>
-          <p className="text-xs text-muted-foreground">22 Members online</p>
+          <h2 className="font-bold truncate text-lg">{currentChat.name}</h2>
+          <p className="text-xs text-muted-foreground">{currentChat.memberIds.length} Members</p>
         </div>
         <Button variant="ghost" size="icon">
           <MoreVertical className="h-5 w-5" />
@@ -136,7 +104,7 @@ export default function ChatRoomPage() {
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
-        {messages.map((msg) => (
+        {chatMessages.map((msg) => (
           <div key={msg.id} className={cn("flex flex-col gap-1.5", msg.author === 'Me' ? 'items-end' : 'items-start')}>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-bold uppercase text-muted-foreground">{msg.author}</span>
@@ -176,9 +144,6 @@ export default function ChatRoomPage() {
                   ))}
                   <div className="pt-2 flex items-center justify-between">
                     <span className="text-[10px] font-bold text-muted-foreground">{msg.poll?.totalVotes} Total Votes</span>
-                    {msg.author === 'Me' && !msg.poll?.isClosed && (
-                      <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold text-destructive hover:text-destructive">Close Poll</Button>
-                    )}
                   </div>
                 </div>
               </div>

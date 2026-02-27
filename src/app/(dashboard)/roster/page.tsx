@@ -26,26 +26,35 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
-const MOCK_ROSTER = [
-  { id: '1', teamId: '1', name: 'James Miller', role: 'Admin', position: 'Head Coach', jersey: 'COACH', avatar: 'https://picsum.photos/seed/coach/150/150' },
-  { id: '2', teamId: '1', name: 'Alex Smith', role: 'Member', position: 'Striker', jersey: '10', avatar: 'https://picsum.photos/seed/alex/150/150' },
-  { id: '3', teamId: '1', name: 'Sarah Connor', role: 'Member', position: 'Midfield', jersey: '08', avatar: 'https://picsum.photos/seed/sarah/150/150' },
-  { id: '4', teamId: '2', name: 'Mike Ross', role: 'Member', position: 'Point Guard', jersey: '04', avatar: 'https://picsum.photos/seed/mike/150/150' },
-  { id: '5', teamId: '2', name: 'Donna Paulsen', role: 'Admin', position: 'Manager', jersey: 'MGR', avatar: 'https://picsum.photos/seed/donna/150/150' },
-];
-
 export default function RosterPage() {
-  const { activeTeam } = useTeam();
+  const { activeTeam, members, updateMember } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<any>(null);
   
-  const teamRoster = MOCK_ROSTER.filter(member => member.teamId === activeTeam.id);
+  const [editForm, setEditForm] = useState({ position: '', jersey: '' });
+
+  const teamRoster = members.filter(member => member.teamId === activeTeam.id);
   
   const filteredRoster = teamRoster.filter(member => 
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.position.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleEditClick = (member: any) => {
+    setEditingMember(member);
+    setEditForm({ position: member.position, jersey: member.jersey });
+  };
+
+  const handleSaveLabels = () => {
+    if (editingMember) {
+      updateMember(editingMember.id, {
+        position: editForm.position,
+        jersey: editForm.jersey
+      });
+      setEditingMember(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -135,7 +144,7 @@ export default function RosterPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setEditingMember(member)}>Edit Labels</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEditClick(member)}>Edit Labels</DropdownMenuItem>
                   <DropdownMenuItem className="text-destructive">Remove from Team</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -154,15 +163,21 @@ export default function RosterPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Position</Label>
-              <Input defaultValue={editingMember?.position} />
+              <Input 
+                value={editForm.position} 
+                onChange={(e) => setEditForm(prev => ({ ...prev, position: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label>Jersey #</Label>
-              <Input defaultValue={editingMember?.jersey} />
+              <Input 
+                value={editForm.jersey} 
+                onChange={(e) => setEditForm(prev => ({ ...prev, jersey: e.target.value }))}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => setEditingMember(null)}>Save Changes</Button>
+            <Button onClick={handleSaveLabels}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

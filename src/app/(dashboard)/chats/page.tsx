@@ -3,9 +3,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, ChevronRight, Hash } from 'lucide-react';
+import { Plus, MessageSquare, ChevronRight, Hash, Check } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { 
   Dialog, 
@@ -18,40 +19,36 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-const MOCK_CHATS = [
-  {
-    id: '1',
-    teamId: '1',
-    name: 'General Discussion',
-    lastMessage: 'Coach: Training tomorrow is at 7am sharp!',
-    time: '2m ago',
-    unread: 3
-  },
-  {
-    id: '2',
-    teamId: '1',
-    name: 'Offense Strategy',
-    lastMessage: 'Alex: Check out this play idea...',
-    time: '1h ago',
-    unread: 0
-  },
-  {
-    id: '3',
-    teamId: '2',
-    name: 'Basketball Tactics',
-    lastMessage: 'Sarah: I sent out the carpool info.',
-    time: 'Yesterday',
-    unread: 0
-  }
-];
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function ChatsPage() {
-  const { activeTeam } = useTeam();
+  const { activeTeam, chats, members, createChat } = useTeam();
+  const router = useRouter();
   const [newChatName, setNewChatName] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
 
-  const teamChats = MOCK_CHATS.filter(c => c.teamId === activeTeam.id);
+  const teamChats = chats.filter(c => c.teamId === activeTeam.id);
+  const teamMembers = members.filter(m => m.teamId === activeTeam.id);
+
+  const handleCreateChat = () => {
+    if (!newChatName.trim()) return;
+    const chatId = createChat(newChatName, selectedMembers);
+    setIsNewChatOpen(false);
+    setNewChatName('');
+    setSelectedMembers([]);
+    router.push(`/chats/${chatId}`);
+  };
+
+  const toggleMember = (memberId: string) => {
+    setSelectedMembers(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId) 
+        : [...prev, memberId]
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -64,14 +61,14 @@ export default function ChatsPage() {
               New Chat
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Create Group Chat</DialogTitle>
               <DialogDescription>
                 Start a new discussion for {activeTeam.name}.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Chat Name</Label>
                 <Input 
@@ -81,9 +78,41 @@ export default function ChatsPage() {
                   onChange={(e) => setNewChatName(e.target.value)}
                 />
               </div>
+              <div className="space-y-3">
+                <Label>Select Team Members</Label>
+                <ScrollArea className="h-48 border rounded-lg p-2">
+                  <div className="space-y-2">
+                    {teamMembers.map((member) => (
+                      <div 
+                        key={member.id} 
+                        className="flex items-center justify-between p-2 hover:bg-muted rounded-md cursor-pointer"
+                        onClick={() => toggleMember(member.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.avatar} />
+                            <AvatarFallback>{member.name[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{member.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{member.position}</span>
+                          </div>
+                        </div>
+                        <Checkbox checked={selectedMembers.includes(member.id)} />
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
             <DialogFooter>
-              <Button onClick={() => setIsNewChatOpen(false)}>Create Chat</Button>
+              <Button 
+                className="w-full" 
+                onClick={handleCreateChat}
+                disabled={!newChatName.trim() || selectedMembers.length === 0}
+              >
+                Create Chat
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -102,9 +131,9 @@ export default function ChatsPage() {
                     <h3 className="font-bold truncate">{chat.name}</h3>
                     <span className="text-[10px] text-muted-foreground font-medium">{chat.time}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground truncate pr-6">{chat.lastMessage}</p>
+                  <p className="text-sm text-muted-foreground truncate pr-6">{chat.lastMessage || 'No messages yet'}</p>
                 </div>
-                {chat.unread > 0 ? (
+                {chat.unread && chat.unread > 0 ? (
                   <div className="bg-primary text-primary-foreground text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center shrink-0">
                     {chat.unread}
                   </div>
