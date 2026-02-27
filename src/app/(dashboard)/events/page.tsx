@@ -15,7 +15,8 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -86,8 +87,9 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] overflow-y-auto max-h-[90vh] p-0">
-        <DialogHeader className="p-6 pb-2 sticky top-0 bg-background z-10 border-b">
+      <DialogContent className="sm:max-w-[550px] overflow-y-auto max-h-[90vh] p-0 flex flex-col">
+        {/* Header - Not sticky to allow the entire modal to scroll naturally as requested */}
+        <div className="p-6 pb-2 bg-background z-10 border-b shrink-0">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
               <DialogTitle className="text-2xl font-black tracking-tight">{event.title}</DialogTitle>
@@ -97,180 +99,184 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
             </div>
             {event.allowExternalRegistration && <Badge className="bg-blue-500 font-black px-3 h-7 uppercase tracking-tighter">Public Open</Badge>}
           </div>
-        </DialogHeader>
-
-        <div className="px-6 py-4 bg-muted/20 border-b flex justify-around">
-          <div className="text-center">
-            <p className="text-2xl font-black text-green-600">{goingList.length}</p>
-            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Going</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-black text-amber-600">{maybeList.length}</p>
-            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Maybe</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-black text-red-600">{notGoingList.length}</p>
-            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">No</p>
-          </div>
         </div>
 
-        <Tabs defaultValue="details" className="w-full">
-          <div className="px-6 pt-4 sticky top-[88px] bg-background z-10 pb-2 border-b">
-            <TabsList className="grid w-full grid-cols-2 rounded-xl h-11">
-              <TabsTrigger value="details" className="rounded-lg font-bold">Event Details</TabsTrigger>
-              <TabsTrigger value="attendance" className="rounded-lg font-bold">Attendance ({attendanceData.length})</TabsTrigger>
-            </TabsList>
+        <div className="flex-1">
+          <div className="px-6 py-4 bg-muted/20 border-b flex justify-around">
+            <div className="text-center">
+              <p className="text-2xl font-black text-green-600">{goingList.length}</p>
+              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Going</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-black text-amber-600">{maybeList.length}</p>
+              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Maybe</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-black text-red-600">{notGoingList.length}</p>
+              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">No</p>
+            </div>
           </div>
-          
-          <TabsContent value="details" className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="bg-primary/10 p-2.5 rounded-xl text-primary shrink-0"><Clock className="h-5 w-5" /></div>
-                <div>
-                  <p className="font-black text-sm uppercase tracking-widest">Time & Location</p>
-                  <p className="text-sm font-medium text-muted-foreground">{event.startTime} @ {event.location}</p>
+
+          <Tabs defaultValue="details" className="w-full">
+            <div className="px-6 pt-4 bg-background z-10 pb-2 border-b">
+              <TabsList className="grid w-full grid-cols-2 rounded-xl h-11">
+                <TabsTrigger value="details" className="rounded-lg font-bold">Event Details</TabsTrigger>
+                <TabsTrigger value="attendance" className="rounded-lg font-bold">Attendance ({attendanceData.length})</TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <TabsContent value="details" className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 p-2.5 rounded-xl text-primary shrink-0"><Clock className="h-5 w-5" /></div>
+                  <div>
+                    <p className="font-black text-sm uppercase tracking-widest">Time & Location</p>
+                    <p className="text-sm font-medium text-muted-foreground">{event.startTime} @ {event.location}</p>
+                  </div>
+                </div>
+                
+                {event.maxRegistrations && (
+                  <div className="flex items-start gap-4">
+                    <div className="bg-primary/10 p-2.5 rounded-xl text-primary shrink-0"><Users className="h-5 w-5" /></div>
+                    <div>
+                      <p className="font-black text-sm uppercase tracking-widest">Capacity</p>
+                      <p className="text-sm font-medium text-muted-foreground">{registrations?.length || 0} / {event.maxRegistrations} External Sign-ups</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-4 bg-muted/30 rounded-2xl border-2 border-dashed">
+                  <p className="text-sm text-muted-foreground leading-relaxed italic">"{event.description}"</p>
                 </div>
               </div>
               
-              {event.maxRegistrations && (
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary/10 p-2.5 rounded-xl text-primary shrink-0"><Users className="h-5 w-5" /></div>
-                  <div>
-                    <p className="font-black text-sm uppercase tracking-widest">Capacity</p>
-                    <p className="text-sm font-medium text-muted-foreground">{registrations?.length || 0} / {event.maxRegistrations} External Sign-ups</p>
-                  </div>
-                </div>
+              {event.allowExternalRegistration && (
+                <Button variant="outline" className="w-full h-12 gap-2 border-dashed border-primary/30 text-primary font-bold rounded-xl" onClick={copyRegLink}>
+                  <LinkIcon className="h-4 w-4" /> Copy Public Sign-up Link
+                </Button>
               )}
 
-              <div className="p-4 bg-muted/30 rounded-2xl border-2 border-dashed">
-                <p className="text-sm text-muted-foreground leading-relaxed italic">"{event.description}"</p>
+              <div className="space-y-3 pt-4 border-t">
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Your Response (Required)</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <Button 
+                    variant={event.userRsvp === 'notGoing' ? 'default' : 'outline'} 
+                    className={cn(
+                      "rounded-xl h-12 font-bold transition-all",
+                      event.userRsvp === 'notGoing' ? "bg-red-600 hover:bg-red-700 text-white border-red-600" : "hover:border-red-600 hover:text-red-600"
+                    )} 
+                    onClick={() => updateRSVP(event.id, 'notGoing')}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" /> No
+                  </Button>
+                  <Button 
+                    variant={event.userRsvp === 'maybe' ? 'default' : 'outline'} 
+                    className={cn(
+                      "rounded-xl h-12 font-bold transition-all",
+                      event.userRsvp === 'maybe' ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" : "hover:border-amber-500 hover:text-amber-500"
+                    )} 
+                    onClick={() => updateRSVP(event.id, 'maybe')}
+                  >
+                    <HelpCircle className="h-4 w-4 mr-2" /> Maybe
+                  </Button>
+                  <Button 
+                    variant={event.userRsvp === 'going' ? 'default' : 'outline'}
+                    className={cn(
+                      "rounded-xl h-12 font-bold transition-all",
+                      event.userRsvp === 'going' ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : "hover:border-green-600 hover:text-green-600"
+                    )} 
+                    onClick={() => updateRSVP(event.id, 'going')}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Going
+                  </Button>
+                </div>
               </div>
-            </div>
-            
-            {event.allowExternalRegistration && (
-              <Button variant="outline" className="w-full h-12 gap-2 border-dashed border-primary/30 text-primary font-bold rounded-xl" onClick={copyRegLink}>
-                <LinkIcon className="h-4 w-4" /> Copy Public Sign-up Link
-              </Button>
-            )}
+            </TabsContent>
 
-            <div className="space-y-3 pt-4 border-t">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Your Response (Required)</p>
-              <div className="grid grid-cols-3 gap-3">
-                <Button 
-                  variant={event.userRsvp === 'notGoing' ? 'default' : 'outline'} 
-                  className={cn(
-                    "rounded-xl h-12 font-bold transition-all",
-                    event.userRsvp === 'notGoing' ? "bg-red-600 hover:bg-red-700 text-white border-red-600" : "hover:border-red-600 hover:text-red-600"
-                  )} 
-                  onClick={() => updateRSVP(event.id, 'notGoing')}
-                >
-                  <XCircle className="h-4 w-4 mr-2" /> No
-                </Button>
-                <Button 
-                  variant={event.userRsvp === 'maybe' ? 'default' : 'outline'} 
-                  className={cn(
-                    "rounded-xl h-12 font-bold transition-all",
-                    event.userRsvp === 'maybe' ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" : "hover:border-amber-500 hover:text-amber-500"
-                  )} 
-                  onClick={() => updateRSVP(event.id, 'maybe')}
-                >
-                  <HelpCircle className="h-4 w-4 mr-2" /> Maybe
-                </Button>
-                <Button 
-                  variant={event.userRsvp === 'going' ? 'default' : 'outline'}
-                  className={cn(
-                    "rounded-xl h-12 font-bold transition-all",
-                    event.userRsvp === 'going' ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : "hover:border-green-600 hover:text-green-600"
-                  )} 
-                  onClick={() => updateRSVP(event.id, 'going')}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Going
-                </Button>
+            <TabsContent value="attendance" className="p-6 space-y-8">
+              {/* Going Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-[10px] font-black uppercase text-green-600 tracking-widest">Going ({goingList.length})</span>
+                </div>
+                {goingList.length > 0 ? goingList.map((person) => (
+                  <div key={person.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={person.avatar} />
+                        <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black">{person.name}</span>
+                          {person.isExternal && <Badge className="text-[8px] h-3.5 bg-blue-500 font-black uppercase px-1.5">Public</Badge>}
+                        </div>
+                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
+                      </div>
+                    </div>
+                    {person.isExternal && person.regData?.status === 'pending' && isAdmin && (
+                      <Button size="sm" variant="ghost" className="h-7 text-[10px] font-black text-primary hover:bg-primary/10 rounded-full" onClick={() => promoteToRoster(event.teamId, event.id, person.regData!)}>
+                        <UserPlus className="h-3 w-3 mr-1" /> Add to Roster
+                      </Button>
+                    )}
+                    {person.isExternal && person.regData?.status === 'added' && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 text-[8px] font-black uppercase h-5">Rostered</Badge>
+                    )}
+                  </div>
+                )) : <p className="text-xs text-muted-foreground italic px-1">No one confirmed yet.</p>}
               </div>
-            </div>
-          </TabsContent>
 
-          <TabsContent value="attendance" className="p-6 space-y-8">
-            {/* Going Section */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <span className="text-[10px] font-black uppercase text-green-600 tracking-widest">Going ({goingList.length})</span>
-              </div>
-              {goingList.length > 0 ? goingList.map((person) => (
-                <div key={person.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
+              {/* Maybe Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <HelpCircle className="h-4 w-4 text-amber-600" />
+                  <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Maybe ({maybeList.length})</span>
+                </div>
+                {maybeList.length > 0 ? maybeList.map((person) => (
+                  <div key={person.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5 opacity-80">
+                    <Avatar className="h-8 w-8 grayscale">
                       <AvatarImage src={person.avatar} />
                       <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black">{person.name}</span>
-                        {person.isExternal && <Badge className="text-[8px] h-3.5 bg-blue-500 font-black uppercase px-1.5">Public</Badge>}
-                      </div>
+                      <span className="text-xs font-black">{person.name}</span>
                       <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
                     </div>
                   </div>
-                  {person.isExternal && person.regData?.status === 'pending' && isAdmin && (
-                    <Button size="sm" variant="ghost" className="h-7 text-[10px] font-black text-primary hover:bg-primary/10 rounded-full" onClick={() => promoteToRoster(event.teamId, event.id, person.regData!)}>
-                      <UserPlus className="h-3 w-3 mr-1" /> Add to Roster
-                    </Button>
-                  )}
-                  {person.isExternal && person.regData?.status === 'added' && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-700 text-[8px] font-black uppercase h-5">Rostered</Badge>
-                  )}
-                </div>
-              )) : <p className="text-xs text-muted-foreground italic px-1">No one confirmed yet.</p>}
-            </div>
-
-            {/* Maybe Section */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <HelpCircle className="h-4 w-4 text-amber-600" />
-                <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Maybe ({maybeList.length})</span>
+                )) : <p className="text-xs text-muted-foreground italic px-1">No undecided responses.</p>}
               </div>
-              {maybeList.length > 0 ? maybeList.map((person) => (
-                <div key={person.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5 opacity-80">
-                  <Avatar className="h-8 w-8 grayscale">
-                    <AvatarImage src={person.avatar} />
-                    <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black">{person.name}</span>
-                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
-                  </div>
-                </div>
-              )) : <p className="text-xs text-muted-foreground italic px-1">No undecided responses.</p>}
-            </div>
 
-            {/* Not Going Section */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <XCircle className="h-4 w-4 text-red-600" />
-                <span className="text-[10px] font-black uppercase text-red-600 tracking-widest">Not Going ({notGoingList.length})</span>
-              </div>
-              {notGoingList.length > 0 ? notGoingList.map((person) => (
-                <div key={person.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5 opacity-60">
-                  <Avatar className="h-8 w-8 grayscale brightness-50">
-                    <AvatarImage src={person.avatar} />
-                    <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black line-through">{person.name}</span>
-                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
-                  </div>
+              {/* Not Going Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <XCircle className="h-4 w-4 text-red-600" />
+                  <span className="text-[10px] font-black uppercase text-red-600 tracking-widest">Not Going ({notGoingList.length})</span>
                 </div>
-              )) : <p className="text-xs text-muted-foreground italic px-1">No negative responses yet.</p>}
-            </div>
-          </TabsContent>
-        </Tabs>
-        <div className="p-6 border-t bg-muted/10 sticky bottom-0">
-          <Button variant="ghost" className="w-full font-bold" onClick={(e) => {
-            // Find parent dialog close button or simply trust auto behavior
-          }}>
-            Close Details
-          </Button>
+                {notGoingList.length > 0 ? notGoingList.map((person) => (
+                  <div key={person.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5 opacity-60">
+                    <Avatar className="h-8 w-8 grayscale brightness-50">
+                      <AvatarImage src={person.avatar} />
+                      <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black line-through">{person.name}</span>
+                      <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
+                    </div>
+                  </div>
+                )) : <p className="text-xs text-muted-foreground italic px-1">No negative responses yet.</p>}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Footer - Static at bottom of content, no longer covering text */}
+        <div className="p-6 border-t bg-muted/10 shrink-0">
+          <DialogClose asChild>
+            <Button variant="ghost" className="w-full font-bold">
+              Close Details
+            </Button>
+          </DialogClose>
         </div>
       </DialogContent>
     </Dialog>
