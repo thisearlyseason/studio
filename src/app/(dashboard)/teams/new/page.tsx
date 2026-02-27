@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -65,7 +64,7 @@ export default function NewTeamPage() {
                 <SelectItem value="Team Lead">Team Lead</SelectItem>
                 <SelectItem value="Assistant Coach">Assistant Coach</SelectItem>
                 <SelectItem value="Squad Leader">Squad Leader</SelectItem>
-                <SelectItem value="">Leave Blank (Manager)</SelectItem>
+                <SelectItem value="Manager">Leave Blank (Manager)</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground mt-1">
