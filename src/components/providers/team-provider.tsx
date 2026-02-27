@@ -36,7 +36,11 @@ export type Team = {
   id: string;
   name: string;
   code: string;
+  sport?: string;
+  teamLogoUrl?: string;
   heroImageUrl?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   membersMap?: Record<string, string>;
 };
 
@@ -180,6 +184,7 @@ interface TeamContextType {
   activeTeam: Team | null;
   setActiveTeam: (team: Team) => void;
   updateTeamHero: (url: string) => Promise<void>;
+  updateTeamDetails: (updates: Partial<Team>) => Promise<void>;
   teams: Team[];
   members: Member[];
   updateMember: (id: string, updates: Partial<Member>) => void;
@@ -252,11 +257,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     );
   }, [firebaseUser?.uid, db]);
   const { data: teamsData } = useCollection(teamsQuery);
-  const teams = (teamsData || []).map(t => ({ 
+  const teams: Team[] = (teamsData || []).map(t => ({ 
     id: t.id, 
     name: t.teamName, 
     code: t.teamCode,
+    sport: t.sport,
+    teamLogoUrl: t.teamLogoUrl,
     heroImageUrl: t.heroImageUrl,
+    contactEmail: t.contactEmail,
+    contactPhone: t.contactPhone,
     membersMap: t.members
   }));
 
@@ -461,6 +470,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!activeTeam) return;
     const docRef = doc(db, 'teams', activeTeam.id);
     updateDocumentNonBlocking(docRef, { heroImageUrl: url });
+  };
+
+  const updateTeamDetails = async (updates: Partial<Team>) => {
+    if (!activeTeam) return;
+    const docRef = doc(db, 'teams', activeTeam.id);
+    const firestoreUpdates: any = {};
+    if (updates.name) firestoreUpdates.teamName = updates.name;
+    if (updates.sport) firestoreUpdates.sport = updates.sport;
+    if (updates.teamLogoUrl) firestoreUpdates.teamLogoUrl = updates.teamLogoUrl;
+    if (updates.contactEmail) firestoreUpdates.contactEmail = updates.contactEmail;
+    if (updates.contactPhone) firestoreUpdates.contactPhone = updates.contactPhone;
+
+    updateDocumentNonBlocking(docRef, firestoreUpdates);
+    toast({ title: "Squad Profile Updated", description: "All changes saved for the team." });
   };
 
   const updateMember = (id: string, updates: Partial<Member>) => {
@@ -798,7 +821,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   return (
     <TeamContext.Provider value={{ 
-      user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, teams, members, updateMember, toggleFeesPaid,
+      user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike,
       events, addEvent, updateEvent, updateRSVP, games, addGame, updateGame, files, addFile, deleteFile, alerts, createAlert,
       createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime

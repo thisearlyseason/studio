@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -77,6 +78,15 @@
         "teamCode": {
           "type": "string",
           "description": "A unique 6-character alphanumeric code used for joining the team."
+        },
+        "contactEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Official contact email for the team."
+        },
+        "contactPhone": {
+          "type": "string",
+          "description": "Official contact phone number for the team."
         },
         "createdBy": {
           "type": "string",

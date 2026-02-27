@@ -14,7 +14,8 @@ import {
   ChevronDown,
   PlusCircle,
   Trophy,
-  Bell
+  Bell,
+  Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -52,14 +53,24 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 px-3 h-10 hover:bg-muted/50 transition-all active:scale-95">
-                  <div className="w-8 h-8 rounded-lg hero-gradient flex items-center justify-center text-white font-black text-sm">
-                    {activeTeam?.name?.[0] || 'T'}
+                <Button variant="ghost" className="flex items-center gap-2 px-3 h-12 hover:bg-muted/50 transition-all active:scale-95 group">
+                  <div className="relative shrink-0">
+                    <Avatar className="h-9 w-9 rounded-xl border-2 border-background shadow-md">
+                      <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
+                      <AvatarFallback className="hero-gradient text-white font-black text-xs rounded-xl">
+                        {activeTeam?.name?.[0] || 'T'}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
-                  <span className="font-extrabold text-base tracking-tight">
-                    {activeTeam?.name || 'Select Squad'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-40" />
+                  <div className="flex flex-col items-start min-w-0 max-w-[120px] sm:max-w-[200px]">
+                    <span className="font-extrabold text-sm tracking-tight truncate leading-tight">
+                      {activeTeam?.name || 'Select Squad'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest leading-none">
+                      {activeTeam?.sport || 'General'}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-40 group-data-[state=open]:rotate-180 transition-transform" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-64 rounded-xl shadow-xl border-muted">
@@ -71,15 +82,25 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     onClick={() => setActiveTeam(team)}
                     className="flex items-center gap-3 p-3 cursor-pointer rounded-lg mx-1 my-1"
                   >
-                    <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center font-bold text-xs">
-                      {team.name[0]}
-                    </div>
-                    <span className="font-semibold">{team.name}</span>
+                    <Avatar className="h-8 w-8 rounded-md shrink-0">
+                      <AvatarImage src={team.teamLogoUrl} />
+                      <AvatarFallback className="bg-muted font-bold text-xs rounded-md">
+                        {team.name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-semibold truncate">{team.name}</span>
                   </DropdownMenuItem>
                 )) : (
                   <div className="px-4 py-3 text-sm text-muted-foreground italic">No squads yet</div>
                 )}
                 <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => router.push('/team')}
+                  className="flex items-center gap-3 p-3 cursor-pointer rounded-lg mx-1 my-1 font-bold"
+                >
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  Squad Profile
+                </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => router.push('/teams/new')}
                   className="flex items-center gap-3 p-3 text-primary cursor-pointer rounded-lg mx-1 my-1 font-bold"
