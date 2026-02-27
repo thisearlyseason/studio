@@ -264,7 +264,7 @@ const TeamContext = createContext<TeamContextType | undefined>(undefined);
 const SUPER_ADMIN_EMAILS = ['thisearlyseason@gmail.com', 'test@gmail.com'];
 
 export function TeamProvider({ children }: { children: ReactNode }) {
-  const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
+  const { user: firebaseUser, isUserLoading } = useUser();
   const db = useFirestore();
   
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
@@ -311,9 +311,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         sport: t.sport,
         teamLogoUrl: t.teamLogoUrl,
         heroImageUrl: t.heroImageUrl,
-        contactEmail: t.contactEmail,
-        contactPhone: t.contactPhone,
-        membersMap: t.members,
         isPro: t.isPro || false,
         role: 'Admin'
       })));
@@ -427,23 +424,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     id: f.id, teamId: f.teamId, name: f.fileName, type: f.fileType, size: f.fileSize, uploadedBy: f.uploaderName || 'Unknown', uploaderId: f.uploadedBy || f.uploaderId || '', date: new Date(f.createdAt), url: f.fileUrl
   })).sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  // Handle messages subscription manually for active chat
   useEffect(() => {
     if (!activeTeam || !activeChatId || !db) {
       setMessages([]);
       return;
     }
-
-    const q = query(
-      collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages'),
-      orderBy('createdAt', 'asc')
-    );
-
+    const q = query(collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages'), orderBy('createdAt', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       setMessages(msgs);
     });
-
     return () => unsubscribe();
   }, [activeTeam?.id, activeChatId, db]);
 
@@ -496,11 +486,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const chatId = `chat_${Date.now()}`;
     const chatRef = doc(db, 'teams', activeTeam.id, 'groupChats', chatId);
     setDocumentNonBlocking(chatRef, {
-      id: chatId,
-      teamId: activeTeam.id,
-      name,
-      memberIds: [...memberIds, firebaseUser.uid],
-      createdAt: new Date().toISOString()
+      id: chatId, teamId: activeTeam.id, name, memberIds: [...memberIds, firebaseUser.uid], createdAt: new Date().toISOString()
     }, { merge: true });
     return chatId;
   };
@@ -517,14 +503,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const msgRef = doc(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages', messageId);
     const msgSnap = await getDoc(msgRef);
     if (!msgSnap.exists()) return;
-    
     const poll = msgSnap.data().poll;
     const currentVote = poll.voters?.[firebaseUser.uid];
-    
-    const updates: any = {
-      [`poll.voters.${firebaseUser.uid}`]: optionIndex
-    };
-
+    const updates: any = { [`poll.voters.${firebaseUser.uid}`]: optionIndex };
     if (currentVote === undefined) {
       updates[`poll.options.${optionIndex}.votes`] = increment(1);
       updates['poll.totalVotes'] = increment(1);
@@ -532,16 +513,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       updates[`poll.options.${currentVote}.votes`] = increment(-1);
       updates[`poll.options.${optionIndex}.votes`] = increment(1);
     }
-
     updateDocumentNonBlocking(msgRef, updates);
   };
 
   const addPost = (content: string, imageUrl?: string, type: 'user' | 'system' = 'user', systemData?: any) => {
     if (!activeTeam || !firebaseUser) return;
     addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts'), {
-      teamId: activeTeam.id, content, imageUrl, type, systemData,
-      authorId: firebaseUser.uid, author: { name: userProfile?.name || 'Anonymous', avatar: userProfile?.avatar || '' },
-      createdAt: new Date().toISOString(), likes: []
+      teamId: activeTeam.id, content, imageUrl, type, systemData, authorId: firebaseUser.uid,
+      author: { name: userProfile?.name || 'Anonymous', avatar: userProfile?.avatar || '' }, createdAt: new Date().toISOString(), likes: []
     });
   };
 
@@ -567,7 +546,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const postRef = doc(db, 'teams', activeTeam.id, 'feedPosts', postId);
     const postSnap = await getDoc(postRef);
     if (!postSnap.exists()) return;
-    
     const likes = postSnap.data().likes || [];
     if (likes.includes(firebaseUser.uid)) {
       updateDocumentNonBlocking(postRef, { likes: arrayRemove(firebaseUser.uid) });
@@ -624,8 +602,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addFile = (name: string, type: string, size: string, url: string) => {
     if (!activeTeam || !firebaseUser) return;
     addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), {
-      teamId: activeTeam.id, fileName: name, fileType: type, fileSize: size, fileUrl: url,
-      uploaderName: userProfile?.name || 'Unknown', uploadedBy: firebaseUser.uid, createdAt: new Date().toISOString()
+      teamId: activeTeam.id, fileName: name, fileType: type, fileSize: size, fileUrl: url, uploaderName: userProfile?.name || 'Unknown', uploadedBy: firebaseUser.uid, createdAt: new Date().toISOString()
     });
   };
 
@@ -687,7 +664,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike,
       events, addEvent, updateEvent: () => {}, updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: () => {}, files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
-      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime, isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
+      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isUserLoading, formatTime, isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
     }}>
       {children}
     </TeamContext.Provider>
