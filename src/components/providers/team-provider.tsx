@@ -22,7 +22,7 @@ import {
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { toast } from '@/hooks/use-toast';
-import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export type UserProfile = {
   id: string;
@@ -71,8 +71,10 @@ export type Message = {
   id: string;
   chatId: string;
   author: string;
+  authorId?: string;
   content?: string;
-  type: 'text' | 'poll';
+  imageUrl?: string;
+  type: 'text' | 'poll' | 'image';
   createdAt: string;
   poll?: {
     id: string;
@@ -93,14 +95,15 @@ export type Post = {
   type: 'user' | 'system';
   imageUrl?: string;
   createdAt: string;
-  comments: Comment[];
   likes?: string[];
 };
 
 export type Comment = {
   id: string;
-  author: string;
+  authorId: string;
+  authorName: string;
   content: string;
+  imageUrl?: string;
   createdAt: string;
 };
 
@@ -174,11 +177,11 @@ interface TeamContextType {
   messages: Message[];
   activeChatId: string | null;
   setActiveChatId: (id: string | null) => void;
-  addMessage: (chatId: string, author: string, content: string, type: 'text' | 'poll', poll?: any) => void;
+  addMessage: (chatId: string, author: string, content: string, type: 'text' | 'poll' | 'image', imageUrl?: string, poll?: any) => void;
   votePoll: (chatId: string, messageId: string, optionIndex: number) => Promise<void>;
   posts: Post[];
   addPost: (content: string, imageUrl?: string, type?: 'user' | 'system') => void;
-  addComment: (postId: string, content: string) => void;
+  addComment: (postId: string, content: string, imageUrl?: string) => void;
   toggleLike: (postId: string) => Promise<void>;
   events: TeamEvent[];
   addEvent: (event: Omit<TeamEvent, 'id' | 'teamId' | 'rsvps'>) => void;
@@ -290,7 +293,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       type: p.type || 'user',
       imageUrl: p.imageUrl,
       createdAt: p.createdAt,
-      comments: [],
       likes: p.likes || []
     }));
 
@@ -376,8 +378,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       id: m.id,
       chatId: m.chatId,
       author: m.authorName || 'Unknown',
+      authorId: m.authorId,
       content: m.content,
-      type: m.type as 'text' | 'poll',
+      imageUrl: m.imageUrl,
+      type: m.type as 'text' | 'poll' | 'image',
       createdAt: m.createdAt,
       poll: m.pollData
     }))
@@ -409,26 +413,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const updateUser = (updates: Partial<UserProfile>) => {
     if (!firebaseUser) return;
     const docRef = doc(db, 'users', firebaseUser.uid);
-    updateDoc(docRef, updates).catch(err => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
-    });
+    updateDocumentNonBlocking(docRef, updates);
     if (userProfile) setUserProfile({ ...userProfile, ...updates });
   };
 
   const updateTeamHero = async (url: string) => {
     if (!activeTeam) return;
     const docRef = doc(db, 'teams', activeTeam.id);
-    await updateDoc(docRef, { heroImageUrl: url }).catch(err => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
-    });
+    updateDocumentNonBlocking(docRef, { heroImageUrl: url });
   };
 
   const updateMember = (id: string, updates: Partial<Member>) => {
     if (!activeTeam) return;
     const docRef = doc(db, 'teams', activeTeam.id, 'members', id);
-    updateDoc(docRef, updates).catch(err => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
-    });
+    updateDocumentNonBlocking(docRef, updates);
   };
 
   const toggleFeesPaid = (memberId: string) => {
@@ -452,14 +450,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return docRef.id;
   };
 
-  const addMessage = async (chatId: string, author: string, content: string, type: 'text' | 'poll', poll?: any) => {
+  const addMessage = async (chatId: string, author: string, content: string, type: 'text' | 'poll' | 'image', imageUrl?: string, poll?: any) => {
     if (!activeTeam || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages');
-    addDoc(colRef, {
+    addDocumentNonBlocking(colRef, {
       chatId,
       authorId: firebaseUser.uid,
       authorName: author,
-      content,
+      content: content || '',
+      imageUrl: imageUrl || '',
       type,
       pollData: poll || null,
       createdAt: new Date().toISOString()
@@ -484,19 +483,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       return { ...opt, votes: count };
     });
 
-    await updateDoc(docRef, {
+    updateDocumentNonBlocking(docRef, {
       'pollData.voters': newVoters,
       'pollData.options': newOptions,
       'pollData.totalVotes': Object.keys(newVoters).length
-    }).catch(err => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
     });
   };
 
   const addPost = async (content: string, imageUrl?: string, type: 'user' | 'system' = 'user') => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'feedPosts');
-    addDoc(colRef, {
+    addDocumentNonBlocking(colRef, {
       teamId: activeTeam.id,
       author: { name: userProfile.name, avatar: userProfile.avatar },
       authorId: firebaseUser.uid,
@@ -508,14 +505,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addComment = async (postId: string, content: string) => {
+  const addComment = async (postId: string, content: string, imageUrl?: string) => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'feedPosts', postId, 'comments');
-    addDoc(colRef, {
+    addDocumentNonBlocking(colRef, {
       postId,
       authorId: firebaseUser.uid,
       authorName: userProfile.name,
       content,
+      imageUrl: imageUrl || '',
       createdAt: new Date().toISOString()
     });
   };
@@ -528,17 +526,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const isLiked = post.likes?.includes(firebaseUser.uid);
     const docRef = doc(db, 'teams', activeTeam.id, 'feedPosts', postId);
 
-    updateDoc(docRef, {
+    updateDocumentNonBlocking(docRef, {
       likes: isLiked ? arrayRemove(firebaseUser.uid) : arrayUnion(firebaseUser.uid)
-    }).catch(err => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
     });
   };
 
   const addEvent = async (eventData: Omit<TeamEvent, 'id' | 'teamId' | 'rsvps'>) => {
     if (!activeTeam || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'events');
-    addDoc(colRef, {
+    addDocumentNonBlocking(colRef, {
       ...eventData,
       teamId: activeTeam.id,
       date: eventData.date.toISOString(),
@@ -573,13 +569,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const updateRSVP = (eventId: string, status: RSVPStatus) => {
     if (!activeTeam || !firebaseUser) return;
     const docRef = doc(db, 'teams', activeTeam.id, 'events', eventId);
-    updateDoc(docRef, { [`userRsvps.${firebaseUser.uid}`]: status });
+    updateDocumentNonBlocking(docRef, { [`userRsvps.${firebaseUser.uid}`]: status });
   };
 
   const addGame = async (gameData: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => {
     if (!activeTeam || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'games');
-    addDoc(colRef, {
+    addDocumentNonBlocking(colRef, {
       ...gameData,
       teamId: activeTeam.id,
       date: gameData.date.toISOString(),
@@ -611,7 +607,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addFile = async (name: string, type: string, size: string, url: string) => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'files');
-    addDoc(colRef, {
+    addDocumentNonBlocking(colRef, {
       teamId: activeTeam.id,
       fileName: name,
       fileType: type,
@@ -633,7 +629,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const createAlert = async (title: string, message: string) => {
     if (!activeTeam || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'alerts');
-    addDoc(colRef, {
+    addDocumentNonBlocking(colRef, {
       teamId: activeTeam.id,
       title,
       message,

@@ -6,23 +6,66 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ImagePlus, MessageSquare, Trash2, Calendar, Send, Heart, Camera, Loader2, Info } from 'lucide-react';
+import { ImagePlus, MessageSquare, Trash2, Calendar, Send, Heart, Camera, Loader2, Info, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
-import { useTeam } from '@/components/providers/team-provider';
+import { useTeam, Comment } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
+
+function CommentList({ postId, teamId }: { postId: string, teamId: string }) {
+  const db = useFirestore();
+  const q = useMemoFirebase(() => {
+    return query(
+      collection(db, 'teams', teamId, 'feedPosts', postId, 'comments'),
+      orderBy('createdAt', 'asc')
+    );
+  }, [db, teamId, postId]);
+  
+  const { data: comments, isLoading } = useCollection<Comment>(q);
+
+  if (isLoading) return <div className="p-2 text-[10px] text-muted-foreground animate-pulse">Loading comments...</div>;
+  if (!comments || comments.length === 0) return null;
+
+  return (
+    <div className="space-y-3 mt-4">
+      {comments.map((comment) => (
+        <div key={comment.id} className="flex gap-3 items-start animate-in fade-in slide-in-from-left-2 duration-300">
+          <Avatar className="h-7 w-7 shrink-0 border border-muted">
+            <AvatarFallback className="text-[10px] font-bold">{comment.authorName[0]}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0 bg-muted/30 p-2.5 rounded-2xl">
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-[10px] font-black tracking-tight">{comment.authorName}</span>
+              <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
+            </div>
+            <p className="text-xs font-medium text-foreground/80 leading-snug">{comment.content}</p>
+            {comment.imageUrl && (
+              <div className="mt-2 rounded-xl overflow-hidden border border-muted shadow-sm max-w-[200px]">
+                <img src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function FeedPage() {
   const { activeTeam, posts, addPost, addComment, toggleLike, user, members, updateTeamHero, formatTime } = useTeam();
   const [newPostContent, setNewPostContent] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [commentInputs, setCommentInputs] = useState<{ [key: string]: string }>({});
+  const [commentImages, setCommentImages] = useState<{ [key: string]: string }>({});
   const [mounted, setMounted] = useState(false);
   const [isUpdatingHero, setIsUpdatingHero] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const commentFileInputRef = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   useEffect(() => {
     setMounted(true);
@@ -66,7 +109,7 @@ export default function FeedPage() {
   };
 
   const handlePost = () => {
-    if (!newPostContent.trim()) return;
+    if (!newPostContent.trim() && !imageUrl) return;
     addPost(newPostContent, imageUrl);
     setNewPostContent('');
     setImageUrl(undefined);
@@ -76,6 +119,13 @@ export default function FeedPage() {
     if (e.target.files && e.target.files[0]) {
       const compressed = await compressImage(e.target.files[0]);
       setImageUrl(compressed);
+    }
+  };
+
+  const handleCommentFileChange = async (postId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const compressed = await compressImage(e.target.files[0]);
+      setCommentImages(prev => ({ ...prev, [postId]: compressed }));
     }
   };
 
@@ -96,9 +146,15 @@ export default function FeedPage() {
 
   const handleCommentSubmit = (postId: string) => {
     const content = commentInputs[postId];
-    if (!content?.trim()) return;
-    addComment(postId, content);
+    const image = commentImages[postId];
+    if (!content?.trim() && !image) return;
+    addComment(postId, content || '', image);
     setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+    setCommentImages(prev => {
+      const updated = { ...prev };
+      delete updated[postId];
+      return updated;
+    });
   };
 
   const handleToggleLike = (postId: string) => {
@@ -166,7 +222,7 @@ export default function FeedPage() {
                 <div className="relative rounded-2xl overflow-hidden border-4 border-white shadow-lg animate-in zoom-in-95">
                   <img src={imageUrl} alt="Preview" className="w-full h-auto object-cover max-h-[400px]" />
                   <Button variant="destructive" size="icon" className="absolute top-3 right-3 h-8 w-8 rounded-full shadow-lg" onClick={() => setImageUrl(undefined)}>
-                    <Trash2 className="h-4 w-4" />
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               )}
@@ -178,7 +234,7 @@ export default function FeedPage() {
                     Media
                   </Button>
                 </div>
-                <Button disabled={!newPostContent.trim()} onClick={handlePost} className="rounded-full px-6 font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
+                <Button disabled={!newPostContent.trim() && !imageUrl} onClick={handlePost} className="rounded-full px-6 font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
                   Post to Squad
                 </Button>
               </div>
@@ -249,23 +305,59 @@ export default function FeedPage() {
                         <span className="ml-1.5 opacity-60">({post.likes.length})</span>
                       )}
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-9 px-4 rounded-full text-muted-foreground font-bold hover:bg-primary/5 hover:text-primary">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      {(post.comments || []).length} Comments
-                    </Button>
+                    <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">
+                      <MessageSquare className="h-4 w-4" />
+                      Discussion
+                    </div>
                   </div>
                   <div className="w-full space-y-4 px-1">
-                    <div className="flex gap-3 pt-2">
-                      <Input 
-                        placeholder="Write something to your squad..." 
-                        className="bg-muted/50 border-none rounded-2xl h-11 text-sm font-medium px-5 shadow-inner"
-                        value={commentInputs[post.id] || ''}
-                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)}
-                      />
-                      <Button size="icon" className="rounded-2xl h-11 w-11 shrink-0 shadow-lg shadow-primary/10 active:scale-90" onClick={() => handleCommentSubmit(post.id)}>
-                        <Send className="h-5 w-5" />
-                      </Button>
+                    <CommentList postId={post.id} teamId={activeTeam.id} />
+                    
+                    <div className="space-y-3 pt-2">
+                      {commentImages[post.id] && (
+                        <div className="relative inline-block rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm animate-in zoom-in-95">
+                          <img src={commentImages[post.id]} alt="Comment preview" className="h-20 w-auto object-cover" />
+                          <Button 
+                            variant="destructive" 
+                            size="icon" 
+                            className="absolute -top-1 -right-1 h-5 w-5 rounded-full"
+                            onClick={() => setCommentImages(prev => {
+                              const updated = { ...prev };
+                              delete updated[post.id];
+                              return updated;
+                            })}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <input 
+                          type="file" 
+                          ref={el => { commentFileInputRef.current[post.id] = el; }} 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={(e) => handleCommentFileChange(post.id, e)} 
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-11 w-11 rounded-2xl bg-muted/50 text-muted-foreground"
+                          onClick={() => commentFileInputRef.current[post.id]?.click()}
+                        >
+                          <ImagePlus className="h-5 w-5" />
+                        </Button>
+                        <Input 
+                          placeholder="Write something to your squad..." 
+                          className="bg-muted/50 border-none rounded-2xl h-11 text-sm font-medium px-5 shadow-inner"
+                          value={commentInputs[post.id] || ''}
+                          onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                          onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)}
+                        />
+                        <Button size="icon" className="rounded-2xl h-11 w-11 shrink-0 shadow-lg shadow-primary/10 active:scale-90" onClick={() => handleCommentSubmit(post.id)}>
+                          <Send className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardFooter>

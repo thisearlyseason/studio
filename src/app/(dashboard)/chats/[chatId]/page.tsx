@@ -12,7 +12,8 @@ import {
   X,
   Plus,
   Trash2,
-  Users
+  Users,
+  ImagePlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,7 +46,9 @@ export default function ChatRoomPage() {
   const [suggestedPoll, setSuggestedPoll] = useState<{question: string, options: string[]} | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [viewVotersFor, setViewVotersFor] = useState<{question: string, optionIdx: number, voterIds: string[]} | null>(null);
+  const [chatImage, setChatImage] = useState<string | undefined>();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setActiveChatId(chatId as string);
@@ -60,10 +63,52 @@ export default function ChatRoomPage() {
     }
   }, [messages]);
 
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+      };
+    });
+  };
+
   const handleSendMessage = () => {
-    if (!input.trim() || !currentChat || !user) return;
-    addMessage(currentChat.id, user.name, input, 'text');
+    if ((!input.trim() && !chatImage) || !currentChat || !user) return;
+    
+    if (chatImage && !input.trim()) {
+      addMessage(currentChat.id, user.name, '', 'image', chatImage);
+    } else if (chatImage) {
+      addMessage(currentChat.id, user.name, input, 'image', chatImage);
+    } else {
+      addMessage(currentChat.id, user.name, input, 'text');
+    }
+    
     setInput('');
+    setChatImage(undefined);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const compressed = await compressImage(e.target.files[0]);
+      setChatImage(compressed);
+    }
   };
 
   const handleSuggestPoll = async () => {
@@ -118,7 +163,7 @@ export default function ChatRoomPage() {
       isClosed: false
     };
 
-    addMessage(currentChat.id, user.name, '', 'poll', pollData);
+    addMessage(currentChat.id, user.name, '', 'poll', undefined, pollData);
     setIsPollDialogOpen(false);
     setSuggestedPoll(null);
     setPollPrompt('');
@@ -145,19 +190,24 @@ export default function ChatRoomPage() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => {
-          const isMe = msg.author === user?.name;
+          const isMe = msg.authorId === user?.id || msg.author === user?.name;
           return (
             <div key={msg.id} className={cn("flex flex-col gap-1.5", isMe ? 'items-end' : 'items-start')}>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-bold uppercase text-muted-foreground">{msg.author}</span>
                 <span className="text-[10px] text-muted-foreground/50">{formatTime(msg.createdAt)}</span>
               </div>
-              {msg.type === 'text' ? (
-                <div className={cn("max-w-[85%] p-3 rounded-2xl text-sm shadow-sm", isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
-                  {msg.content}
+              {msg.type === 'text' || msg.type === 'image' ? (
+                <div className={cn("max-w-[85%] p-3 rounded-2xl text-sm shadow-sm space-y-2", isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
+                  {msg.imageUrl && (
+                    <div className="rounded-xl overflow-hidden border border-white/20 shadow-lg">
+                      <img src={msg.imageUrl} alt="Chat attachment" className="w-full h-auto max-h-[300px] object-cover" />
+                    </div>
+                  )}
+                  {msg.content && <p>{msg.content}</p>}
                 </div>
               ) : (
-                <div className="w-full max-w-[90%] bg-card border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-full max-w-[90%] bg-card border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                   <div className="bg-primary/5 p-4 border-b">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[10px] font-black text-primary uppercase tracking-widest">Active Poll</span>
@@ -212,7 +262,24 @@ export default function ChatRoomPage() {
       </div>
 
       <div className="p-4 bg-background border-t">
+        {chatImage && (
+          <div className="mb-3 relative inline-block">
+            <img src={chatImage} alt="Attachment preview" className="h-20 w-auto rounded-xl border-2 border-primary/20 shadow-md" />
+            <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={() => setChatImage(undefined)}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="shrink-0 rounded-full h-11 w-11 border-primary/30 text-primary hover:bg-primary/10"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImagePlus className="h-5 w-5" />
+          </Button>
           <Dialog open={isPollDialogOpen} onOpenChange={setIsPollDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon" className="shrink-0 rounded-full h-11 w-11 border-primary/30 text-primary hover:bg-primary/10">
