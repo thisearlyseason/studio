@@ -2,17 +2,19 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ImagePlus, MessageSquare, Trash2, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { useTeam } from '@/components/providers/team-provider';
 
 const MOCK_POSTS = [
   {
     id: '1',
+    teamId: '1',
     author: { name: 'Coach Miller', avatar: 'https://picsum.photos/seed/coach/150/150' },
     content: "Great job today everyone! Let's keep this energy up for the tournament this weekend.",
     type: 'user',
@@ -24,16 +26,17 @@ const MOCK_POSTS = [
   },
   {
     id: '2',
+    teamId: '1',
     author: { name: 'System', avatar: '' },
     content: "New Event: Regional Qualifiers - Saturday at 9:00 AM",
     type: 'system',
     createdAt: new Date(Date.now() - 7200000).toISOString(),
-    linkedEventId: 'e1'
   },
   {
     id: '3',
-    author: { name: 'Sarah Connor', avatar: 'https://picsum.photos/seed/sarah/150/150' },
-    content: "Does anyone have a spare jersey? I lost mine after practice.",
+    teamId: '2',
+    author: { name: 'Donna Paulsen', avatar: 'https://picsum.photos/seed/donna/150/150' },
+    content: "Court bookings are confirmed for the rest of the month!",
     type: 'user',
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     comments: []
@@ -41,7 +44,10 @@ const MOCK_POSTS = [
 ];
 
 export default function FeedPage() {
+  const { activeTeam } = useTeam();
   const [newPost, setNewPost] = useState('');
+
+  const teamPosts = MOCK_POSTS.filter(p => p.teamId === activeTeam.id);
 
   return (
     <div className="space-y-6">
@@ -49,13 +55,13 @@ export default function FeedPage() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex gap-4">
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-10 w-10 shrink-0">
               <AvatarImage src="https://picsum.photos/seed/me/150/150" />
               <AvatarFallback>ME</AvatarFallback>
             </Avatar>
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 space-y-3 min-w-0">
               <Textarea 
-                placeholder="What's happening with the team?" 
+                placeholder={`Post to ${activeTeam.name}...`} 
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
                 className="min-h-[100px] resize-none border-none focus-visible:ring-0 p-0 text-base"
@@ -74,7 +80,7 @@ export default function FeedPage() {
 
       {/* Feed List */}
       <div className="space-y-4">
-        {MOCK_POSTS.map((post) => (
+        {teamPosts.length > 0 ? teamPosts.map((post) => (
           <Card key={post.id} className={post.type === 'system' ? 'border-primary/20 bg-primary/5' : ''}>
             {post.type === 'user' && (
               <CardHeader className="flex flex-row items-center gap-3 pb-3">
@@ -107,7 +113,7 @@ export default function FeedPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 pt-4">
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
                   {post.imageUrl && (
                     <div className="rounded-lg overflow-hidden border">
@@ -144,7 +150,11 @@ export default function FeedPage() {
               </CardFooter>
             )}
           </Card>
-        ))}
+        )) : (
+          <div className="text-center py-20 bg-muted/20 rounded-2xl">
+            <p className="text-muted-foreground">No posts for {activeTeam.name} yet.</p>
+          </div>
+        )}
       </div>
     </div>
   );

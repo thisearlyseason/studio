@@ -6,27 +6,43 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MoreVertical, ShieldCheck, Mail, Phone } from 'lucide-react';
+import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTeam } from '@/components/providers/team-provider';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const MOCK_ROSTER = [
-  { id: '1', name: 'James Miller', role: 'Admin', position: 'Head Coach', jersey: 'COACH', avatar: 'https://picsum.photos/seed/coach/150/150' },
-  { id: '2', name: 'Alex Smith', role: 'Member', position: 'Striker', jersey: '10', avatar: 'https://picsum.photos/seed/alex/150/150' },
-  { id: '3', name: 'Sarah Connor', role: 'Member', position: 'Midfield', jersey: '08', avatar: 'https://picsum.photos/seed/sarah/150/150' },
-  { id: '4', name: 'Mike Ross', role: 'Member', position: 'Defense', jersey: '04', avatar: 'https://picsum.photos/seed/mike/150/150' },
-  { id: '5', name: 'Donna Paulsen', role: 'Member', position: 'Goalkeeper', jersey: '01', avatar: 'https://picsum.photos/seed/donna/150/150' },
+  { id: '1', teamId: '1', name: 'James Miller', role: 'Admin', position: 'Head Coach', jersey: 'COACH', avatar: 'https://picsum.photos/seed/coach/150/150' },
+  { id: '2', teamId: '1', name: 'Alex Smith', role: 'Member', position: 'Striker', jersey: '10', avatar: 'https://picsum.photos/seed/alex/150/150' },
+  { id: '3', teamId: '1', name: 'Sarah Connor', role: 'Member', position: 'Midfield', jersey: '08', avatar: 'https://picsum.photos/seed/sarah/150/150' },
+  { id: '4', teamId: '2', name: 'Mike Ross', role: 'Member', position: 'Point Guard', jersey: '04', avatar: 'https://picsum.photos/seed/mike/150/150' },
+  { id: '5', teamId: '2', name: 'Donna Paulsen', role: 'Admin', position: 'Manager', jersey: 'MGR', avatar: 'https://picsum.photos/seed/donna/150/150' },
 ];
 
 export default function RosterPage() {
+  const { activeTeam } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<any>(null);
   
-  const filteredRoster = MOCK_ROSTER.filter(member => 
+  const teamRoster = MOCK_ROSTER.filter(member => member.teamId === activeTeam.id);
+  
+  const filteredRoster = teamRoster.filter(member => 
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.position.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -34,7 +50,39 @@ export default function RosterPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-bold">Team Roster</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Team Roster</h1>
+          <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invite
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite to {activeTeam.name}</DialogTitle>
+                <DialogDescription>
+                  Share the team code or send an email invitation.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="p-4 bg-muted rounded-xl text-center space-y-1">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Your Team Code</p>
+                  <p className="text-3xl font-black text-primary tracking-widest">{activeTeam.code}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Email Address</Label>
+                  <Input placeholder="teammate@example.com" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button className="w-full" onClick={() => setIsInviteOpen(false)}>Send Invitation</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+        
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
@@ -50,7 +98,7 @@ export default function RosterPage() {
         {filteredRoster.map((member) => (
           <Card key={member.id} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="relative">
+              <div className="relative shrink-0">
                 <Avatar className="h-14 w-14 rounded-2xl border-2 border-background shadow-sm">
                   <AvatarImage src={member.avatar} />
                   <AvatarFallback className="rounded-2xl">{member.name[0]}</AvatarFallback>
@@ -87,8 +135,7 @@ export default function RosterPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>View Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Edit Member Info</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setEditingMember(member)}>Edit Labels</DropdownMenuItem>
                   <DropdownMenuItem className="text-destructive">Remove from Team</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -96,6 +143,29 @@ export default function RosterPage() {
           </Card>
         ))}
       </div>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={!!editingMember} onOpenChange={() => setEditingMember(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Member Details</DialogTitle>
+            <DialogDescription>Update labels for {editingMember?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Position</Label>
+              <Input defaultValue={editingMember?.position} />
+            </div>
+            <div className="space-y-2">
+              <Label>Jersey #</Label>
+              <Input defaultValue={editingMember?.jersey} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setEditingMember(null)}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {filteredRoster.length === 0 && (
         <div className="text-center py-20">

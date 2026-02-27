@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -12,12 +12,12 @@ import {
   FileText, 
   Settings,
   ChevronDown,
-  LogOut,
   Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useTeam } from '@/components/providers/team-provider';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,13 +38,7 @@ const tabs = [
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [currentTeam, setCurrentTeam] = useState('Eagles Soccer Club');
-  
-  // Mock teams
-  const teams = [
-    { id: '1', name: 'Eagles Soccer Club', code: 'EAGL01' },
-    { id: '2', name: 'Wildcats Basketball', code: 'CAT99X' }
-  ];
+  const { activeTeam, setActiveTeam, teams } = useTeam();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -55,7 +49,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 font-bold text-lg p-0 hover:bg-transparent">
-                  {currentTeam}
+                  {activeTeam.name}
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
@@ -63,7 +57,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuLabel>Your Teams</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {teams.map((team) => (
-                  <DropdownMenuItem key={team.id} onClick={() => setCurrentTeam(team.name)}>
+                  <DropdownMenuItem key={team.id} onClick={() => setActiveTeam(team)}>
                     {team.name}
                   </DropdownMenuItem>
                 ))}
@@ -72,12 +66,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   <Link href="/teams/new" className="flex items-center">
                     <Plus className="mr-2 h-4 w-4" />
                     Create New Team
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/teams/join" className="flex items-center">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Join with Code
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -101,7 +89,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <div className="container flex h-16 items-center justify-around max-w-2xl mx-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = pathname === tab.href;
+            const isActive = pathname.startsWith(tab.href);
             return (
               <Link
                 key={tab.name}
