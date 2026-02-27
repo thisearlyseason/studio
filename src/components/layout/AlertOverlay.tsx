@@ -17,7 +17,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Megaphone, Bell } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
-import { toast } from '@/hooks/use-toast';
 
 const SEEN_ALERTS_KEY = 'squad_seen_alerts_ids';
 
@@ -47,13 +46,6 @@ export function AlertOverlay() {
       if (!seenIds.includes(latestAlert.id) && !isAlertOpen) {
         setCurrentAlertId(latestAlert.id);
         setIsAlertOpen(true);
-        
-        // Also show a toast notification for extra visibility
-        toast({
-          title: "New Team Alert!",
-          description: latestAlert.title,
-          variant: "default",
-        });
       }
     }
   }, [alerts, seenIds, isAlertOpen]);
