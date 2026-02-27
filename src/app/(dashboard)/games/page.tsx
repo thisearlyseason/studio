@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Trophy, Plus, MapPin, Calendar, Info, TrendingUp, TrendingDown, MinusCircle, Edit2, Lock, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Trophy, Plus, MapPin, Calendar, Info, TrendingUp, TrendingDown, MinusCircle, Edit2, Lock, Sparkles, LineChart as ChartIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -20,6 +20,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { useTeam, GameResult, Game } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Line, LineChart, CartesianGrid, XAxis, ResponsiveContainer, YAxis } from "recharts";
+
+const chartConfig = {
+  myScore: {
+    label: "Our Score",
+    color: "hsl(var(--primary))",
+  },
+  opponentScore: {
+    label: "Opponent",
+    color: "hsl(var(--muted-foreground))",
+  },
+} satisfies ChartConfig;
 
 export default function GamesPage() {
   const { activeTeam, games, addGame, updateGame, user, isPro } = useTeam();
@@ -38,6 +56,45 @@ export default function GamesPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const chartData = useMemo(() => {
+    return [...games]
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map(g => ({
+        date: g.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        myScore: g.myScore,
+        opponentScore: g.opponentScore,
+      }));
+  }, [games]);
+
+  const encouragement = useMemo(() => {
+    if (games.length === 0) return "Record your first game to start tracking progress!";
+    
+    const wins = games.filter(g => g.result === 'Win').length;
+    const winRate = wins / games.length;
+    const lastGame = games[0]; // games is sorted descending by date in provider usually, or we can check logic
+
+    if (games.length >= 3) {
+      const lastThree = games.slice(0, 3);
+      if (lastThree.every(g => g.result === 'Win')) {
+        return "Unstoppable! A 3-game winning streak is proof of your hard work. Stay hungry!";
+      }
+    }
+
+    if (lastGame.result === 'Win') {
+      return "Victory! Great job on the latest win. Let's carry this energy into the next one.";
+    }
+
+    if (lastGame.result === 'Loss') {
+      return "Tough game, but champions are built in the comeback. Review the film and level up!";
+    }
+
+    if (winRate > 0.7) {
+      return "You're dominating the league! Keep that focus high and the championship is yours.";
+    }
+
+    return "Every play is a step towards greatness. Keep training, keep pushing, and the wins will follow.";
+  }, [games]);
 
   if (!mounted || !activeTeam) {
     return (
@@ -216,6 +273,65 @@ export default function GamesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Performance Chart */}
+      {games.length > 0 && (
+        <Card className="rounded-[2rem] border-none shadow-xl shadow-primary/5 ring-1 ring-black/5 overflow-hidden">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <ChartIcon className="h-4 w-4 text-primary" />
+              <CardTitle className="text-lg font-black">Performance Trend</CardTitle>
+            </div>
+            <CardDescription className="text-xs font-bold uppercase tracking-widest">Scoring trajectory for the season</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="h-[200px] w-full pt-4">
+              <ChartContainer config={chartConfig} className="h-full w-full">
+                <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fontWeight: 'bold' }} 
+                    dy={10}
+                  />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="myScore" 
+                    stroke="var(--color-myScore)" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: "var(--color-myScore)" }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="opponentScore" 
+                    stroke="var(--color-opponentScore)" 
+                    strokeWidth={2} 
+                    strokeDasharray="5 5"
+                    dot={false}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </div>
+            
+            <div className="bg-primary/5 rounded-2xl p-4 flex items-start gap-3 border border-primary/10">
+              <div className="bg-primary text-white p-1.5 rounded-lg shrink-0">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-black uppercase text-primary tracking-widest leading-none">Squad Motivation</p>
+                <p className="text-sm font-bold text-foreground/80 leading-relaxed italic">
+                  "{encouragement}"
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-4">
         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Recent Match History</h2>
