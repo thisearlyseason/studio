@@ -1,6 +1,342 @@
 
-import { redirect } from 'next/navigation';
+"use client";
 
-export default function Home() {
-  redirect('/feed');
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { 
+  ShieldCheck, 
+  ChevronRight, 
+  Calendar, 
+  MessageSquare, 
+  Users, 
+  Trophy, 
+  CheckCircle2, 
+  Mail, 
+  MapPin, 
+  Phone,
+  BarChart3,
+  Globe,
+  ArrowRight,
+  Star
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { cn } from '@/lib/utils';
+
+export default function LandingPage() {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Filter for sports images
+  const sportsImages = [
+    "https://picsum.photos/seed/soccer/1920/1080",
+    "https://picsum.photos/seed/basketball/1920/1080",
+    "https://picsum.photos/seed/football/1920/1080",
+    "https://picsum.photos/seed/baseball/1920/1080",
+    "https://picsum.photos/seed/tennis/1920/1080"
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % sportsImages.length);
+    }, 5000);
+
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [sportsImages.length]);
+
+  return (
+    <div className="min-h-screen bg-background selection:bg-primary/20">
+      {/* Navigation */}
+      <nav className={cn(
+        "fixed top-0 w-full z-50 transition-all duration-300 border-b",
+        isScrolled ? "bg-white/80 backdrop-blur-md py-3 shadow-sm border-border" : "bg-transparent py-5 border-transparent"
+      )}>
+        <div className="container mx-auto px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 hero-gradient rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 rotate-3">
+              <ShieldCheck className="h-6 w-6 text-white" />
+            </div>
+            <span className={cn("text-xl font-black tracking-tighter", isScrolled ? "text-foreground" : "text-white")}>
+              THE SQUAD
+            </span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-widest">
+            <a href="#features" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Features</a>
+            <a href="#pricing" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Pricing</a>
+            <a href="#contact" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Contact</a>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link href="/login">
+              <Button variant="ghost" className={cn("font-bold", isScrolled ? "text-foreground" : "text-white hover:bg-white/10")}>
+                Log In
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button className="rounded-full px-6 font-bold shadow-lg shadow-primary/20">
+                Join Now
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        {sportsImages.map((img, idx) => (
+          <div 
+            key={idx}
+            className={cn(
+              "absolute inset-0 transition-opacity duration-1000 ease-in-out",
+              currentImageIndex === idx ? "opacity-100" : "opacity-0"
+            )}
+          >
+            <img 
+              src={img} 
+              alt="Sports Background" 
+              className="w-full h-full object-cover scale-105"
+            />
+            <div className="absolute inset-0 bg-black/60 bg-gradient-to-b from-black/40 via-transparent to-black/80" />
+          </div>
+        ))}
+
+        <div className="container relative z-10 px-6 text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          <Badge className="bg-primary/20 backdrop-blur-md text-primary-foreground border-primary/30 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em] animate-pulse">
+            The Ultimate Team Hub
+          </Badge>
+          <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-[0.9] max-w-4xl mx-auto drop-shadow-2xl">
+            COORDINATE <br className="hidden md:block" /> LIKE <span className="text-primary italic">PROS.</span>
+          </h1>
+          <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-medium leading-relaxed">
+            Unite your squad, manage schedules, and dominate the season with the all-in-one platform for competitive teams.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+            <Link href="/signup">
+              <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full sm:w-auto">
+                Start Your Squad <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Button size="lg" variant="outline" className="h-16 px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full sm:w-auto">
+              See the Demo
+            </Button>
+          </div>
+        </div>
+
+        {/* Floating Stats */}
+        <div className="absolute bottom-12 left-0 right-0 hidden md:block">
+          <div className="container mx-auto px-6 flex justify-center gap-20 text-white">
+            <div className="text-center">
+              <p className="text-3xl font-black">2.5k+</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Active Teams</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-black">50k+</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Scheduled Games</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-black">99.9%</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Coordination Rate</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-24 bg-white relative overflow-hidden">
+        <div className="container mx-auto px-6">
+          <div className="text-center space-y-4 mb-16 max-w-3xl mx-auto">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Everything you need</h2>
+            <h3 className="text-4xl md:text-5xl font-black tracking-tight">Built for Champions.</h3>
+            <p className="text-muted-foreground font-medium text-lg">
+              Stop using fragmented group chats and spreadsheets. The Squad brings everything into a single, high-performance dashboard.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { icon: Calendar, title: "Pro Schedule", desc: "Interactive match day calendars with RSVP tracking for the entire roster." },
+              { icon: MessageSquare, title: "Tactical Chats", desc: "Private group discussions for positions, strategy, or event planning." },
+              { icon: Users, title: "Roster Logic", desc: "Professional member profiles with role management and jersey tracking." },
+              { icon: BarChart3, title: "Game Stats", desc: "Track every win, loss, and draw with visual performance metrics." },
+              { icon: BarChart3, title: "Live Feed", desc: "A centralized hub for squad updates, media sharing, and high-priority alerts." },
+              { icon: Globe, title: "Team Library", desc: "Shared repository for playbooks, waivers, and tournament documents." }
+            ].map((feature, i) => (
+              <Card key={i} className="group border-none shadow-xl shadow-primary/5 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-[2rem] overflow-hidden">
+                <CardContent className="p-10 space-y-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500 rotate-3">
+                    <feature.icon className="h-8 w-8" />
+                  </div>
+                  <h4 className="text-xl font-black tracking-tight pt-2">{feature.title}</h4>
+                  <p className="text-muted-foreground font-medium leading-relaxed">
+                    {feature.desc}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-24 bg-muted/30 relative">
+        <div className="container mx-auto px-6">
+          <div className="text-center space-y-4 mb-16">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Simple, transparent pricing</h2>
+            <h3 className="text-4xl md:text-5xl font-black tracking-tight">One Price. Infinite Success.</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Monthly Plan */}
+            <Card className="border-none shadow-2xl rounded-[3rem] p-10 space-y-8 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                <Trophy className="h-40 w-40 -rotate-12" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Monthly Play</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-5xl font-black">$9.99</span>
+                  <span className="text-muted-foreground font-bold">/team/mo</span>
+                </div>
+              </div>
+              <ul className="space-y-4 font-bold text-sm text-foreground/80">
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Unlimited Members</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Full Admin Suite</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Real-time Coordination</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> 10GB Team Storage</li>
+              </ul>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
+                Select Monthly
+              </Button>
+            </Card>
+
+            {/* Yearly Plan */}
+            <Card className="border-2 border-primary shadow-2xl rounded-[3rem] p-10 space-y-8 relative overflow-hidden bg-primary text-primary-foreground group">
+              <div className="absolute -top-4 -right-4 bg-white text-primary text-[10px] font-black px-4 py-2 rotate-12 shadow-lg z-10">
+                BEST VALUE
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-black uppercase tracking-widest text-white/60">Annual Dominance</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-5xl font-black">$100</span>
+                  <span className="text-white/60 font-bold">/team/yr</span>
+                </div>
+                <p className="text-[10px] font-black uppercase text-white/40">Saves $20 per year</p>
+              </div>
+              <ul className="space-y-4 font-bold text-sm">
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Unlimited Members</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Priority Support</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Advanced Analytics</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> 50GB Team Storage</li>
+              </ul>
+              <Button variant="secondary" className="w-full h-14 rounded-2xl text-lg font-black shadow-xl bg-white text-primary hover:bg-white/90 active:scale-95 transition-all">
+                Select Annual
+              </Button>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-24 bg-white">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Get in touch</h2>
+                <h3 className="text-4xl md:text-5xl font-black tracking-tight">Need a custom plan <br />for your league?</h3>
+                <p className="text-muted-foreground font-medium text-lg leading-relaxed">
+                  We offer enterprise-grade solutions for sports leagues and multi-team organizations. Connect with our coordination experts today.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-4 group">
+                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <span className="font-bold">leagues@thesquad.io</span>
+                </div>
+                <div className="flex items-center gap-4 group">
+                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <span className="font-bold">San Francisco, CA</span>
+                </div>
+                <div className="flex items-center gap-4 group">
+                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                    <Phone className="h-5 w-5" />
+                  </div>
+                  <span className="font-bold">+1 (555) SQUAD-UP</span>
+                </div>
+              </div>
+            </div>
+
+            <Card className="border-none shadow-2xl rounded-[3rem] p-8 md:p-12 overflow-hidden ring-1 ring-black/5 bg-background">
+              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest">Name</Label>
+                    <Input placeholder="John Doe" className="h-12 rounded-xl bg-muted/50 border-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest">Email</Label>
+                    <Input type="email" placeholder="john@example.com" className="h-12 rounded-xl bg-muted/50 border-none" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest">Team/League Name</Label>
+                  <Input placeholder="Westside Warriors" className="h-12 rounded-xl bg-muted/50 border-none" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest">How can we help?</Label>
+                  <Textarea placeholder="Tell us about your organization..." className="min-h-[120px] rounded-xl bg-muted/50 border-none resize-none" />
+                </div>
+                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
+                  Send Inquiry
+                </Button>
+              </form>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 bg-muted/50 border-t">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 hero-gradient rounded-lg flex items-center justify-center shadow-md">
+                <ShieldCheck className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-black tracking-tighter text-lg">THE SQUAD</span>
+            </div>
+            
+            <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+              <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-primary transition-colors">Safety Center</a>
+            </div>
+
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              © {new Date().getFullYear()} The Squad Hub. All Rights Reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 }
