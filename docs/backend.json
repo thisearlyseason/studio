@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -40,6 +41,18 @@
         "isPro": { "type": "boolean" },
         "joinedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "EventRegistration": {
+      "title": "EventRegistration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "added"] }
+      }
     }
   },
   "auth": {
@@ -58,14 +71,21 @@
         "path": "/users/{userId}/teamMemberships/{teamId}",
         "definition": {
           "entityName": "TeamMember",
-          "description": "Critical lookup path for team access. Contains denormalized team metadata for listing without public collection access."
+          "description": "Critical lookup path for team access."
         }
       },
       {
         "path": "/teams/{teamId}",
         "definition": {
           "entityName": "Team",
-          "description": "Core team documents. List restricted."
+          "description": "Core team documents."
+        }
+      },
+      {
+        "path": "/teams/{teamId}/events/{eventId}/registrations/{regId}",
+        "definition": {
+          "entityName": "EventRegistration",
+          "description": "External signups for team events."
         }
       }
     ]

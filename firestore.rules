@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,7 +13,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    /** Hardcoded Super Admin check for administrative UIDs provided in console errors. */
     function isSuperAdmin() {
       return isSignedIn() && request.auth.uid in ['ai2QThECAwfkAFw608m7TgPZTmk2', 'super-admin-uid-placeholder'];
     }
@@ -25,18 +25,12 @@ service cloud.firestore {
       return resource != null && isOwner(userId);
     }
 
-    /** Verifies a user's membership in a specific team via the denormalized path. */
     function isTeamMember(teamId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId));
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)));
     }
 
-    /** Verifies if the user is an Admin of a specific team. */
     function isTeamAdmin(teamId) {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)).data.role == 'Admin';
-    }
-
-    function isChatMember(chatData) {
-      return isSignedIn() && (request.auth.uid in chatData.memberIds);
+      return isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)).data.role == 'Admin');
     }
 
     // --- COLLECTION RULES ---
@@ -44,7 +38,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isSuperAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
 
@@ -54,78 +48,66 @@ service cloud.firestore {
         allow update: if isExistingOwner(userId);
         allow delete: if isExistingOwner(userId);
       }
-
-      match /hiddenChats/{chatId} {
-        allow get, list: if isOwner(userId);
-        allow create, update, delete: if isOwner(userId);
-      }
     }
 
     match /teams/{teamId} {
       allow get: if isSuperAdmin() || isTeamMember(teamId);
       allow list: if isSuperAdmin();
       allow create: if isSignedIn();
-      allow update, delete: if resource != null && (isSuperAdmin() || isTeamAdmin(teamId));
+      allow update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
 
       match /members/{memberId} {
-        allow read: if isSuperAdmin() || isTeamMember(teamId);
-        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
+        allow read: if isTeamMember(teamId);
+        allow create, update, delete: if isTeamAdmin(teamId);
       }
 
       match /feedPosts/{postId} {
-        allow read: if isSuperAdmin() || isTeamMember(teamId);
+        allow read: if isTeamMember(teamId);
         allow create: if isTeamMember(teamId);
-        allow update, delete: if isSuperAdmin() || (isTeamMember(teamId) && (isExistingOwner(resource.data.authorId) || isTeamAdmin(teamId)));
-
-        match /comments/{commentId} {
-          allow read: if isSuperAdmin() || isTeamMember(teamId);
-          allow create: if isTeamMember(teamId);
-          allow update, delete: if isSuperAdmin() || (isTeamMember(teamId) && (isExistingOwner(resource.data.authorId) || isTeamAdmin(teamId)));
-        }
+        allow update, delete: if isTeamAdmin(teamId) || (isTeamMember(teamId) && resource.data.authorId == request.auth.uid);
       }
 
       match /events/{eventId} {
-        allow read: if isSuperAdmin() || isTeamMember(teamId);
-        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
+        allow read: if isTeamMember(teamId) || get(/databases/$(database)/documents/teams/$(teamId)/events/$(eventId)).data.allowExternalRegistration == true;
+        allow create, update, delete: if isTeamAdmin(teamId);
 
-        match /rsvps/{userId} {
-          allow read: if isSuperAdmin() || isTeamMember(teamId);
-          allow create, update, delete: if isOwner(userId);
+        match /registrations/{regId} {
+          allow read: if isTeamAdmin(teamId);
+          allow create: if get(/databases/$(database)/documents/teams/$(teamId)/events/$(eventId)).data.allowExternalRegistration == true;
+          allow delete: if isTeamAdmin(teamId);
         }
-      }
-
-      match /games/{gameId} {
-        allow read: if isSuperAdmin() || isTeamMember(teamId);
-        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
-      }
-
-      match /drills/{drillId} {
-        allow read: if isSuperAdmin() || isTeamMember(teamId);
-        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
-      }
-
-      match /files/{fileId} {
-        allow read: if isSuperAdmin() || isTeamMember(teamId);
-        allow create: if isTeamMember(teamId);
-        allow update, delete: if isSuperAdmin() || isTeamAdmin(teamId) || isExistingOwner(resource.data.uploadedBy);
       }
 
       match /groupChats/{chatId} {
-        allow get, list: if isSuperAdmin() || isTeamMember(teamId);
+        allow get, list: if isTeamMember(teamId);
         allow create: if isTeamMember(teamId);
-        allow update: if isSuperAdmin() || (isTeamMember(teamId) && isChatMember(resource.data));
-        allow delete: if isSuperAdmin() || isTeamAdmin(teamId);
+        allow update, delete: if isTeamAdmin(teamId);
 
         match /messages/{messageId} {
-          allow read: if isSuperAdmin() || isTeamMember(teamId);
+          allow read: if isTeamMember(teamId);
           allow create: if isTeamMember(teamId);
-          allow update, delete: if isSuperAdmin() || isExistingOwner(resource.data.authorId);
         }
+      }
+      
+      match /games/{gameId} {
+        allow read: if isTeamMember(teamId);
+        allow create, update, delete: if isTeamAdmin(teamId);
+      }
+
+      match /drills/{drillId} {
+        allow read: if isTeamMember(teamId);
+        allow create, update, delete: if isTeamAdmin(teamId);
+      }
+
+      match /files/{fileId} {
+        allow read: if isTeamMember(teamId);
+        allow create: if isTeamMember(teamId);
+        allow update, delete: if isTeamAdmin(teamId);
       }
 
       match /alerts/{alertId} {
-        allow read: if isSuperAdmin() || isTeamMember(teamId);
-        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
+        allow read: if isTeamMember(teamId);
+        allow create, update, delete: if isTeamAdmin(teamId);
       }
     }
   }

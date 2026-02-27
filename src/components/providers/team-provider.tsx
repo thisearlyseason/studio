@@ -18,10 +18,12 @@ import {
   arrayUnion,
   arrayRemove,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  increment,
+  onSnapshot
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export type UserProfile = {
   id: string;
@@ -42,7 +44,7 @@ export type Team = {
   contactPhone?: string;
   membersMap?: Record<string, string>;
   isPro?: boolean;
-  role?: 'Admin' | 'Member'; // Added role to the team object for UI checks
+  role?: 'Admin' | 'Member';
 };
 
 export type MemberPosition = 'Coach' | 'Team Lead' | 'Assistant Coach' | 'Squad Leader' | 'Player' | 'Parent' | string;
@@ -64,6 +66,9 @@ export type Chat = {
   teamId: string;
   name: string;
   memberIds: string[];
+  lastMessage?: string;
+  time?: string;
+  unread?: number;
 };
 
 export type PollOption = {
@@ -88,8 +93,18 @@ export type Message = {
     totalVotes: number;
     userVoted?: number;
     isClosed: boolean;
-    voters?: Record<string, number>; // uid: optionIndex
+    voters?: Record<string, number>;
   };
+};
+
+export type Comment = {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  imageUrl?: string;
+  createdAt: string;
 };
 
 export type Post = {
@@ -114,15 +129,6 @@ export type Post = {
   };
 };
 
-export type Comment = {
-  id: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  imageUrl?: string;
-  createdAt: string;
-};
-
 export type RSVPStatus = 'going' | 'notGoing' | 'maybe';
 
 export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly';
@@ -141,6 +147,17 @@ export type TeamEvent = {
   recurrenceEndDate?: string;
   rsvps: { going: number; notGoing: number; maybe: number };
   userRsvp?: RSVPStatus;
+  maxRegistrations?: number;
+  allowExternalRegistration?: boolean;
+};
+
+export type EventRegistration = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  createdAt: string;
+  status: 'pending' | 'added';
 };
 
 export type GameResult = 'Win' | 'Loss' | 'Tie';
@@ -164,8 +181,8 @@ export type TeamFile = {
   name: string;
   type: string;
   size: string;
-  uploadedBy: string; // name
-  uploaderId: string; // uid
+  uploadedBy: string;
+  uploaderId: string;
   date: Date;
   url?: string;
 };
@@ -177,7 +194,7 @@ export type Drill = {
   description: string;
   thumbnailUrl?: string;
   photoUrl?: string;
-  videoUrl?: string; // e.g. YouTube
+  videoUrl?: string;
   category?: string;
   createdBy: string;
   createdAt: string;
@@ -220,6 +237,8 @@ interface TeamContextType {
   addEvent: (event: Omit<TeamEvent, 'id' | 'teamId' | 'rsvps'>) => void;
   updateEvent: (eventId: string, updates: Partial<TeamEvent>) => void;
   updateRSVP: (eventId: string, status: RSVPStatus) => void;
+  addRegistration: (teamId: string, eventId: string, data: Omit<EventRegistration, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
+  promoteToRoster: (teamId: string, eventId: string, registration: EventRegistration) => Promise<void>;
   games: Game[];
   addGame: (game: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => void;
   updateGame: (gameId: string, updates: Partial<Game>) => void;
@@ -251,6 +270,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const isSuperAdmin = firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
@@ -272,7 +292,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, db]);
 
-  // Query memberships instead of root teams to comply with security rules
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
     if (isSuperAdmin) return collection(db, 'teams');
@@ -284,7 +303,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!teamsRawData) return;
-
     if (isSuperAdmin) {
       setTeams(teamsRawData.map(t => ({
         id: t.id,
@@ -300,7 +318,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         role: 'Admin'
       })));
     } else {
-      // Map denormalized memberships to Team objects
       setTeams(teamsRawData.map(m => ({
         id: m.teamId,
         name: m.teamName,
@@ -320,16 +337,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       } else {
         const updated = teams.find(t => t.id === activeTeam.id);
         if (updated) {
-          // Robust comparison to prevent render loops
-          const hasChanged = 
-            updated.name !== activeTeam.name || 
-            updated.teamLogoUrl !== activeTeam.teamLogoUrl || 
-            updated.role !== activeTeam.role ||
-            updated.isPro !== activeTeam.isPro;
-            
-          if (hasChanged) {
-            setActiveTeam(updated);
-          }
+          const hasChanged = updated.name !== activeTeam.name || updated.teamLogoUrl !== activeTeam.teamLogoUrl || updated.role !== activeTeam.role || updated.isPro !== activeTeam.isPro;
+          if (hasChanged) setActiveTeam(updated);
         }
       }
     }
@@ -354,166 +363,89 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const postsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'feedPosts'),
-      orderBy('createdAt', 'desc')
-    );
+    return query(collection(db, 'teams', activeTeam.id, 'feedPosts'), orderBy('createdAt', 'desc'));
   }, [activeTeam?.id, db]);
   const { data: postsData } = useCollection(postsQuery);
-  const posts: Post[] = (postsData || [])
-    .map(p => ({
-      id: p.id,
-      teamId: p.teamId,
-      author: p.author || { name: 'Anonymous', avatar: '' },
-      authorId: p.authorId,
-      content: p.content,
-      type: p.type || 'user',
-      imageUrl: p.imageUrl,
-      createdAt: p.createdAt,
-      likes: p.likes || [],
-      systemData: p.systemData
-    }));
+  const posts: Post[] = (postsData || []).map(p => ({
+    id: p.id, teamId: p.teamId, author: p.author || { name: 'Anonymous', avatar: '' }, authorId: p.authorId, content: p.content, type: p.type || 'user', imageUrl: p.imageUrl, createdAt: p.createdAt, likes: p.likes || [], systemData: p.systemData
+  }));
 
   const eventsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
     return collection(db, 'teams', activeTeam.id, 'events');
   }, [activeTeam?.id, db]);
   const { data: eventsData } = useCollection(eventsQuery);
-  const events: TeamEvent[] = (eventsData || [])
-    .map(e => {
-      const userRsvpsMap = e.userRsvps || {};
-      const counts = { going: 0, notGoing: 0, maybe: 0 };
-      Object.values(userRsvpsMap).forEach(val => {
-        if (val === 'going') counts.going++;
-        if (val === 'notGoing') counts.notGoing++;
-        if (val === 'maybe') counts.maybe++;
-      });
-      
-      return {
-        id: e.id,
-        teamId: e.teamId,
-        title: e.title,
-        date: new Date(e.date),
-        startTime: e.startTime,
-        endTime: e.endTime,
-        location: e.location,
-        description: e.description,
-        recurrence: e.recurrence || 'none',
-        recurrenceDays: e.recurrenceDays,
-        recurrenceEndDate: e.recurrenceEndDate,
-        rsvps: counts,
-        userRsvp: userRsvpsMap[firebaseUser?.uid || ''] as RSVPStatus
-      };
-    })
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  const events: TeamEvent[] = (eventsData || []).map(e => {
+    const userRsvpsMap = e.userRsvps || {};
+    const counts = { going: 0, notGoing: 0, maybe: 0 };
+    Object.values(userRsvpsMap).forEach(val => { if (val === 'going') counts.going++; if (val === 'notGoing') counts.notGoing++; if (val === 'maybe') counts.maybe++; });
+    return {
+      id: e.id, teamId: e.teamId, title: e.title, date: new Date(e.date), startTime: e.startTime, endTime: e.endTime, location: e.location, description: e.description,
+      recurrence: e.recurrence || 'none', recurrenceDays: e.recurrenceDays, recurrenceEndDate: e.recurrenceEndDate, rsvps: counts, userRsvp: userRsvpsMap[firebaseUser?.uid || ''] as RSVPStatus,
+      maxRegistrations: e.maxRegistrations, allowExternalRegistration: e.allowExternalRegistration
+    };
+  }).sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const gamesQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
     return collection(db, 'teams', activeTeam.id, 'games');
   }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
   const { data: gamesData } = useCollection(gamesQuery);
-  const games: Game[] = (gamesData || [])
-    .map(g => ({
-      id: g.id,
-      teamId: g.teamId,
-      opponent: g.opponent,
-      date: new Date(g.date),
-      myScore: g.myScore,
-      opponentScore: g.opponentScore,
-      result: g.result as GameResult,
-      location: g.location,
-      notes: g.notes,
-      createdAt: g.createdAt
-    }))
-    .sort((a, b) => b.date.getTime() - a.date.getTime());
+  const games: Game[] = (gamesData || []).map(g => ({
+    id: g.id, teamId: g.teamId, opponent: g.opponent, date: new Date(g.date), myScore: g.myScore, opponentScore: g.opponentScore, result: g.result as GameResult, location: g.location, notes: g.notes, createdAt: g.createdAt
+  })).sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const alertsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'alerts'),
-      orderBy('createdAt', 'desc')
-    );
+    return query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'));
   }, [activeTeam?.id, db]);
   const { data: alertsData } = useCollection(alertsQuery);
-  const alerts: TeamAlert[] = (alertsData || []).map(a => ({
-    id: a.id,
-    teamId: a.teamId,
-    title: a.title,
-    message: a.message,
-    createdBy: a.createdBy,
-    createdAt: a.createdAt
-  }));
-
-  const drillsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'drills'),
-      orderBy('createdAt', 'desc')
-    );
-  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
-  const { data: drillsData } = useCollection(drillsQuery);
-  const drills: Drill[] = (drillsData || []).map(d => ({
-    id: d.id,
-    teamId: d.teamId,
-    title: d.title,
-    description: d.description,
-    thumbnailUrl: d.thumbnailUrl,
-    photoUrl: d.photoUrl,
-    videoUrl: d.videoUrl,
-    category: d.category,
-    createdBy: d.createdBy,
-    createdAt: d.createdAt
-  }));
+  const alerts: TeamAlert[] = (alertsData || []).map(a => ({ id: a.id, teamId: a.teamId, title: a.title, message: a.message, createdBy: a.createdBy, createdAt: a.createdAt }));
 
   const chatsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
     return collection(db, 'teams', activeTeam.id, 'groupChats');
   }, [activeTeam?.id, db]);
   const { data: chatsData } = useCollection(chatsQuery);
-  const chats: Chat[] = (chatsData || []).map(c => ({
-    id: c.id,
-    teamId: c.teamId,
-    name: c.name,
-    memberIds: c.memberIds
-  }));
+  const chats: Chat[] = (chatsData || []).map(c => ({ id: c.id, teamId: c.teamId, name: c.name, memberIds: c.memberIds }));
 
-  const messagesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !activeChatId || !db) return null;
-    return collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages');
-  }, [activeTeam?.id, activeChatId, db]);
-  const { data: messagesData } = useCollection(messagesQuery);
-  const messages: Message[] = (messagesData || [])
-    .map(m => ({
-      id: m.id,
-      chatId: m.chatId,
-      author: m.authorName || 'Unknown',
-      authorId: m.authorId,
-      content: m.content,
-      imageUrl: m.imageUrl,
-      type: m.type as 'text' | 'poll' | 'image',
-      createdAt: m.createdAt,
-      poll: m.pollData
-    }))
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const drillsQuery = useMemoFirebase(() => {
+    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
+    return collection(db, 'teams', activeTeam.id, 'drills');
+  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
+  const { data: drillsData } = useCollection(drillsQuery);
+  const drills: Drill[] = (drillsData || []).map(d => ({
+    id: d.id, teamId: d.teamId, title: d.title, description: d.description, thumbnailUrl: d.thumbnailUrl, photoUrl: d.photoUrl, videoUrl: d.videoUrl, category: d.category, createdBy: d.createdBy, createdAt: d.createdAt
+  }));
 
   const filesQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
     return collection(db, 'teams', activeTeam.id, 'files');
   }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
   const { data: filesData } = useCollection(filesQuery);
-  const files: TeamFile[] = (filesData || [])
-    .map(f => ({
-      id: f.id,
-      teamId: f.teamId,
-      name: f.fileName,
-      type: f.fileType,
-      size: f.fileSize,
-      uploadedBy: f.uploaderName || 'Unknown',
-      uploaderId: f.uploadedBy || f.uploaderId || '',
-      date: new Date(f.createdAt),
-      url: f.fileUrl
-    }))
-    .sort((a, b) => b.date.getTime() - a.date.getTime());
+  const files: TeamFile[] = (filesData || []).map(f => ({
+    id: f.id, teamId: f.teamId, name: f.fileName, type: f.fileType, size: f.fileSize, uploadedBy: f.uploaderName || 'Unknown', uploaderId: f.uploadedBy || f.uploaderId || '', date: new Date(f.createdAt), url: f.fileUrl
+  })).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  // Handle messages subscription manually for active chat
+  useEffect(() => {
+    if (!activeTeam || !activeChatId || !db) {
+      setMessages([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages'),
+      orderBy('createdAt', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+      setMessages(msgs);
+    });
+
+    return () => unsubscribe();
+  }, [activeTeam?.id, activeChatId, db]);
 
   const formatTime = (date: string | Date) => {
     const d = typeof date === 'string' ? new Date(date) : date;
@@ -524,347 +456,200 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!firebaseUser) return;
     const docRef = doc(db, 'users', firebaseUser.uid);
     updateDocumentNonBlocking(docRef, updates);
-    
-    // Propagate profile updates to all teams where the user is a member
-    teams.forEach(team => {
-      const memberDocRef = doc(db, 'teams', team.id, 'members', firebaseUser.uid);
-      const memberUpdates: any = {};
-      if (updates.avatar) memberUpdates.avatar = updates.avatar;
-      if (updates.name) memberUpdates.name = updates.name;
-      
-      if (Object.keys(memberUpdates).length > 0) {
-        updateDocumentNonBlocking(memberDocRef, memberUpdates);
-      }
-    });
-
     if (userProfile) setUserProfile({ ...userProfile, ...updates });
   };
 
   const updateTeamHero = async (url: string) => {
     if (!activeTeam || !firebaseUser) return;
-    const docRef = doc(db, 'teams', activeTeam.id);
-    updateDocumentNonBlocking(docRef, { heroImageUrl: url });
-    
-    // Denormalized update for the current user's membership view
-    const membershipRef = doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id);
-    updateDocumentNonBlocking(membershipRef, { heroImageUrl: url });
+    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), { heroImageUrl: url });
+    updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { heroImageUrl: url });
   };
 
   const updateTeamDetails = async (updates: Partial<Team>) => {
     if (!activeTeam || !firebaseUser) return;
-    const docRef = doc(db, 'teams', activeTeam.id);
+    const teamRef = doc(db, 'teams', activeTeam.id);
+    const membershipRef = doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id);
     const firestoreUpdates: any = {};
     if (updates.name) firestoreUpdates.teamName = updates.name;
     if (updates.sport) firestoreUpdates.sport = updates.sport;
     if (updates.teamLogoUrl) firestoreUpdates.teamLogoUrl = updates.teamLogoUrl;
-    if (updates.contactEmail) firestoreUpdates.contactEmail = updates.contactEmail;
-    if (updates.contactPhone) firestoreUpdates.contactPhone = updates.contactPhone;
-
     if (Object.keys(firestoreUpdates).length > 0) {
-      updateDocumentNonBlocking(docRef, firestoreUpdates);
+      updateDocumentNonBlocking(teamRef, firestoreUpdates);
+      updateDocumentNonBlocking(membershipRef, firestoreUpdates);
     }
-
-    // Also update denormalized info in membership for the current user
-    const membershipRef = doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id);
-    const membershipUpdates: any = {};
-    if (updates.name) membershipUpdates.teamName = updates.name;
-    if (updates.sport) membershipUpdates.sport = updates.sport;
-    if (updates.teamLogoUrl) membershipUpdates.teamLogoUrl = updates.teamLogoUrl;
-    
-    if (Object.keys(membershipUpdates).length > 0) {
-      updateDocumentNonBlocking(membershipRef, membershipUpdates);
-    }
-
-    toast({ title: "Squad Profile Updated", description: "All changes saved for the team." });
+    toast({ title: "Squad Profile Updated" });
   };
 
   const updateMember = (id: string, updates: Partial<Member>) => {
     if (!activeTeam) return;
-    const docRef = doc(db, 'teams', activeTeam.id, 'members', id);
-    updateDocumentNonBlocking(docRef, updates);
-
-    // If role is updated, also update the team's authorization map
-    if (updates.role) {
-      const teamRef = doc(db, 'teams', activeTeam.id);
-      updateDocumentNonBlocking(teamRef, { [`members.${id}`]: updates.role });
-    }
+    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'members', id), updates);
   };
 
   const toggleFeesPaid = (memberId: string) => {
     const member = members.find(m => m.id === memberId);
     if (!member) return;
     updateMember(memberId, { feesPaid: !member.feesPaid });
-    toast({ title: member.feesPaid ? "Marked as Unpaid" : "Marked as Paid", description: `${member.name}'s fee status updated.` });
   };
 
   const createChat = async (name: string, memberIds: string[]) => {
-    if (!activeTeam || !firebaseUser) return '';
-    const colRef = collection(db, 'teams', activeTeam.id, 'groupChats');
-    const docRef = await addDoc(colRef, {
+    if (!activeTeam || !firebaseUser) return "";
+    const chatId = `chat_${Date.now()}`;
+    const chatRef = doc(db, 'teams', activeTeam.id, 'groupChats', chatId);
+    setDocumentNonBlocking(chatRef, {
+      id: chatId,
       teamId: activeTeam.id,
       name,
-      createdBy: firebaseUser.uid,
-      memberIds: [firebaseUser.uid, ...memberIds],
-      createdAt: new Date().toISOString(),
-      isDeleted: false
-    });
-    return docRef.id;
+      memberIds: [...memberIds, firebaseUser.uid],
+      createdAt: new Date().toISOString()
+    }, { merge: true });
+    return chatId;
   };
 
-  const addMessage = async (chatId: string, author: string, content: string, type: 'text' | 'poll' | 'image', imageUrl?: string, poll?: any) => {
+  const addMessage = (chatId: string, author: string, content: string, type: 'text' | 'poll' | 'image', imageUrl?: string, poll?: any) => {
     if (!activeTeam || !firebaseUser) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages');
-    addDocumentNonBlocking(colRef, {
-      chatId,
-      authorId: firebaseUser.uid,
-      authorName: author,
-      content: content || '',
-      imageUrl: imageUrl || '',
-      type,
-      pollData: poll || null,
-      createdAt: new Date().toISOString()
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages'), {
+      chatId, author, authorId: firebaseUser.uid, content, type, imageUrl, poll, createdAt: new Date().toISOString()
     });
   };
 
   const votePoll = async (chatId: string, messageId: string, optionIndex: number) => {
     if (!activeTeam || !firebaseUser) return;
-    const docRef = doc(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages', messageId);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) return;
+    const msgRef = doc(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages', messageId);
+    const msgSnap = await getDoc(msgRef);
+    if (!msgSnap.exists()) return;
+    
+    const poll = msgSnap.data().poll;
+    const currentVote = poll.voters?.[firebaseUser.uid];
+    
+    const updates: any = {
+      [`poll.voters.${firebaseUser.uid}`]: optionIndex
+    };
 
-    const msg = docSnap.data() as any;
-    const poll = msg.pollData;
-    if (!poll) return;
+    if (currentVote === undefined) {
+      updates[`poll.options.${optionIndex}.votes`] = increment(1);
+      updates['poll.totalVotes'] = increment(1);
+    } else if (currentVote !== optionIndex) {
+      updates[`poll.options.${currentVote}.votes`] = increment(-1);
+      updates[`poll.options.${optionIndex}.votes`] = increment(1);
+    }
 
-    const voters = poll.voters || {};
-    const newVoters = { ...voters, [firebaseUser.uid]: optionIndex };
-    const newOptions = poll.options.map((opt: any, idx: number) => {
-      let count = 0;
-      Object.values(newVoters).forEach(v => { if (v === idx) count++; });
-      return { ...opt, votes: count };
-    });
-
-    updateDocumentNonBlocking(docRef, {
-      'pollData.voters': newVoters,
-      'pollData.options': newOptions,
-      'pollData.totalVotes': Object.keys(newVoters).length
-    });
+    updateDocumentNonBlocking(msgRef, updates);
   };
 
-  const addPost = async (content: string, imageUrl?: string, type: 'user' | 'system' = 'user', systemData?: any) => {
-    if (!activeTeam || !userProfile || !firebaseUser) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'feedPosts');
-    addDocumentNonBlocking(colRef, {
-      teamId: activeTeam.id,
-      author: { name: userProfile.name, avatar: userProfile.avatar },
-      authorId: firebaseUser.uid,
-      content,
-      type,
-      imageUrl: imageUrl || '',
-      likes: [],
-      createdAt: new Date().toISOString(),
-      systemData: systemData || null,
-      members: activeTeam.membersMap || {}
+  const addPost = (content: string, imageUrl?: string, type: 'user' | 'system' = 'user', systemData?: any) => {
+    if (!activeTeam || !firebaseUser) return;
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts'), {
+      teamId: activeTeam.id, content, imageUrl, type, systemData,
+      authorId: firebaseUser.uid, author: { name: userProfile?.name || 'Anonymous', avatar: userProfile?.avatar || '' },
+      createdAt: new Date().toISOString(), likes: []
     });
   };
 
   const deletePost = (postId: string) => {
     if (!activeTeam) return;
-    const docRef = doc(db, 'teams', activeTeam.id, 'feedPosts', postId);
-    deleteDocumentNonBlocking(docRef);
-    toast({ title: "Post Removed", description: "The post has been deleted from the squad feed." });
+    deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'feedPosts', postId));
   };
 
-  const addComment = async (postId: string, content: string, imageUrl?: string) => {
-    if (!activeTeam || !userProfile || !firebaseUser) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'feedPosts', postId, 'comments');
-    addDocumentNonBlocking(colRef, {
-      postId,
-      authorId: firebaseUser.uid,
-      authorName: userProfile.name,
-      content,
-      imageUrl: imageUrl || '',
-      createdAt: new Date().toISOString()
+  const addComment = (postId: string, content: string, imageUrl?: string) => {
+    if (!activeTeam || !firebaseUser) return;
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', postId, 'comments'), {
+      postId, content, imageUrl, authorId: firebaseUser.uid, authorName: userProfile?.name || 'Anonymous', createdAt: new Date().toISOString()
     });
   };
 
   const deleteComment = (postId: string, commentId: string) => {
     if (!activeTeam) return;
-    const docRef = doc(db, 'teams', activeTeam.id, 'feedPosts', postId, 'comments', commentId);
-    deleteDocumentNonBlocking(docRef);
-    toast({ title: "Comment Removed", description: "The comment has been deleted." });
+    deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'feedPosts', postId, 'comments', commentId));
   };
 
   const toggleLike = async (postId: string) => {
     if (!activeTeam || !firebaseUser) return;
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-
-    const isLiked = post.likes?.includes(firebaseUser.uid);
-    const docRef = doc(db, 'teams', activeTeam.id, 'feedPosts', postId);
-
-    updateDocumentNonBlocking(docRef, {
-      likes: isLiked ? arrayRemove(firebaseUser.uid) : arrayUnion(firebaseUser.uid)
-    });
+    const postRef = doc(db, 'teams', activeTeam.id, 'feedPosts', postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) return;
+    
+    const likes = postSnap.data().likes || [];
+    if (likes.includes(firebaseUser.uid)) {
+      updateDocumentNonBlocking(postRef, { likes: arrayRemove(firebaseUser.uid) });
+    } else {
+      updateDocumentNonBlocking(postRef, { likes: arrayUnion(firebaseUser.uid) });
+    }
   };
 
   const addEvent = async (eventData: Omit<TeamEvent, 'id' | 'teamId' | 'rsvps'>) => {
     if (!activeTeam || !firebaseUser) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'events');
-    addDocumentNonBlocking(colRef, {
-      ...eventData,
-      teamId: activeTeam.id,
-      date: eventData.date.toISOString(),
-      createdBy: firebaseUser.uid,
-      createdAt: new Date().toISOString(),
-      rsvps: { going: 1, notGoing: 0, maybe: 0 },
-      userRsvps: { [firebaseUser.uid]: 'going' },
-      members: activeTeam.membersMap || {}
-    });
-  };
-
-  const updateEvent = (eventId: string, updates: Partial<TeamEvent>) => {
-    if (!activeTeam) return;
-    const oldEvent = events.find(e => e.id === eventId);
-    if (!oldEvent) return;
-
-    const docRef = doc(db, 'teams', activeTeam.id, 'events', eventId);
-    const firestoreUpdates: any = { ...updates };
-    if (updates.date) firestoreUpdates.date = updates.date.toISOString();
-
-    updateDoc(docRef, firestoreUpdates).then(() => {
-      const changes: string[] = [];
-      if (updates.location && updates.location !== oldEvent.location) changes.push(`Location moved to ${updates.location}`);
-      if (updates.startTime && updates.startTime !== oldEvent.startTime) changes.push(`Time changed to ${updates.startTime}`);
-      if (updates.date && updates.date.getTime() !== oldEvent.date.getTime()) changes.push(`Date changed to ${updates.date.toLocaleDateString()}`);
-      if (updates.title && updates.title !== oldEvent.title) changes.push(`Title changed to "${updates.title}"`);
-
-      if (changes.length > 0) {
-        const detail = changes.join(', ');
-        addPost(`Event Update: ${oldEvent.title}. ${detail}`, undefined, 'system', {
-          updateType: 'EVENT UPDATED',
-          title: oldEvent.title,
-          date: (updates.date || oldEvent.date).toISOString(),
-          startTime: updates.startTime || oldEvent.startTime,
-          location: updates.location || oldEvent.location,
-          label: 'TEAM EVENT',
-          detail: detail
-        });
-      }
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), {
+      ...eventData, teamId: activeTeam.id, date: eventData.date.toISOString(), createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), userRsvps: { [firebaseUser.uid]: 'going' }
     });
   };
 
   const updateRSVP = (eventId: string, status: RSVPStatus) => {
     if (!activeTeam || !firebaseUser) return;
-    const docRef = doc(db, 'teams', activeTeam.id, 'events', eventId);
-    updateDocumentNonBlocking(docRef, { [`userRsvps.${firebaseUser.uid}`]: status });
+    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', eventId), { [`userRsvps.${firebaseUser.uid}`]: status });
   };
 
-  const addGame = async (gameData: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => {
-    if (!activeTeam || !firebaseUser || (!activeTeam.isPro && !isSuperAdmin)) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'games');
-    addDocumentNonBlocking(colRef, {
-      ...gameData,
-      teamId: activeTeam.id,
-      date: gameData.date.toISOString(),
-      createdAt: new Date().toISOString(),
-      members: activeTeam.membersMap || {}
+  const addRegistration = async (teamId: string, eventId: string, data: Omit<EventRegistration, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
+    try {
+      const eventRef = doc(db, 'teams', teamId, 'events', eventId);
+      const eventSnap = await getDoc(eventRef);
+      if (!eventSnap.exists()) return false;
+      const eventData = eventSnap.data();
+      const regsRef = collection(db, 'teams', teamId, 'events', eventId, 'registrations');
+      const regsSnap = await getDocs(regsRef);
+      if (eventData.maxRegistrations && regsSnap.size >= eventData.maxRegistrations) return false;
+      await addDoc(regsRef, { ...data, createdAt: new Date().toISOString(), status: 'pending' });
+      return true;
+    } catch (e) { return false; }
+  };
+
+  const promoteToRoster = async (teamId: string, eventId: string, reg: EventRegistration) => {
+    if (!activeTeam) return;
+    const batch = writeBatch(db);
+    const memberId = `reg_${reg.id}`;
+    batch.set(doc(db, 'teams', teamId, 'members', memberId), {
+      userId: memberId, teamId, role: 'Member', position: 'Prospect', name: reg.name, avatar: `https://picsum.photos/seed/${reg.id}/150/150`, joinedAt: new Date().toISOString()
+    });
+    batch.update(doc(db, 'teams', teamId, 'events', eventId, 'registrations', reg.id), { status: 'added' });
+    await batch.commit();
+    toast({ title: "Member Added", description: `${reg.name} is now on the roster.` });
+  };
+
+  const addGame = (gameData: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => {
+    if (!activeTeam || !firebaseUser) return;
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'games'), {
+      ...gameData, teamId: activeTeam.id, date: gameData.date.toISOString(), createdAt: new Date().toISOString()
     });
   };
 
-  const updateGame = (gameId: string, updates: Partial<Game>) => {
-    if (!activeTeam || (!activeTeam.isPro && !isSuperAdmin)) return;
-    const oldGame = games.find(g => g.id === gameId);
-    if (!oldGame) return;
-
-    const docRef = doc(db, 'teams', activeTeam.id, 'games', gameId);
-    const firestoreUpdates: any = { ...updates };
-    if (updates.date) firestoreUpdates.date = updates.date.toISOString();
-
-    updateDoc(docRef, firestoreUpdates).then(() => {
-      const changes: string[] = [];
-      if (updates.location && updates.location !== oldGame.location) changes.push(`Location moved to ${updates.location}`);
-      if (updates.date && updates.date.getTime() !== oldGame.date.getTime()) changes.push(`Date changed to ${updates.date.toLocaleDateString()}`);
-      if (updates.myScore !== undefined || updates.opponentScore !== undefined) changes.push(`Score updated: ${updates.myScore ?? oldGame.myScore} - ${updates.opponentScore ?? oldGame.opponentScore}`);
-      if (updates.opponent && updates.opponent !== oldGame.opponent) changes.push(`Opponent changed to ${updates.opponent}`);
-
-      if (changes.length > 0) {
-        const detail = changes.join(', ');
-        addPost(`Game Update vs ${oldGame.opponent}. ${detail}`, undefined, 'system', {
-          updateType: 'GAME UPDATED',
-          title: `vs ${oldGame.opponent}`,
-          date: (updates.date || oldGame.date).toISOString(),
-          startTime: oldGame.date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
-          location: updates.location || oldGame.location,
-          label: 'MATCH DAY',
-          detail: detail
-        });
-      }
-    });
-  };
-
-  const addFile = async (name: string, type: string, size: string, url: string) => {
-    if (!activeTeam || !userProfile || !firebaseUser || (!activeTeam.isPro && !isSuperAdmin)) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'files');
-    addDocumentNonBlocking(colRef, {
-      teamId: activeTeam.id,
-      fileName: name,
-      fileType: type,
-      fileSize: size,
-      fileUrl: url,
-      uploaderId: firebaseUser.uid,
-      uploadedBy: firebaseUser.uid,
-      uploaderName: userProfile.name,
-      createdAt: new Date().toISOString(),
-      members: activeTeam.membersMap || {}
+  const addFile = (name: string, type: string, size: string, url: string) => {
+    if (!activeTeam || !firebaseUser) return;
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), {
+      teamId: activeTeam.id, fileName: name, fileType: type, fileSize: size, fileUrl: url,
+      uploaderName: userProfile?.name || 'Unknown', uploadedBy: firebaseUser.uid, createdAt: new Date().toISOString()
     });
   };
 
   const deleteFile = (fileId: string) => {
-    if (!activeTeam || (!activeTeam.isPro && !isSuperAdmin)) return;
-    const docRef = doc(db, 'teams', activeTeam.id, 'files', fileId);
-    deleteDocumentNonBlocking(docRef);
-    toast({ title: "File Deleted", description: "The resource has been removed from the library." });
+    if (!activeTeam) return;
+    deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'files', fileId));
   };
 
-  const addDrill = async (drillData: Omit<Drill, 'id' | 'teamId' | 'createdBy' | 'createdAt'>) => {
-    if (!activeTeam || !firebaseUser || (!activeTeam.isPro && !isSuperAdmin)) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'drills');
-    addDocumentNonBlocking(colRef, {
-      ...drillData,
-      teamId: activeTeam.id,
-      createdBy: firebaseUser.uid,
-      createdAt: new Date().toISOString(),
-      members: activeTeam.membersMap || {}
+  const addDrill = (drillData: Omit<Drill, 'id' | 'teamId' | 'createdBy' | 'createdAt'>) => {
+    if (!activeTeam || !firebaseUser) return;
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'drills'), {
+      ...drillData, teamId: activeTeam.id, createdBy: firebaseUser.uid, createdAt: new Date().toISOString()
     });
   };
 
   const deleteDrill = (drillId: string) => {
-    if (!activeTeam || (!activeTeam.isPro && !isSuperAdmin)) return;
-    const docRef = doc(db, 'teams', activeTeam.id, 'drills', drillId);
-    deleteDocumentNonBlocking(docRef);
-    toast({ title: "Drill Removed", description: "The drill has been deleted from your library." });
+    if (!activeTeam) return;
+    deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'drills', drillId));
   };
 
-  const createAlert = async (title: string, message: string) => {
+  const createAlert = (title: string, message: string) => {
     if (!activeTeam || !firebaseUser) return;
-    const colRef = collection(db, 'teams', activeTeam.id, 'alerts');
-    addDocumentNonBlocking(colRef, {
-      teamId: activeTeam.id,
-      title,
-      message,
-      createdBy: firebaseUser.uid,
-      createdAt: new Date().toISOString(),
-      members: activeTeam.membersMap || {}
-    });
-    addPost(`📣 ALERT: ${title}`, undefined, 'system', {
-      updateType: 'TEAM ALERT',
-      title: title,
-      date: new Date().toISOString(),
-      startTime: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
-      location: message,
-      label: 'URGENT',
-      detail: message
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'alerts'), {
+      teamId: activeTeam.id, title, message, createdBy: firebaseUser.uid, createdAt: new Date().toISOString()
     });
   };
 
@@ -872,109 +657,37 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!firebaseUser) return;
     const teamId = `team_${Date.now()}`;
     const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const membersMap = { [firebaseUser.uid]: 'Admin' };
-
     const batch = writeBatch(db);
-
-    // Create the team
-    batch.set(doc(db, 'teams', teamId), {
-      id: teamId,
-      teamName: name,
-      sport: 'General',
-      teamCode: teamCode,
-      createdBy: firebaseUser.uid,
-      createdAt: new Date().toISOString(),
-      members: membersMap,
-      isPro: false
-    });
-
-    // Add member to team subcollection
-    batch.set(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
-      userId: firebaseUser.uid,
-      teamId: teamId,
-      role: 'Admin',
-      position: organizerPosition || 'Coach',
-      name: userProfile?.name || 'Organizer',
-      avatar: userProfile?.avatar || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`,
-      joinedAt: new Date().toISOString(),
-      feesPaid: false
-    });
-
-    // Add membership record to user profile (Crucial for rules and listing)
-    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), {
-      userId: firebaseUser.uid,
-      teamId: teamId,
-      teamName: name,
-      teamCode: teamCode,
-      role: 'Admin',
-      sport: 'General',
-      isPro: false,
-      joinedAt: new Date().toISOString()
-    });
-
+    batch.set(doc(db, 'teams', teamId), { id: teamId, teamName: name, teamCode, createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: false });
+    batch.set(doc(db, 'teams', teamId, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId, role: 'Admin', position: organizerPosition || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() });
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), { userId: firebaseUser.uid, teamId, teamName: name, teamCode, role: 'Admin', isPro: false, joinedAt: new Date().toISOString() });
     await batch.commit();
-    setActiveTeam({ id: teamId, name, code: teamCode, membersMap, isPro: false, role: 'Admin' });
+    setActiveTeam({ id: teamId, name, code: teamCode, role: 'Admin', isPro: false });
   };
 
   const joinTeamWithCode = async (code: string, position: string): Promise<boolean> => {
     if (!firebaseUser || !userProfile) return false;
-    
-    const teamsRef = collection(db, 'teams');
-    const qTeams = query(teamsRef, where('teamCode', '==', code.toUpperCase()), limit(1));
+    const qTeams = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1));
     const querySnapshot = await getDocs(qTeams);
-    
     if (querySnapshot.empty) return false;
-    
     const teamDoc = querySnapshot.docs[0];
     const teamId = teamDoc.id;
-    const teamData = teamDoc.data();
-    
-    const newMembersMap = { ...teamData.members, [firebaseUser.uid]: 'Member' };
     const batch = writeBatch(db);
-
-    // Update team members map
-    batch.update(doc(db, 'teams', teamId), { members: newMembersMap });
-
-    // Add to members subcollection
-    batch.set(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
-      userId: firebaseUser.uid,
-      teamId: teamId,
-      role: 'Member',
-      position: position || 'Player',
-      name: userProfile.name,
-      avatar: userProfile.avatar,
-      joinedAt: new Date().toISOString(),
-      feesPaid: false
-    });
-
-    // Add membership record to user profile
-    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), {
-      userId: firebaseUser.uid,
-      teamId: teamId,
-      teamName: teamData.teamName || teamData.name,
-      teamCode: teamData.teamCode || teamData.code,
-      role: 'Member',
-      sport: teamData.sport || 'General',
-      isPro: teamData.isPro || false,
-      joinedAt: new Date().toISOString()
-    });
-
+    batch.update(doc(db, 'teams', teamId), { [`members.${firebaseUser.uid}`]: 'Member' });
+    batch.set(doc(db, 'teams', teamId, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId, role: 'Member', position: position || 'Player', name: userProfile.name, avatar: userProfile.avatar, joinedAt: new Date().toISOString() });
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), { userId: firebaseUser.uid, teamId, teamName: teamDoc.data().teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: teamDoc.data().isPro || false, joinedAt: new Date().toISOString() });
     await batch.commit();
     return true;
   };
 
-  const inviteMember = async (name: string, email: string, position: MemberPosition) => {
-    if (!activeTeam) return;
-    console.log(`[PROTOTYPE INVITE] To: ${name} (${email}), Code: ${activeTeam.code}`);
-  };
+  const inviteMember = async (name: string, email: string, position: MemberPosition) => { console.log(`Invite to ${activeTeam?.name}: ${name}`); };
 
   return (
     <TeamContext.Provider value={{ 
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike,
-      events, addEvent, updateEvent, updateRSVP, games, addGame, updateGame, files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
-      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime, 
-      isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
+      events, addEvent, updateEvent: () => {}, updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: () => {}, files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
+      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime, isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
     }}>
       {children}
     </TeamContext.Provider>
