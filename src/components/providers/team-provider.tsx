@@ -467,6 +467,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!activeTeam) return;
     const docRef = doc(db, 'teams', activeTeam.id, 'members', id);
     updateDocumentNonBlocking(docRef, updates);
+
+    // If role is updated, also update the team's authorization map
+    if (updates.role) {
+      const teamRef = doc(db, 'teams', activeTeam.id);
+      updateDocumentNonBlocking(teamRef, { [`members.${id}`]: updates.role });
+    }
   };
 
   const toggleFeesPaid = (memberId: string) => {

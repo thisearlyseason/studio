@@ -68,9 +68,14 @@ export default function RosterPage() {
 
   const handleSaveLabels = () => {
     if (editingMember) {
+      // Determine role based on position
+      const adminPositions = ['Coach', 'Team Lead', 'Assistant Coach', 'Squad Leader'];
+      const newRole = adminPositions.includes(editForm.position) ? 'Admin' : 'Member';
+
       updateMember(editingMember.id, {
         position: editForm.position,
-        jersey: editForm.jersey
+        jersey: editForm.jersey,
+        role: newRole
       });
       setEditingMember(null);
       toast({ title: "Updated", description: "Member role and position updated." });
