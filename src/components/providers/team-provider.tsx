@@ -338,9 +338,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const updateUser = (updates: Partial<UserProfile>) => {
     if (!firebaseUser) return;
     const docRef = doc(db, 'users', firebaseUser.uid);
-    updateDoc(docRef, updates).catch(err => {
+    
+    // Map UserProfile fields to Firestore User document fields
+    const firestoreUpdates: any = {};
+    if (updates.name !== undefined) firestoreUpdates.fullName = updates.name;
+    if (updates.email !== undefined) firestoreUpdates.email = updates.email;
+    if (updates.phone !== undefined) firestoreUpdates.phone = updates.phone;
+    if (updates.avatar !== undefined) firestoreUpdates.avatarUrl = updates.avatar;
+
+    updateDoc(docRef, firestoreUpdates).catch(err => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
     });
+
+    // Optimistically update local state
+    if (userProfile) {
+      setUserProfile({ ...userProfile, ...updates });
+    }
   };
 
   const updateTeamHero = async (url: string) => {
