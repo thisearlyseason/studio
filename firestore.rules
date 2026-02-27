@@ -5,7 +5,8 @@ service cloud.firestore {
 
     /**
      * SquadForge Security Rules
-     * Optimized for list queries using direct map access for denormalized membership checks.
+     * Optimized for list queries by using direct map indexing for membership checks.
+     * This allows the Firestore query optimizer to validate 'where' filters against rules.
      */
 
     function isSignedIn() {
@@ -16,16 +17,19 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Helper for checking membership in documents that have a denormalized 'members' map
-    // We use .get() to handle missing maps gracefully and assist the query optimizer.
+    // Helper for checking membership. Direct indexing is most compatible with list query optimization.
     function isTeamMember(data) {
       return isSignedIn() && 
-             data.get('members', {}).get(request.auth.uid, 'none') in ['Admin', 'Member'];
+             data != null && 
+             data.members != null && 
+             (data.members[request.auth.uid] == 'Admin' || data.members[request.auth.uid] == 'Member');
     }
 
     function isTeamAdmin(data) {
       return isSignedIn() && 
-             data.get('members', {}).get(request.auth.uid, 'none') == 'Admin';
+             data != null && 
+             data.members != null && 
+             data.members[request.auth.uid] == 'Admin';
     }
 
     // --- Collection Rules ---
