@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -17,7 +16,8 @@ import {
   setDoc,
   arrayUnion,
   arrayRemove,
-  deleteDoc
+  deleteDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -270,28 +270,44 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, db]);
 
+  // Query memberships instead of root teams to comply with security rules
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
-    // Super admins see all teams, others see joined teams
     if (isSuperAdmin) return collection(db, 'teams');
-    return query(
-      collection(db, 'teams'), 
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
-    );
+    return collection(db, 'users', firebaseUser.uid, 'teamMemberships');
   }, [firebaseUser?.uid, db, isSuperAdmin]);
-  const { data: teamsData } = useCollection(teamsQuery);
-  const teams: Team[] = (teamsData || []).map(t => ({ 
-    id: t.id, 
-    name: t.teamName, 
-    code: t.teamCode,
-    sport: t.sport,
-    teamLogoUrl: t.teamLogoUrl,
-    heroImageUrl: t.heroImageUrl,
-    contactEmail: t.contactEmail,
-    contactPhone: t.contactPhone,
-    membersMap: t.members,
-    isPro: t.isPro || false
-  }));
+
+  const { data: teamsRawData } = useCollection(teamsQuery);
+  const [teams, setTeams] = useState<Team[]>([]);
+
+  useEffect(() => {
+    if (!teamsRawData) return;
+
+    if (isSuperAdmin) {
+      setTeams(teamsRawData.map(t => ({
+        id: t.id,
+        name: t.teamName,
+        code: t.teamCode,
+        sport: t.sport,
+        teamLogoUrl: t.teamLogoUrl,
+        heroImageUrl: t.heroImageUrl,
+        contactEmail: t.contactEmail,
+        contactPhone: t.contactPhone,
+        membersMap: t.members,
+        isPro: t.isPro || false
+      })));
+    } else {
+      // Map denormalized memberships to Team objects
+      setTeams(teamsRawData.map(m => ({
+        id: m.teamId,
+        name: m.teamName,
+        code: m.teamCode,
+        sport: m.sport,
+        teamLogoUrl: m.teamLogoUrl,
+        isPro: m.isPro || false
+      })));
+    }
+  }, [teamsRawData, isSuperAdmin]);
 
   useEffect(() => {
     if (teams.length > 0) {
@@ -518,7 +534,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const updateTeamDetails = async (updates: Partial<Team>) => {
-    if (!activeTeam) return;
+    if (!activeTeam || !firebaseUser) return;
     const docRef = doc(db, 'teams', activeTeam.id);
     const firestoreUpdates: any = {};
     if (updates.name) firestoreUpdates.teamName = updates.name;
@@ -528,6 +544,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (updates.contactPhone) firestoreUpdates.contactPhone = updates.contactPhone;
 
     updateDocumentNonBlocking(docRef, firestoreUpdates);
+
+    // Also update denormalized info in membership
+    const membershipRef = doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id);
+    const membershipUpdates: any = {};
+    if (updates.name) membershipUpdates.teamName = updates.name;
+    if (updates.sport) membershipUpdates.sport = updates.sport;
+    if (updates.teamLogoUrl) membershipUpdates.teamLogoUrl = updates.teamLogoUrl;
+    
+    if (Object.keys(membershipUpdates).length > 0) {
+      updateDocumentNonBlocking(membershipRef, membershipUpdates);
+    }
+
     toast({ title: "Squad Profile Updated", description: "All changes saved for the team." });
   };
 
@@ -827,7 +855,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const membersMap = { [firebaseUser.uid]: 'Admin' };
 
-    await setDoc(doc(db, 'teams', teamId), {
+    const batch = writeBatch(db);
+
+    // Create the team
+    batch.set(doc(db, 'teams', teamId), {
       id: teamId,
       teamName: name,
       sport: 'General',
@@ -835,10 +866,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       createdBy: firebaseUser.uid,
       createdAt: new Date().toISOString(),
       members: membersMap,
-      isPro: false // New teams start as free
+      isPro: false
     });
 
-    await setDoc(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
+    // Add member to team subcollection
+    batch.set(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
       userId: firebaseUser.uid,
       teamId: teamId,
       role: 'Admin',
@@ -846,26 +878,46 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: userProfile?.name || 'Organizer',
       avatar: userProfile?.avatar || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`,
       joinedAt: new Date().toISOString(),
-      feesPaid: false,
-      members: membersMap
+      feesPaid: false
     });
 
+    // Add membership record to user profile (Crucial for rules and listing)
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), {
+      userId: firebaseUser.uid,
+      teamId: teamId,
+      teamName: name,
+      teamCode: teamCode,
+      role: 'Admin',
+      sport: 'General',
+      isPro: false,
+      joinedAt: new Date().toISOString()
+    });
+
+    await batch.commit();
     setActiveTeam({ id: teamId, name, code: teamCode, membersMap, isPro: false });
   };
 
   const joinTeamWithCode = async (code: string, position: string): Promise<boolean> => {
     if (!firebaseUser || !userProfile) return false;
+    
     const teamsRef = collection(db, 'teams');
-    const q = query(teamsRef, where('teamCode', '==', code.toUpperCase()), limit(1));
-    const querySnapshot = await getDocs(q);
+    const qTeams = query(teamsRef, where('teamCode', '==', code.toUpperCase()), limit(1));
+    const querySnapshot = await getDocs(qTeams);
+    
     if (querySnapshot.empty) return false;
+    
     const teamDoc = querySnapshot.docs[0];
     const teamId = teamDoc.id;
     const teamData = teamDoc.data();
-    const newMembersMap = { ...teamData.members, [firebaseUser.uid]: 'Member' };
     
-    await updateDoc(doc(db, 'teams', teamId), { members: newMembersMap });
-    await setDoc(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
+    const newMembersMap = { ...teamData.members, [firebaseUser.uid]: 'Member' };
+    const batch = writeBatch(db);
+
+    // Update team members map
+    batch.update(doc(db, 'teams', teamId), { members: newMembersMap });
+
+    // Add to members subcollection
+    batch.set(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
       userId: firebaseUser.uid,
       teamId: teamId,
       role: 'Member',
@@ -873,9 +925,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: userProfile.name,
       avatar: userProfile.avatar,
       joinedAt: new Date().toISOString(),
-      feesPaid: false,
-      members: newMembersMap
+      feesPaid: false
     });
+
+    // Add membership record to user profile
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), {
+      userId: firebaseUser.uid,
+      teamId: teamId,
+      teamName: teamData.teamName,
+      teamCode: teamData.teamCode,
+      role: 'Member',
+      sport: teamData.sport || 'General',
+      isPro: teamData.isPro || false,
+      joinedAt: new Date().toISOString()
+    });
+
+    await batch.commit();
     return true;
   };
 
