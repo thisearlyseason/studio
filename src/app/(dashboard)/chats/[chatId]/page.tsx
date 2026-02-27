@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -33,7 +32,7 @@ import { useTeam } from '@/components/providers/team-provider';
 export default function ChatRoomPage() {
   const { chatId } = useParams();
   const router = useRouter();
-  const { chats, messages, addMessage } = useTeam();
+  const { chats, messages, addMessage, setActiveChatId, user } = useTeam();
   const [input, setInput] = useState('');
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
   const [pollPrompt, setPollPrompt] = useState('');
@@ -41,18 +40,22 @@ export default function ChatRoomPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    setActiveChatId(chatId as string);
+    return () => setActiveChatId(null);
+  }, [chatId, setActiveChatId]);
+
   const currentChat = chats.find(c => c.id === chatId);
-  const chatMessages = messages.filter(m => m.chatId === chatId);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+  }, [messages]);
 
   const handleSendMessage = () => {
-    if (!input.trim() || !currentChat) return;
-    addMessage(currentChat.id, 'Me', input, 'text');
+    if (!input.trim() || !currentChat || !user) return;
+    addMessage(currentChat.id, user.name, input, 'text');
     setInput('');
   };
 
@@ -70,7 +73,7 @@ export default function ChatRoomPage() {
   };
 
   const handleCreatePoll = () => {
-    if (!suggestedPoll || !currentChat) return;
+    if (!suggestedPoll || !currentChat || !user) return;
     const pollData = {
       id: 'p' + Date.now(),
       question: suggestedPoll.question,
@@ -78,13 +81,13 @@ export default function ChatRoomPage() {
       totalVotes: 0,
       isClosed: false
     };
-    addMessage(currentChat.id, 'Me', '', 'poll', pollData);
+    addMessage(currentChat.id, user.name, '', 'poll', pollData);
     setIsPollDialogOpen(false);
     setSuggestedPoll(null);
     setPollPrompt('');
   };
 
-  if (!currentChat) return <div>Chat not found</div>;
+  if (!currentChat) return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading discussion...</div>;
 
   return (
     <div className="flex flex-col h-[calc(100vh-130px)] -mt-4 -mx-4">
@@ -104,52 +107,55 @@ export default function ChatRoomPage() {
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
-        {chatMessages.map((msg) => (
-          <div key={msg.id} className={cn("flex flex-col gap-1.5", msg.author === 'Me' ? 'items-end' : 'items-start')}>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-bold uppercase text-muted-foreground">{msg.author}</span>
-              <span className="text-[10px] text-muted-foreground/50">{msg.createdAt}</span>
-            </div>
-            
-            {msg.type === 'text' ? (
-              <div className={cn(
-                "max-w-[85%] p-3 rounded-2xl text-sm",
-                msg.author === 'Me' 
-                  ? "bg-primary text-primary-foreground rounded-tr-none" 
-                  : "bg-muted text-foreground rounded-tl-none"
-              )}>
-                {msg.content}
+        {messages.map((msg) => {
+          const isMe = msg.author === user?.name;
+          return (
+            <div key={msg.id} className={cn("flex flex-col gap-1.5", isMe ? 'items-end' : 'items-start')}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">{msg.author}</span>
+                <span className="text-[10px] text-muted-foreground/50">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
-            ) : (
-              <div className="w-full max-w-[90%] bg-card border rounded-2xl overflow-hidden shadow-sm">
-                <div className="bg-primary/5 p-4 border-b">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">Active Poll</span>
-                    <BarChart2 className="h-4 w-4 text-primary opacity-50" />
-                  </div>
-                  <h4 className="font-bold text-base leading-tight">{msg.poll?.question}</h4>
+              
+              {msg.type === 'text' ? (
+                <div className={cn(
+                  "max-w-[85%] p-3 rounded-2xl text-sm",
+                  isMe 
+                    ? "bg-primary text-primary-foreground rounded-tr-none" 
+                    : "bg-muted text-foreground rounded-tl-none"
+                )}>
+                  {msg.content}
                 </div>
-                <div className="p-4 space-y-3">
-                  {msg.poll?.options.map((opt, i) => (
-                    <div key={i} className="relative group cursor-pointer" onClick={() => {}}>
-                      <div className="flex justify-between text-xs font-medium mb-1 px-1">
-                        <span className="flex items-center gap-1.5">
-                          {msg.poll?.userVoted === i && <CheckCircle2 className="h-3 w-3 text-primary" />}
-                          {opt.text}
-                        </span>
-                        <span className="text-muted-foreground">{opt.votes} votes</span>
-                      </div>
-                      <Progress value={msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0} className="h-2" />
+              ) : (
+                <div className="w-full max-w-[90%] bg-card border rounded-2xl overflow-hidden shadow-sm">
+                  <div className="bg-primary/5 p-4 border-b">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-black text-primary uppercase tracking-widest">Active Poll</span>
+                      <BarChart2 className="h-4 w-4 text-primary opacity-50" />
                     </div>
-                  ))}
-                  <div className="pt-2 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-muted-foreground">{msg.poll?.totalVotes} Total Votes</span>
+                    <h4 className="font-bold text-base leading-tight">{msg.poll?.question}</h4>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {msg.poll?.options.map((opt, i) => (
+                      <div key={i} className="relative group cursor-pointer" onClick={() => {}}>
+                        <div className="flex justify-between text-xs font-medium mb-1 px-1">
+                          <span className="flex items-center gap-1.5">
+                            {msg.poll?.userVoted === i && <CheckCircle2 className="h-3 w-3 text-primary" />}
+                            {opt.text}
+                          </span>
+                          <span className="text-muted-foreground">{opt.votes} votes</span>
+                        </div>
+                        <Progress value={msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0} className="h-2" />
+                      </div>
+                    ))}
+                    <div className="pt-2 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground">{msg.poll?.totalVotes} Total Votes</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Input Area */}

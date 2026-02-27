@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -11,10 +10,8 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
-  serverTimestamp, 
-  addDoc, 
+  addDoc,
   orderBy,
-  Firestore 
 } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -134,6 +131,8 @@ interface TeamContextType {
   chats: Chat[];
   createChat: (name: string, memberIds: string[]) => Promise<string>;
   messages: Message[];
+  activeChatId: string | null;
+  setActiveChatId: (id: string | null) => void;
   addMessage: (chatId: string, author: string, content: string, type: 'text' | 'poll', poll?: any) => void;
   posts: Post[];
   addPost: (content: string, imageUrl?: string) => void;
@@ -153,9 +152,9 @@ const TeamContext = createContext<TeamContextType | undefined>(undefined);
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const db = useFirestore();
-  const router = useRouter();
   
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Fetch User Profile
@@ -178,10 +177,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, db]);
 
-  // Fetch Teams (Filtered to solve Permission Error)
+  // Fetch Teams (Filtered for QAP)
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
-    // Security rules require us to query where we are a member
     return query(
       collection(db, 'teams'), 
       where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
@@ -212,47 +210,60 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`
   }));
 
-  // Fetch Posts
+  // Fetch Posts (Filtered for QAP, sorted client-side to avoid complex indexes)
   const postsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db) return null;
-    return query(collection(db, 'teams', activeTeam.id, 'feedPosts'), orderBy('createdAt', 'desc'));
-  }, [activeTeam?.id, db]);
+    if (!activeTeam || !db || !firebaseUser) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'feedPosts'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+    );
+  }, [activeTeam?.id, db, firebaseUser?.uid]);
   const { data: postsData } = useCollection(postsQuery);
-  const posts: Post[] = (postsData || []).map(p => ({
-    id: p.id,
-    teamId: p.teamId,
-    author: p.author || { name: 'Anonymous', avatar: '' },
-    content: p.content,
-    type: p.type || 'user',
-    imageUrl: p.imageUrl,
-    createdAt: p.createdAt,
-    comments: [] // Comments are sub-fetched or would need a nested listener strategy
-  }));
+  const posts: Post[] = (postsData || [])
+    .map(p => ({
+      id: p.id,
+      teamId: p.teamId,
+      author: p.author || { name: 'Anonymous', avatar: '' },
+      content: p.content,
+      type: p.type || 'user',
+      imageUrl: p.imageUrl,
+      createdAt: p.createdAt,
+      comments: []
+    }))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  // Fetch Events
+  // Fetch Events (Filtered for QAP)
   const eventsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db) return null;
-    return query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc'));
-  }, [activeTeam?.id, db]);
+    if (!activeTeam || !db || !firebaseUser) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'events'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+    );
+  }, [activeTeam?.id, db, firebaseUser?.uid]);
   const { data: eventsData } = useCollection(eventsQuery);
-  const events: TeamEvent[] = (eventsData || []).map(e => ({
-    id: e.id,
-    teamId: e.teamId,
-    title: e.title,
-    date: new Date(e.date),
-    startTime: e.startTime,
-    endTime: e.endTime,
-    location: e.location,
-    description: e.description,
-    recurrence: e.recurrence || 'none',
-    rsvps: e.rsvps || { going: 0, notGoing: 0, maybe: 0 },
-    userRsvp: e.userRsvps?.[firebaseUser?.uid || ''] as RSVPStatus
-  }));
+  const events: TeamEvent[] = (eventsData || [])
+    .map(e => ({
+      id: e.id,
+      teamId: e.teamId,
+      title: e.title,
+      date: new Date(e.date),
+      startTime: e.startTime,
+      endTime: e.endTime,
+      location: e.location,
+      description: e.description,
+      recurrence: e.recurrence || 'none',
+      rsvps: e.rsvps || { going: 0, notGoing: 0, maybe: 0 },
+      userRsvp: e.userRsvps?.[firebaseUser?.uid || ''] as RSVPStatus
+    }))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // Fetch Chats
+  // Fetch Chats (Filtered for QAP)
   const chatsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || !firebaseUser) return null;
-    return query(collection(db, 'teams', activeTeam.id, 'groupChats'), where('memberIds', 'array-contains', firebaseUser.uid));
+    return query(
+      collection(db, 'teams', activeTeam.id, 'groupChats'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+    );
   }, [activeTeam?.id, db, firebaseUser?.uid]);
   const { data: chatsData } = useCollection(chatsQuery);
   const chats: Chat[] = (chatsData || []).map(c => ({
@@ -264,24 +275,47 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     time: 'Now'
   }));
 
-  // Fetch Messages (for all chats in team) - for MVP we keep it simple
-  const messages: Message[] = []; 
+  // Fetch Messages for active chat (Filtered for QAP)
+  const messagesQuery = useMemoFirebase(() => {
+    if (!activeTeam || !activeChatId || !db || !firebaseUser) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+    );
+  }, [activeTeam?.id, activeChatId, db, firebaseUser?.uid]);
+  const { data: messagesData } = useCollection(messagesQuery);
+  const messages: Message[] = (messagesData || [])
+    .map(m => ({
+      id: m.id,
+      chatId: m.chatId,
+      author: m.authorName || 'Unknown',
+      content: m.content,
+      type: m.type as 'text' | 'poll',
+      createdAt: m.createdAt,
+      poll: m.pollData
+    }))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  // Fetch Files
+  // Fetch Files (Filtered for QAP)
   const filesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db) return null;
-    return query(collection(db, 'teams', activeTeam.id, 'files'), orderBy('createdAt', 'desc'));
-  }, [activeTeam?.id, db]);
+    if (!activeTeam || !db || !firebaseUser) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'files'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+    );
+  }, [activeTeam?.id, db, firebaseUser?.uid]);
   const { data: filesData } = useCollection(filesQuery);
-  const files: TeamFile[] = (filesData || []).map(f => ({
-    id: f.id,
-    teamId: f.teamId,
-    name: f.fileName,
-    type: f.fileType,
-    size: f.fileSize,
-    uploadedBy: f.uploaderName || 'Unknown',
-    date: new Date(f.createdAt)
-  }));
+  const files: TeamFile[] = (filesData || [])
+    .map(f => ({
+      id: f.id,
+      teamId: f.teamId,
+      name: f.fileName,
+      type: f.fileType,
+      size: f.fileSize,
+      uploadedBy: f.uploaderName || 'Unknown',
+      date: new Date(f.createdAt)
+    }))
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
 
   // Methods
   const updateUser = (updates: Partial<UserProfile>) => {
@@ -308,7 +342,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const createChat = async (name: string, memberIds: string[]) => {
     if (!activeTeam || !firebaseUser) return '';
     const colRef = collection(db, 'teams', activeTeam.id, 'groupChats');
-    // Security rules require denormalized members map
     const teamDocSnap = await getDoc(doc(db, 'teams', activeTeam.id));
     const membersMap = teamDocSnap.exists() ? teamDocSnap.data().members : {};
 
@@ -317,7 +350,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name,
       createdBy: firebaseUser.uid,
       memberIds: [firebaseUser.uid, ...memberIds],
-      members: membersMap, // Denormalized for auth independence
+      members: membersMap,
       createdAt: new Date().toISOString(),
       isDeleted: false
     };
@@ -325,15 +358,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return docRef.id;
   };
 
-  const addMessage = (chatId: string, author: string, content: string, type: 'text' | 'poll', poll?: any) => {
+  const addMessage = async (chatId: string, author: string, content: string, type: 'text' | 'poll', poll?: any) => {
     if (!activeTeam || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages');
-    
-    // We'd ideally fetch membersMap from the chat doc for strict auth independence
+    const teamDocSnap = await getDoc(doc(db, 'teams', activeTeam.id));
+    const membersMap = teamDocSnap.exists() ? teamDocSnap.data().members : {};
+
     addDoc(colRef, {
       chatId,
       authorId: firebaseUser.uid,
       authorName: author,
+      members: membersMap,
       content,
       type,
       pollData: poll || null,
@@ -344,7 +379,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addPost = async (content: string, imageUrl?: string) => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'feedPosts');
-    
     const teamDocSnap = await getDoc(doc(db, 'teams', activeTeam.id));
     const membersMap = teamDocSnap.exists() ? teamDocSnap.data().members : {};
 
@@ -352,7 +386,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       teamId: activeTeam.id,
       author: { name: userProfile.name, avatar: userProfile.avatar },
       authorId: firebaseUser.uid,
-      members: membersMap, // Denormalized for auth independence
+      members: membersMap,
       content,
       type: 'user',
       imageUrl: imageUrl || '',
@@ -363,7 +397,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addComment = async (postId: string, content: string) => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'feedPosts', postId, 'comments');
-    
     const teamDocSnap = await getDoc(doc(db, 'teams', activeTeam.id));
     const membersMap = teamDocSnap.exists() ? teamDocSnap.data().members : {};
 
@@ -371,7 +404,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       postId,
       authorId: firebaseUser.uid,
       authorName: userProfile.name,
-      members: membersMap, // Denormalized for auth independence
+      members: membersMap,
       content,
       createdAt: new Date().toISOString()
     });
@@ -380,14 +413,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addEvent = async (eventData: Omit<TeamEvent, 'id' | 'teamId' | 'rsvps'>) => {
     if (!activeTeam || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'events');
-    
     const teamDocSnap = await getDoc(doc(db, 'teams', activeTeam.id));
     const membersMap = teamDocSnap.exists() ? teamDocSnap.data().members : {};
 
     addDoc(colRef, {
       ...eventData,
       teamId: activeTeam.id,
-      members: membersMap, // Denormalized for auth independence
+      members: membersMap,
       date: eventData.date.toISOString(),
       createdBy: firebaseUser.uid,
       createdAt: new Date().toISOString(),
@@ -407,7 +439,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addFile = async (name: string, type: string, size: string) => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'files');
-    
     const teamDocSnap = await getDoc(doc(db, 'teams', activeTeam.id));
     const membersMap = teamDocSnap.exists() ? teamDocSnap.data().members : {};
 
@@ -416,7 +447,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       fileName: name,
       fileType: type,
       fileSize: size,
-      members: membersMap, // Denormalized for auth independence
+      members: membersMap,
       uploadedBy: firebaseUser.uid,
       uploaderName: userProfile.name,
       createdAt: new Date().toISOString()
@@ -428,7 +459,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const teamId = `team_${Date.now()}`;
     const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     
-    // Critical: Initialize the authoritative members map
     await setDoc(doc(db, 'teams', teamId), {
       id: teamId,
       teamName: name,
@@ -456,8 +486,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const teamId = activeTeam.id;
     const mockUserId = `invited_${Date.now()}`;
     
-    // In a real app, this would be an invitation or a direct join via code
-    // For MVP, we'll simulate adding them and updating the parent doc's map
     const teamRef = doc(db, 'teams', teamId);
     await updateDoc(teamRef, {
       [`members.${mockUserId}`]: 'Member'
@@ -485,6 +513,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       chats,
       createChat,
       messages,
+      activeChatId,
+      setActiveChatId,
       addMessage,
       posts,
       addPost,
