@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -676,7 +677,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     <TeamContext.Provider value={{ 
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike,
-      events, addEvent, updateEvent: () => {}, updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: () => {}, files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
+      events, addEvent, updateEvent: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'events', id), u), updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'games', id), u), files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
       createNewTeam, inviteMember, joinTeamWithCode, isLoading: isUserLoading, formatTime, isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
     }}>
       {children}

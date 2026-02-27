@@ -16,15 +16,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Megaphone, Bell } from 'lucide-react';
-import { useTeam } from '@/components/providers/team-provider';
+import { useTeam, TeamAlert } from '@/components/providers/team-provider';
 
 const SEEN_ALERTS_KEY = 'squad_seen_alerts_ids';
 
 export function AlertOverlay() {
-  const { alerts, activeTeam } = useTeam();
+  const { alerts } = useTeam();
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<string[]>([]);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Load seen IDs from localStorage on mount
   useEffect(() => {
@@ -36,24 +37,28 @@ export function AlertOverlay() {
         console.error("Failed to parse seen alerts", e);
       }
     }
+    setHasInitialized(true);
   }, []);
 
   useEffect(() => {
-    if (alerts.length > 0) {
-      const latestAlert = alerts[0];
-      
-      // If we haven't seen this alert ID yet, and it's not currently open
-      if (!seenIds.includes(latestAlert.id) && !isAlertOpen) {
-        setCurrentAlertId(latestAlert.id);
-        setIsAlertOpen(true);
-      }
+    if (!hasInitialized || alerts.length === 0) return;
+
+    const latestAlert = alerts[0];
+    
+    // Check if we haven't seen this alert and no dialog is currently open
+    if (!seenIds.includes(latestAlert.id) && !isAlertOpen) {
+      setCurrentAlertId(latestAlert.id);
+      setIsAlertOpen(true);
     }
-  }, [alerts, seenIds, isAlertOpen]);
+  }, [alerts, seenIds, isAlertOpen, hasInitialized]);
 
   const markAsSeen = (id: string) => {
-    const updated = [...seenIds, id];
-    setSeenIds(updated);
-    localStorage.setItem(SEEN_ALERTS_KEY, JSON.stringify(updated));
+    setSeenIds(prev => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      localStorage.setItem(SEEN_ALERTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleUnderstood = () => {
@@ -69,10 +74,9 @@ export function AlertOverlay() {
 
   return (
     <Dialog open={isAlertOpen} onOpenChange={(open) => {
-      setIsAlertOpen(open);
-      // If closed via X or clicking outside, we also mark it as seen
-      if (!open && currentAlertId && !seenIds.includes(currentAlertId)) {
-        markAsSeen(currentAlertId);
+      if (!open) {
+        if (currentAlertId) markAsSeen(currentAlertId);
+        setIsAlertOpen(false);
       }
     }}>
       <DialogContent className="sm:max-w-md border-t-4 border-t-primary rounded-3xl overflow-hidden">
@@ -112,7 +116,7 @@ export function CreateAlertButton() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
 
-  const isAdmin = activeTeam?.membersMap?.[user?.id || ''] === 'Admin';
+  const isAdmin = activeTeam?.role === 'Admin';
 
   if (!isAdmin) return null;
 
