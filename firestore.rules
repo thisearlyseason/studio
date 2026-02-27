@@ -17,17 +17,19 @@ service cloud.firestore {
     }
 
     // Helper for checking membership in documents that have a denormalized 'members' map
-    // Using .get() ensures the rules engine can optimize 'list' queries effectively.
+    // Using direct map access allows the Firestore query optimizer to validate 'list' operations.
     function isTeamMember(data) {
       return isSignedIn() && 
              data != null && 
-             data.get('members', {}).get(request.auth.uid, '') in ['Admin', 'Member'];
+             data.members != null &&
+             data.members[request.auth.uid] in ['Admin', 'Member'];
     }
 
     function isTeamAdmin(data) {
       return isSignedIn() && 
              data != null && 
-             data.get('members', {}).get(request.auth.uid, '') == 'Admin';
+             data.members != null &&
+             data.members[request.auth.uid] == 'Admin';
     }
 
     // --- Collection Rules ---
