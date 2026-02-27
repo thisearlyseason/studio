@@ -5,8 +5,7 @@ service cloud.firestore {
 
     /**
      * SquadForge Security Rules
-     * Updated to support denormalized members map for performant authorization.
-     * Includes robust null checks to prevent rule evaluation errors during list operations.
+     * Using robust get() helpers for map-based authorization to satisfy list query requirements.
      */
 
     function isSignedIn() {
@@ -24,22 +23,19 @@ service cloud.firestore {
     function isTeamMember(data) {
       return isSignedIn() && 
              data != null && 
-             'members' in data && 
-             (data.members[request.auth.uid] == 'Admin' || data.members[request.auth.uid] == 'Member');
+             data.get('members', {}).get(request.auth.uid, 'None') in ['Admin', 'Member'];
     }
 
     function isIncomingTeamMember(data) {
       return isSignedIn() && 
              data != null && 
-             'members' in data && 
-             (data.members[request.auth.uid] == 'Admin' || data.members[request.auth.uid] == 'Member');
+             data.get('members', {}).get(request.auth.uid, 'None') in ['Admin', 'Member'];
     }
 
     function isTeamAdmin(data) {
       return isSignedIn() && 
              data != null && 
-             'members' in data && 
-             data.members[request.auth.uid] == 'Admin';
+             data.get('members', {}).get(request.auth.uid, 'None') == 'Admin';
     }
 
     // --- Collection Rules ---
@@ -67,6 +63,12 @@ service cloud.firestore {
         allow get, list: if isTeamMember(resource.data);
         allow create: if isIncomingTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
         allow update, delete: if resource != null && (isTeamAdmin(resource.data) || isOwner(resource.data.authorId));
+
+        match /comments/{commentId} {
+          allow get, list: if isTeamMember(resource.data);
+          allow create: if isIncomingTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
+          allow update, delete: if resource != null && (isTeamAdmin(resource.data) || isOwner(resource.data.authorId));
+        }
       }
 
       match /events/{eventId} {

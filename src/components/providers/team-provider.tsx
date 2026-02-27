@@ -470,7 +470,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       chatId,
       authorId: firebaseUser.uid,
       authorName: author,
-      members: activeTeam.membersMap || {},
+      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       content,
       type,
       pollData: poll || null,
@@ -515,7 +515,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       teamId: activeTeam.id,
       author: { name: userProfile.name, avatar: userProfile.avatar },
       authorId: firebaseUser.uid,
-      members: activeTeam.membersMap || {},
+      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       content,
       type,
       imageUrl: imageUrl || '',
@@ -530,7 +530,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       postId,
       authorId: firebaseUser.uid,
       authorName: userProfile.name,
-      members: activeTeam.membersMap || {},
+      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       content,
       createdAt: new Date().toISOString()
     });
@@ -542,7 +542,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     addDoc(colRef, {
       ...eventData,
       teamId: activeTeam.id,
-      members: activeTeam.membersMap || {},
+      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       date: eventData.date.toISOString(),
       createdBy: firebaseUser.uid,
       createdAt: new Date().toISOString(),
@@ -585,7 +585,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     addDoc(colRef, {
       ...gameData,
       teamId: activeTeam.id,
-      members: activeTeam.membersMap || {},
+      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       date: gameData.date.toISOString(),
       createdAt: new Date().toISOString()
     });
@@ -620,7 +620,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       fileName: name,
       fileType: type,
       fileSize: size,
-      members: activeTeam.membersMap || {},
+      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       uploadedBy: firebaseUser.uid,
       uploaderName: userProfile.name,
       createdAt: new Date().toISOString()
@@ -636,7 +636,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       message,
       createdBy: firebaseUser.uid,
       createdAt: new Date().toISOString(),
-      members: activeTeam.membersMap || {}
+      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' }
     });
     addPost(`📣 ALERT: ${title} - ${message}`, undefined, 'system');
   };
