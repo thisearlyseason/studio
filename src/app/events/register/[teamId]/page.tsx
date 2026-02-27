@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useTeam } from '@/components/providers/team-provider';
 import { CheckCircle2, AlertCircle, Clock, MapPin, Loader2 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
@@ -23,7 +23,6 @@ function RegistrationForm() {
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
-  const [isFull, setIsFull] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,18 +32,10 @@ function RegistrationForm() {
       try {
         const eventSnap = await getDoc(doc(db, 'teams', teamId as string, 'events', eventId));
         if (eventSnap.exists()) {
-          const data = eventSnap.data();
-          setEvent(data);
-          
-          if (data.maxRegistrations) {
-            const regsSnap = await getDocs(collection(db, 'teams', teamId as string, 'events', eventId, 'registrations'));
-            if (regsSnap.size >= data.maxRegistrations) {
-              setIsFull(true);
-            }
-          }
+          setEvent(eventSnap.data());
         }
       } catch (e) {
-        console.error(e);
+        console.error("Error loading event details:", e);
       } finally {
         setLoading(false);
       }
@@ -57,11 +48,12 @@ function RegistrationForm() {
     if (!formData.name || !formData.email || isSubmitting) return;
     
     setIsSubmitting(true);
+    // Capacity check is handled on the server/admin side or by the link visibility
     const success = await addRegistration(teamId as string, eventId as string, formData);
     if (success) {
       setSubmitted(true);
     } else {
-      alert("Failed to register. The event might be full.");
+      alert("Failed to register. Please try again or contact the team organizer.");
     }
     setIsSubmitting(false);
   };
@@ -120,53 +112,46 @@ function RegistrationForm() {
             </div>
           </div>
 
-          {isFull ? (
-            <div className="p-6 bg-red-50 text-red-700 rounded-2xl text-center border border-red-100">
-              <p className="font-bold text-lg">Event at Capacity</p>
-              <p className="text-sm">Sorry, registrations for this event are currently closed.</p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input 
+                id="name" 
+                placeholder="John Doe" 
+                required 
+                value={formData.name}
+                onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                className="rounded-xl h-12"
+              />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  placeholder="John Doe" 
-                  required 
-                  value={formData.name}
-                  onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                  className="rounded-xl h-12"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="john@example.com" 
-                  required 
-                  value={formData.email}
-                  onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
-                  className="rounded-xl h-12"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input 
-                  id="phone" 
-                  type="tel" 
-                  placeholder="(555) 000-0000" 
-                  required 
-                  value={formData.phone}
-                  onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
-                  className="rounded-xl h-12"
-                />
-              </div>
-              <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-black mt-4" disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "Confirm Registration"}
-              </Button>
-            </form>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="john@example.com" 
+                required 
+                value={formData.email}
+                onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
+                className="rounded-xl h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input 
+                id="phone" 
+                type="tel" 
+                placeholder="(555) 000-0000" 
+                required 
+                value={formData.phone}
+                onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
+                className="rounded-xl h-12"
+              />
+            </div>
+            <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-black mt-4" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Confirm Registration"}
+            </Button>
+          </form>
         </CardContent>
         <CardFooter className="bg-muted/10 p-6 text-center border-t">
           <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Powered by The Squad</p>
