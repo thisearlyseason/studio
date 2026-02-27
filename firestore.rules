@@ -12,6 +12,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    /** Hardcoded Super Admin check for administrative UIDs provided in console errors. */
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.uid in ['ai2QThECAwfkAFw608m7TgPZTmk2', 'super-admin-uid-placeholder'];
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -30,13 +35,8 @@ service cloud.firestore {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)).data.role == 'Admin';
     }
 
-    /** Hardcoded Super Admin check for administrative UIDs provided in console errors. */
-    function isSuperAdmin() {
-      return isSignedIn() && request.auth.uid in ['ai2QThECAwfkAFw608m7TgPZTmk2', 'super-admin-uid-placeholder'];
-    }
-
     function isChatMember(chatData) {
-      return isSignedIn() && request.auth.uid in chatData.memberIds;
+      return isSignedIn() && (request.auth.uid in chatData.memberIds);
     }
 
     // --- COLLECTION RULES ---
@@ -62,70 +62,70 @@ service cloud.firestore {
     }
 
     match /teams/{teamId} {
-      allow get: if isTeamMember(teamId) || isSuperAdmin();
+      allow get: if isSuperAdmin() || isTeamMember(teamId);
       allow list: if isSuperAdmin();
       allow create: if isSignedIn();
-      allow update, delete: if resource != null && (isTeamAdmin(teamId) || isSuperAdmin());
+      allow update, delete: if resource != null && (isSuperAdmin() || isTeamAdmin(teamId));
 
       match /members/{memberId} {
-        allow read: if isTeamMember(teamId) || isSuperAdmin();
-        allow create, update, delete: if isTeamAdmin(teamId) || isSuperAdmin();
+        allow read: if isSuperAdmin() || isTeamMember(teamId);
+        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
       }
 
-      match /posts/{postId} {
-        allow read: if isTeamMember(teamId) || isSuperAdmin();
+      match /feedPosts/{postId} {
+        allow read: if isSuperAdmin() || isTeamMember(teamId);
         allow create: if isTeamMember(teamId);
-        allow update, delete: if isTeamMember(teamId) && (isExistingOwner(resource.data.authorId) || isTeamAdmin(teamId));
+        allow update, delete: if isSuperAdmin() || (isTeamMember(teamId) && (isExistingOwner(resource.data.authorId) || isTeamAdmin(teamId)));
 
         match /comments/{commentId} {
-          allow read: if isTeamMember(teamId) || isSuperAdmin();
+          allow read: if isSuperAdmin() || isTeamMember(teamId);
           allow create: if isTeamMember(teamId);
-          allow update, delete: if isTeamMember(teamId) && (isExistingOwner(resource.data.authorId) || isTeamAdmin(teamId));
+          allow update, delete: if isSuperAdmin() || (isTeamMember(teamId) && (isExistingOwner(resource.data.authorId) || isTeamAdmin(teamId)));
         }
       }
 
       match /events/{eventId} {
-        allow read: if isTeamMember(teamId) || isSuperAdmin();
-        allow create, update, delete: if isTeamAdmin(teamId) || isSuperAdmin();
+        allow read: if isSuperAdmin() || isTeamMember(teamId);
+        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
 
         match /rsvps/{userId} {
-          allow read: if isTeamMember(teamId) || isSuperAdmin();
+          allow read: if isSuperAdmin() || isTeamMember(teamId);
           allow create, update, delete: if isOwner(userId);
         }
       }
 
       match /games/{gameId} {
-        allow read: if isTeamMember(teamId) || isSuperAdmin();
-        allow create, update, delete: if isTeamAdmin(teamId) || isSuperAdmin();
+        allow read: if isSuperAdmin() || isTeamMember(teamId);
+        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
       }
 
       match /drills/{drillId} {
-        allow read: if isTeamMember(teamId) || isSuperAdmin();
-        allow create, update, delete: if isTeamAdmin(teamId) || isSuperAdmin();
+        allow read: if isSuperAdmin() || isTeamMember(teamId);
+        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
       }
 
       match /files/{fileId} {
-        allow read: if isTeamMember(teamId) || isSuperAdmin();
+        allow read: if isSuperAdmin() || isTeamMember(teamId);
         allow create: if isTeamMember(teamId);
-        allow update, delete: if isTeamAdmin(teamId) || isExistingOwner(resource.data.uploadedBy);
+        allow update, delete: if isSuperAdmin() || isTeamAdmin(teamId) || isExistingOwner(resource.data.uploadedBy);
       }
 
       match /groupChats/{chatId} {
-        allow get, list: if isTeamMember(teamId) && (isChatMember(resource.data) || isSuperAdmin());
+        allow get, list: if isSuperAdmin() || isTeamMember(teamId);
         allow create: if isTeamMember(teamId);
-        allow update: if isTeamMember(teamId) && isChatMember(resource.data);
-        allow delete: if isTeamAdmin(teamId) || isSuperAdmin();
+        allow update: if isSuperAdmin() || (isTeamMember(teamId) && isChatMember(resource.data));
+        allow delete: if isSuperAdmin() || isTeamAdmin(teamId);
 
         match /messages/{messageId} {
-          allow read: if isTeamMember(teamId) && (isChatMember(get(/databases/$(database)/documents/teams/$(teamId)/groupChats/$(chatId)).data) || isSuperAdmin());
-          allow create: if isTeamMember(teamId) && isChatMember(get(/databases/$(database)/documents/teams/$(teamId)/groupChats/$(chatId)).data);
-          allow update, delete: if isExistingOwner(resource.data.authorId);
+          allow read: if isSuperAdmin() || isTeamMember(teamId);
+          allow create: if isTeamMember(teamId);
+          allow update, delete: if isSuperAdmin() || isExistingOwner(resource.data.authorId);
         }
       }
 
       match /alerts/{alertId} {
-        allow read: if isTeamMember(teamId) || isSuperAdmin();
-        allow create, update, delete: if isTeamAdmin(teamId) || isSuperAdmin();
+        allow read: if isSuperAdmin() || isTeamMember(teamId);
+        allow create, update, delete: if isSuperAdmin() || isTeamAdmin(teamId);
       }
     }
   }

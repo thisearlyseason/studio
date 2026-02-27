@@ -286,8 +286,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (isSuperAdmin) {
       setTeams(teamsRawData.map(t => ({
         id: t.id,
-        name: t.teamName,
-        code: t.teamCode,
+        name: t.teamName || t.name,
+        code: t.teamCode || t.code,
         sport: t.sport,
         teamLogoUrl: t.teamLogoUrl,
         heroImageUrl: t.heroImageUrl,
@@ -932,8 +932,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), {
       userId: firebaseUser.uid,
       teamId: teamId,
-      teamName: teamData.teamName,
-      teamCode: teamData.teamCode,
+      teamName: teamData.teamName || teamData.name,
+      teamCode: teamData.teamCode || teamData.code,
       role: 'Member',
       sport: teamData.sport || 'General',
       isPro: teamData.isPro || false,
