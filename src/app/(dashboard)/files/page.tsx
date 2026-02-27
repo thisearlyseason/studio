@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -24,6 +24,12 @@ const MOCK_FILES = [
 ];
 
 export default function FilesPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const getFileIcon = (type: string) => {
     switch(type) {
       case 'pdf': return <FileText className="h-6 w-6 text-red-500" />;
@@ -56,7 +62,7 @@ export default function FilesPage() {
                   <span>{file.size}</span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-2.5 w-2.5" />
-                    {format(file.date, 'MMM d, yyyy')}
+                    {mounted ? format(file.date, 'MMM d, yyyy') : '...'}
                   </span>
                   <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-3.5 bg-muted">
                     {file.uploadedBy}

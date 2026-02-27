@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,6 +46,11 @@ const MOCK_POSTS = [
 export default function FeedPage() {
   const { activeTeam } = useTeam();
   const [newPost, setNewPost] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const teamPosts = MOCK_POSTS.filter(p => p.teamId === activeTeam.id);
 
@@ -91,7 +96,7 @@ export default function FeedPage() {
                 <div className="flex-1">
                   <div className="font-semibold text-sm">{post.author.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(post.createdAt))} ago
+                    {mounted ? `${formatDistanceToNow(new Date(post.createdAt))} ago` : '...'}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
@@ -109,7 +114,9 @@ export default function FeedPage() {
                   <div>
                     <Badge variant="outline" className="mb-1 text-[10px] uppercase tracking-wider">System update</Badge>
                     <p className="text-sm font-medium">{post.content}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{formatDistanceToNow(new Date(post.createdAt))} ago</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {mounted ? `${formatDistanceToNow(new Date(post.createdAt))} ago` : '...'}
+                    </p>
                   </div>
                 </div>
               ) : (

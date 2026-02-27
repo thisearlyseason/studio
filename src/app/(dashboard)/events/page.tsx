@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -60,8 +60,25 @@ export default function EventsPage() {
   const { activeTeam } = useTeam();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const teamEvents = MOCK_EVENTS.filter(e => e.teamId === activeTeam.id);
+
+  if (!mounted) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Events</h1>
+          <Button size="sm" disabled><Plus className="h-4 w-4 mr-2" />New Event</Button>
+        </div>
+        <div className="h-40 bg-muted animate-pulse rounded-2xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
