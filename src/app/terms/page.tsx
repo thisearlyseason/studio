@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BrandLogo } from '@/components/ui/brand-logo';
+import BrandLogo from '@/components/BrandLogo';
 
 export default function TermsOfServicePage() {
   return (

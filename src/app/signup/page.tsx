@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { useTeam } from '@/components/providers/team-provider';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { BrandLogo } from '@/components/ui/brand-logo';
+import BrandLogo from '@/components/BrandLogo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 
@@ -102,7 +102,7 @@ function SignupForm() {
         </>
       )}
 
-      {/* Logo Header - Dark Background Variant */}
+      {/* Centralized Brand Logo for Dark Background */}
       <div className="relative z-20 mb-8 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-1000">
         <BrandLogo variant="dark-background" className="h-16 w-48 drop-shadow-2xl" priority />
       </div>

@@ -1,16 +1,15 @@
-
 {
   "placeholderImages": [
     {
       "id": "brand-logo-dark",
       "description": "Official brand logo for light backgrounds",
-      "imageUrl": "https://picsum.photos/seed/squad-logo-dark/400/120",
+      "imageUrl": "/logo-dark.png",
       "imageHint": "black logo"
     },
     {
       "id": "brand-logo-light",
       "description": "Official brand logo for dark backgrounds",
-      "imageUrl": "https://picsum.photos/seed/squad-logo-light/400/120",
+      "imageUrl": "/logo-light.png",
       "imageHint": "white logo"
     },
     {
@@ -40,13 +39,13 @@
     {
       "id": "sport-basketball",
       "description": "Basketball action shot",
-      "imageUrl": "https://images.unsplash.com/photo-1612768875331-0447b960fa40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8YmFza2V0YmFsbCUyMHBsYXllcnxlbnwwfHx8DE3NzIyMDIxOTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1612768875331-0447b960fa40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8YmFza2V0YmFsbCUyMHBsYXllcnxlbnwwfHx8DE3NzIyMDIyMDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "basketball player"
     },
     {
       "id": "sport-football",
       "description": "Football action shot",
-      "imageUrl": "https://images.unsplash.com/photo-1508863702330-2eece3ea08cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8YW1lcmljYW4lMjBmb290YmFsbHxlbnwwfHx8DE3NzIyMDIxOTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1508863702330-2eece3ea08cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8YW1lcmljYW4lMjBmb290YmFsbHxlbnwwfHx8DE3NzIyMDIyMDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "american football"
     },
     {
@@ -64,7 +63,7 @@
     {
       "id": "sport-hockey",
       "description": "Hockey action shot",
-      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw8fHxpY2UlMjBob2NrZXl8ZW58MHx8fHwxNzcyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxpY2UlMjBob2NrZXl8ZW58MHx8fHwxNzcyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "ice hockey"
     },
     {
@@ -76,7 +75,7 @@
     {
       "id": "sport-pickleball",
       "description": "Pickleball action shot",
-      "imageUrl": "https://images.unsplash.com/photo-1608673712088-2d776b1a0c63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwaWNrbGViYWxsJTIwbWF0Y2h8ZW58MHx8fHwxNzcyMjA1OTEzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1608673712088-2d776b1a0c63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwaWNrbGViYWxsJTIwbWF0Y2h8ZW58MHx8fHwxNzcyMjA1OTEzfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "pickleball match"
     }
   ]

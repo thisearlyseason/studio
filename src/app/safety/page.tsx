@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ShieldCheck, Users, MessageSquare, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { BrandLogo } from '@/components/ui/brand-logo';
+import BrandLogo from '@/components/BrandLogo';
 
 export default function SafetyCenterPage() {
   return (
