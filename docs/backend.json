@@ -281,6 +281,26 @@
         "createdAt",
         "members"
       ]
+    },
+    "Game": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Game",
+      "type": "object",
+      "description": "Represents a recorded game or match result.",
+      "properties": {
+        "id": { "type": "string" },
+        "teamId": { "type": "string" },
+        "opponent": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "myScore": { "type": "number" },
+        "opponentScore": { "type": "number" },
+        "result": { "type": "string", "enum": ["Win", "Loss", "Tie"] },
+        "location": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "members": { "type": "object" }
+      },
+      "required": ["id", "teamId", "opponent", "date", "myScore", "opponentScore", "result", "createdAt", "members"]
     }
   },
   "auth": {
@@ -339,6 +359,16 @@
             "$ref": "#/backend/entities/Event"
           },
           "description": "Stores scheduled events for a team."
+        }
+      },
+      {
+        "path": "/teams/{teamId}/games/{gameId}",
+        "definition": {
+          "entityName": "Game",
+          "schema": {
+            "$ref": "#/backend/entities/Game"
+          },
+          "description": "Stores recorded game results."
         }
       }
     ]

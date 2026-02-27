@@ -115,6 +115,21 @@ export type TeamEvent = {
   userRsvp?: RSVPStatus;
 };
 
+export type GameResult = 'Win' | 'Loss' | 'Tie';
+
+export type Game = {
+  id: string;
+  teamId: string;
+  opponent: string;
+  date: Date;
+  myScore: number;
+  opponentScore: number;
+  result: GameResult;
+  location?: string;
+  notes?: string;
+  createdAt: string;
+};
+
 export type TeamFile = {
   id: string;
   teamId: string;
@@ -147,6 +162,8 @@ interface TeamContextType {
   events: TeamEvent[];
   addEvent: (event: Omit<TeamEvent, 'id' | 'teamId' | 'rsvps'>) => void;
   updateRSVP: (eventId: string, status: RSVPStatus) => void;
+  games: Game[];
+  addGame: (game: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => void;
   files: TeamFile[];
   addFile: (name: string, type: string, size: string) => void;
   createNewTeam: (name: string, organizerPosition: string) => Promise<void>;
@@ -278,6 +295,29 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
+  const gamesQuery = useMemoFirebase(() => {
+    if (!activeTeam || !db || !firebaseUser) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'games'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+    );
+  }, [activeTeam?.id, db, firebaseUser?.uid]);
+  const { data: gamesData } = useCollection(gamesQuery);
+  const games: Game[] = (gamesData || [])
+    .map(g => ({
+      id: g.id,
+      teamId: g.teamId,
+      opponent: g.opponent,
+      date: new Date(g.date),
+      myScore: g.myScore,
+      opponentScore: g.opponentScore,
+      result: g.result as GameResult,
+      location: g.location,
+      notes: g.notes,
+      createdAt: g.createdAt
+    }))
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+
   const chatsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || !firebaseUser) return null;
     return query(
@@ -369,7 +409,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!activeTeam) return;
     const docRef = doc(db, 'teams', activeTeam.id, 'members', id);
     
-    // If the Admin changes the position to Coach or Admin, we might want to toggle the Firestore role as well
     const firestoreUpdates: any = { ...updates };
     if (updates.position) {
       if (['Coach', 'Team Lead', 'Assistant Coach', 'Squad Leader'].includes(updates.position)) {
@@ -383,12 +422,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
     });
 
-    // Also update the parent team members map for authorization sync
     if (firestoreUpdates.role) {
       updateDoc(doc(db, 'teams', activeTeam.id), {
         [`members.${id}`]: firestoreUpdates.role
       });
-      // Also update the membership document's own members map
       updateDoc(docRef, {
         [`members.${id}`]: firestoreUpdates.role
       });
@@ -506,6 +543,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     updateDoc(docRef, { [`userRsvps.${firebaseUser.uid}`]: status });
   };
 
+  const addGame = async (gameData: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => {
+    if (!activeTeam || !firebaseUser) return;
+    const colRef = collection(db, 'teams', activeTeam.id, 'games');
+    addDoc(colRef, {
+      ...gameData,
+      teamId: activeTeam.id,
+      members: activeTeam.membersMap || {},
+      date: gameData.date.toISOString(),
+      createdAt: new Date().toISOString()
+    });
+  };
+
   const addFile = async (name: string, type: string, size: string) => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'files');
@@ -594,7 +643,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     <TeamContext.Provider value={{ 
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, teams, members, updateMember,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, addComment,
-      events, addEvent, updateRSVP, files, addFile, createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime
+      events, addEvent, updateRSVP, games, addGame, files, addFile, createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime
     }}>
       {children}
     </TeamContext.Provider>

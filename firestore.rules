@@ -1,19 +1,11 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
      * SquadForge Security Rules
-     * 
-     * PHILOSOPHY:
-     * This ruleset implements a robust, denormalization-heavy security model designed for performance 
-     * and "Authorization Independence." The core mechanism relies on a 'members' map (mapping UIDs 
-     * to roles) that is denormalized from the Team document into every related subcollection 
-     * document (posts, events, chats, etc.). This allows for atomic authorization checks 
-     * without the latency of cross-document lookups (get() calls).
      */
-
-    // --- Helper Functions ---
 
     function isSignedIn() {
       return request.auth != null;
@@ -27,10 +19,6 @@ service cloud.firestore {
       return resource != null && isOwner(userId);
     }
 
-    /** 
-     * Checks if the user is a member of the team based on denormalized data on the document.
-     * We explicitly check for 'Admin' or 'Member' roles to facilitate QAP with 'in' queries.
-     */
     function isTeamMember(data) {
       return isSignedIn() && (data.members[request.auth.uid] == 'Admin' || data.members[request.auth.uid] == 'Member');
     }
@@ -54,13 +42,6 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if false;
-
-      match /hiddenChats/{chatId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && isUnchanged('userId');
-        allow delete: if isExistingOwner(userId);
-      }
     }
 
     match /teams/{teamId} {
@@ -69,10 +50,8 @@ service cloud.firestore {
       allow update, delete: if resource != null && isTeamAdmin(resource.data);
 
       match /members/{userId} {
-        // Membership docs now use denormalized members map for QAP performance
         allow get, list: if isTeamMember(resource.data);
         allow create: if isIncomingTeamMember(request.resource.data) && isTeamAdmin(request.resource.data);
-        // Allow members to update their own labels, or admins to manage the roster
         allow update: if resource != null && (isTeamAdmin(resource.data) || isOwner(userId));
         allow delete: if resource != null && isTeamAdmin(resource.data);
       }
@@ -81,32 +60,18 @@ service cloud.firestore {
         allow get, list: if isTeamMember(resource.data);
         allow create: if isIncomingTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
         allow update, delete: if resource != null && (isTeamAdmin(resource.data) || isOwner(resource.data.authorId));
-
-        match /comments/{commentId} {
-          allow get, list: if isTeamMember(resource.data);
-          allow create: if isIncomingTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
-          allow update, delete: if resource != null && (isTeamAdmin(resource.data) || isOwner(resource.data.authorId));
-        }
       }
 
       match /events/{eventId} {
         allow get, list: if isTeamMember(resource.data);
         allow create: if isIncomingTeamMember(request.resource.data) && isTeamAdmin(request.resource.data);
         allow update, delete: if resource != null && isTeamAdmin(resource.data);
-
-        match /rsvps/{userId} {
-          allow get, list: if isTeamMember(resource.data);
-          allow create: if isIncomingTeamMember(request.resource.data) && isOwner(userId);
-          allow update: if isExistingOwner(userId) && isUnchanged('userId');
-          allow delete: if isExistingOwner(userId);
-        }
       }
 
-      match /userAvailability/{availabilityId} {
+      match /games/{gameId} {
         allow get, list: if isTeamMember(resource.data);
-        allow create: if isIncomingTeamMember(request.resource.data) && request.resource.data.userId == request.auth.uid;
-        allow update: if resource != null && isOwner(resource.data.userId) && isUnchanged('userId');
-        allow delete: if resource != null && isOwner(resource.data.userId);
+        allow create: if isIncomingTeamMember(request.resource.data) && isTeamAdmin(request.resource.data);
+        allow update, delete: if resource != null && isTeamAdmin(resource.data);
       }
 
       match /files/{fileId} {
@@ -125,19 +90,6 @@ service cloud.firestore {
           allow create: if isIncomingTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
           allow update: if resource != null && isOwner(resource.data.authorId);
           allow delete: if resource != null && (isTeamAdmin(resource.data) || isOwner(resource.data.authorId));
-        }
-
-        match /polls/{pollId} {
-          allow get, list: if isTeamMember(resource.data);
-          allow create: if isIncomingTeamMember(request.resource.data) && request.resource.data.createdBy == request.auth.uid;
-          allow update, delete: if resource != null && (isTeamAdmin(resource.data) || isOwner(resource.data.createdBy));
-
-          match /votes/{userId} {
-            allow get, list: if isTeamMember(resource.data);
-            allow create: if isIncomingTeamMember(request.resource.data) && isOwner(userId);
-            allow update: if isExistingOwner(userId) && isUnchanged('userId');
-            allow delete: if isExistingOwner(userId);
-          }
         }
       }
     }

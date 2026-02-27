@@ -12,7 +12,8 @@ import {
   FolderClosed, 
   Settings,
   ChevronDown,
-  PlusCircle
+  PlusCircle,
+  Trophy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ import {
 const tabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard },
   { name: 'Schedule', href: '/events', icon: CalendarDays },
+  { name: 'Games', href: '/games', icon: Trophy },
   { name: 'Chats', href: '/chats', icon: MessageCircle },
   { name: 'Roster', href: '/roster', icon: Users2 },
   { name: 'Library', href: '/files', icon: FolderClosed },
@@ -44,7 +46,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col min-h-screen bg-background">
       {/* Dynamic Header */}
       <header className="sticky top-0 z-50 w-full glass shadow-sm">
-        <div className="container flex h-16 items-center justify-between px-4 max-w-4xl mx-auto">
+        <div className="container flex h-16 items-center justify-between px-4 max-w-5xl mx-auto">
           <div className="flex items-center gap-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -98,13 +100,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Content with subtle animations */}
-      <main className="flex-1 pb-24 pt-6 px-4 max-w-4xl mx-auto w-full animate-in fade-in duration-700 slide-in-from-bottom-2">
+      {/* Main Content */}
+      <main className="flex-1 pb-24 pt-6 px-4 max-w-5xl mx-auto w-full animate-in fade-in duration-700 slide-in-from-bottom-2">
         {children}
       </main>
 
-      {/* Modern Floating Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-lg glass rounded-2xl shadow-2xl border-white/40 p-1.5 transition-all hover:scale-[1.02]">
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-xl glass rounded-2xl shadow-2xl border-white/40 p-1.5 transition-all hover:scale-[1.01]">
         <div className="flex items-center justify-around h-14">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -114,14 +116,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 key={tab.name}
                 href={tab.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl transition-all relative",
+                  "flex flex-col items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl transition-all relative",
                   isActive 
                     ? "text-primary bg-primary/5" 
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
               >
                 <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} strokeWidth={isActive ? 2.5 : 2} />
-                <span className={cn("text-[10px] font-bold tracking-tight uppercase", !isActive && "opacity-70")}>
+                <span className={cn("text-[9px] font-bold tracking-tight uppercase", !isActive && "opacity-70")}>
                   {tab.name}
                 </span>
                 {isActive && (
@@ -130,16 +132,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-          <Link
-            href="/settings"
-            className={cn(
-              "flex flex-col items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl transition-all",
-              pathname === '/settings' ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Settings className="h-5 w-5" strokeWidth={pathname === '/settings' ? 2.5 : 2} />
-            <span className="text-[10px] font-bold uppercase">Me</span>
-          </Link>
         </div>
       </nav>
     </div>
