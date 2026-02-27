@@ -2,14 +2,14 @@
   "placeholderImages": [
     {
       "id": "brand-logo-dark",
-      "description": "Official brand logo in black for light backgrounds",
-      "imageUrl": "https://placehold.co/400x120/FFFFFF/000000/png",
+      "description": "Official brand logo for light backgrounds",
+      "imageUrl": "/logo-dark.png",
       "imageHint": "black logo"
     },
     {
       "id": "brand-logo-light",
-      "description": "Official brand logo in white for dark backgrounds",
-      "imageUrl": "https://placehold.co/400x120/000000/FFFFFF/png",
+      "description": "Official brand logo for dark backgrounds",
+      "imageUrl": "/logo-light.png",
       "imageHint": "white logo"
     },
     {
