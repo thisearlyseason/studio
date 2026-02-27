@@ -98,7 +98,7 @@ export default function NewTeamPage() {
               
               <div className="space-y-2">
                 <p className="text-sm font-medium text-amber-800">
-                  Add another team for only <span className="font-black text-amber-900">$8.50 a month</span> or <span className="font-black text-amber-900">$85 for the year</span>.
+                  Add another team for only <span className="font-black text-amber-900">$8.50 USD a month</span> or <span className="font-black text-amber-900">$85 USD for the year</span>.
                 </p>
                 <ul className="text-[10px] font-bold text-amber-700/80 space-y-1">
                   <li className="flex items-center gap-2">✓ Full Pro Access for the new squad</li>
@@ -119,14 +119,14 @@ export default function NewTeamPage() {
           </Button>
           <div className="flex items-center justify-center gap-2 text-muted-foreground opacity-60">
             <ShieldCheck className="h-3 w-3" />
-            <span className="text-[9px] font-bold uppercase tracking-widest">Secure Checkout Powered by SquadForge</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest">Secure Checkout Powered by SquadForge (USD)</span>
           </div>
         </CardFooter>
       </Card>
       
       <div className="bg-muted/50 p-6 rounded-[2rem] text-center border-2 border-dashed">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          By creating a team, you become the primary administrator. Free plans include Feed, Chat, and Schedule. Pro plans unlock Games, Library, and advanced Roster logic.
+          By creating a team, you become the primary administrator. Free plans include Feed, Chat, and Schedule. Pro plans unlock Games, Library, and advanced Roster logic. All prices are in USD.
         </p>
       </div>
     </div>

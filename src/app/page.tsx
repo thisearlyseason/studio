@@ -204,6 +204,7 @@ export default function LandingPage() {
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Simple, transparent pricing</h2>
             <h3 className="text-4xl md:text-5xl font-black tracking-tight">One Price. Infinite Success.</h3>
+            <p className="text-sm font-bold text-muted-foreground">Prices listed in USD</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -216,7 +217,7 @@ export default function LandingPage() {
                 <p className="text-xs font-black uppercase tracking-widest text-primary">Monthly Play</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-black">$9.99</span>
-                  <span className="text-muted-foreground font-bold">/team/mo</span>
+                  <span className="text-muted-foreground font-bold">USD/team/mo</span>
                 </div>
               </div>
               <ul className="space-y-4 font-bold text-sm text-foreground/80">
@@ -239,7 +240,7 @@ export default function LandingPage() {
                 <p className="text-xs font-black uppercase tracking-widest text-white/60">Annual Dominance</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-black">$100</span>
-                  <span className="text-white/60 font-bold">/team/yr</span>
+                  <span className="text-white/60 font-bold">USD/team/yr</span>
                 </div>
                 <p className="text-[10px] font-black uppercase text-white/40">Saves $20 per year</p>
               </div>
@@ -281,7 +282,7 @@ export default function LandingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <MapPin className="h-5 w-5" />
                   </div>
-                  <span className="font-bold">Canada</span>
+                  <span className="font-bold">Worldwide</span>
                 </div>
                 <div className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">

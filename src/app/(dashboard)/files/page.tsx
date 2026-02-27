@@ -15,7 +15,8 @@ import {
   Eye,
   Trash2,
   Lock,
-  Sparkles
+  Sparkles,
+  FolderClosed
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -97,7 +98,7 @@ export default function FilesPage() {
               <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-blue-500" /> Multi-Member Uploads</li>
             </ul>
             <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
-              Upgrade for $9.99/mo
+              Upgrade for $9.99 USD/mo
             </Button>
           </div>
         </Card>

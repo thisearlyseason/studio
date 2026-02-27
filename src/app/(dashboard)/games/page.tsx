@@ -136,7 +136,7 @@ export default function GamesPage() {
               <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-amber-500" /> Individual Performance Logs</li>
             </ul>
             <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
-              Upgrade Squad for $9.99
+              Upgrade Squad for $9.99 USD
             </Button>
           </div>
         </Card>

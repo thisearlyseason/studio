@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check, DollarSign, Lock, Sparkles } from 'lucide-react';
+import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check, DollarSign, Lock, Sparkles, Users2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam } from '@/components/providers/team-provider';
 import {
@@ -84,7 +84,7 @@ export default function RosterPage() {
               <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-purple-500" /> Jersey & Position Control</li>
             </ul>
             <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
-              Go Pro for $9.99/mo
+              Go Pro for $9.99 USD/mo
             </Button>
           </div>
         </Card>
