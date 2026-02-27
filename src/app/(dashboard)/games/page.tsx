@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Plus, MapPin, Calendar, Info, TrendingUp, TrendingDown, MinusCircle, Edit2 } from 'lucide-react';
+import { Trophy, Plus, MapPin, Calendar, Info, TrendingUp, TrendingDown, MinusCircle, Edit2, Lock, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -16,14 +16,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useTeam, GameResult, Game } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 export default function GamesPage() {
-  const { activeTeam, games, addGame, updateGame, user } = useTeam();
+  const { activeTeam, games, addGame, updateGame, user, isPro } = useTeam();
   const [isRecordOpen, setIsRecordOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -45,6 +44,45 @@ export default function GamesPage() {
       <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
         <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
         <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Loading scoreboard...</p>
+      </div>
+    );
+  }
+
+  if (!isPro) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="relative">
+          <div className="bg-amber-100 p-6 rounded-[2.5rem] shadow-xl">
+            <Trophy className="h-16 w-16 text-amber-600" />
+          </div>
+          <div className="absolute -top-2 -right-2 bg-primary text-white p-2 rounded-full shadow-lg border-2 border-background">
+            <Lock className="h-4 w-4" />
+          </div>
+        </div>
+        
+        <div className="text-center max-w-sm space-y-3">
+          <h1 className="text-3xl font-black tracking-tight">Pro Season Tracker</h1>
+          <p className="text-muted-foreground font-medium leading-relaxed">
+            Record game results, track season wins/losses, and maintain official match history with a Pro Squad subscription.
+          </p>
+        </div>
+
+        <Card className="w-full max-w-sm border-none shadow-2xl rounded-[2rem] overflow-hidden bg-white">
+          <div className="p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-primary tracking-widest">Pro Plan Features</span>
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-none font-bold">Recommended</Badge>
+            </div>
+            <ul className="space-y-4">
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-amber-500" /> Season Win/Loss Metrics</li>
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-amber-500" /> Detailed Match Archives</li>
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-amber-500" /> Individual Performance Logs</li>
+            </ul>
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
+              Upgrade Squad for $9.99
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }

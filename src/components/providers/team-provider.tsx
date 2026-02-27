@@ -19,8 +19,6 @@ import {
   arrayRemove,
   deleteDoc
 } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { toast } from '@/hooks/use-toast';
 import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -42,6 +40,7 @@ export type Team = {
   contactEmail?: string;
   contactPhone?: string;
   membersMap?: Record<string, string>;
+  isPro?: boolean;
 };
 
 export type MemberPosition = 'Coach' | 'Team Lead' | 'Assistant Coach' | 'Squad Leader' | 'Player' | 'Parent' | string;
@@ -219,9 +218,13 @@ interface TeamContextType {
   joinTeamWithCode: (code: string, position: string) => Promise<boolean>;
   isLoading: boolean;
   formatTime: (date: string | Date) => string;
+  isSuperAdmin: boolean;
+  isPro: boolean;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
+
+const SUPER_ADMIN_EMAIL = 'thisearlyseaso@gmail.com';
 
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
@@ -230,6 +233,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  const isSuperAdmin = firebaseUser?.email === SUPER_ADMIN_EMAIL;
 
   useEffect(() => {
     if (firebaseUser) {
@@ -251,11 +256,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
+    // Super admins see all teams, others see joined teams
+    if (isSuperAdmin) return collection(db, 'teams');
     return query(
       collection(db, 'teams'), 
       where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
     );
-  }, [firebaseUser?.uid, db]);
+  }, [firebaseUser?.uid, db, isSuperAdmin]);
   const { data: teamsData } = useCollection(teamsQuery);
   const teams: Team[] = (teamsData || []).map(t => ({ 
     id: t.id, 
@@ -266,7 +273,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     heroImageUrl: t.heroImageUrl,
     contactEmail: t.contactEmail,
     contactPhone: t.contactPhone,
-    membersMap: t.members
+    membersMap: t.members,
+    isPro: t.isPro || false
   }));
 
   useEffect(() => {
@@ -355,9 +363,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const gamesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db) return null;
+    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
     return collection(db, 'teams', activeTeam.id, 'games');
-  }, [activeTeam?.id, db]);
+  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
   const { data: gamesData } = useCollection(gamesQuery);
   const games: Game[] = (gamesData || [])
     .map(g => ({
@@ -423,9 +431,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const filesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db) return null;
+    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
     return collection(db, 'teams', activeTeam.id, 'files');
-  }, [activeTeam?.id, db]);
+  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
   const { data: filesData } = useCollection(filesQuery);
   const files: TeamFile[] = (filesData || [])
     .map(f => ({
@@ -451,9 +459,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const docRef = doc(db, 'users', firebaseUser.uid);
     updateDocumentNonBlocking(docRef, updates);
     
-    // Propagate profile updates to the team membership to keep the roster in sync
-    if (activeTeam) {
-      const memberDocRef = doc(db, 'teams', activeTeam.id, 'members', firebaseUser.uid);
+    // Propagate profile updates to all teams where the user is a member
+    teams.forEach(team => {
+      const memberDocRef = doc(db, 'teams', team.id, 'members', firebaseUser.uid);
       const memberUpdates: any = {};
       if (updates.avatar) memberUpdates.avatar = updates.avatar;
       if (updates.name) memberUpdates.name = updates.name;
@@ -461,7 +469,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (Object.keys(memberUpdates).length > 0) {
         updateDocumentNonBlocking(memberDocRef, memberUpdates);
       }
-    }
+    });
 
     if (userProfile) setUserProfile({ ...userProfile, ...updates });
   };
@@ -669,7 +677,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const addGame = async (gameData: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => {
-    if (!activeTeam || !firebaseUser) return;
+    if (!activeTeam || !firebaseUser || (!activeTeam.isPro && !isSuperAdmin)) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'games');
     addDocumentNonBlocking(colRef, {
       ...gameData,
@@ -681,7 +689,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const updateGame = (gameId: string, updates: Partial<Game>) => {
-    if (!activeTeam) return;
+    if (!activeTeam || (!activeTeam.isPro && !isSuperAdmin)) return;
     const oldGame = games.find(g => g.id === gameId);
     if (!oldGame) return;
 
@@ -712,7 +720,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const addFile = async (name: string, type: string, size: string, url: string) => {
-    if (!activeTeam || !userProfile || !firebaseUser) return;
+    if (!activeTeam || !userProfile || !firebaseUser || (!activeTeam.isPro && !isSuperAdmin)) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'files');
     addDocumentNonBlocking(colRef, {
       teamId: activeTeam.id,
@@ -729,7 +737,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteFile = (fileId: string) => {
-    if (!activeTeam) return;
+    if (!activeTeam || (!activeTeam.isPro && !isSuperAdmin)) return;
     const docRef = doc(db, 'teams', activeTeam.id, 'files', fileId);
     deleteDocumentNonBlocking(docRef);
     toast({ title: "File Deleted", description: "The resource has been removed from the library." });
@@ -770,7 +778,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       teamCode: teamCode,
       createdBy: firebaseUser.uid,
       createdAt: new Date().toISOString(),
-      members: membersMap
+      members: membersMap,
+      isPro: false // New teams start as free
     });
 
     await setDoc(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
@@ -785,7 +794,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       members: membersMap
     });
 
-    setActiveTeam({ id: teamId, name, code: teamCode, membersMap });
+    setActiveTeam({ id: teamId, name, code: teamCode, membersMap, isPro: false });
   };
 
   const joinTeamWithCode = async (code: string, position: string): Promise<boolean> => {
@@ -824,7 +833,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike,
       events, addEvent, updateEvent, updateRSVP, games, addGame, updateGame, files, addFile, deleteFile, alerts, createAlert,
-      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime
+      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime, 
+      isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
     }}>
       {children}
     </TeamContext.Provider>

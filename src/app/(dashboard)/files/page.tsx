@@ -13,7 +13,9 @@ import {
   Upload,
   Calendar,
   Eye,
-  Trash2
+  Trash2,
+  Lock,
+  Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +47,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function FilesPage() {
-  const { activeTeam, files, addFile, deleteFile, user } = useTeam();
+  const { activeTeam, files, addFile, deleteFile, user, isPro } = useTeam();
   const [mounted, setMounted] = useState(false);
   const [selectedFile, setSelectedFile] = useState<TeamFile | null>(null);
   const [fileToDelete, setFileToDelete] = useState<string | null>(null);
@@ -60,6 +62,45 @@ export default function FilesPage() {
       <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
         <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
         <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Accessing library...</p>
+      </div>
+    );
+  }
+
+  if (!isPro) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="relative">
+          <div className="bg-blue-100 p-6 rounded-[2.5rem] shadow-xl">
+            <FolderClosed className="h-16 w-16 text-blue-600" />
+          </div>
+          <div className="absolute -top-2 -right-2 bg-primary text-white p-2 rounded-full shadow-lg border-2 border-background">
+            <Lock className="h-4 w-4" />
+          </div>
+        </div>
+        
+        <div className="text-center max-w-sm space-y-3">
+          <h1 className="text-3xl font-black tracking-tight">Team Library</h1>
+          <p className="text-muted-foreground font-medium leading-relaxed">
+            Store playbooks, waivers, tournament documents, and shared assets securely in your squad's private repository.
+          </p>
+        </div>
+
+        <Card className="w-full max-w-sm border-none shadow-2xl rounded-[2rem] overflow-hidden bg-white">
+          <div className="p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-primary tracking-widest">Pro Plan Features</span>
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-none font-bold">Premium Storage</Badge>
+            </div>
+            <ul className="space-y-4">
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-blue-500" /> 10GB Shared Storage</li>
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-blue-500" /> PDF & Image Previews</li>
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-blue-500" /> Multi-Member Uploads</li>
+            </ul>
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
+              Upgrade for $9.99/mo
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }

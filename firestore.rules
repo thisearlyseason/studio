@@ -12,34 +12,44 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Special override for global admin
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'thisearlyseaso@gmail.com';
+    }
+
     // Membership check using the denormalized members map in the team document
     function isMemberOfTeam(teamId) {
-      return isSignedIn() && 
-             get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
+      return isSuperAdmin() || (isSignedIn() && 
+             get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null);
     }
 
     // Role check using the denormalized members map in the team document
     function isAdminOfTeam(teamId) {
-      return isSignedIn() && 
-             get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin';
+      return isSuperAdmin() || (isSignedIn() && 
+             get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin');
+    }
+
+    // Check if team is Pro for restricted features
+    function isProTeam(teamId) {
+      return isSuperAdmin() || get(/databases/$(database)/documents/teams/$(teamId)).data.isPro == true;
     }
 
     // --- Collection Rules ---
 
     match /users/{userId} {
-      allow get, create, update: if isSignedIn() && request.auth.uid == userId;
-      allow list: if false;
+      allow get, create, update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow list: if isSuperAdmin();
     }
 
     match /teams/{teamId} {
-      allow list: if isSignedIn() && resource.data.members[request.auth.uid] != null;
-      allow get: if isSignedIn() && resource.data.members[request.auth.uid] != null;
+      allow list: if isSignedIn() && (resource.data.members[request.auth.uid] != null || isSuperAdmin());
+      allow get: if isSignedIn() && (resource.data.members[request.auth.uid] != null || isSuperAdmin());
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.members[request.auth.uid] == 'Admin';
+      allow update, delete: if isAdminOfTeam(teamId);
 
       match /members/{memberId} {
-        allow list, get: if isMemberOfTeam(teamId) || (isSignedIn() && request.auth.uid == memberId);
-        allow create, update, delete: if isAdminOfTeam(teamId);
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create, update, delete: if isAdminOfTeam(teamId) && isProTeam(teamId);
       }
 
       match /feedPosts/{postId} {
@@ -64,8 +74,8 @@ service cloud.firestore {
       }
 
       match /games/{gameId} {
-        allow list, get: if isMemberOfTeam(teamId);
-        allow create, update, delete: if isAdminOfTeam(teamId);
+        allow list, get: if isMemberOfTeam(teamId) && isProTeam(teamId);
+        allow create, update, delete: if isAdminOfTeam(teamId) && isProTeam(teamId);
       }
 
       match /alerts/{alertId} {
@@ -74,9 +84,9 @@ service cloud.firestore {
       }
 
       match /files/{fileId} {
-        allow list, get: if isMemberOfTeam(teamId);
-        allow create: if isMemberOfTeam(teamId);
-        allow update, delete: if isAdminOfTeam(teamId) || (resource != null && (resource.data.uploaderId == request.auth.uid || resource.data.uploadedBy == request.auth.uid));
+        allow list, get: if isMemberOfTeam(teamId) && isProTeam(teamId);
+        allow create: if isMemberOfTeam(teamId) && isProTeam(teamId);
+        allow update, delete: if isAdminOfTeam(teamId) && isProTeam(teamId);
       }
 
       match /groupChats/{chatId} {

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check, DollarSign } from 'lucide-react';
+import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check, DollarSign, Lock, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam } from '@/components/providers/team-provider';
 import {
@@ -30,7 +30,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export default function RosterPage() {
-  const { activeTeam, members, updateMember, inviteMember, user, toggleFeesPaid } = useTeam();
+  const { activeTeam, members, updateMember, inviteMember, user, toggleFeesPaid, isPro } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -49,6 +49,45 @@ export default function RosterPage() {
       <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
         <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
         <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Calling the squad...</p>
+      </div>
+    );
+  }
+
+  if (!isPro) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="relative">
+          <div className="bg-purple-100 p-6 rounded-[2.5rem] shadow-xl">
+            <Users2 className="h-16 w-16 text-purple-600" />
+          </div>
+          <div className="absolute -top-2 -right-2 bg-primary text-white p-2 rounded-full shadow-lg border-2 border-background">
+            <Lock className="h-4 w-4" />
+          </div>
+        </div>
+        
+        <div className="text-center max-w-sm space-y-3">
+          <h1 className="text-3xl font-black tracking-tight">Roster Management</h1>
+          <p className="text-muted-foreground font-medium leading-relaxed">
+            Manage your full roster, assign positions, track jersey numbers, and monitor team fee payments with Pro logic.
+          </p>
+        </div>
+
+        <Card className="w-full max-w-sm border-none shadow-2xl rounded-[2rem] overflow-hidden bg-white">
+          <div className="p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-primary tracking-widest">Pro Plan Features</span>
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-none font-bold">Admin Suite</Badge>
+            </div>
+            <ul className="space-y-4">
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-purple-500" /> Advanced Role Assignment</li>
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-purple-500" /> Fee Tracking Dashboard</li>
+              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-purple-500" /> Jersey & Position Control</li>
+            </ul>
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
+              Go Pro for $9.99/mo
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }

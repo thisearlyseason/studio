@@ -15,7 +15,8 @@ import {
   PlusCircle,
   Trophy,
   Bell,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,20 +31,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from '@/components/ui/badge';
 
 const tabs = [
-  { name: 'Feed', href: '/feed', icon: LayoutDashboard },
-  { name: 'Schedule', href: '/events', icon: CalendarDays },
-  { name: 'Games', href: '/games', icon: Trophy },
-  { name: 'Chats', href: '/chats', icon: MessageCircle },
-  { name: 'Roster', href: '/roster', icon: Users2 },
-  { name: 'Library', href: '/files', icon: FolderClosed },
+  { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: false },
+  { name: 'Schedule', href: '/events', icon: CalendarDays, pro: false },
+  { name: 'Games', href: '/games', icon: Trophy, pro: true },
+  { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
+  { name: 'Roster', href: '/roster', icon: Users2, pro: true },
+  { name: 'Library', href: '/files', icon: FolderClosed, pro: true },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeTeam, setActiveTeam, teams, user } = useTeam();
+  const { activeTeam, setActiveTeam, teams, user, isPro } = useTeam();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -63,9 +65,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     </Avatar>
                   </div>
                   <div className="flex flex-col items-start min-w-0 max-w-[120px] sm:max-w-[200px]">
-                    <span className="font-extrabold text-sm tracking-tight truncate leading-tight">
-                      {activeTeam?.name || 'Select Squad'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-sm tracking-tight truncate leading-tight">
+                        {activeTeam?.name || 'Select Squad'}
+                      </span>
+                      {activeTeam?.isPro && <Badge className="bg-amber-500 text-[8px] h-3 px-1 font-black uppercase">PRO</Badge>}
+                    </div>
                     <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest leading-none">
                       {activeTeam?.sport || 'General'}
                     </span>
@@ -80,15 +85,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   <DropdownMenuItem 
                     key={team.id} 
                     onClick={() => setActiveTeam(team)}
-                    className="flex items-center gap-3 p-3 cursor-pointer rounded-lg mx-1 my-1"
+                    className="flex items-center justify-between p-3 cursor-pointer rounded-lg mx-1 my-1"
                   >
-                    <Avatar className="h-8 w-8 rounded-md shrink-0">
-                      <AvatarImage src={team.teamLogoUrl} />
-                      <AvatarFallback className="bg-muted font-bold text-xs rounded-md">
-                        {team.name[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="font-semibold truncate">{team.name}</span>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8 rounded-md shrink-0">
+                        <AvatarImage src={team.teamLogoUrl} />
+                        <AvatarFallback className="bg-muted font-bold text-xs rounded-md">
+                          {team.name[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-semibold truncate">{team.name}</span>
+                    </div>
+                    {team.isPro && <Badge className="bg-amber-500 text-[8px] h-3 px-1">PRO</Badge>}
                   </DropdownMenuItem>
                 )) : (
                   <div className="px-4 py-3 text-sm text-muted-foreground italic">No squads yet</div>
@@ -135,6 +143,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = pathname.startsWith(tab.href);
+            const isTabLocked = tab.pro && !isPro;
+
             return (
               <Link
                 key={tab.name}
@@ -146,7 +156,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
               >
-                <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} strokeWidth={isActive ? 2.5 : 2} />
+                <div className="relative">
+                  <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} strokeWidth={isActive ? 2.5 : 2} />
+                  {isTabLocked && (
+                    <div className="absolute -top-1 -right-1 bg-amber-500 rounded-full p-0.5 text-white ring-1 ring-white">
+                      <Lock className="h-2 w-2" />
+                    </div>
+                  )}
+                </div>
                 <span className={cn("text-[9px] font-bold tracking-tight uppercase", !isActive && "opacity-70")}>
                   {tab.name}
                 </span>
