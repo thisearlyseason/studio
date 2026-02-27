@@ -8,10 +8,14 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogTrigger
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Megaphone, X, Bell } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Megaphone, Bell } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { toast } from '@/hooks/use-toast';
 
