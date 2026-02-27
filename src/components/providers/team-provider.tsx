@@ -264,11 +264,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [teams, activeTeam]);
 
-  // Fetch Members
+  // Fetch Members - Restricted by QAP
   const membersQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db) return null;
-    return collection(db, 'teams', activeTeam.id, 'members');
-  }, [activeTeam?.id, db]);
+    if (!activeTeam || !db || !firebaseUser) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'members'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+    );
+  }, [activeTeam?.id, db, firebaseUser?.uid]);
   const { data: membersData } = useCollection(membersQuery);
   const members: Member[] = membersData && membersData.length > 0 
     ? (membersData || []).map(m => ({
@@ -372,7 +375,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       createdAt: m.createdAt,
       poll: m.pollData
     }))
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // Fetch Files
   const filesQuery = useMemoFirebase(() => {
@@ -391,7 +394,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           name: f.fileName,
           type: f.fileType,
           size: f.fileSize,
-          uploadedBy: f.uploaderName || 'Unknown',
+          uploadedBy: f.uploadedBy,
+          uploadedByName: f.uploaderName || 'Unknown',
           date: new Date(f.createdAt)
         }))
         .sort((a, b) => b.date.getTime() - a.date.getTime())
@@ -539,6 +543,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const teamId = `team_${Date.now()}`;
     const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     
+    const membersMap = { [firebaseUser.uid]: 'Admin' };
+
     await setDoc(doc(db, 'teams', teamId), {
       id: teamId,
       teamName: name,
@@ -546,7 +552,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       teamCode: teamCode,
       createdBy: firebaseUser.uid,
       createdAt: new Date().toISOString(),
-      members: { [firebaseUser.uid]: 'Admin' }
+      members: membersMap
     });
 
     await setDoc(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
@@ -555,7 +561,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       role: 'Admin',
       position: organizerPosition || 'Coach',
       name: userProfile?.name || 'Organizer',
-      joinedAt: new Date().toISOString()
+      joinedAt: new Date().toISOString(),
+      members: membersMap // Included for denormalized authorization
     });
 
     setActiveTeam({ id: teamId, name, code: teamCode });
@@ -567,6 +574,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const mockUserId = `invited_${Date.now()}`;
     
     const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    const currentMembers = teamSnap.exists() ? teamSnap.data().members : {};
+    const newMembersMap = { ...currentMembers, [mockUserId]: 'Member' };
+
     await updateDoc(teamRef, {
       [`members.${mockUserId}`]: 'Member'
     });
@@ -577,7 +588,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       role: 'Member',
       position,
       name,
-      joinedAt: new Date().toISOString()
+      joinedAt: new Date().toISOString(),
+      members: newMembersMap // Included for denormalized authorization
     });
   };
 

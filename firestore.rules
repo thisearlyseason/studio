@@ -69,9 +69,10 @@ service cloud.firestore {
       allow update, delete: if resource != null && isTeamAdmin(resource.data);
 
       match /members/{userId} {
-        // Membership docs are filtered by team-level authorization
-        allow get, list: if isSignedIn() && get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
-        allow create, update, delete: if isSignedIn() && get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin';
+        // Membership docs now use denormalized members map for QAP performance
+        allow get, list: if isTeamMember(resource.data);
+        allow create: if isIncomingTeamMember(request.resource.data) && isTeamAdmin(request.resource.data);
+        allow update, delete: if resource != null && isTeamAdmin(resource.data);
       }
 
       match /feedPosts/{postId} {
