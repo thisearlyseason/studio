@@ -135,6 +135,15 @@ export default function EventsPage() {
     setMounted(true);
   }, []);
 
+  if (!activeTeam) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+        <p className="text-muted-foreground">Loading events...</p>
+      </div>
+    );
+  }
+
   const teamEvents = events.filter(e => e.teamId === activeTeam.id);
 
   const handleCreateEvent = () => {
@@ -238,10 +247,10 @@ export default function EventsPage() {
                 <div className="flex items-stretch">
                   <div className="bg-primary/5 w-16 flex flex-col items-center justify-center border-r shrink-0">
                     <span className="text-xs font-bold uppercase text-primary">
-                      {event.date.toLocaleString('default', { month: 'short' })}
+                      {mounted ? event.date.toLocaleString('default', { month: 'short' }) : '...'}
                     </span>
                     <span className="text-2xl font-black text-primary">
-                      {event.date.getDate()}
+                      {mounted ? event.date.getDate() : ''}
                     </span>
                   </div>
                   <div className="flex-1 p-4 space-y-2 min-w-0">

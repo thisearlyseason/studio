@@ -24,7 +24,14 @@ export default function FeedPage() {
     setMounted(true);
   }, []);
 
-  const teamPosts = posts.filter(p => p.teamId === activeTeam.id);
+  if (!mounted || !activeTeam) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+        <p className="text-muted-foreground">Loading feed...</p>
+      </div>
+    );
+  }
 
   const handlePost = () => {
     if (!newPostContent.trim()) return;
@@ -106,93 +113,95 @@ export default function FeedPage() {
       </Card>
 
       <div className="space-y-4">
-        {teamPosts.length > 0 ? teamPosts.map((post) => (
-          <Card key={post.id} className={post.type === 'system' ? 'border-primary/20 bg-primary/5' : ''}>
-            {post.type === 'user' && (
-              <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={post.author.avatar} />
-                  <AvatarFallback>{post.author.name[0]}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="font-semibold text-sm">{post.author.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {mounted ? `${formatDistanceToNow(new Date(post.createdAt))} ago` : '...'}
-                  </div>
-                </div>
-              </CardHeader>
-            )}
-
-            <CardContent className={post.type === 'system' ? 'py-4' : 'pt-0'}>
-              {post.type === 'system' ? (
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-full">
-                    <Calendar className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <Badge variant="outline" className="mb-1 text-[10px] uppercase tracking-wider">System update</Badge>
-                    <p className="text-sm font-medium">{post.content}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {mounted ? `${formatDistanceToNow(new Date(post.createdAt))} ago` : '...'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-4">
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
-                  {post.imageUrl && (
-                    <div className="rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
-                      <img src={post.imageUrl} alt="Post content" className="max-w-full h-auto object-contain max-h-[500px]" />
+        {posts.length > 0 ? (
+          posts.map((post) => (
+            <Card key={post.id} className={post.type === 'system' ? 'border-primary/20 bg-primary/5' : ''}>
+              {post.type === 'user' && (
+                <CardHeader className="flex flex-row items-center gap-3 pb-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={post.author.avatar} />
+                    <AvatarFallback>{post.author.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">{post.author.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {mounted ? (post.createdAt ? formatDistanceToNow(new Date(post.createdAt)) + ' ago' : 'Just now') : '...'}
                     </div>
-                  )}
-                </div>
+                  </div>
+                </CardHeader>
               )}
-            </CardContent>
 
-            {post.type === 'user' && (
-              <CardFooter className="flex flex-col border-t pt-3 gap-3">
-                <div className="flex items-center gap-4 w-full">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    {post.comments.length} Comments
-                  </Button>
-                </div>
-                
-                <div className="w-full space-y-4 pt-2">
-                  {post.comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3 text-sm">
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback>{comment.author[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 bg-muted/50 p-3 rounded-2xl relative">
-                        <div className="font-bold text-xs mb-1">{comment.author}</div>
-                        <div className="text-sm">{comment.content}</div>
-                        <div className="text-[10px] text-muted-foreground mt-1">
-                          {mounted ? formatDistanceToNow(new Date(comment.createdAt)) + ' ago' : '...'}
-                        </div>
-                      </div>
+              <CardContent className={post.type === 'system' ? 'py-4' : 'pt-0'}>
+                {post.type === 'system' ? (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-full">
+                      <Calendar className="h-5 w-5 text-primary" />
                     </div>
-                  ))}
+                    <div>
+                      <Badge variant="outline" className="mb-1 text-[10px] uppercase tracking-wider">System update</Badge>
+                      <p className="text-sm font-medium">{post.content}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {mounted ? (post.createdAt ? formatDistanceToNow(new Date(post.createdAt)) + ' ago' : 'Just now') : '...'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-4">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                    {post.imageUrl && (
+                      <div className="rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
+                        <img src={post.imageUrl} alt="Post content" className="max-w-full h-auto object-contain max-h-[500px]" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
 
-                  <div className="flex gap-2 pt-2">
-                    <Input 
-                      placeholder="Write a comment..." 
-                      className="bg-muted border-none rounded-full h-9 text-sm"
-                      value={commentInputs[post.id] || ''}
-                      onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)}
-                    />
-                    <Button size="icon" className="rounded-full h-9 w-9 shrink-0" onClick={() => handleCommentSubmit(post.id)}>
-                      <Send className="h-4 w-4" />
+              {post.type === 'user' && (
+                <CardFooter className="flex flex-col border-t pt-3 gap-3">
+                  <div className="flex items-center gap-4 w-full">
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      {(post.comments || []).length} Comments
                     </Button>
                   </div>
-                </div>
-              </CardFooter>
-            )}
-          </Card>
-        )) : (
-          <div className="text-center py-20 bg-muted/20 rounded-2xl border-2 border-dashed">
-            <p className="text-muted-foreground">No posts for {activeTeam.name} yet.</p>
+                  
+                  <div className="w-full space-y-4 pt-2">
+                    {(post.comments || []).map((comment) => (
+                      <div key={comment.id} className="flex gap-3 text-sm">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarFallback>{comment.author[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 bg-muted/50 p-3 rounded-2xl relative">
+                          <div className="font-bold text-xs mb-1">{comment.author}</div>
+                          <div className="text-sm">{comment.content}</div>
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            {mounted ? (comment.createdAt ? formatDistanceToNow(new Date(comment.createdAt)) + ' ago' : 'Just now') : '...'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex gap-2 pt-2">
+                      <Input 
+                        placeholder="Write a comment..." 
+                        className="bg-muted border-none rounded-full h-9 text-sm"
+                        value={commentInputs[post.id] || ''}
+                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)}
+                      />
+                      <Button size="icon" className="rounded-full h-9 w-9 shrink-0" onClick={() => handleCommentSubmit(post.id)}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardFooter>
+              )}
+            </Card>
+          ))
+        ) : (
+          <div className="text-center py-20 border-2 border-dashed rounded-2xl">
+            <p className="text-muted-foreground italic">No posts yet for {activeTeam.name}. Be the first to post!</p>
           </div>
         )}
       </div>
