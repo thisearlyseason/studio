@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -16,6 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { useTeam } from '@/components/providers/team-provider';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 
@@ -33,7 +33,6 @@ function SignupForm() {
   const { joinTeamWithCode } = useTeam();
   
   const inviteCode = searchParams.get('code');
-  const brandLogoLight = PlaceHolderImages.find(img => img.id === 'brand-logo-light')?.imageUrl || '';
 
   useEffect(() => {
     const sportsImages = PlaceHolderImages.filter(img => img.id.startsWith('sport-'));
@@ -103,17 +102,9 @@ function SignupForm() {
         </>
       )}
 
-      {/* Logo Header */}
+      {/* Logo Header - Dark Background Variant */}
       <div className="relative z-20 mb-8 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-1000">
-        <div className="relative h-16 w-48">
-          <Image 
-            src={brandLogoLight} 
-            alt="The Squad Brand" 
-            fill 
-            className="object-contain drop-shadow-2xl"
-            data-ai-hint="white logo"
-          />
-        </div>
+        <BrandLogo variant="dark-background" className="h-16 w-48 drop-shadow-2xl" priority />
       </div>
       
       <Card className="w-full max-w-md border-none shadow-2xl rounded-[2.5rem] relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700 bg-white/95 backdrop-blur-sm">

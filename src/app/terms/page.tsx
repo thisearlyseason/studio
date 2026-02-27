@@ -1,28 +1,18 @@
-
 "use client";
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 export default function TermsOfServicePage() {
-  const brandLogoDark = PlaceHolderImages.find(img => img.id === 'brand-logo-dark')?.imageUrl || '';
-
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="relative h-8 w-32">
-            <Image 
-              src={brandLogoDark} 
-              alt="The Squad Logo" 
-              fill
-              className="object-contain"
-              data-ai-hint="black logo"
-            />
+          <Link href="/">
+            <BrandLogo variant="light-background" className="h-8 w-32" />
           </Link>
           <Link href="/">
             <Button variant="ghost" size="sm" className="font-bold">

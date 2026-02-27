@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -23,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { BrandLogo } from '@/components/ui/brand-logo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -30,9 +30,6 @@ import Image from 'next/image';
 export default function LandingPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
-
-  const brandLogoDark = PlaceHolderImages.find(img => img.id === 'brand-logo-dark')?.imageUrl || '';
-  const brandLogoLight = PlaceHolderImages.find(img => img.id === 'brand-logo-light')?.imageUrl || '';
 
   const sportsImages = PlaceHolderImages
     .filter(img => img.id.startsWith('sport-'))
@@ -63,27 +60,11 @@ export default function LandingPage() {
       )}>
         <div className="container mx-auto px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <div className="relative h-10 w-40">
-              {isScrolled ? (
-                <Image 
-                  src={brandLogoDark} 
-                  alt="The Squad Logo" 
-                  fill
-                  className="object-contain"
-                  data-ai-hint="black logo"
-                  priority
-                />
-              ) : (
-                <Image 
-                  src={brandLogoLight} 
-                  alt="The Squad Logo" 
-                  fill
-                  className="object-contain"
-                  data-ai-hint="white logo"
-                  priority
-                />
-              )}
-            </div>
+            <BrandLogo 
+              variant={isScrolled ? "light-background" : "dark-background"} 
+              className="h-10 w-40" 
+              priority 
+            />
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-widest">
@@ -334,17 +315,9 @@ export default function LandingPage() {
       <footer className="py-12 bg-muted/50 border-t">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-3">
-              <div className="relative h-8 w-32">
-                <Image 
-                  src={brandLogoDark} 
-                  alt="The Squad Logo" 
-                  fill
-                  className="object-contain"
-                  data-ai-hint="black logo"
-                />
-              </div>
-            </div>
+            <Link href="/" className="flex items-center gap-3">
+              <BrandLogo variant="light-background" className="h-8 w-32" />
+            </Link>
             
             <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
               <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
