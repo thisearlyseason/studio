@@ -33,11 +33,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function FilesPage() {
   const { activeTeam, files, addFile, deleteFile, user } = useTeam();
   const [mounted, setMounted] = useState(false);
   const [selectedFile, setSelectedFile] = useState<TeamFile | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -92,9 +103,10 @@ export default function FilesPage() {
     document.body.removeChild(link);
   };
 
-  const handleDelete = (fileId: string) => {
-    if (confirm("Are you sure you want to remove this resource from the library?")) {
-      deleteFile(fileId);
+  const confirmDelete = () => {
+    if (fileToDelete) {
+      deleteFile(fileToDelete);
+      setFileToDelete(null);
     }
   };
 
@@ -161,15 +173,15 @@ export default function FilesPage() {
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => handleDownload(file)}>
+                    <DropdownMenuContent align="end" className="rounded-xl shadow-lg border-muted">
+                      <DropdownMenuItem onSelect={() => handleDownload(file)} className="font-medium">
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </DropdownMenuItem>
                       {canDelete && (
                         <DropdownMenuItem 
-                          onSelect={() => handleDelete(file.id)}
-                          className="text-destructive focus:text-destructive"
+                          onSelect={() => setFileToDelete(file.id)}
+                          className="text-destructive focus:text-destructive font-bold"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Resource
@@ -204,6 +216,7 @@ export default function FilesPage() {
         <Button variant="outline" className="mt-2 border-primary/20 text-primary">Browse Files</Button>
       </div>
 
+      {/* Viewer Dialog */}
       <Dialog open={!!selectedFile} onOpenChange={(open) => !open && setSelectedFile(null)}>
         <DialogContent className="sm:max-w-[90vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-black/90 border-none text-white">
           <DialogHeader className="p-4 border-b border-white/10 shrink-0">
@@ -255,6 +268,27 @@ export default function FilesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Resource?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This resource will be permanently removed from the team library.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
