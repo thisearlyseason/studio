@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Plus, MapPin, Calendar, Info, TrendingUp, TrendingDown, MinusCircle } from 'lucide-react';
+import { Trophy, Plus, MapPin, Calendar, Info, TrendingUp, TrendingDown, MinusCircle, Edit2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -18,13 +18,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useTeam, GameResult } from '@/components/providers/team-provider';
+import { useTeam, GameResult, Game } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 export default function GamesPage() {
-  const { activeTeam, games, addGame, user } = useTeam();
+  const { activeTeam, games, addGame, updateGame, user } = useTeam();
   const [isRecordOpen, setIsRecordOpen] = useState(false);
+  const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [mounted, setMounted] = useState(false);
 
   // Form state
@@ -63,15 +64,28 @@ export default function GamesPage() {
     if (myS > oppS) result = 'Win';
     if (myS < oppS) result = 'Loss';
 
-    addGame({
-      opponent,
-      date: new Date(date),
-      myScore: myS,
-      opponentScore: oppS,
-      result,
-      location,
-      notes
-    });
+    if (editingGame) {
+      updateGame(editingGame.id, {
+        opponent,
+        date: new Date(date),
+        myScore: myS,
+        opponentScore: oppS,
+        result,
+        location,
+        notes
+      });
+      setEditingGame(null);
+    } else {
+      addGame({
+        opponent,
+        date: new Date(date),
+        myScore: myS,
+        opponentScore: oppS,
+        result,
+        location,
+        notes
+      });
+    }
 
     setIsRecordOpen(false);
     resetForm();
@@ -79,6 +93,17 @@ export default function GamesPage() {
 
   const resetForm = () => {
     setOpponent(''); setDate(''); setMyScore(''); setOpponentScore(''); setLocation(''); setNotes('');
+  };
+
+  const handleEditClick = (game: Game) => {
+    setEditingGame(game);
+    setOpponent(game.opponent);
+    setDate(game.date.toISOString().split('T')[0]);
+    setMyScore(game.myScore.toString());
+    setOpponentScore(game.opponentScore.toString());
+    setLocation(game.location || '');
+    setNotes(game.notes || '');
+    setIsRecordOpen(true);
   };
 
   return (
@@ -89,7 +114,13 @@ export default function GamesPage() {
           <p className="text-muted-foreground text-sm font-medium">Track your squad's season progress.</p>
         </div>
         {isAdmin && (
-          <Dialog open={isRecordOpen} onOpenChange={setIsRecordOpen}>
+          <Dialog open={isRecordOpen} onOpenChange={(open) => {
+            setIsRecordOpen(open);
+            if (!open) {
+              setEditingGame(null);
+              resetForm();
+            }
+          }}>
             <DialogTrigger asChild>
               <Button className="rounded-full shadow-lg shadow-primary/20">
                 <Plus className="h-4 w-4 mr-2" />
@@ -98,7 +129,7 @@ export default function GamesPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Record Game Result</DialogTitle>
+                <DialogTitle>{editingGame ? "Edit Game Result" : "Record Game Result"}</DialogTitle>
                 <DialogDescription>Enter the details of a completed match.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -117,7 +148,9 @@ export default function GamesPage() {
                 <div className="space-y-2"><Label>Notes / Summary</Label><Textarea placeholder="Highlights or MVPs..." value={notes} onChange={e => setNotes(e.target.value)} /></div>
               </div>
               <DialogFooter>
-                <Button className="w-full h-12 rounded-xl text-base font-bold" onClick={handleRecordGame}>Post Result</Button>
+                <Button className="w-full h-12 rounded-xl text-base font-bold" onClick={handleRecordGame}>
+                  {editingGame ? "Update Result" : "Post Result"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -149,7 +182,17 @@ export default function GamesPage() {
       <div className="space-y-4">
         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Recent Match History</h2>
         {games.length > 0 ? games.map((game) => (
-          <Card key={game.id} className="overflow-hidden border-none shadow-sm ring-1 ring-black/5 rounded-3xl hover:shadow-md transition-all">
+          <Card key={game.id} className="overflow-hidden border-none shadow-sm ring-1 ring-black/5 rounded-3xl hover:shadow-md transition-all group relative">
+            {isAdmin && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute top-4 right-4 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => handleEditClick(game)}
+              >
+                <Edit2 className="h-4 w-4" />
+              </Button>
+            )}
             <CardContent className="p-0 flex items-stretch">
               <div className={cn(
                 "w-3 shrink-0",

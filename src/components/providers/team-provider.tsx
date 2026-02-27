@@ -13,10 +13,12 @@ import {
   updateDoc, 
   addDoc,
   getDocs,
-  limit
+  limit,
+  orderBy
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { toast } from '@/hooks/use-toast';
 
 export type UserProfile = {
   id: string;
@@ -38,12 +40,14 @@ export type MemberPosition = 'Coach' | 'Team Lead' | 'Assistant Coach' | 'Squad 
 
 export type Member = {
   id: string;
+  userId: string;
   teamId: string;
   name: string;
   role: 'Admin' | 'Member';
   position: MemberPosition;
   jersey: string;
   avatar: string;
+  feesPaid?: boolean;
 };
 
 export type Chat = {
@@ -140,6 +144,15 @@ export type TeamFile = {
   date: Date;
 };
 
+export type TeamAlert = {
+  id: string;
+  teamId: string;
+  title: string;
+  message: string;
+  createdBy: string;
+  createdAt: string;
+};
+
 interface TeamContextType {
   user: UserProfile | null;
   updateUser: (updates: Partial<UserProfile>) => void;
@@ -149,6 +162,7 @@ interface TeamContextType {
   teams: Team[];
   members: Member[];
   updateMember: (id: string, updates: Partial<Member>) => void;
+  toggleFeesPaid: (memberId: string) => void;
   chats: Chat[];
   createChat: (name: string, memberIds: string[]) => Promise<string>;
   messages: Message[];
@@ -157,15 +171,19 @@ interface TeamContextType {
   addMessage: (chatId: string, author: string, content: string, type: 'text' | 'poll', poll?: any) => void;
   votePoll: (chatId: string, messageId: string, optionIndex: number) => Promise<void>;
   posts: Post[];
-  addPost: (content: string, imageUrl?: string) => void;
+  addPost: (content: string, imageUrl?: string, type?: 'user' | 'system') => void;
   addComment: (postId: string, content: string) => void;
   events: TeamEvent[];
   addEvent: (event: Omit<TeamEvent, 'id' | 'teamId' | 'rsvps'>) => void;
+  updateEvent: (eventId: string, updates: Partial<TeamEvent>) => void;
   updateRSVP: (eventId: string, status: RSVPStatus) => void;
   games: Game[];
   addGame: (game: Omit<Game, 'id' | 'teamId' | 'createdAt'>) => void;
+  updateGame: (gameId: string, updates: Partial<Game>) => void;
   files: TeamFile[];
   addFile: (name: string, type: string, size: string) => void;
+  alerts: TeamAlert[];
+  createAlert: (title: string, message: string) => void;
   createNewTeam: (name: string, organizerPosition: string) => Promise<void>;
   inviteMember: (name: string, email: string, position: MemberPosition) => void;
   joinTeamWithCode: (code: string, position: string) => Promise<boolean>;
@@ -223,7 +241,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         setActiveTeam(teams[0]);
       } else {
         const updated = teams.find(t => t.id === activeTeam.id);
-        if (updated && (updated.heroImageUrl !== activeTeam.heroImageUrl || updated.name !== activeTeam.name)) {
+        if (updated && (JSON.stringify(updated) !== JSON.stringify(activeTeam))) {
           setActiveTeam(updated);
         }
       }
@@ -239,20 +257,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam?.id, db, firebaseUser?.uid]);
   const { data: membersData } = useCollection(membersQuery);
   const members: Member[] = (membersData || []).map(m => ({
-    id: m.userId,
+    id: m.id,
+    userId: m.userId,
     teamId: m.teamId,
     name: m.name || 'Member',
     role: m.role,
     position: m.position || 'Player',
     jersey: m.jersey || 'TBD',
-    avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`
+    avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`,
+    feesPaid: m.feesPaid || false
   }));
 
   const postsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || !firebaseUser) return null;
     return query(
       collection(db, 'teams', activeTeam.id, 'feedPosts'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member']),
+      orderBy('createdAt', 'desc')
     );
   }, [activeTeam?.id, db, firebaseUser?.uid]);
   const { data: postsData } = useCollection(postsQuery);
@@ -266,8 +287,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       imageUrl: p.imageUrl,
       createdAt: p.createdAt,
       comments: []
-    }))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }));
 
   const eventsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || !firebaseUser) return null;
@@ -317,6 +337,24 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       createdAt: g.createdAt
     }))
     .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const alertsQuery = useMemoFirebase(() => {
+    if (!activeTeam || !db || !firebaseUser) return null;
+    return query(
+      collection(db, 'teams', activeTeam.id, 'alerts'),
+      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member']),
+      orderBy('createdAt', 'desc')
+    );
+  }, [activeTeam?.id, db, firebaseUser?.uid]);
+  const { data: alertsData } = useCollection(alertsQuery);
+  const alerts: TeamAlert[] = (alertsData || []).map(a => ({
+    id: a.id,
+    teamId: a.teamId,
+    title: a.title,
+    message: a.message,
+    createdBy: a.createdBy,
+    createdAt: a.createdAt
+  }));
 
   const chatsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || !firebaseUser) return null;
@@ -381,20 +419,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const updateUser = (updates: Partial<UserProfile>) => {
     if (!firebaseUser) return;
     const docRef = doc(db, 'users', firebaseUser.uid);
-    
-    const firestoreUpdates: any = {};
-    if (updates.name !== undefined) firestoreUpdates.fullName = updates.name;
-    if (updates.email !== undefined) firestoreUpdates.email = updates.email;
-    if (updates.phone !== undefined) firestoreUpdates.phone = updates.phone;
-    if (updates.avatar !== undefined) firestoreUpdates.avatarUrl = updates.avatar;
-
-    updateDoc(docRef, firestoreUpdates).catch(err => {
+    updateDoc(docRef, updates).catch(err => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
     });
-
-    if (userProfile) {
-      setUserProfile({ ...userProfile, ...updates });
-    }
+    if (userProfile) setUserProfile({ ...userProfile, ...updates });
   };
 
   const updateTeamHero = async (url: string) => {
@@ -408,28 +436,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const updateMember = (id: string, updates: Partial<Member>) => {
     if (!activeTeam) return;
     const docRef = doc(db, 'teams', activeTeam.id, 'members', id);
-    
-    const firestoreUpdates: any = { ...updates };
-    if (updates.position) {
-      if (['Coach', 'Team Lead', 'Assistant Coach', 'Squad Leader'].includes(updates.position)) {
-        firestoreUpdates.role = 'Admin';
-      } else {
-        firestoreUpdates.role = 'Member';
-      }
-    }
-
-    updateDoc(docRef, firestoreUpdates).catch(err => {
+    updateDoc(docRef, updates).catch(err => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
     });
+  };
 
-    if (firestoreUpdates.role) {
-      updateDoc(doc(db, 'teams', activeTeam.id), {
-        [`members.${id}`]: firestoreUpdates.role
-      });
-      updateDoc(docRef, {
-        [`members.${id}`]: firestoreUpdates.role
-      });
-    }
+  const toggleFeesPaid = (memberId: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+    updateMember(memberId, { feesPaid: !member.feesPaid });
+    toast({ title: member.feesPaid ? "Marked as Unpaid" : "Marked as Paid", description: `${member.name}'s fee status updated.` });
   };
 
   const createChat = async (name: string, memberIds: string[]) => {
@@ -474,11 +490,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     const voters = poll.voters || {};
     const previousVote = voters[firebaseUser.uid];
-
     if (previousVote === optionIndex) return;
 
     const newVoters = { ...voters, [firebaseUser.uid]: optionIndex };
-    
     const newOptions = poll.options.map((opt: any, idx: number) => {
       let count = 0;
       Object.values(newVoters).forEach(v => { if (v === idx) count++; });
@@ -494,7 +508,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addPost = async (content: string, imageUrl?: string) => {
+  const addPost = async (content: string, imageUrl?: string, type: 'user' | 'system' = 'user') => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'feedPosts');
     addDoc(colRef, {
@@ -503,7 +517,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       authorId: firebaseUser.uid,
       members: activeTeam.membersMap || {},
       content,
-      type: 'user',
+      type,
       imageUrl: imageUrl || '',
       createdAt: new Date().toISOString()
     });
@@ -537,6 +551,28 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateEvent = (eventId: string, updates: Partial<TeamEvent>) => {
+    if (!activeTeam) return;
+    const oldEvent = events.find(e => e.id === eventId);
+    if (!oldEvent) return;
+
+    const docRef = doc(db, 'teams', activeTeam.id, 'events', eventId);
+    const firestoreUpdates: any = { ...updates };
+    if (updates.date) firestoreUpdates.date = updates.date.toISOString();
+
+    updateDoc(docRef, firestoreUpdates).then(() => {
+      // Check for key changes to trigger system post
+      let changeText = "";
+      if (updates.location && updates.location !== oldEvent.location) changeText += ` Location changed to ${updates.location}.`;
+      if (updates.startTime && updates.startTime !== oldEvent.startTime) changeText += ` Start time changed to ${updates.startTime}.`;
+      if (updates.date && updates.date.getTime() !== oldEvent.date.getTime()) changeText += ` Date changed to ${updates.date.toLocaleDateString()}.`;
+
+      if (changeText) {
+        addPost(`🚨 UPDATE: ${oldEvent.title} has been updated.${changeText}`, undefined, 'system');
+      }
+    });
+  };
+
   const updateRSVP = (eventId: string, status: RSVPStatus) => {
     if (!activeTeam || !firebaseUser) return;
     const docRef = doc(db, 'teams', activeTeam.id, 'events', eventId);
@@ -555,6 +591,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateGame = (gameId: string, updates: Partial<Game>) => {
+    if (!activeTeam) return;
+    const oldGame = games.find(g => g.id === gameId);
+    if (!oldGame) return;
+
+    const docRef = doc(db, 'teams', activeTeam.id, 'games', gameId);
+    const firestoreUpdates: any = { ...updates };
+    if (updates.date) firestoreUpdates.date = updates.date.toISOString();
+
+    updateDoc(docRef, firestoreUpdates).then(() => {
+      let changeText = "";
+      if (updates.location && updates.location !== oldGame.location) changeText += ` Location changed to ${updates.location}.`;
+      if (updates.date && updates.date.getTime() !== oldGame.date.getTime()) changeText += ` Date changed to ${updates.date.toLocaleDateString()}.`;
+      if (updates.myScore !== undefined || updates.opponentScore !== undefined) changeText += ` Score updated.`;
+
+      if (changeText) {
+        addPost(`📊 GAME UPDATE: Match vs ${oldGame.opponent} has been updated.${changeText}`, undefined, 'system');
+      }
+    });
+  };
+
   const addFile = async (name: string, type: string, size: string) => {
     if (!activeTeam || !userProfile || !firebaseUser) return;
     const colRef = collection(db, 'teams', activeTeam.id, 'files');
@@ -568,6 +625,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       uploaderName: userProfile.name,
       createdAt: new Date().toISOString()
     });
+  };
+
+  const createAlert = async (title: string, message: string) => {
+    if (!activeTeam || !firebaseUser) return;
+    const colRef = collection(db, 'teams', activeTeam.id, 'alerts');
+    addDoc(colRef, {
+      teamId: activeTeam.id,
+      title,
+      message,
+      createdBy: firebaseUser.uid,
+      createdAt: new Date().toISOString(),
+      members: activeTeam.membersMap || {}
+    });
+    addPost(`📣 ALERT: ${title} - ${message}`, undefined, 'system');
   };
 
   const createNewTeam = async (name: string, organizerPosition: string) => {
@@ -594,7 +665,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: userProfile?.name || 'Organizer',
       avatar: userProfile?.avatar || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`,
       joinedAt: new Date().toISOString(),
-      members: membersMap
+      members: membersMap,
+      feesPaid: false
     });
 
     setActiveTeam({ id: teamId, name, code: teamCode, membersMap });
@@ -602,23 +674,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const joinTeamWithCode = async (code: string, position: string): Promise<boolean> => {
     if (!firebaseUser || !userProfile) return false;
-    
     const teamsRef = collection(db, 'teams');
     const q = query(teamsRef, where('teamCode', '==', code.toUpperCase()), limit(1));
     const querySnapshot = await getDocs(q);
-    
     if (querySnapshot.empty) return false;
-    
     const teamDoc = querySnapshot.docs[0];
-    const teamData = teamDoc.data();
     const teamId = teamDoc.id;
-    
+    const teamData = teamDoc.data();
     const newMembersMap = { ...(teamData.members || {}), [firebaseUser.uid]: 'Member' };
-    
-    await updateDoc(doc(db, 'teams', teamId), {
-      [`members.${firebaseUser.uid}`]: 'Member'
-    });
-    
+    await updateDoc(doc(db, 'teams', teamId), { [`members.${firebaseUser.uid}`]: 'Member' });
     await setDoc(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
       userId: firebaseUser.uid,
       teamId: teamId,
@@ -627,23 +691,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: userProfile.name,
       avatar: userProfile.avatar,
       joinedAt: new Date().toISOString(),
-      members: newMembersMap
+      members: newMembersMap,
+      feesPaid: false
     });
-    
     return true;
   };
 
   const inviteMember = async (name: string, email: string, position: MemberPosition) => {
     if (!activeTeam) return;
-    console.log(`[PROTOTYPE INVITE] To: ${name} (${email})`);
-    console.log(`[PROTOTYPE INVITE] Team Code: ${activeTeam.code}`);
+    console.log(`[PROTOTYPE INVITE] To: ${name} (${email}), Code: ${activeTeam.code}`);
   };
 
   return (
     <TeamContext.Provider value={{ 
-      user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, teams, members, updateMember,
+      user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, addComment,
-      events, addEvent, updateRSVP, games, addGame, files, addFile, createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime
+      events, addEvent, updateEvent, updateRSVP, games, addGame, updateGame, files, addFile, alerts, createAlert,
+      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isAuthLoading, formatTime
     }}>
       {children}
     </TeamContext.Provider>

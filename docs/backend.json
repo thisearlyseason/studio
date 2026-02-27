@@ -133,6 +133,10 @@
           "type": "number",
           "description": "The optional jersey number of the member within the team (editable by Admin)."
         },
+        "feesPaid": {
+          "type": "boolean",
+          "description": "Indicates if the member has paid their team fees."
+        },
         "joinedAt": {
           "type": "string",
           "description": "The timestamp when the user joined the team.",
@@ -174,6 +178,10 @@
           "type": "string",
           "description": "The textual content of the post."
         },
+        "type": {
+          "type": "string",
+          "enum": ["user", "system"]
+        },
         "imageUrl": {
           "type": "string",
           "description": "An optional URL to a single image attached to the post.",
@@ -196,7 +204,6 @@
       "required": [
         "id",
         "teamId",
-        "authorId",
         "content",
         "createdAt",
         "members"
@@ -301,6 +308,22 @@
         "members": { "type": "object" }
       },
       "required": ["id", "teamId", "opponent", "date", "myScore", "opponentScore", "result", "createdAt", "members"]
+    },
+    "TeamAlert": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TeamAlert",
+      "type": "object",
+      "description": "A high-priority notification for the entire team.",
+      "properties": {
+        "id": { "type": "string" },
+        "teamId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "members": { "type": "object" }
+      },
+      "required": ["id", "teamId", "title", "message", "createdBy", "createdAt", "members"]
     }
   },
   "auth": {
@@ -369,6 +392,16 @@
             "$ref": "#/backend/entities/Game"
           },
           "description": "Stores recorded game results."
+        }
+      },
+      {
+        "path": "/teams/{teamId}/alerts/{alertId}",
+        "definition": {
+          "entityName": "TeamAlert",
+          "schema": {
+            "$ref": "#/backend/entities/TeamAlert"
+          },
+          "description": "Stores high-priority team alerts."
         }
       }
     ]

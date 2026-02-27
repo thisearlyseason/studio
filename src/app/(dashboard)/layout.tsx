@@ -3,6 +3,7 @@
 
 import Shell from '@/components/layout/Shell';
 import { TeamProvider } from '@/components/providers/team-provider';
+import { AlertOverlay } from '@/components/layout/AlertOverlay';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -34,6 +35,7 @@ export default function DashboardLayout({
 
   return (
     <TeamProvider>
+      <AlertOverlay />
       <Shell>{children}</Shell>
     </TeamProvider>
   );

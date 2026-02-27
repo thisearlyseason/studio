@@ -13,12 +13,14 @@ import {
   Settings,
   ChevronDown,
   PlusCircle,
-  Trophy
+  Trophy,
+  Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTeam } from '@/components/providers/team-provider';
+import { CreateAlertButton } from '@/components/layout/AlertOverlay';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,7 +91,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </DropdownMenu>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <CreateAlertButton />
             <Link href="/settings">
               <Avatar className="h-9 w-9 border-2 border-background shadow-sm hover:ring-4 hover:ring-primary/10 transition-all">
                 <AvatarImage src={user?.avatar} alt={user?.name} />

@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ImagePlus, MessageSquare, Trash2, Calendar, Send, Heart, Camera, Loader2 } from 'lucide-react';
+import { ImagePlus, MessageSquare, Trash2, Calendar, Send, Heart, Camera, Loader2, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
@@ -37,9 +37,7 @@ export default function FeedPage() {
     );
   }
 
-  // Use membersMap for instant authorization check if available, fallback to searching members collection
-  const isAdmin = activeTeam.membersMap?.[user?.id || ''] === 'Admin' || 
-                  members.find(m => m.id === user?.id && m.teamId === activeTeam.id)?.role === 'Admin';
+  const isAdmin = activeTeam.membersMap?.[user?.id || ''] === 'Admin';
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -170,10 +168,12 @@ export default function FeedPage() {
               )}
               <div className="flex items-center justify-between pt-4 border-t border-muted/50">
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground font-bold hover:bg-primary/5" onClick={() => fileInputRef.current?.click()}>
-                  <ImagePlus className="h-4 w-4 mr-2" />
-                  Media
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground font-bold hover:bg-primary/5" onClick={() => fileInputRef.current?.click()}>
+                    <ImagePlus className="h-4 w-4 mr-2" />
+                    Media
+                  </Button>
+                </div>
                 <Button disabled={!newPostContent.trim()} onClick={handlePost} className="rounded-full px-6 font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
                   Post to Squad
                 </Button>
@@ -185,7 +185,10 @@ export default function FeedPage() {
 
       <div className="space-y-6">
         {posts.map((post) => (
-          <Card key={post.id} className={cn("rounded-3xl border-none shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl ring-1 ring-black/5", post.type === 'system' ? 'bg-primary/5' : '')}>
+          <Card key={post.id} className={cn(
+            "rounded-3xl border-none shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl ring-1 ring-black/5",
+            post.type === 'system' ? 'bg-amber-50 dark:bg-amber-950/20 ring-amber-500/20' : ''
+          )}>
             {post.type === 'user' && (
               <CardHeader className="flex flex-row items-center gap-4 pb-3">
                 <Avatar className="h-11 w-11 border-2 border-background shadow-sm">
@@ -203,10 +206,12 @@ export default function FeedPage() {
             <CardContent className={post.type === 'system' ? 'py-5' : 'pt-2 pb-4'}>
               {post.type === 'system' ? (
                 <div className="flex items-center gap-4">
-                  <div className="bg-primary/20 p-3 rounded-2xl text-primary"><Calendar className="h-6 w-6" /></div>
+                  <div className="bg-amber-100 dark:bg-amber-900/40 p-3 rounded-2xl text-amber-600 dark:text-amber-400">
+                    <Info className="h-6 w-6" />
+                  </div>
                   <div>
-                    <Badge className="mb-2 bg-primary/20 text-primary border-none text-[9px] font-black uppercase tracking-widest">Team Insight</Badge>
-                    <p className="text-base font-bold tracking-tight text-primary/90">{post.content}</p>
+                    <Badge className="mb-2 bg-amber-500/20 text-amber-600 border-none text-[9px] font-black uppercase tracking-widest">System Update</Badge>
+                    <p className="text-base font-bold tracking-tight text-foreground/90 leading-tight">{post.content}</p>
                   </div>
                 </div>
               ) : (

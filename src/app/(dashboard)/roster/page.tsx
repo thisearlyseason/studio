@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check } from 'lucide-react';
+import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam } from '@/components/providers/team-provider';
 import {
@@ -27,9 +27,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 export default function RosterPage() {
-  const { activeTeam, members, updateMember, inviteMember, user } = useTeam();
+  const { activeTeam, members, updateMember, inviteMember, user, toggleFeesPaid } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -205,19 +206,40 @@ export default function RosterPage() {
                 </div>
               </div>
 
-              {isAdmin && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-xl shadow-xl">
-                    <DropdownMenuItem onClick={() => handleEditClick(member)} className="font-medium p-2.5">Edit Role & Position</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive font-medium p-2.5">Remove from Squad</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-center">
+                  <span className="text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Fees</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    disabled={!isAdmin}
+                    className={cn(
+                      "h-8 px-2 rounded-lg font-bold text-[10px] border transition-all",
+                      member.feesPaid 
+                        ? "bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20" 
+                        : "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"
+                    )}
+                    onClick={() => toggleFeesPaid(member.id)}
+                  >
+                    {member.feesPaid ? <Check className="h-3 w-3 mr-1" /> : <DollarSign className="h-3 w-3 mr-1" />}
+                    {member.feesPaid ? "PAID" : "UNPAID"}
+                  </Button>
+                </div>
+
+                {isAdmin && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl shadow-xl">
+                      <DropdownMenuItem onClick={() => handleEditClick(member)} className="font-medium p-2.5">Edit Role & Position</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive font-medium p-2.5">Remove from Squad</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}
