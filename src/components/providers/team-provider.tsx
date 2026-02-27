@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -9,12 +8,12 @@ import {
   where, 
   doc, 
   getDoc, 
-  setDoc, 
   updateDoc, 
   addDoc,
   getDocs,
   limit,
-  orderBy
+  orderBy,
+  setDoc
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -219,6 +218,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, db]);
 
+  // Top-level teams query. MUST keep the filter to only show teams the user is in.
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
     return query(
@@ -248,13 +248,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [teams, activeTeam]);
 
+  // Sub-collection queries. REDUNDANT membership filters removed.
+  // Authorization is now handled by parent-check in security rules.
+  
   const membersQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !firebaseUser) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'members'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
-    );
-  }, [activeTeam?.id, db, firebaseUser?.uid]);
+    if (!activeTeam || !db) return null;
+    return collection(db, 'teams', activeTeam.id, 'members');
+  }, [activeTeam?.id, db]);
   const { data: membersData } = useCollection(membersQuery);
   const members: Member[] = (membersData || []).map(m => ({
     id: m.id,
@@ -269,13 +269,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }));
 
   const postsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !firebaseUser) return null;
+    if (!activeTeam || !db) return null;
     return query(
       collection(db, 'teams', activeTeam.id, 'feedPosts'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member']),
       orderBy('createdAt', 'desc')
     );
-  }, [activeTeam?.id, db, firebaseUser?.uid]);
+  }, [activeTeam?.id, db]);
   const { data: postsData } = useCollection(postsQuery);
   const posts: Post[] = (postsData || [])
     .map(p => ({
@@ -290,12 +289,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }));
 
   const eventsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !firebaseUser) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'events'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
-    );
-  }, [activeTeam?.id, db, firebaseUser?.uid]);
+    if (!activeTeam || !db) return null;
+    return collection(db, 'teams', activeTeam.id, 'events');
+  }, [activeTeam?.id, db]);
   const { data: eventsData } = useCollection(eventsQuery);
   const events: TeamEvent[] = (eventsData || [])
     .map(e => ({
@@ -316,12 +312,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const gamesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !firebaseUser) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'games'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
-    );
-  }, [activeTeam?.id, db, firebaseUser?.uid]);
+    if (!activeTeam || !db) return null;
+    return collection(db, 'teams', activeTeam.id, 'games');
+  }, [activeTeam?.id, db]);
   const { data: gamesData } = useCollection(gamesQuery);
   const games: Game[] = (gamesData || [])
     .map(g => ({
@@ -339,13 +332,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const alertsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !firebaseUser) return null;
+    if (!activeTeam || !db) return null;
     return query(
       collection(db, 'teams', activeTeam.id, 'alerts'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member']),
       orderBy('createdAt', 'desc')
     );
-  }, [activeTeam?.id, db, firebaseUser?.uid]);
+  }, [activeTeam?.id, db]);
   const { data: alertsData } = useCollection(alertsQuery);
   const alerts: TeamAlert[] = (alertsData || []).map(a => ({
     id: a.id,
@@ -357,12 +349,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }));
 
   const chatsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !firebaseUser) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'groupChats'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
-    );
-  }, [activeTeam?.id, db, firebaseUser?.uid]);
+    if (!activeTeam || !db) return null;
+    return collection(db, 'teams', activeTeam.id, 'groupChats');
+  }, [activeTeam?.id, db]);
   const { data: chatsData } = useCollection(chatsQuery);
   const chats: Chat[] = (chatsData || []).map(c => ({
     id: c.id,
@@ -372,12 +361,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }));
 
   const messagesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !activeChatId || !db || !firebaseUser) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
-    );
-  }, [activeTeam?.id, activeChatId, db, firebaseUser?.uid]);
+    if (!activeTeam || !activeChatId || !db) return null;
+    return collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages');
+  }, [activeTeam?.id, activeChatId, db]);
   const { data: messagesData } = useCollection(messagesQuery);
   const messages: Message[] = (messagesData || [])
     .map(m => ({
@@ -392,12 +378,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const filesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !firebaseUser) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'files'),
-      where(`members.${firebaseUser.uid}`, 'in', ['Admin', 'Member'])
-    );
-  }, [activeTeam?.id, db, firebaseUser?.uid]);
+    if (!activeTeam || !db) return null;
+    return collection(db, 'teams', activeTeam.id, 'files');
+  }, [activeTeam?.id, db]);
   const { data: filesData } = useCollection(filesQuery);
   const files: TeamFile[] = (filesData || [])
     .map(f => ({
@@ -456,7 +439,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name,
       createdBy: firebaseUser.uid,
       memberIds: [firebaseUser.uid, ...memberIds],
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       createdAt: new Date().toISOString(),
       isDeleted: false
     });
@@ -470,7 +452,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       chatId,
       authorId: firebaseUser.uid,
       authorName: author,
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       content,
       type,
       pollData: poll || null,
@@ -489,9 +470,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!poll) return;
 
     const voters = poll.voters || {};
-    const previousVote = voters[firebaseUser.uid];
-    if (previousVote === optionIndex) return;
-
     const newVoters = { ...voters, [firebaseUser.uid]: optionIndex };
     const newOptions = poll.options.map((opt: any, idx: number) => {
       let count = 0;
@@ -515,7 +493,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       teamId: activeTeam.id,
       author: { name: userProfile.name, avatar: userProfile.avatar },
       authorId: firebaseUser.uid,
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       content,
       type,
       imageUrl: imageUrl || '',
@@ -530,7 +507,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       postId,
       authorId: firebaseUser.uid,
       authorName: userProfile.name,
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       content,
       createdAt: new Date().toISOString()
     });
@@ -542,7 +518,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     addDoc(colRef, {
       ...eventData,
       teamId: activeTeam.id,
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       date: eventData.date.toISOString(),
       createdBy: firebaseUser.uid,
       createdAt: new Date().toISOString(),
@@ -561,7 +536,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (updates.date) firestoreUpdates.date = updates.date.toISOString();
 
     updateDoc(docRef, firestoreUpdates).then(() => {
-      // Check for key changes to trigger system post
       let changeText = "";
       if (updates.location && updates.location !== oldEvent.location) changeText += ` Location changed to ${updates.location}.`;
       if (updates.startTime && updates.startTime !== oldEvent.startTime) changeText += ` Start time changed to ${updates.startTime}.`;
@@ -585,7 +559,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     addDoc(colRef, {
       ...gameData,
       teamId: activeTeam.id,
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       date: gameData.date.toISOString(),
       createdAt: new Date().toISOString()
     });
@@ -620,7 +593,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       fileName: name,
       fileType: type,
       fileSize: size,
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' },
       uploadedBy: firebaseUser.uid,
       uploaderName: userProfile.name,
       createdAt: new Date().toISOString()
@@ -635,8 +607,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       title,
       message,
       createdBy: firebaseUser.uid,
-      createdAt: new Date().toISOString(),
-      members: activeTeam.membersMap || { [firebaseUser.uid]: 'Admin' }
+      createdAt: new Date().toISOString()
     });
     addPost(`📣 ALERT: ${title} - ${message}`, undefined, 'system');
   };
@@ -665,7 +636,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: userProfile?.name || 'Organizer',
       avatar: userProfile?.avatar || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`,
       joinedAt: new Date().toISOString(),
-      members: membersMap,
       feesPaid: false
     });
 
@@ -680,8 +650,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (querySnapshot.empty) return false;
     const teamDoc = querySnapshot.docs[0];
     const teamId = teamDoc.id;
-    const teamData = teamDoc.data();
-    const newMembersMap = { ...(teamData.members || {}), [firebaseUser.uid]: 'Member' };
     await updateDoc(doc(db, 'teams', teamId), { [`members.${firebaseUser.uid}`]: 'Member' });
     await setDoc(doc(db, 'teams', teamId, 'members', firebaseUser.uid), {
       userId: firebaseUser.uid,
@@ -691,7 +659,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: userProfile.name,
       avatar: userProfile.avatar,
       joinedAt: new Date().toISOString(),
-      members: newMembersMap,
       feesPaid: false
     });
     return true;

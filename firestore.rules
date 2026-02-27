@@ -1,103 +1,100 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
      * SquadForge Security Rules
-     * Optimized for list queries by using direct map indexing for membership checks.
-     * This allows the Firestore query optimizer to validate 'where' filters against rules.
+     * Optimized for reliability and performance using parent-based authorization
+     * for sub-collections, which avoids denormalization issues.
      */
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    // Helper to get the parent team document. 
+    // Using get() in rules is robust for sub-collections and query-aware.
+    function getTeam(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)).data;
     }
 
-    // Helper for checking membership. Direct indexing is most compatible with list query optimization.
-    function isTeamMember(data) {
+    function isMemberOfTeam(teamId) {
       return isSignedIn() && 
-             data != null && 
-             data.members != null && 
-             (data.members[request.auth.uid] == 'Admin' || data.members[request.auth.uid] == 'Member');
+             getTeam(teamId).members != null && 
+             getTeam(teamId).members[request.auth.uid] != null;
     }
 
-    function isTeamAdmin(data) {
+    function isAdminOfTeam(teamId) {
       return isSignedIn() && 
-             data != null && 
-             data.members != null && 
-             data.members[request.auth.uid] == 'Admin';
+             getTeam(teamId).members != null && 
+             getTeam(teamId).members[request.auth.uid] == 'Admin';
     }
 
     // --- Collection Rules ---
 
     match /users/{userId} {
-      allow get, create, update: if isOwner(userId);
+      allow get, create, update: if isSignedIn() && request.auth.uid == userId;
       allow list: if false;
     }
 
     match /teams/{teamId} {
-      // Teams themselves are listable if the user is in the members map
-      allow get, list: if isTeamMember(resource.data);
+      // Top-level teams collection. Listable only if you are in the members map.
+      // The query must include where("members." + uid, "!=", null) or similar.
+      allow list: if isSignedIn() && resource.data.members[request.auth.uid] != null;
+      allow get: if isSignedIn() && resource.data.members[request.auth.uid] != null;
       allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if isTeamAdmin(resource.data);
+      allow update, delete: if isSignedIn() && resource.data.members[request.auth.uid] == 'Admin';
 
-      match /members/{userId} {
-        allow get, list: if isTeamMember(resource.data);
-        allow create: if isSignedIn() && isTeamAdmin(request.resource.data);
-        allow update: if isTeamAdmin(resource.data) || isOwner(userId);
-        allow delete: if isTeamAdmin(resource.data);
+      // --- Sub-collections ---
+      // These rules use parent-based checks which are extremely reliable for list queries.
+
+      match /members/{memberId} {
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create, update, delete: if isAdminOfTeam(teamId);
       }
 
       match /feedPosts/{postId} {
-        allow get, list: if isTeamMember(resource.data);
-        allow create: if isTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
-        allow update, delete: if isTeamAdmin(resource.data) || request.auth.uid == resource.data.authorId;
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create: if isMemberOfTeam(teamId);
+        allow update, delete: if isAdminOfTeam(teamId) || (resource != null && resource.data.authorId == request.auth.uid);
 
         match /comments/{commentId} {
-          allow get, list: if isTeamMember(resource.data);
-          allow create: if isTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
-          allow update, delete: if isTeamAdmin(resource.data) || request.auth.uid == resource.data.authorId;
+          allow list, get: if isMemberOfTeam(teamId);
+          allow create: if isMemberOfTeam(teamId);
+          allow update, delete: if isAdminOfTeam(teamId) || (resource != null && resource.data.authorId == request.auth.uid);
         }
       }
 
       match /events/{eventId} {
-        allow get, list: if isTeamMember(resource.data);
-        allow create: if isTeamAdmin(request.resource.data);
-        allow update, delete: if isTeamAdmin(resource.data);
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create, update, delete: if isAdminOfTeam(teamId);
       }
 
       match /games/{gameId} {
-        allow get, list: if isTeamMember(resource.data);
-        allow create: if isTeamAdmin(request.resource.data);
-        allow update, delete: if isTeamAdmin(resource.data);
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create, update, delete: if isAdminOfTeam(teamId);
       }
 
       match /alerts/{alertId} {
-        allow get, list: if isTeamMember(resource.data);
-        allow create: if isTeamAdmin(request.resource.data);
-        allow update, delete: if isTeamAdmin(resource.data);
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create, update, delete: if isAdminOfTeam(teamId);
       }
 
       match /files/{fileId} {
-        allow get, list: if isTeamMember(resource.data);
-        allow create: if isTeamMember(request.resource.data) && request.resource.data.uploadedBy == request.auth.uid;
-        allow update, delete: if isTeamAdmin(resource.data) || request.auth.uid == resource.data.uploadedBy;
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create: if isMemberOfTeam(teamId);
+        allow update, delete: if isAdminOfTeam(teamId) || (resource != null && resource.data.uploadedBy == request.auth.uid);
       }
 
       match /groupChats/{chatId} {
-        allow get, list: if isTeamMember(resource.data);
-        allow create: if isTeamMember(request.resource.data);
-        allow update, delete: if isTeamAdmin(resource.data);
+        allow list, get: if isMemberOfTeam(teamId);
+        allow create: if isMemberOfTeam(teamId);
+        allow update, delete: if isAdminOfTeam(teamId);
 
         match /messages/{messageId} {
-          allow get, list: if isTeamMember(resource.data);
-          allow create: if isTeamMember(request.resource.data) && request.resource.data.authorId == request.auth.uid;
-          allow update: if request.auth.uid == resource.data.authorId;
-          allow delete: if isTeamAdmin(resource.data) || request.auth.uid == resource.data.authorId;
+          allow list, get: if isMemberOfTeam(teamId);
+          allow create: if isMemberOfTeam(teamId);
+          allow update, delete: if isAdminOfTeam(teamId) || (resource != null && resource.data.authorId == request.auth.uid);
         }
       }
     }
