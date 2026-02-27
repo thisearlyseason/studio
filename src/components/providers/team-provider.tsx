@@ -148,7 +148,7 @@ interface TeamContextType {
   files: TeamFile[];
   addFile: (name: string, type: string, size: string) => void;
   createNewTeam: (name: string, organizerPosition: string) => Promise<void>;
-  inviteMember: (name: string, position: MemberPosition) => void;
+  inviteMember: (name: string, email: string, position: MemberPosition) => void;
   isLoading: boolean;
   formatTime: (date: string | Date) => string;
 }
@@ -514,7 +514,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setActiveTeam({ id: teamId, name, code: teamCode, membersMap });
   };
 
-  const inviteMember = async (name: string, position: MemberPosition) => {
+  const inviteMember = async (name: string, email: string, position: MemberPosition) => {
     if (!activeTeam) return;
     const teamId = activeTeam.id;
     const mockUserId = `invited_${Date.now()}`;
@@ -530,11 +530,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       role: 'Member',
       position,
       name,
+      email,
       joinedAt: new Date().toISOString(),
       members: newMembersMap
     });
 
-    console.log(`Email invited to ${name} for team ${activeTeam.name}. Code: ${activeTeam.code}. Link: ${window.location.origin}/signup?code=${activeTeam.code}`);
+    console.log(`Email invited to ${name} (${email}) for team ${activeTeam.name}. Code: ${activeTeam.code}. Link: ${window.location.origin}/signup?code=${activeTeam.code}`);
   };
 
   return (

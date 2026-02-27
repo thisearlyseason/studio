@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, Link as LinkIcon } from 'lucide-react';
+import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, Link as LinkIcon, AtSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam } from '@/components/providers/team-provider';
 import {
@@ -33,6 +33,7 @@ export default function RosterPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   const [invitePosition, setInvitePosition] = useState('Player');
   const [mounted, setMounted] = useState(false);
   
@@ -75,14 +76,15 @@ export default function RosterPage() {
   };
 
   const handleSendInvite = () => {
-    if (inviteName.trim()) {
-      inviteMember(inviteName, invitePosition);
+    if (inviteName.trim() && inviteEmail.trim()) {
+      inviteMember(inviteName, inviteEmail, invitePosition);
       setIsInviteOpen(false);
       setInviteName('');
+      setInviteEmail('');
       setInvitePosition('Player');
       toast({
         title: "Invitation Sent",
-        description: `We've sent a sign-up link and team code to ${inviteName}.`,
+        description: `We've sent a sign-up link and team code to ${inviteName} at ${inviteEmail}.`,
       });
     }
   };
@@ -129,6 +131,19 @@ export default function RosterPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Email Address</Label>
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      type="email"
+                      placeholder="teammate@example.com" 
+                      value={inviteEmail} 
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      className="rounded-xl h-11 pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label>Primary Role</Label>
                   <Select value={invitePosition} onValueChange={setInvitePosition}>
                     <SelectTrigger className="h-11 rounded-xl">
@@ -143,7 +158,13 @@ export default function RosterPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button className="w-full rounded-xl h-12 text-base font-bold" onClick={handleSendInvite} disabled={!inviteName.trim()}>Send Invitation Email</Button>
+                <Button 
+                  className="w-full rounded-xl h-12 text-base font-bold" 
+                  onClick={handleSendInvite} 
+                  disabled={!inviteName.trim() || !inviteEmail.trim() || !inviteEmail.includes('@')}
+                >
+                  Send Invitation Email
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
