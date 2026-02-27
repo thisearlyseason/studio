@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -34,10 +35,14 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { useTeam } from '@/components/providers/team-provider';
+import { useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
   const { user, updateUser, members, activeTeam, updateMember } = useTeam();
+  const auth = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -146,6 +151,23 @@ export default function SettingsPage() {
       title: "Profile Updated",
       description: "Your information has been saved successfully.",
     });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      toast({
+        title: "Logout Failed",
+        description: "Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const navigateTo = (path: string) => {
+    router.push(path);
   };
 
   return (
@@ -271,7 +293,10 @@ export default function SettingsPage() {
                 <Switch checked={notifications} onCheckedChange={setNotifications} />
               </div>
               
-              <button className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
+              <button 
+                onClick={() => navigateTo('/privacy')}
+                className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+              >
                 <div className="flex items-center gap-3">
                   <div className="bg-amber-100 p-2.5 rounded-2xl text-amber-600">
                     <Lock className="h-5 w-5" />
@@ -284,7 +309,10 @@ export default function SettingsPage() {
                 <ChevronRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
               </button>
 
-              <button className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
+              <button 
+                onClick={() => navigateTo('/safety')}
+                className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+              >
                 <div className="flex items-center gap-3">
                   <div className="bg-green-100 p-2.5 rounded-2xl text-green-600">
                     <HelpCircle className="h-5 w-5" />
@@ -302,7 +330,10 @@ export default function SettingsPage() {
 
         <Card className="border-none shadow-sm rounded-3xl overflow-hidden ring-1 ring-black/5">
           <CardContent className="p-0">
-            <button className="w-full p-4 flex items-center justify-between hover:bg-destructive/5 text-destructive transition-colors group">
+            <button 
+              onClick={handleLogout}
+              className="w-full p-4 flex items-center justify-between hover:bg-destructive/5 text-destructive transition-colors group"
+            >
               <div className="flex items-center gap-3">
                 <div className="bg-destructive/10 p-2.5 rounded-2xl">
                   <LogOut className="h-5 w-5" />
