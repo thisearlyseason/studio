@@ -1,15 +1,16 @@
+
 {
   "placeholderImages": [
     {
       "id": "brand-logo-dark",
       "description": "Official brand logo for light backgrounds",
-      "imageUrl": "/logo-dark.png",
+      "imageUrl": "https://picsum.photos/seed/squad-logo-dark/400/120",
       "imageHint": "black logo"
     },
     {
       "id": "brand-logo-light",
       "description": "Official brand logo for dark backgrounds",
-      "imageUrl": "/logo-light.png",
+      "imageUrl": "https://picsum.photos/seed/squad-logo-light/400/120",
       "imageHint": "white logo"
     },
     {
@@ -63,7 +64,7 @@
     {
       "id": "sport-hockey",
       "description": "Hockey action shot",
-      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw8fHxpY2UlMjBob2NrZXl8ZW58MHx8fDE3NzIyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw8fHxpY2UlMjBob2NrZXl8ZW58MHx8fHwxNzcyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "ice hockey"
     },
     {

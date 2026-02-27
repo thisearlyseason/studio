@@ -3,13 +3,13 @@
     {
       "id": "brand-logo-dark",
       "description": "Official brand logo for light backgrounds",
-      "imageUrl": "/logo-dark.png",
+      "imageUrl": "https://images.unsplash.com/photo-1595244863367-07a0da0d2292?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxibGFjayUyMGxvZ298ZW58MHx8fHwxNzcyMjA3MTI1fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "black logo"
     },
     {
       "id": "brand-logo-light",
       "description": "Official brand logo for dark backgrounds",
-      "imageUrl": "/logo-light.png",
+      "imageUrl": "https://images.unsplash.com/photo-1705904506592-d8a0d5392c66?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx3aGl0ZSUyMGxvZ298ZW58MHx8fHwxNzcyMjA3MTI1fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "white logo"
     },
     {
@@ -63,7 +63,7 @@
     {
       "id": "sport-hockey",
       "description": "Hockey action shot",
-      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw8fHxpY2UlMjBob2NrZXl8ZW58MHx8fDE3NzIyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw8fHxpY2UlMjBob2NrZXl8ZW58MHx8fHwxNzcyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "ice hockey"
     },
     {
