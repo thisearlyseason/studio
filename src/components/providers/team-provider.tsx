@@ -3,6 +3,13 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
+export type UserProfile = {
+  name: string;
+  email: string;
+  phone: string;
+  avatar: string;
+};
+
 export type Team = {
   id: string;
   name: string;
@@ -111,6 +118,8 @@ const INITIAL_MEMBERS: Member[] = [
 ];
 
 interface TeamContextType {
+  user: UserProfile;
+  updateUser: (updates: Partial<UserProfile>) => void;
   activeTeam: Team;
   setActiveTeam: (team: Team) => void;
   teams: Team[];
@@ -133,6 +142,13 @@ interface TeamContextType {
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
 export function TeamProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<UserProfile>({
+    name: 'James Miller',
+    email: 'j.miller@squadforge.com',
+    phone: '+1 (555) 000-0000',
+    avatar: 'https://picsum.photos/seed/me/150/150'
+  });
+  
   const [activeTeam, setActiveTeam] = useState<Team>(MOCK_TEAMS[0]);
   const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
   const [chats, setChats] = useState<Chat[]>([]);
@@ -142,7 +158,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [files, setFiles] = useState<TeamFile[]>([]);
 
   useEffect(() => {
-    // Initialize some data if empty
     if (posts.length === 0) {
       setPosts([
         {
@@ -196,6 +211,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateUser = (updates: Partial<UserProfile>) => {
+    setUser(prev => ({ ...prev, ...updates }));
+  };
+
   const updateMember = (id: string, updates: Partial<Member>) => {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   };
@@ -232,7 +251,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const newPost: Post = {
       id: `post_${Date.now()}`,
       teamId: activeTeam.id,
-      author: { name: 'Me', avatar: 'https://picsum.photos/seed/me/150/150' },
+      author: { name: user.name, avatar: user.avatar },
       content,
       type: 'user',
       imageUrl,
@@ -245,7 +264,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addComment = (postId: string, content: string) => {
     const newComment: Comment = {
       id: `comment_${Date.now()}`,
-      author: 'Me',
+      author: user.name,
       content,
       createdAt: new Date().toISOString()
     };
@@ -284,7 +303,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name,
       type,
       size,
-      uploadedBy: 'Me',
+      uploadedBy: user.name,
       date: new Date()
     };
     setFiles(prev => [newFile, ...prev]);
@@ -292,6 +311,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   return (
     <TeamContext.Provider value={{ 
+      user,
+      updateUser,
       activeTeam, 
       setActiveTeam, 
       teams: MOCK_TEAMS, 

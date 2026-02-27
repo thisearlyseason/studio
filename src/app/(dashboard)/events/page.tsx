@@ -21,8 +21,101 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useTeam, EventRecurrence } from '@/components/providers/team-provider';
+import { useTeam, EventRecurrence, TeamEvent, RSVPStatus } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
+
+interface EventDetailDialogProps {
+  event: TeamEvent;
+  updateRSVP: (id: string, status: RSVPStatus) => void;
+  children: React.ReactNode;
+}
+
+function EventDetailDialog({ event, updateRSVP, children }: EventDetailDialogProps) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        {children}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {event.title}
+            {event.recurrence !== 'none' && <Badge variant="outline" className="text-[10px] py-0">{event.recurrence}</Badge>}
+          </DialogTitle>
+          <DialogDescription>
+            {event.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="flex items-start gap-3">
+            <div className="bg-primary/10 p-2 rounded-lg text-primary">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm">Time</p>
+              <p className="text-sm text-muted-foreground">{event.startTime} - {event.endTime || 'Finish'}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="bg-primary/10 p-2 rounded-lg text-primary">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm">Location</p>
+              <p className="text-sm text-muted-foreground">{event.location}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="bg-primary/10 p-2 rounded-lg text-primary">
+              <Info className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm">Description</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{event.description}</p>
+            </div>
+          </div>
+          <div className="pt-4 grid grid-cols-3 gap-2">
+            <div className="text-center p-3 bg-green-50 rounded-xl">
+              <p className="text-xl font-black text-green-600">{event.rsvps.going}</p>
+              <p className="text-[10px] font-bold text-green-700 uppercase">Going</p>
+            </div>
+            <div className="text-center p-3 bg-muted rounded-xl">
+              <p className="text-xl font-black text-muted-foreground">{event.rsvps.maybe}</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase">Maybe</p>
+            </div>
+            <div className="text-center p-3 bg-red-50 rounded-xl">
+              <p className="text-xl font-black text-red-600">{event.rsvps.notGoing}</p>
+              <p className="text-[10px] font-bold text-red-700 uppercase">No</p>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="flex gap-2 sm:flex-row flex-col">
+          <Button 
+            variant={event.userRsvp === 'notGoing' ? 'destructive' : 'outline'} 
+            className="flex-1"
+            onClick={() => updateRSVP(event.id, 'notGoing')}
+          >
+            Can't Go
+          </Button>
+          <Button 
+            variant={event.userRsvp === 'maybe' ? 'secondary' : 'outline'} 
+            className="flex-1"
+            onClick={() => updateRSVP(event.id, 'maybe')}
+          >
+            Maybe
+          </Button>
+          <Button 
+            className={cn("flex-1", event.userRsvp === 'going' ? "bg-green-600 hover:bg-green-700" : "")}
+            onClick={() => updateRSVP(event.id, 'going')}
+          >
+            {event.userRsvp === 'going' && <CheckCircle2 className="h-4 w-4 mr-2" />}
+            Going
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function EventsPage() {
   const { activeTeam, events, addEvent, updateRSVP } = useTeam();
@@ -140,133 +233,54 @@ export default function EventsPage() {
         
         <TabsContent value="list" className="space-y-4 mt-4">
           {teamEvents.length > 0 ? teamEvents.map((event) => (
-            <Dialog key={event.id}>
-              <DialogTrigger asChild>
-                <Card className="overflow-hidden hover:border-primary transition-colors cursor-pointer group">
-                  <div className="flex items-stretch">
-                    <div className="bg-primary/5 w-16 flex flex-col items-center justify-center border-r shrink-0">
-                      <span className="text-xs font-bold uppercase text-primary">
-                        {event.date.toLocaleString('default', { month: 'short' })}
-                      </span>
-                      <span className="text-2xl font-black text-primary">
-                        {event.date.getDate()}
-                      </span>
+            <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP}>
+              <Card className="overflow-hidden hover:border-primary transition-colors cursor-pointer group">
+                <div className="flex items-stretch">
+                  <div className="bg-primary/5 w-16 flex flex-col items-center justify-center border-r shrink-0">
+                    <span className="text-xs font-bold uppercase text-primary">
+                      {event.date.toLocaleString('default', { month: 'short' })}
+                    </span>
+                    <span className="text-2xl font-black text-primary">
+                      {event.date.getDate()}
+                    </span>
+                  </div>
+                  <div className="flex-1 p-4 space-y-2 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-lg leading-tight group-hover:text-primary transition-colors truncate">{event.title}</h3>
+                        {event.recurrence !== 'none' && <Repeat className="h-3 w-3 text-muted-foreground" />}
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <div className="flex-1 p-4 space-y-2 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-lg leading-tight group-hover:text-primary transition-colors truncate">{event.title}</h3>
-                          {event.recurrence !== 'none' && <Repeat className="h-3 w-3 text-muted-foreground" />}
+                    <div className="flex flex-wrap gap-y-1 gap-x-4 text-sm text-muted-foreground">
+                      <div className="flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-1.5" />
+                        {event.startTime}
+                      </div>
+                      {event.location && (
+                        <div className="flex items-center truncate">
+                          <MapPin className="h-3.5 w-3.5 mr-1.5" />
+                          <span className="truncate">{event.location}</span>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <div className="flex flex-wrap gap-y-1 gap-x-4 text-sm text-muted-foreground">
-                        <div className="flex items-center">
-                          <Clock className="h-3.5 w-3.5 mr-1.5" />
-                          {event.startTime}
-                        </div>
-                        {event.location && (
-                          <div className="flex items-center truncate">
-                            <MapPin className="h-3.5 w-3.5 mr-1.5" />
-                            <span className="truncate">{event.location}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="pt-2 flex items-center gap-2">
-                        {event.userRsvp && (
-                          <Badge className={cn(
-                            "text-[10px] font-bold uppercase tracking-wider h-5",
-                            event.userRsvp === 'going' ? "bg-green-500" : event.userRsvp === 'maybe' ? "bg-amber-500" : "bg-red-500"
-                          )}>
-                            {event.userRsvp}
-                          </Badge>
-                        )}
-                        <span className="text-[10px] font-bold text-muted-foreground">
-                          {event.rsvps.going} confirmed
-                        </span>
-                      </div>
+                      )}
                     </div>
-                  </div>
-                </Card>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    {event.title}
-                    {event.recurrence !== 'none' && <Badge variant="outline" className="text-[10px] py-0">{event.recurrence}</Badge>}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {event.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 p-2 rounded-lg text-primary">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm">Time</p>
-                      <p className="text-sm text-muted-foreground">{event.startTime} - {event.endTime || 'Finish'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 p-2 rounded-lg text-primary">
-                      <MapPin className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm">Location</p>
-                      <p className="text-sm text-muted-foreground">{event.location}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 p-2 rounded-lg text-primary">
-                      <Info className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm">Description</p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{event.description}</p>
-                    </div>
-                  </div>
-                  <div className="pt-4 grid grid-cols-3 gap-2">
-                    <div className="text-center p-3 bg-green-50 rounded-xl">
-                      <p className="text-xl font-black text-green-600">{event.rsvps.going}</p>
-                      <p className="text-[10px] font-bold text-green-700 uppercase">Going</p>
-                    </div>
-                    <div className="text-center p-3 bg-muted rounded-xl">
-                      <p className="text-xl font-black text-muted-foreground">{event.rsvps.maybe}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Maybe</p>
-                    </div>
-                    <div className="text-center p-3 bg-red-50 rounded-xl">
-                      <p className="text-xl font-black text-red-600">{event.rsvps.notGoing}</p>
-                      <p className="text-[10px] font-bold text-red-700 uppercase">No</p>
+                    <div className="pt-2 flex items-center gap-2">
+                      {event.userRsvp && (
+                        <Badge className={cn(
+                          "text-[10px] font-bold uppercase tracking-wider h-5",
+                          event.userRsvp === 'going' ? "bg-green-500" : event.userRsvp === 'maybe' ? "bg-amber-500" : "bg-red-500"
+                        )}>
+                          {event.userRsvp}
+                        </Badge>
+                      )}
+                      <span className="text-[10px] font-bold text-muted-foreground">
+                        {event.rsvps.going} confirmed
+                      </span>
                     </div>
                   </div>
                 </div>
-                <DialogFooter className="flex gap-2 sm:flex-row flex-col">
-                  <Button 
-                    variant={event.userRsvp === 'notGoing' ? 'destructive' : 'outline'} 
-                    className="flex-1"
-                    onClick={() => updateRSVP(event.id, 'notGoing')}
-                  >
-                    Can't Go
-                  </Button>
-                  <Button 
-                    variant={event.userRsvp === 'maybe' ? 'secondary' : 'outline'} 
-                    className="flex-1"
-                    onClick={() => updateRSVP(event.id, 'maybe')}
-                  >
-                    Maybe
-                  </Button>
-                  <Button 
-                    className={cn("flex-1", event.userRsvp === 'going' ? "bg-green-600 hover:bg-green-700" : "")}
-                    onClick={() => updateRSVP(event.id, 'going')}
-                  >
-                    {event.userRsvp === 'going' && <CheckCircle2 className="h-4 w-4 mr-2" />}
-                    Going
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              </Card>
+            </EventDetailDialog>
           )) : (
             <div className="text-center py-20 border-2 border-dashed rounded-2xl">
               <p className="text-muted-foreground italic">No events scheduled for {activeTeam.name}.</p>
@@ -287,16 +301,18 @@ export default function EventsPage() {
                 <h4 className="font-semibold text-sm text-muted-foreground px-1">Selected Date Details</h4>
                 {teamEvents.filter(e => e.date.toDateString() === date?.toDateString()).length > 0 ? (
                   teamEvents.filter(e => e.date.toDateString() === date?.toDateString()).map(event => (
-                    <div key={event.id} className="flex gap-4 items-center p-3 rounded-lg border bg-accent/30">
-                      <div className="bg-primary text-white p-2 rounded-md h-fit">
-                        <Clock className="h-4 w-4" />
+                    <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP}>
+                      <div className="flex gap-4 items-center p-3 rounded-lg border bg-accent/30 cursor-pointer hover:bg-accent/40 transition-colors">
+                        <div className="bg-primary text-white p-2 rounded-md h-fit">
+                          <Clock className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{event.title}</p>
+                          <p className="text-xs text-muted-foreground">{event.startTime} @ {event.location}</p>
+                        </div>
+                        <Button variant="outline" size="sm">View</Button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{event.title}</p>
-                        <p className="text-xs text-muted-foreground">{event.startTime} @ {event.location}</p>
-                      </div>
-                      <Button variant="outline" size="sm">View</Button>
-                    </div>
+                    </EventDetailDialog>
                   ))
                 ) : (
                   <p className="text-sm text-center py-8 text-muted-foreground italic">No team events for this day.</p>

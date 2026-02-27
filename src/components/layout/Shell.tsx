@@ -38,7 +38,7 @@ const tabs = [
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { activeTeam, setActiveTeam, teams } = useTeam();
+  const { activeTeam, setActiveTeam, teams, user } = useTeam();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -72,10 +72,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </DropdownMenu>
           </div>
           
-          <Avatar className="h-8 w-8">
-            <AvatarImage src="https://picsum.photos/seed/me/150/150" alt="Profile" />
-            <AvatarFallback>SF</AvatarFallback>
-          </Avatar>
+          <Link href="/settings">
+            <Avatar className="h-8 w-8 hover:ring-2 hover:ring-primary transition-all">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{user.name[0]}</AvatarFallback>
+            </Avatar>
+          </Link>
         </div>
       </header>
 

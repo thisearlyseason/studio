@@ -2,27 +2,57 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
-  User, 
   Bell, 
   Lock, 
   LogOut, 
   Camera, 
   ChevronRight,
-  Shield,
-  HelpCircle,
-  Mail
+  HelpCircle
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { useTeam } from '@/components/providers/team-provider';
+import { toast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
+  const { user, updateUser } = useTeam();
   const [notifications, setNotifications] = useState(true);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  
+  // Form state
+  const [editForm, setEditForm] = useState({
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    password: ''
+  });
+
+  const handleSaveProfile = () => {
+    updateUser({
+      name: editForm.name,
+      email: editForm.email,
+      phone: editForm.phone
+    });
+    setIsEditOpen(false);
+    toast({
+      title: "Profile Updated",
+      description: "Your information has been saved successfully.",
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -35,18 +65,66 @@ export default function SettingsPage() {
           <div className="flex flex-col items-center space-y-3">
             <div className="relative">
               <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-                <AvatarImage src="https://picsum.photos/seed/me/150/150" />
-                <AvatarFallback>SF</AvatarFallback>
+                <AvatarImage src={user.avatar} />
+                <AvatarFallback>{user.name[0]}</AvatarFallback>
               </Avatar>
               <Button size="icon" variant="secondary" className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md">
                 <Camera className="h-4 w-4" />
               </Button>
             </div>
             <div className="text-center">
-              <h2 className="text-xl font-bold">James Miller</h2>
-              <p className="text-sm text-muted-foreground">j.miller@squadforge.com</p>
+              <h2 className="text-xl font-bold">{user.name}</h2>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
+              {user.phone && <p className="text-[10px] text-muted-foreground mt-1">{user.phone}</p>}
             </div>
-            <Button variant="outline" size="sm" className="rounded-full px-6">Edit Profile</Button>
+            
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-full px-6">Edit Profile</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Edit Profile</DialogTitle>
+                  <DialogDescription>Update your personal information for your team profile.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Full Name</Label>
+                    <Input 
+                      value={editForm.name} 
+                      onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input 
+                      type="email"
+                      value={editForm.email} 
+                      onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Phone Number</Label>
+                    <Input 
+                      value={editForm.phone} 
+                      onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Change Password</Label>
+                    <Input 
+                      type="password"
+                      placeholder="Enter new password"
+                      value={editForm.password} 
+                      onChange={e => setEditForm(prev => ({ ...prev, password: e.target.value }))} 
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button className="w-full" onClick={handleSaveProfile}>Save Changes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardContent>
       </Card>
