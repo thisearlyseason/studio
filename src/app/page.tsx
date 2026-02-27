@@ -63,13 +63,14 @@ export default function LandingPage() {
       )}>
         <div className="container mx-auto px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <div className="relative h-10 w-24">
+            <div className="relative h-10 w-32">
               <Image 
                 src={isScrolled ? brandLogoDark : brandLogoLight} 
                 alt="The Squad Logo" 
                 fill 
                 className="object-contain"
                 data-ai-hint={isScrolled ? "black logo" : "white logo"}
+                priority
               />
             </div>
           </Link>
@@ -270,19 +271,19 @@ export default function LandingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <Mail className="h-5 w-5" />
                   </div>
-                  <span className="font-bold">leagues@thesquad.io</span>
+                  <span className="font-bold">team@thesquad.io</span>
                 </div>
                 <div className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <MapPin className="h-5 w-5" />
                   </div>
-                  <span className="font-bold">San Francisco, CA</span>
+                  <span className="font-bold">Canada</span>
                 </div>
                 <div className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <Phone className="h-5 w-5" />
                   </div>
-                  <span className="font-bold">+1 (555) SQUAD-UP</span>
+                  <span className="font-bold">Coming Soon</span>
                 </div>
               </div>
             </div>
@@ -321,7 +322,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-3">
-              <div className="relative h-8 w-20">
+              <div className="relative h-8 w-24">
                 <Image 
                   src={brandLogoDark} 
                   alt="The Squad Logo" 
