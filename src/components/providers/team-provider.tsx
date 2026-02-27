@@ -240,7 +240,7 @@ interface TeamContextType {
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
-const SUPER_ADMIN_EMAIL = 'thisearlyseaso@gmail.com';
+const SUPER_ADMIN_EMAILS = ['thisearlyseason@gmail.com', 'test@gmail.com'];
 
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
@@ -250,7 +250,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  const isSuperAdmin = firebaseUser?.email === SUPER_ADMIN_EMAIL;
+  const isSuperAdmin = firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
   useEffect(() => {
     if (firebaseUser) {
