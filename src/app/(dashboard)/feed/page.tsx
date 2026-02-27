@@ -39,8 +39,12 @@ export default function FeedPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      // Simulate image upload
-      setImageUrl(`https://picsum.photos/seed/${Date.now()}/800/600`);
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -69,15 +73,15 @@ export default function FeedPage() {
               />
               
               {imageUrl && (
-                <div className="relative rounded-lg overflow-hidden border max-h-[200px]">
-                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                <div className="relative rounded-lg overflow-hidden border max-h-[300px] bg-muted flex items-center justify-center">
+                  <img src={imageUrl} alt="Preview" className="max-w-full max-h-[300px] object-contain" />
                   <Button 
                     variant="destructive" 
                     size="icon" 
-                    className="absolute top-2 right-2 h-6 w-6 rounded-full"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
                     onClick={() => setImageUrl(undefined)}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               )}
@@ -137,8 +141,8 @@ export default function FeedPage() {
                 <div className="space-y-3 pt-4">
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
                   {post.imageUrl && (
-                    <div className="rounded-lg overflow-hidden border">
-                      <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover max-h-[400px]" />
+                    <div className="rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
+                      <img src={post.imageUrl} alt="Post content" className="max-w-full h-auto object-contain max-h-[500px]" />
                     </div>
                   )}
                 </div>
