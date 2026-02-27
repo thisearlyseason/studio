@@ -4,13 +4,13 @@
     {
       "id": "brand-logo-dark",
       "description": "The Squad official brand logo (Black version for light backgrounds)",
-      "imageUrl": "https://picsum.photos/seed/logo-black/400/160",
+      "imageUrl": "https://picsum.photos/seed/squad-black-logo/400/160",
       "imageHint": "black logo"
     },
     {
       "id": "brand-logo-light",
       "description": "The Squad official brand logo (White version for dark backgrounds)",
-      "imageUrl": "https://picsum.photos/seed/logo-white/400/160",
+      "imageUrl": "https://picsum.photos/seed/squad-white-logo/400/160",
       "imageHint": "white logo"
     },
     {
@@ -64,7 +64,7 @@
     {
       "id": "sport-hockey",
       "description": "Hockey action shot",
-      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxpY2UlMjBob2NrZXl8ZW58MHx8fDE3NzIyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1486128105845-91daff43f404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw8fHxpY2UlMjBob2NrZXl8ZW58MHx8fDE3NzIyMDQ0OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "ice hockey"
     },
     {
