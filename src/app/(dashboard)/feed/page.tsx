@@ -306,14 +306,14 @@ export default function FeedPage() {
                           </div>
                           <div className="flex-1 space-y-3 text-center sm:text-left">
                             <h3 className="text-xl font-black text-foreground tracking-tight">{post.systemData.title}</h3>
+                            {post.systemData.detail && (
+                              <p className="text-sm font-bold text-amber-600 dark:text-amber-400/80 bg-amber-500/5 py-1 px-3 rounded-lg inline-block">{post.systemData.detail}</p>
+                            )}
                             <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start text-sm font-bold text-muted-foreground">
                               <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {post.systemData.startTime}{post.systemData.endTime ? ` - ${post.systemData.endTime}` : ''}</div>
                               <div className="flex items-center gap-1.5 truncate max-w-xs"><MapPin className="h-4 w-4" /> {post.systemData.location}</div>
                             </div>
                           </div>
-                        </div>
-                        <div className="border-t border-muted/30 px-6 py-3 flex justify-center sm:justify-start">
-                          <Button variant="link" className="text-primary font-bold text-xs h-auto p-0">View update</Button>
                         </div>
                       </div>
                     ) : (

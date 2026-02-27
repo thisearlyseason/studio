@@ -120,7 +120,6 @@ export default function EventsPage() {
   const handleCreateEvent = () => {
     if (!newTitle || !newDate || !newTime) return;
     
-    // Format input time to 12h for display consistency
     const [hours, minutes] = newTime.split(':');
     const h = parseInt(hours);
     const ampm = h >= 12 ? 'PM' : 'AM';

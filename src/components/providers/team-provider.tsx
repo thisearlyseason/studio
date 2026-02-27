@@ -105,6 +105,7 @@ export type Post = {
     endTime?: string;
     location?: string;
     label?: string;
+    detail?: string;
   };
 };
 
@@ -330,7 +331,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       recurrenceDays: e.recurrenceDays,
       recurrenceEndDate: e.recurrenceEndDate,
       rsvps: e.rsvps || { going: 0, notGoing: 0, maybe: 0 },
-      userRsvp: e.userRsvps?.[firebaseUser?.uid || ''] as RSVPStatus
+      userRsvp: e.userRvps?.[firebaseUser?.uid || ''] as RSVPStatus
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
@@ -588,19 +589,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (updates.date) firestoreUpdates.date = updates.date.toISOString();
 
     updateDoc(docRef, firestoreUpdates).then(() => {
-      let changeText = "";
-      if (updates.location && updates.location !== oldEvent.location) changeText += ` Location changed to ${updates.location}.`;
-      if (updates.startTime && updates.startTime !== oldEvent.startTime) changeText += ` Start time changed to ${updates.startTime}.`;
-      if (updates.date && updates.date.getTime() !== oldEvent.date.getTime()) changeText += ` Date changed to ${updates.date.toLocaleDateString()}.`;
+      const changes: string[] = [];
+      if (updates.location && updates.location !== oldEvent.location) changes.push(`Location moved to ${updates.location}`);
+      if (updates.startTime && updates.startTime !== oldEvent.startTime) changes.push(`Time changed to ${updates.startTime}`);
+      if (updates.date && updates.date.getTime() !== oldEvent.date.getTime()) changes.push(`Date changed to ${updates.date.toLocaleDateString()}`);
+      if (updates.title && updates.title !== oldEvent.title) changes.push(`Title changed to "${updates.title}"`);
 
-      if (changeText) {
-        addPost(`🚨 EVENT UPDATE: ${oldEvent.title}`, undefined, 'system', {
+      if (changes.length > 0) {
+        const detail = changes.join(', ');
+        addPost(`Event Update: ${oldEvent.title}. ${detail}`, undefined, 'system', {
           updateType: 'EVENT UPDATED',
           title: oldEvent.title,
           date: (updates.date || oldEvent.date).toISOString(),
           startTime: updates.startTime || oldEvent.startTime,
           location: updates.location || oldEvent.location,
-          label: 'TEAM EVENT'
+          label: 'TEAM EVENT',
+          detail: detail
         });
       }
     });
@@ -634,19 +638,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (updates.date) firestoreUpdates.date = updates.date.toISOString();
 
     updateDoc(docRef, firestoreUpdates).then(() => {
-      let changeText = "";
-      if (updates.location && updates.location !== oldGame.location) changeText += ` Location changed to ${updates.location}.`;
-      if (updates.date && updates.date.getTime() !== oldGame.date.getTime()) changeText += ` Date changed to ${updates.date.toLocaleDateString()}.`;
-      if (updates.myScore !== undefined || updates.opponentScore !== undefined) changeText += ` Score updated.`;
+      const changes: string[] = [];
+      if (updates.location && updates.location !== oldGame.location) changes.push(`Location moved to ${updates.location}`);
+      if (updates.date && updates.date.getTime() !== oldGame.date.getTime()) changes.push(`Date changed to ${updates.date.toLocaleDateString()}`);
+      if (updates.myScore !== undefined || updates.opponentScore !== undefined) changes.push(`Score updated: ${updates.myScore ?? oldGame.myScore} - ${updates.opponentScore ?? oldGame.opponentScore}`);
+      if (updates.opponent && updates.opponent !== oldGame.opponent) changes.push(`Opponent changed to ${updates.opponent}`);
 
-      if (changeText) {
-        addPost(`📊 GAME UPDATE: Vs ${oldGame.opponent}`, undefined, 'system', {
+      if (changes.length > 0) {
+        const detail = changes.join(', ');
+        addPost(`Game Update vs ${oldGame.opponent}. ${detail}`, undefined, 'system', {
           updateType: 'GAME UPDATED',
           title: `vs ${oldGame.opponent}`,
           date: (updates.date || oldGame.date).toISOString(),
-          startTime: oldGame.date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          startTime: oldGame.date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
           location: updates.location || oldGame.location,
-          label: 'MATCH DAY'
+          label: 'MATCH DAY',
+          detail: detail
         });
       }
     });
@@ -690,9 +697,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       updateType: 'TEAM ALERT',
       title: title,
       date: new Date().toISOString(),
-      startTime: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      startTime: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
       location: message,
-      label: 'URGENT'
+      label: 'URGENT',
+      detail: message
     });
   };
 
