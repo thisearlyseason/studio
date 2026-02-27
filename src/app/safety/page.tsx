@@ -6,21 +6,29 @@ import { ChevronLeft, ShieldCheck, Users, MessageSquare, AlertTriangle } from 'l
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import BrandLogo from '@/components/BrandLogo';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/firebase';
 
 export default function SafetyCenterPage() {
+  const router = useRouter();
+  const { user } = useUser();
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/">
+          <Link href={user ? "/feed" : "/"}>
             <BrandLogo variant="light-background" className="h-8 w-32" />
           </Link>
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="font-bold">
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="font-bold"
+            onClick={() => user ? router.push('/settings') : router.push('/')}
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            {user ? 'Back to Settings' : 'Back to Home'}
+          </Button>
         </div>
       </nav>
 
