@@ -441,6 +441,19 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!firebaseUser) return;
     const docRef = doc(db, 'users', firebaseUser.uid);
     updateDocumentNonBlocking(docRef, updates);
+    
+    // Propagate profile updates to the team membership to keep the roster in sync
+    if (activeTeam) {
+      const memberDocRef = doc(db, 'teams', activeTeam.id, 'members', firebaseUser.uid);
+      const memberUpdates: any = {};
+      if (updates.avatar) memberUpdates.avatar = updates.avatar;
+      if (updates.name) memberUpdates.name = updates.name;
+      
+      if (Object.keys(memberUpdates).length > 0) {
+        updateDocumentNonBlocking(memberDocRef, memberUpdates);
+      }
+    }
+
     if (userProfile) setUserProfile({ ...userProfile, ...updates });
   };
 
