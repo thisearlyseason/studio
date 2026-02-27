@@ -1,13 +1,13 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, Plus, ChevronRight, Info, Repeat, CheckCircle2, Users, Link as LinkIcon, UserPlus, Trash2 } from 'lucide-react';
+import { MapPin, Clock, Plus, ChevronRight, Info, Repeat, CheckCircle2, Users, Link as LinkIcon, UserPlus, Trash2, HelpCircle, XCircle, UserCheck } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
@@ -28,6 +28,7 @@ import { toast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface EventDetailDialogProps {
   event: TeamEvent;
@@ -39,6 +40,7 @@ interface EventDetailDialogProps {
 }
 
 function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, children }: EventDetailDialogProps) {
+  const { members } = useTeam();
   const db = useFirestore();
   const regQuery = useMemoFirebase(() => {
     return query(collection(db, 'teams', event.teamId, 'events', event.id, 'registrations'), orderBy('createdAt', 'desc'));
@@ -51,92 +53,209 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
     toast({ title: "Link Copied", description: "Share this link with external participants." });
   };
 
+  const attendanceData = useMemo(() => {
+    const internal = Object.entries(event.userRsvps || {}).map(([uid, status]) => {
+      const member = members.find(m => m.userId === uid);
+      return {
+        id: uid,
+        name: member?.name || 'Unknown Member',
+        avatar: member?.avatar,
+        role: member?.position || 'Member',
+        status,
+        isExternal: false
+      };
+    });
+
+    const external = (registrations || []).map(reg => ({
+      id: reg.id,
+      name: reg.name,
+      avatar: undefined,
+      role: 'Public Registrant',
+      status: 'going' as RSVPStatus,
+      isExternal: true,
+      regData: reg
+    }));
+
+    return [...internal, ...external];
+  }, [event.userRsvps, members, registrations]);
+
+  const goingList = attendanceData.filter(a => a.status === 'going');
+  const maybeList = attendanceData.filter(a => a.status === 'maybe');
+  const notGoingList = attendanceData.filter(a => a.status === 'notGoing');
+
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {event.title}
-            {event.allowExternalRegistration && <Badge className="bg-blue-500">Public Registration</Badge>}
-          </DialogTitle>
-          <DialogDescription>
-            {event.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </DialogDescription>
+      <DialogContent className="sm:max-w-[550px] overflow-hidden flex flex-col h-[90vh]">
+        <DialogHeader className="shrink-0 p-6 pb-2">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <DialogTitle className="text-2xl font-black tracking-tight">{event.title}</DialogTitle>
+              <DialogDescription className="font-bold text-primary">
+                {event.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </DialogDescription>
+            </div>
+            {event.allowExternalRegistration && <Badge className="bg-blue-500 font-black px-3 h-7 uppercase tracking-tighter">Public Open</Badge>}
+          </div>
         </DialogHeader>
 
-        <div className="flex gap-2 justify-center py-4 border-y bg-muted/20 rounded-xl my-2">
-          <div className="text-center px-4">
-            <p className="text-2xl font-black text-green-600">{event.rsvps.going}</p>
-            <p className="text-[9px] font-bold uppercase text-muted-foreground">Going</p>
+        <div className="px-6 py-4 bg-muted/20 border-y flex justify-around shrink-0">
+          <div className="text-center">
+            <p className="text-2xl font-black text-green-600">{goingList.length}</p>
+            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Going</p>
           </div>
-          <div className="text-center px-4 border-x border-muted">
-            <p className="text-2xl font-black text-amber-600">{event.rsvps.maybe}</p>
-            <p className="text-[9px] font-bold uppercase text-muted-foreground">Maybe</p>
+          <div className="text-center">
+            <p className="text-2xl font-black text-amber-600">{maybeList.length}</p>
+            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Maybe</p>
           </div>
-          <div className="text-center px-4">
-            <p className="text-2xl font-black text-blue-600">{registrations?.length || 0}</p>
-            <p className="text-[9px] font-bold uppercase text-muted-foreground">External</p>
+          <div className="text-center">
+            <p className="text-2xl font-black text-red-600">{notGoingList.length}</p>
+            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">No</p>
           </div>
         </div>
 
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="registrants" disabled={!isAdmin}>Sign-ups</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 pt-4">
+            <TabsList className="grid w-full grid-cols-2 rounded-xl h-11">
+              <TabsTrigger value="details" className="rounded-lg font-bold">Event Details</TabsTrigger>
+              <TabsTrigger value="attendance" className="rounded-lg font-bold">Attendance ({attendanceData.length})</TabsTrigger>
+            </TabsList>
+          </div>
           
-          <TabsContent value="details" className="space-y-4 py-4">
-            <div className="flex items-start gap-3">
-              <div className="bg-primary/10 p-2 rounded-lg text-primary"><Clock className="h-5 w-5" /></div>
-              <div>
-                <p className="font-bold text-sm">Time & Location</p>
-                <p className="text-sm text-muted-foreground">{event.startTime} @ {event.location}</p>
-              </div>
-            </div>
-            {event.maxRegistrations && (
-              <div className="flex items-start gap-3">
-                <div className="bg-primary/10 p-2 rounded-lg text-primary"><Users className="h-5 w-5" /></div>
+          <TabsContent value="details" className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="bg-primary/10 p-2.5 rounded-xl text-primary shrink-0"><Clock className="h-5 w-5" /></div>
                 <div>
-                  <p className="font-bold text-sm">Capacity</p>
-                  <p className="text-sm text-muted-foreground">{registrations?.length || 0} / {event.maxRegistrations} Registered</p>
+                  <p className="font-black text-sm uppercase tracking-widest">Time & Location</p>
+                  <p className="text-sm font-medium text-muted-foreground">{event.startTime} @ {event.location}</p>
                 </div>
               </div>
-            )}
-            <p className="text-sm text-muted-foreground leading-relaxed italic">"{event.description}"</p>
+              
+              {event.maxRegistrations && (
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 p-2.5 rounded-xl text-primary shrink-0"><Users className="h-5 w-5" /></div>
+                  <div>
+                    <p className="font-black text-sm uppercase tracking-widest">Capacity</p>
+                    <p className="text-sm font-medium text-muted-foreground">{registrations?.length || 0} / {event.maxRegistrations} External Sign-ups</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-4 bg-muted/30 rounded-2xl border-2 border-dashed">
+                <p className="text-sm text-muted-foreground leading-relaxed italic">"{event.description}"</p>
+              </div>
+            </div>
             
             {event.allowExternalRegistration && (
-              <Button variant="outline" className="w-full gap-2 border-dashed" onClick={copyRegLink}>
+              <Button variant="outline" className="w-full h-12 gap-2 border-dashed border-primary/30 text-primary font-bold rounded-xl" onClick={copyRegLink}>
                 <LinkIcon className="h-4 w-4" /> Copy Public Sign-up Link
               </Button>
             )}
 
-            <DialogFooter className="flex gap-2 sm:flex-row flex-col pt-4">
-              <Button variant={event.userRsvp === 'notGoing' ? 'destructive' : 'outline'} className="flex-1" onClick={() => updateRSVP(event.id, 'notGoing')}>Can't Go</Button>
-              <Button variant={event.userRsvp === 'maybe' ? 'secondary' : 'outline'} className="flex-1" onClick={() => updateRSVP(event.id, 'maybe')}>Maybe</Button>
-              <Button className={cn("flex-1", event.userRsvp === 'going' ? "bg-green-600" : "")} onClick={() => updateRSVP(event.id, 'going')}>Going</Button>
-            </DialogFooter>
+            <div className="space-y-3 pt-4 border-t">
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Your Response (Required)</p>
+              <div className="grid grid-cols-3 gap-3">
+                <Button 
+                  variant={event.userRsvp === 'notGoing' ? 'destructive' : 'outline'} 
+                  className="rounded-xl h-12 font-bold" 
+                  onClick={() => updateRSVP(event.id, 'notGoing')}
+                >
+                  <XCircle className="h-4 w-4 mr-2" /> No
+                </Button>
+                <Button 
+                  variant={event.userRsvp === 'maybe' ? 'secondary' : 'outline'} 
+                  className="rounded-xl h-12 font-bold" 
+                  onClick={() => updateRSVP(event.id, 'maybe')}
+                >
+                  <HelpCircle className="h-4 w-4 mr-2" /> Maybe
+                </Button>
+                <Button 
+                  className={cn("rounded-xl h-12 font-bold", event.userRsvp === 'going' ? "bg-green-600 hover:bg-green-700" : "")} 
+                  onClick={() => updateRSVP(event.id, 'going')}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> Going
+                </Button>
+              </div>
+            </div>
           </TabsContent>
 
-          <TabsContent value="registrants" className="py-4">
-            <ScrollArea className="h-64 rounded-md border p-2">
-              {registrations && registrations.length > 0 ? registrations.map((reg) => (
-                <div key={reg.id} className="flex items-center justify-between p-3 border-b last:border-none">
-                  <div>
-                    <p className="font-bold text-sm">{reg.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{reg.email} • {reg.phone}</p>
+          <TabsContent value="attendance" className="flex-1 overflow-hidden flex flex-col p-0">
+            <ScrollArea className="flex-1 px-6">
+              <div className="py-6 space-y-8">
+                {/* Going Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-[10px] font-black uppercase text-green-600 tracking-widest">Going ({goingList.length})</span>
                   </div>
-                  {reg.status === 'pending' ? (
-                    <Button size="sm" variant="ghost" className="h-8 text-primary font-bold" onClick={() => promoteToRoster(event.teamId, event.id, reg)}>
-                      <UserPlus className="h-3 w-3 mr-1" /> Add
-                    </Button>
-                  ) : (
-                    <Badge variant="secondary" className="bg-green-100 text-green-700">Added</Badge>
-                  )}
+                  {goingList.length > 0 ? goingList.map((person) => (
+                    <div key={person.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={person.avatar} />
+                          <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black">{person.name}</span>
+                            {person.isExternal && <Badge className="text-[8px] h-3.5 bg-blue-500 font-black uppercase px-1.5">Public</Badge>}
+                          </div>
+                          <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
+                        </div>
+                      </div>
+                      {person.isExternal && person.regData?.status === 'pending' && isAdmin && (
+                        <Button size="sm" variant="ghost" className="h-7 text-[10px] font-black text-primary hover:bg-primary/10 rounded-full" onClick={() => promoteToRoster(event.teamId, event.id, person.regData!)}>
+                          <UserPlus className="h-3 w-3 mr-1" /> Add to Roster
+                        </Button>
+                      )}
+                      {person.isExternal && person.regData?.status === 'added' && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 text-[8px] font-black uppercase h-5">Rostered</Badge>
+                      )}
+                    </div>
+                  )) : <p className="text-xs text-muted-foreground italic px-1">No responses yet.</p>}
                 </div>
-              )) : (
-                <div className="text-center py-10 text-muted-foreground italic text-sm">No external sign-ups yet.</div>
-              )}
+
+                {/* Maybe Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <HelpCircle className="h-4 w-4 text-amber-600" />
+                    <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Maybe ({maybeList.length})</span>
+                  </div>
+                  {maybeList.map((person) => (
+                    <div key={person.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5 opacity-80">
+                      <Avatar className="h-8 w-8 grayscale">
+                        <AvatarImage src={person.avatar} />
+                        <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black">{person.name}</span>
+                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Not Going Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <XCircle className="h-4 w-4 text-red-600" />
+                    <span className="text-[10px] font-black uppercase text-red-600 tracking-widest">Not Going ({notGoingList.length})</span>
+                  </div>
+                  {notGoingList.map((person) => (
+                    <div key={person.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-2xl ring-1 ring-black/5 opacity-60">
+                      <Avatar className="h-8 w-8 grayscale brightness-50">
+                        <AvatarImage src={person.avatar} />
+                        <AvatarFallback className="font-bold text-xs">{person.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black line-through">{person.name}</span>
+                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{person.role}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </ScrollArea>
           </TabsContent>
         </Tabs>
@@ -279,7 +398,18 @@ export default function EventsPage() {
                         <div className="flex items-center"><Clock className="h-3.5 w-3.5 mr-1.5 text-primary/50" />{event.startTime}</div>
                         {event.location && <div className="flex items-center truncate"><MapPin className="h-3.5 w-3.5 mr-1.5 text-primary/50" />{event.location}</div>}
                       </div>
-                      {event.allowExternalRegistration && <Badge variant="outline" className="text-[8px] h-4">Public</Badge>}
+                      <div className="flex gap-2">
+                        {event.userRsvp && (
+                          <Badge variant="secondary" className={cn(
+                            "text-[8px] h-4 font-black uppercase",
+                            event.userRsvp === 'going' ? "bg-green-100 text-green-700" :
+                            event.userRsvp === 'maybe' ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
+                          )}>
+                            {event.userRsvp === 'going' ? 'Going' : event.userRsvp === 'maybe' ? 'Maybe' : 'No'}
+                          </Badge>
+                        )}
+                        {event.allowExternalRegistration && <Badge variant="outline" className="text-[8px] h-4 border-blue-200 text-blue-600">Public</Badge>}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -146,6 +146,7 @@ export type TeamEvent = {
   recurrenceDays?: string[];
   recurrenceEndDate?: string;
   rsvps: { going: number; notGoing: number; maybe: number };
+  userRsvps?: Record<string, RSVPStatus>;
   userRsvp?: RSVPStatus;
   maxRegistrations?: number;
   allowExternalRegistration?: boolean;
@@ -378,7 +379,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     Object.values(userRsvpsMap).forEach(val => { if (val === 'going') counts.going++; if (val === 'notGoing') counts.notGoing++; if (val === 'maybe') counts.maybe++; });
     return {
       id: e.id, teamId: e.teamId, title: e.title, date: new Date(e.date), startTime: e.startTime, endTime: e.endTime, location: e.location, description: e.description,
-      recurrence: e.recurrence || 'none', recurrenceDays: e.recurrenceDays, recurrenceEndDate: e.recurrenceEndDate, rsvps: counts, userRsvp: userRsvpsMap[firebaseUser?.uid || ''] as RSVPStatus,
+      recurrence: e.recurrence || 'none', recurrenceDays: e.recurrenceDays, recurrenceEndDate: e.recurrenceEndDate, rsvps: counts, userRsvps: userRsvpsMap, userRsvp: userRsvpsMap[firebaseUser?.uid || ''] as RSVPStatus,
       maxRegistrations: e.maxRegistrations, allowExternalRegistration: e.allowExternalRegistration
     };
   }).sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -569,7 +570,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const eventDate = eventData.date instanceof Date ? eventData.date : new Date(eventData.date);
     if (isNaN(eventDate.getTime())) return;
     addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), {
-      ...eventData, teamId: activeTeam.id, date: eventDate.toISOString(), createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), userRsvps: { [firebaseUser.uid]: 'going' }
+      ...eventData, teamId: activeTeam.id, date: eventDate.toISOString(), createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), userRsvps: {}
     });
   };
 
