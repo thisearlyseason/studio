@@ -11,8 +11,7 @@ import {
   Download, 
   MoreVertical, 
   Upload,
-  Calendar,
-  Trash2
+  Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +25,15 @@ export default function FilesPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  if (!mounted || !activeTeam) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
+        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Accessing library...</p>
+      </div>
+    );
+  }
 
   const teamFiles = files.filter(f => f.teamId === activeTeam.id);
 

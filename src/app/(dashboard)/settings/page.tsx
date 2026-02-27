@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -39,17 +39,39 @@ export default function SettingsPage() {
   const { user, updateUser, members, activeTeam, updateMember } = useTeam();
   const [notifications, setNotifications] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
-  const currentMember = members.find(m => m.id === 'me_id' && m.teamId === activeTeam.id);
-
   // Form state
   const [editForm, setEditForm] = useState({
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
+    name: '',
+    email: '',
+    phone: '',
     password: '',
-    position: currentMember?.position || ''
+    position: ''
   });
+
+  useEffect(() => {
+    setMounted(true);
+    if (user) {
+      setEditForm(prev => ({
+        ...prev,
+        name: user.name,
+        email: user.email,
+        phone: user.phone
+      }));
+    }
+  }, [user]);
+
+  if (!mounted || !activeTeam || !user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
+        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Adjusting settings...</p>
+      </div>
+    );
+  }
+
+  const currentMember = members.find(m => m.id === user.email && m.teamId === activeTeam.id);
 
   const handleSaveProfile = () => {
     updateUser({

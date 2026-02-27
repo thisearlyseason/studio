@@ -1,12 +1,12 @@
 
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import Link from 'link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, ChevronRight, Hash, Check } from 'lucide-react';
+import { Plus, MessageSquare, ChevronRight, Hash } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { 
   Dialog, 
@@ -29,13 +29,27 @@ export default function ChatsPage() {
   const [newChatName, setNewChatName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !activeTeam) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
+        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Opening discussions...</p>
+      </div>
+    );
+  }
 
   const teamChats = chats.filter(c => c.teamId === activeTeam.id);
   const teamMembers = members.filter(m => m.teamId === activeTeam.id);
 
-  const handleCreateChat = () => {
+  const handleCreateChat = async () => {
     if (!newChatName.trim()) return;
-    const chatId = createChat(newChatName, selectedMembers);
+    const chatId = await createChat(newChatName, selectedMembers);
     setIsNewChatOpen(false);
     setNewChatName('');
     setSelectedMembers([]);
@@ -98,7 +112,7 @@ export default function ChatsPage() {
                             <span className="text-[10px] text-muted-foreground">{member.position}</span>
                           </div>
                         </div>
-                        <Checkbox checked={selectedMembers.includes(member.id)} />
+                        <Checkbox checked={selectedMembers.includes(member.id)} onCheckedChange={() => {}} />
                       </div>
                     ))}
                   </div>

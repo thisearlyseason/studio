@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -33,9 +33,23 @@ export default function RosterPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [invitePosition, setInvitePosition] = useState('Player');
+  const [mounted, setMounted] = useState(false);
   
   const [editingMember, setEditingMember] = useState<any>(null);
   const [editForm, setEditForm] = useState({ position: '', jersey: '' });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !activeTeam) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
+        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Calling the squad...</p>
+      </div>
+    );
+  }
 
   const teamRoster = members.filter(member => member.teamId === activeTeam.id);
   
