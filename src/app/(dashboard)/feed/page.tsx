@@ -37,7 +37,9 @@ export default function FeedPage() {
     );
   }
 
-  const isAdmin = members.find(m => m.id === user?.id)?.role === 'Admin';
+  // Use membersMap for instant authorization check if available, fallback to searching members collection
+  const isAdmin = activeTeam.membersMap?.[user?.id || ''] === 'Admin' || 
+                  members.find(m => m.id === user?.id && m.teamId === activeTeam.id)?.role === 'Admin';
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -112,13 +114,13 @@ export default function FeedPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         
         {isAdmin && (
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 z-20">
             <input type="file" ref={heroInputRef} className="hidden" accept="image/*" onChange={handleHeroChange} />
             <Button 
               variant="secondary" 
               size="sm" 
               disabled={isUpdatingHero}
-              className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-9 transition-all active:scale-95 shadow-lg"
+              className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-9 transition-all active:scale-95 shadow-lg px-4"
               onClick={() => heroInputRef.current?.click()}
             >
               {isUpdatingHero ? (
