@@ -177,8 +177,7 @@ service cloud.firestore {
      * @description Global application subscription plans.
      */
     match /plans/{planId} {
-      allow get: if true;
-      allow list: if resource.data.isPublic == true || isAdmin();
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
