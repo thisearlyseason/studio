@@ -412,15 +412,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               {children}
             </main>
 
-            {/* Mobile Bottom Navigation */}
-            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-2xl glass rounded-2xl shadow-2xl border-white/40 p-1.5">
-              <div className="flex items-center justify-around h-14">
-                {[
-                  tabs[0], // Feed
-                  tabs[1], // Schedule
-                  tabs[5], // Roster
-                  tabs[4], // Chats
-                ].map((tab) => {
+            {/* Mobile Bottom Navigation - Restored all primary tabs */}
+            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[96%] max-w-2xl glass rounded-2xl shadow-2xl border-white/40 p-1">
+              <div className="flex items-center justify-around h-14 overflow-x-auto no-scrollbar">
+                {tabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = pathname.startsWith(tab.href);
                   const isLocked = tab.pro && !isPro;
@@ -429,19 +424,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       key={tab.name} 
                       href={tab.href} 
                       className={cn(
-                        "flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[50px]", 
+                        "flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[45px]", 
                         isActive ? "text-primary bg-primary/5" : "text-muted-foreground"
                       )}
                     >
-                      <Icon className={cn("h-5 w-5", isActive && "scale-110", isLocked && "opacity-50")} strokeWidth={isActive ? 2.5 : 2} />
-                      <span className="text-[8px] font-black tracking-tight uppercase truncate">{tab.name}</span>
-                      {isLocked && <Lock className="absolute top-1 right-1 h-2 w-2 opacity-40" />}
+                      <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", isActive && "scale-110", isLocked && "opacity-50")} strokeWidth={isActive ? 3 : 2} />
+                      <span className="text-[7px] sm:text-[8px] font-black tracking-tight uppercase truncate">{tab.name}</span>
+                      {isLocked && <Lock className="absolute top-0.5 right-0.5 h-1.5 w-1.5 opacity-40" />}
                     </Link>
                   );
                 })}
-                <Link href="/settings" className={cn("flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[50px]", pathname === '/settings' ? "text-primary bg-primary/5" : "text-muted-foreground")}>
-                  <Settings className={cn("h-5 w-5", pathname === '/settings' && "scale-110")} />
-                  <span className="text-[8px] font-black tracking-tight uppercase truncate">Profile</span>
+                <Link href="/settings" className={cn("flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[45px]", pathname === '/settings' ? "text-primary bg-primary/5" : "text-muted-foreground")}>
+                  <Settings className={cn("h-4 w-4 sm:h-5 sm:w-5", pathname === '/settings' && "scale-110")} />
+                  <span className="text-[7px] sm:text-[8px] font-black tracking-tight uppercase truncate">Profile</span>
                 </Link>
               </div>
             </nav>
