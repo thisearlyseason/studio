@@ -234,7 +234,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       };
       runSeeding();
     }
-  }, [searchParams, firebaseUser, db]);
+  }, [searchParams, firebaseUser, db, isSeedingDemo]);
 
   useEffect(() => {
     if (firebaseUser && !isRCInitialized) {
@@ -256,10 +256,19 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const data = docSnap.data();
           setUserProfile({
             id: firebaseUser.uid,
-            name: data.fullName || firebaseUser.displayName || 'Anonymous Guest',
+            name: data.fullName || firebaseUser.displayName || 'Guest Coordinator',
             email: data.email || firebaseUser.email || '',
             phone: data.phone || '',
             avatar: data.avatarUrl || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`
+          });
+        } else {
+          // Provide a baseline fallback profile for anonymous/demo users so UI doesn't hang
+          setUserProfile({
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Guest Coordinator',
+            email: firebaseUser.email || '',
+            phone: '',
+            avatar: `https://picsum.photos/seed/${firebaseUser.uid}/150/150`
           });
         }
       });

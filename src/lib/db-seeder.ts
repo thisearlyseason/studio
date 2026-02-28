@@ -158,21 +158,34 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
   const teamId = `demo_guest_${userId.slice(-6)}_${Date.now()}`;
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
-                   planId === 'squad_pro' ? 'Guest Pro Varsity' : 'Guest City CentralUnited';
+                   planId === 'squad_pro' ? 'Guest Pro Varsity' : 'Guest City Central United';
   
   const code = teamId.slice(-6).toUpperCase();
   
   const batch = writeBatch(db);
+  
+  // Create Team
   batch.set(doc(db, 'teams', teamId), {
     id: teamId, teamName, teamCode: code, createdBy: userId,
     createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
     isPro: planId !== 'starter_squad', planId, sport: 'Multi-Sport', isDemo: true
   });
   
+  // Create Membership
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
     userId, teamId, teamName, teamCode: code,
     role: 'Admin', isPro: planId !== 'starter_squad', planId, isDemo: true, joinedAt: new Date().toISOString()
   });
+
+  // Ensure User Doc exists so Settings page doesn't hang
+  batch.set(doc(db, 'users', userId), {
+    id: userId,
+    fullName: 'Guest Coordinator',
+    email: 'guest@thesquad.io',
+    notificationsEnabled: true,
+    createdAt: new Date().toISOString(),
+    isDemo: true
+  }, { merge: true });
   
   await batch.commit();
   await seedDemoData(db, teamId, planId, userId);
