@@ -26,7 +26,9 @@ import {
   Loader2,
   CreditCard,
   ExternalLink,
-  Building
+  Building,
+  Zap,
+  ArrowRight
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -41,6 +43,7 @@ import { useTeam } from '@/components/providers/team-provider';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 export default function SettingsPage() {
   const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro, isClubManager } = useTeam();
@@ -278,29 +281,37 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Club Manager Prominent Link */}
+      {isClubManager && (
+        <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-black text-white animate-in zoom-in-95 duration-500">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary/20 p-3 rounded-2xl text-primary ring-1 ring-primary/30">
+                  <Building className="h-6 w-6" />
+                </div>
+                <div>
+                  <Badge className="bg-primary text-white mb-1 h-4 text-[8px] uppercase tracking-[0.2em] font-black">Elite Hub</Badge>
+                  <h3 className="text-lg font-black tracking-tight leading-none">Club Management</h3>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1">Scale your organization</p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => navigateTo('/club')}
+                className="rounded-full bg-white text-black hover:bg-white/90 h-10 px-6 font-black uppercase text-[10px] tracking-widest shadow-lg"
+              >
+                Open Hub <ArrowRight className="ml-2 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Menu Options */}
       <div className="space-y-4">
         <Card className="border-none shadow-sm rounded-3xl overflow-hidden ring-1 ring-black/5">
           <CardContent className="p-0">
             <div className="divide-y divide-muted/50">
-              {isClubManager && (
-                <button 
-                  onClick={() => navigateTo('/club')}
-                  className="w-full p-4 flex items-center justify-between hover:bg-black/5 transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-black/10 p-2.5 rounded-2xl text-black">
-                      <Building className="h-5 w-5" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold">Club Hub</p>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Organization & Coach Management</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </button>
-              )}
-
               <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-2.5 rounded-2xl text-primary">
