@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -14,7 +13,8 @@ import {
   Trash2,
   Users,
   ImagePlus,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -191,80 +191,82 @@ export default function ChatRoomPage() {
         <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
-        {messages.map((msg) => {
-          const isMe = msg.authorId === user?.id || msg.author === user?.name;
-          const isPoll = msg.type === 'poll' || !!msg.poll;
+      <ScrollArea className="flex-1">
+        <div ref={scrollRef} className="p-4 space-y-6">
+          {messages.map((msg) => {
+            const isMe = msg.authorId === user?.id || msg.author === user?.name;
+            const isPoll = (msg.type === 'poll' || !!msg.poll) && msg.poll;
 
-          return (
-            <div key={msg.id} className={cn("flex flex-col gap-1.5", isMe ? 'items-end' : 'items-start')}>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-bold uppercase text-muted-foreground">{msg.author}</span>
-                <span className="text-[10px] text-muted-foreground/50">{formatTime(msg.createdAt)}</span>
-              </div>
-              {!isPoll ? (
-                <div className={cn("max-w-[85%] p-3 rounded-2xl text-sm shadow-sm space-y-2", isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
-                  {msg.imageUrl && (
-                    <div className="rounded-xl overflow-hidden border border-white/20 shadow-lg">
-                      <img src={msg.imageUrl} alt="Chat attachment" className="w-full h-auto max-h-[300px] object-cover" />
-                    </div>
-                  )}
-                  {msg.content && <p>{msg.content}</p>}
+            return (
+              <div key={msg.id} className={cn("flex flex-col gap-1.5", isMe ? 'items-end' : 'items-start')}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">{msg.author}</span>
+                  <span className="text-[10px] text-muted-foreground/50">{formatTime(msg.createdAt)}</span>
                 </div>
-              ) : (
-                <div className="w-full max-w-[90%] bg-card border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-                  <div className="bg-primary/5 p-4 border-b">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-black text-primary uppercase tracking-widest">Active Poll</span>
-                      <BarChart2 className="h-4 w-4 text-primary opacity-50" />
-                    </div>
-                    <h4 className="font-bold text-base leading-tight">{msg.poll?.question}</h4>
+                {!isPoll ? (
+                  <div className={cn("max-w-[85%] p-3 rounded-2xl text-sm shadow-sm space-y-2", isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
+                    {msg.imageUrl && (
+                      <div className="rounded-xl overflow-hidden border border-white/20 shadow-lg">
+                        <img src={msg.imageUrl} alt="Chat attachment" className="w-full h-auto max-h-[300px] object-cover" />
+                      </div>
+                    )}
+                    {msg.content && <p>{msg.content}</p>}
                   </div>
-                  <div className="p-4 space-y-3">
-                    {msg.poll?.options.map((opt, i) => {
-                      const voters = Object.entries(msg.poll?.voters || {})
-                        .filter(([_, votedIdx]) => votedIdx === i)
-                        .map(([uid]) => uid);
-                      const hasVoted = msg.poll?.voters?.[user?.id || ''] === i;
+                ) : (
+                  <div className="w-full max-w-[90%] bg-card border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                    <div className="bg-primary/5 p-4 border-b">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">Active Poll</span>
+                        <BarChart2 className="h-4 w-4 text-primary opacity-50" />
+                      </div>
+                      <h4 className="font-bold text-base leading-tight">{msg.poll?.question}</h4>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {msg.poll?.options.map((opt, i) => {
+                        const voters = Object.entries(msg.poll?.voters || {})
+                          .filter(([_, votedIdx]) => votedIdx === i)
+                          .map(([uid]) => uid);
+                        const hasVoted = msg.poll?.voters?.[user?.id || ''] === i;
 
-                      return (
-                        <div key={i} className="space-y-1">
-                          <button 
-                            onClick={() => handleVote(msg.id, i)}
-                            className={cn(
-                              "w-full text-left relative group rounded-lg transition-all",
-                              hasVoted ? "ring-2 ring-primary ring-offset-1" : "hover:bg-muted/50"
-                            )}
-                          >
-                            <div className="flex justify-between text-xs font-bold mb-1 px-1">
-                              <span className="flex items-center gap-2">
-                                {opt.text}
-                                {hasVoted && <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />}
-                              </span>
-                              <span className="text-muted-foreground">{opt.votes} votes</span>
-                            </div>
-                            <Progress value={msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0} className="h-2" />
-                          </button>
-                          {voters.length > 0 && (
-                            <Button 
-                              variant="ghost" 
-                              className="h-5 px-1 text-[9px] text-muted-foreground hover:text-primary flex items-center gap-1"
-                              onClick={() => setViewVotersFor({ question: msg.poll!.question, optionIdx: i, voterIds: voters })}
+                        return (
+                          <div key={i} className="space-y-1">
+                            <button 
+                              onClick={() => handleVote(msg.id, i)}
+                              className={cn(
+                                "w-full text-left relative group rounded-lg transition-all",
+                                hasVoted ? "ring-2 ring-primary ring-offset-1" : "hover:bg-muted/50"
+                              )}
                             >
-                              <Users className="h-2.5 w-2.5" />
-                              See who voted
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })}
+                              <div className="flex justify-between text-xs font-bold mb-1 px-1">
+                                <span className="flex items-center gap-2">
+                                  {opt.text}
+                                  {hasVoted && <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />}
+                                </span>
+                                <span className="text-muted-foreground">{opt.votes} votes</span>
+                              </div>
+                              <Progress value={msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0} className="h-2" />
+                            </button>
+                            {voters.length > 0 && (
+                              <Button 
+                                variant="ghost" 
+                                className="h-5 px-1 text-[9px] text-muted-foreground hover:text-primary flex items-center gap-1"
+                                onClick={() => setViewVotersFor({ question: msg.poll!.question, optionIdx: i, voterIds: voters })}
+                              >
+                                <Users className="h-2.5 w-2.5" />
+                                See who voted
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
 
       <div className="p-4 bg-background border-t">
         {chatImage && (

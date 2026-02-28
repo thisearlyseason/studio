@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -39,7 +38,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function GamesPage() {
-  const { activeTeam, games, addGame, updateGame, user, isPro, isSuperAdmin } = useTeam();
+  const { activeTeam, games, addGame, updateGame, user, isPro, isSuperAdmin, purchasePro } = useTeam();
   const [isRecordOpen, setIsRecordOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -266,7 +265,6 @@ export default function GamesPage() {
         )}
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="border-none shadow-sm bg-green-50/50 dark:bg-green-950/20">
           <CardContent className="p-4 text-center">
@@ -288,7 +286,6 @@ export default function GamesPage() {
         </Card>
       </div>
 
-      {/* Performance Chart */}
       {games.length > 0 && (
         <Card className="rounded-[2rem] border-none shadow-xl shadow-primary/5 ring-1 ring-black/5 overflow-hidden">
           <CardHeader className="pb-2">
@@ -302,7 +299,7 @@ export default function GamesPage() {
             <div className="h-[200px] w-full pt-4">
               <ChartContainer config={chartConfig} className="h-full w-full">
                 <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={true} opacity={0.1} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={true} opacity={0.15} />
                   <XAxis 
                     dataKey="date" 
                     axisLine={false} 
@@ -316,10 +313,10 @@ export default function GamesPage() {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
-                          <div className="bg-background border rounded-lg p-2 shadow-xl text-xs font-bold space-y-1">
-                            <p className="text-muted-foreground uppercase text-[9px]">{data.date}</p>
-                            <p className="text-primary">{activeTeam.name}: {data.myScore}</p>
-                            <p className="text-muted-foreground">{data.opponentName}: {data.opponentScore}</p>
+                          <div className="bg-background border-2 border-primary/10 rounded-xl p-3 shadow-2xl text-xs font-bold space-y-1 animate-in zoom-in-95">
+                            <p className="text-muted-foreground uppercase text-[9px] tracking-widest">{data.date}</p>
+                            <p className="text-primary flex justify-between gap-4"><span>{activeTeam.name}:</span> <span>{data.myScore}</span></p>
+                            <p className="text-muted-foreground flex justify-between gap-4"><span>Vs. {data.opponentName}:</span> <span>{data.opponentScore}</span></p>
                           </div>
                         );
                       }
@@ -330,9 +327,9 @@ export default function GamesPage() {
                     type="monotone" 
                     dataKey="myScore" 
                     stroke="var(--color-myScore)" 
-                    strokeWidth={3} 
-                    dot={{ r: 4, fill: "var(--color-myScore)" }}
-                    activeDot={{ r: 6 }}
+                    strokeWidth={4} 
+                    dot={{ r: 5, fill: "var(--color-myScore)", strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 8, strokeWidth: 0 }}
                   />
                   <Line 
                     type="monotone" 
@@ -340,7 +337,7 @@ export default function GamesPage() {
                     stroke="var(--color-opponentScore)" 
                     strokeWidth={2} 
                     strokeDasharray="5 5"
-                    dot={{ r: 3, fill: "var(--color-opponentScore)" }}
+                    dot={{ r: 4, fill: "var(--color-opponentScore)", strokeWidth: 2, stroke: "#fff" }}
                   />
                 </LineChart>
               </ChartContainer>
