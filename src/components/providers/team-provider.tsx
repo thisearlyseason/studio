@@ -90,6 +90,7 @@ export type PollOption = {
   text: string;
   votes: number;
   voterIds?: string[];
+  imageUrl?: string;
 };
 
 export type Message = {

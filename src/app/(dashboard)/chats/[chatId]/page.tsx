@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -14,7 +15,8 @@ import {
   Users,
   ImagePlus,
   XCircle,
-  Loader2
+  Loader2,
+  ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,13 +47,17 @@ export default function ChatRoomPage() {
   const [input, setInput] = useState('');
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
   const [pollPrompt, setPollPrompt] = useState('');
-  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollOptions, setPollOptions] = useState<{text: string, image?: string}[]>([{text: '', image: undefined}, {text: '', image: undefined}]);
   const [suggestedPoll, setSuggestedPoll] = useState<{question: string, options: string[]} | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [viewVotersFor, setViewVotersFor] = useState<{question: string, optionIdx: number, voterIds: string[]} | null>(null);
   const [chatImage, setChatImage] = useState<string | undefined>();
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const optionImageInputRef = useRef<HTMLInputElement>(null);
+  const activeOptionIdxRef = useRef<number | null>(null);
 
   const currentChat = useMemo(() => chats.find(c => c.id === chatId), [chats, chatId]);
 
@@ -114,6 +120,20 @@ export default function ChatRoomPage() {
     }
   };
 
+  const handleOptionImageClick = (idx: number) => {
+    activeOptionIdxRef.current = idx;
+    optionImageInputRef.current?.click();
+  };
+
+  const handleOptionImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && activeOptionIdxRef.current !== null) {
+      const compressed = await compressImage(e.target.files[0]);
+      const newOpts = [...pollOptions];
+      newOpts[activeOptionIdxRef.current].image = compressed;
+      setPollOptions(newOpts);
+    }
+  };
+
   const handleSuggestPoll = async () => {
     if (!pollPrompt.trim()) return;
     setIsGenerating(true);
@@ -128,7 +148,7 @@ export default function ChatRoomPage() {
   };
 
   const handleAddOption = () => {
-    if (pollOptions.length < 6) setPollOptions([...pollOptions, '']);
+    if (pollOptions.length < 6) setPollOptions([...pollOptions, {text: '', image: undefined}]);
   };
 
   const handleRemoveOption = (index: number) => {
@@ -137,7 +157,7 @@ export default function ChatRoomPage() {
 
   const handleUpdateOption = (index: number, value: string) => {
     const newOptions = [...pollOptions];
-    newOptions[index] = value;
+    newOptions[index].text = value;
     setPollOptions(newOptions);
   };
 
@@ -145,14 +165,14 @@ export default function ChatRoomPage() {
     if (!currentChat || !user) return;
     
     let question = pollPrompt;
-    let options = pollOptions.filter(o => o.trim() !== '');
+    let finalOptions = pollOptions.filter(o => o.text.trim() !== '');
 
     if (suggestedPoll) {
       question = suggestedPoll.question;
-      options = suggestedPoll.options;
+      finalOptions = suggestedPoll.options.map(o => ({text: o, image: undefined}));
     }
 
-    if (!question || options.length < 2) {
+    if (!question || finalOptions.length < 2) {
       toast({ title: "Validation Error", description: "Poll needs a question and at least 2 options.", variant: "destructive" });
       return;
     }
@@ -160,7 +180,7 @@ export default function ChatRoomPage() {
     const pollData = {
       id: 'p' + Date.now(),
       question,
-      options: options.map(o => ({ text: o, votes: 0 })),
+      options: finalOptions.map(o => ({ text: o.text, imageUrl: o.image, votes: 0 })),
       totalVotes: 0,
       voters: {},
       isClosed: false
@@ -170,7 +190,7 @@ export default function ChatRoomPage() {
     setIsPollDialogOpen(false);
     setSuggestedPoll(null);
     setPollPrompt('');
-    setPollOptions(['', '']);
+    setPollOptions([{text: '', image: undefined}, {text: '', image: undefined}]);
   };
 
   const handleVote = async (messageId: string, optionIdx: number) => {
@@ -196,6 +216,7 @@ export default function ChatRoomPage() {
           {messages.map((msg) => {
             const isMe = msg.authorId === user?.id || msg.author === user?.name;
             const isPoll = (msg.type === 'poll' || !!msg.poll) && msg.poll;
+            const hasOptionImages = isPoll && msg.poll?.options.some(o => o.imageUrl);
 
             return (
               <div key={msg.id} className={cn("flex flex-col gap-1.5", isMe ? 'items-end' : 'items-start')}>
@@ -221,41 +242,70 @@ export default function ChatRoomPage() {
                       </div>
                       <h4 className="font-bold text-base leading-tight">{msg.poll?.question}</h4>
                     </div>
-                    <div className="p-4 space-y-3">
+                    <div className={cn("p-4", hasOptionImages ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-3")}>
                       {msg.poll?.options.map((opt, i) => {
                         const voters = Object.entries(msg.poll?.voters || {})
                           .filter(([_, votedIdx]) => votedIdx === i)
                           .map(([uid]) => uid);
                         const hasVoted = msg.poll?.voters?.[user?.id || ''] === i;
+                        const percentage = msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0;
 
                         return (
-                          <div key={i} className="space-y-1">
-                            <button 
-                              onClick={() => handleVote(msg.id, i)}
-                              className={cn(
-                                "w-full text-left relative group rounded-lg transition-all",
-                                hasVoted ? "ring-2 ring-primary ring-offset-1" : "hover:bg-muted/50"
-                              )}
-                            >
-                              <div className="flex justify-between text-xs font-bold mb-1 px-1">
-                                <span className="flex items-center gap-2">
-                                  {opt.text}
-                                  {hasVoted && <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />}
-                                </span>
-                                <span className="text-muted-foreground">{opt.votes} votes</span>
+                          <div key={i} className={cn("relative group", hasOptionImages ? "bg-muted/20 rounded-2xl overflow-hidden flex flex-col border border-transparent hover:border-primary/10 transition-all" : "")}>
+                            {hasOptionImages && (
+                              <div className="relative aspect-video overflow-hidden cursor-zoom-in" onClick={() => opt.imageUrl && setLightboxImage(opt.imageUrl)}>
+                                {opt.imageUrl ? (
+                                  <img src={opt.imageUrl} className="w-full h-full object-cover" alt={opt.text} />
+                                ) : (
+                                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                                    <ImageIcon className="h-6 w-6 text-muted-foreground/20" />
+                                  </div>
+                                )}
                               </div>
-                              <Progress value={msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0} className="h-2" />
-                            </button>
-                            {voters.length > 0 && (
-                              <Button 
-                                variant="ghost" 
-                                className="h-5 px-1 text-[9px] text-muted-foreground hover:text-primary flex items-center gap-1"
-                                onClick={() => setViewVotersFor({ question: msg.poll!.question, optionIdx: i, voterIds: voters })}
-                              >
-                                <Users className="h-2.5 w-2.5" />
-                                See who voted
-                              </Button>
                             )}
+                            
+                            <div className={cn("p-2 space-y-2", !hasOptionImages && "w-full")}>
+                              <button 
+                                onClick={() => handleVote(msg.id, i)}
+                                className={cn(
+                                  "w-full text-left relative transition-all",
+                                  hasVoted ? "ring-2 ring-primary ring-offset-1 rounded-lg" : "hover:bg-muted/50 rounded-lg"
+                                )}
+                              >
+                                <div className="flex justify-between text-[10px] font-bold mb-1 px-1">
+                                  <span className="flex items-center gap-2">
+                                    {opt.text}
+                                    {hasVoted && <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />}
+                                  </span>
+                                  <span className="text-muted-foreground">{opt.votes}</span>
+                                </div>
+                                <div className="relative">
+                                  <Progress value={percentage} className="h-2 rounded-full" />
+                                  {voters.length > 0 && (
+                                    <div className="absolute -top-1 -right-1 flex -space-x-1.5">
+                                      {voters.slice(0, 2).map(vid => {
+                                        const v = members.find(m => m.userId === vid);
+                                        return (
+                                          <Avatar key={vid} className="h-4 w-4 border-2 border-background">
+                                            <AvatarImage src={v?.avatar} />
+                                            <AvatarFallback className="text-[5px]">{v?.name?.[0]}</AvatarFallback>
+                                          </Avatar>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                              {voters.length > 0 && (
+                                <Button 
+                                  variant="ghost" 
+                                  className="h-5 px-1 text-[8px] font-black uppercase text-muted-foreground hover:text-primary flex items-center gap-1"
+                                  onClick={() => setViewVotersFor({ question: msg.poll!.question, optionIdx: i, voterIds: voters })}
+                                >
+                                  <Users className="h-2.5 w-2.5" /> Details
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -330,11 +380,23 @@ export default function ChatRoomPage() {
                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Poll Options</Label>
                       <Button variant="ghost" size="sm" onClick={handleAddOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
                     </div>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                      <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
                       {pollOptions.map((opt, i) => (
-                        <div key={i} className="flex gap-2 group animate-in fade-in slide-in-from-left-2">
-                          <Input placeholder={`Option ${i+1}`} value={opt} onChange={(e) => handleUpdateOption(i, e.target.value)} className="h-11 rounded-xl bg-muted/30 focus:bg-background transition-all" />
-                          <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-all" onClick={() => handleRemoveOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
+                        <div key={i} className="flex flex-col gap-2 group animate-in fade-in slide-in-from-left-2">
+                          <div className="flex gap-2">
+                            <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={(e) => handleUpdateOption(i, e.target.value)} className="h-11 rounded-xl bg-muted/30 focus:bg-background transition-all" />
+                            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20 text-muted-foreground" onClick={() => handleOptionImageClick(i)}>
+                              <ImageIcon className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-all" onClick={() => handleRemoveOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                          {opt.image && (
+                            <div className="relative inline-block ml-1">
+                              <img src={opt.image} className="h-10 w-10 rounded-lg object-cover border border-primary/20" alt="Option preview" />
+                              <Button variant="destructive" size="icon" className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full" onClick={() => { const newOpts = [...pollOptions]; newOpts[i].image = undefined; setPollOptions(newOpts); }}><X className="h-2 w-2" /></Button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -391,6 +453,18 @@ export default function ChatRoomPage() {
               <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest h-9 px-8">Close Inbox</Button>
             </DialogClose>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Option Image Lightbox */}
+      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+          {lightboxImage && (
+            <div className="relative group">
+              <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain animate-in zoom-in-95 duration-300" alt="Full size" />
+              <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full" onClick={() => setLightboxImage(null)}><X className="h-6 w-6" /></Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -24,14 +25,15 @@ import {
   BarChart2,
   Sparkles,
   Plus,
-  XCircle
+  XCircle,
+  ImageIcon
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { formatDistanceToNow, format } from 'date-fns';
-import { useTeam, Comment, Post } from '@/components/providers/team-provider';
+import { useTeam, Comment, Post, PollOption } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -114,11 +116,14 @@ export default function FeedPage() {
   // Poll State
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
-  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollOptions, setPollOptions] = useState<{text: string, image?: string}[]>([{text: '', image: undefined}, {text: '', image: undefined}]);
   const [viewVotersFor, setViewVotersFor] = useState<{question: string, optionIdx: number, voterIds: string[]} | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const optionImageInputRef = useRef<HTMLInputElement>(null);
+  const activeOptionIdxRef = useRef<number | null>(null);
   const commentFileInputRef = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   useEffect(() => {
@@ -176,8 +181,22 @@ export default function FeedPage() {
     }
   };
 
+  const handleOptionImageClick = (idx: number) => {
+    activeOptionIdxRef.current = idx;
+    optionImageInputRef.current?.click();
+  };
+
+  const handleOptionImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && activeOptionIdxRef.current !== null) {
+      const compressed = await compressImage(e.target.files[0]);
+      const newOpts = [...pollOptions];
+      newOpts[activeOptionIdxRef.current].image = compressed;
+      setPollOptions(newOpts);
+    }
+  };
+
   const handleCreatePoll = () => {
-    const validOptions = pollOptions.filter(o => o.trim() !== '');
+    const validOptions = pollOptions.filter(o => o.text.trim() !== '');
     if (!pollQuestion || validOptions.length < 2) {
       toast({ title: "Validation Error", description: "Poll needs a question and at least 2 options.", variant: "destructive" });
       return;
@@ -186,7 +205,7 @@ export default function FeedPage() {
     const pollData = {
       id: 'p' + Date.now(),
       question: pollQuestion,
-      options: validOptions.map(o => ({ text: o, votes: 0 })),
+      options: validOptions.map(o => ({ text: o.text, imageUrl: o.image, votes: 0 })),
       totalVotes: 0,
       voters: {},
       isClosed: false
@@ -195,11 +214,11 @@ export default function FeedPage() {
     addPost(pollQuestion, undefined, 'poll', undefined, pollData);
     setIsPollDialogOpen(false);
     setPollQuestion('');
-    setPollOptions(['', '']);
+    setPollOptions([{text: '', image: undefined}, {text: '', image: undefined}]);
   };
 
   const handleAddPollOption = () => {
-    if (pollOptions.length < 6) setPollOptions([...pollOptions, '']);
+    if (pollOptions.length < 6) setPollOptions([...pollOptions, {text: '', image: undefined}]);
   };
 
   const handleRemovePollOption = (idx: number) => {
@@ -311,7 +330,7 @@ export default function FeedPage() {
                           <BarChart2 className="h-5 w-5" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-3xl rounded-[2.5rem] overflow-hidden p-0">
+                      <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0">
                         <div className="grid grid-cols-1 lg:grid-cols-2">
                           <div className="p-8 bg-primary/5 border-r space-y-6">
                             <DialogHeader>
@@ -325,7 +344,7 @@ export default function FeedPage() {
                               </div>
                               <div className="p-6 bg-background rounded-2xl border-2 border-dashed border-primary/10">
                                 <p className="text-xs text-muted-foreground font-medium leading-relaxed italic">
-                                  Use polls to finalize event locations, voting on jerseys, or deciding team meals.
+                                  Use polls to finalize event locations, voting on jerseys, or deciding team meals. Add images to options for visual voting.
                                 </p>
                               </div>
                             </div>
@@ -336,11 +355,25 @@ export default function FeedPage() {
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Polling Options</Label>
                                 <Button variant="ghost" size="sm" onClick={handleAddPollOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
                               </div>
-                              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
                                 {pollOptions.map((opt, i) => (
-                                  <div key={i} className="flex gap-2 group">
-                                    <Input placeholder={`Option ${i+1}`} value={opt} onChange={e => { const newOpts = [...pollOptions]; newOpts[i] = e.target.value; setPollOptions(newOpts); }} className="rounded-xl h-11 bg-muted/30 focus:bg-background transition-colors" />
-                                    <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemovePollOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
+                                  <div key={i} className="flex gap-3 group animate-in fade-in slide-in-from-left-2">
+                                    <div className="flex-1 space-y-2">
+                                      <div className="flex gap-2">
+                                        <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={e => { const newOpts = [...pollOptions]; newOpts[i].text = e.target.value; setPollOptions(newOpts); }} className="rounded-xl h-11 bg-muted/30 focus:bg-background transition-colors" />
+                                        <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20 text-muted-foreground hover:bg-primary/10 hover:text-primary" onClick={() => handleOptionImageClick(i)}>
+                                          <ImageIcon className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemovePollOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
+                                      </div>
+                                      {opt.image && (
+                                        <div className="relative inline-block ml-1">
+                                          <img src={opt.image} className="h-12 w-12 rounded-lg object-cover border-2 border-primary/20" alt="Option preview" />
+                                          <Button variant="destructive" size="icon" className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full" onClick={() => { const newOpts = [...pollOptions]; newOpts[i].image = undefined; setPollOptions(newOpts); }}><X className="h-2 w-2" /></Button>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -370,6 +403,8 @@ export default function FeedPage() {
           {posts.map((post) => {
             const isLiked = post.likes?.includes(user?.id || '');
             const canDelete = isAdmin || (post.authorId === user?.id);
+            const isPoll = post.type === 'poll' && post.poll;
+            const hasOptionImages = isPoll && post.poll?.options.some(o => o.imageUrl);
 
             return (
               <Card key={post.id} className={cn("rounded-[2.5rem] border-none shadow-md overflow-hidden transition-all duration-500 hover:shadow-2xl ring-1 ring-black/5 group", post.type === 'system' ? 'bg-amber-50 dark:bg-amber-950/20 ring-amber-500/10' : '')}>
@@ -393,39 +428,85 @@ export default function FeedPage() {
                   </CardHeader>
                 )}
                 <CardContent className={post.type === 'system' ? 'p-0' : 'pt-2 pb-6 px-8'}>
-                  {post.type === 'poll' ? (
-                    <div className="w-full bg-card border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-                      <div className="bg-primary/5 p-4 border-b">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-black text-primary uppercase tracking-widest">Squad Poll</span>
-                          <BarChart2 className="h-4 w-4 text-primary opacity-50" />
+                  {isPoll ? (
+                    <div className="w-full bg-card border rounded-[2rem] overflow-hidden shadow-sm hover:shadow-md transition-all">
+                      <div className="bg-primary/5 p-6 border-b">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Squad Poll</span>
+                          <BarChart2 className="h-5 w-5 text-primary opacity-50" />
                         </div>
-                        <h4 className="font-bold text-lg leading-tight">{post.poll?.question}</h4>
+                        <h4 className="font-black text-xl leading-tight tracking-tight">{post.poll?.question}</h4>
                       </div>
-                      <div className="p-4 space-y-3">
+                      <div className={cn("p-6", hasOptionImages ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "space-y-4")}>
                         {post.poll?.options.map((opt, i) => {
                           const voters = Object.entries(post.poll?.voters || {})
                             .filter(([_, votedIdx]) => votedIdx === i)
                             .map(([uid]) => uid);
                           const hasVoted = post.poll?.voters?.[user?.id || ''] === i;
+                          const percentage = post.poll!.totalVotes > 0 ? (opt.votes / post.poll!.totalVotes) * 100 : 0;
 
                           return (
-                            <div key={i} className="space-y-1">
-                              <button onClick={() => votePostPoll(post.id, i)} className={cn("w-full text-left relative group rounded-lg transition-all", hasVoted ? "ring-2 ring-primary ring-offset-1" : "hover:bg-muted/50")}>
-                                <div className="flex justify-between text-xs font-bold mb-1 px-1">
-                                  <span className="flex items-center gap-2">
-                                    {opt.text}
-                                    {hasVoted && <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />}
-                                  </span>
-                                  <span className="text-muted-foreground">{opt.votes} votes</span>
+                            <div key={i} className={cn("relative group", hasOptionImages ? "bg-muted/20 rounded-3xl overflow-hidden border border-transparent hover:border-primary/20 transition-all flex flex-col" : "")}>
+                              {hasOptionImages && (
+                                <div className="relative aspect-video overflow-hidden cursor-zoom-in" onClick={() => opt.imageUrl && setLightboxImage(opt.imageUrl)}>
+                                  {opt.imageUrl ? (
+                                    <img src={opt.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt={opt.text} />
+                                  ) : (
+                                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                                      <ImageIcon className="h-8 w-8 text-muted-foreground/20" />
+                                    </div>
+                                  )}
+                                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
                                 </div>
-                                <Progress value={post.poll!.totalVotes > 0 ? (opt.votes / post.poll!.totalVotes) * 100 : 0} className="h-2" />
-                              </button>
-                              {voters.length > 0 && (
-                                <Button variant="ghost" className="h-5 px-1 text-[9px] text-muted-foreground hover:text-primary flex items-center gap-1" onClick={() => setViewVotersFor({ question: post.poll!.question, optionIdx: i, voterIds: voters })}>
-                                  <Users className="h-2.5 w-2.5" /> See who voted
-                                </Button>
                               )}
+                              
+                              <div className={cn("p-4 space-y-3", !hasOptionImages && "w-full")}>
+                                <button 
+                                  onClick={() => votePostPoll(post.id, i)}
+                                  className={cn(
+                                    "w-full text-left relative transition-all",
+                                    !hasOptionImages && "p-1 rounded-xl"
+                                  )}
+                                >
+                                  <div className="flex justify-between items-center mb-2 px-1">
+                                    <span className="flex items-center gap-2 font-bold text-sm">
+                                      {opt.text}
+                                      {hasVoted && <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />}
+                                    </span>
+                                    <span className="text-[10px] font-black text-muted-foreground uppercase">{opt.votes} votes</span>
+                                  </div>
+                                  <div className="relative">
+                                    <Progress value={percentage} className="h-3 rounded-full" />
+                                    {voters.length > 0 && (
+                                      <div className="absolute -top-1 -right-1 flex -space-x-2">
+                                        {voters.slice(0, 3).map(vid => {
+                                          const v = members.find(m => m.userId === vid);
+                                          return (
+                                            <Avatar key={vid} className="h-5 w-5 border-2 border-background ring-1 ring-black/5">
+                                              <AvatarImage src={v?.avatar} />
+                                              <AvatarFallback className="text-[6px]">{v?.name?.[0]}</AvatarFallback>
+                                            </Avatar>
+                                          );
+                                        })}
+                                        {voters.length > 3 && (
+                                          <div className="h-5 w-5 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[6px] font-bold">
+                                            +{voters.length - 3}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </button>
+                                {voters.length > 0 && (
+                                  <Button 
+                                    variant="ghost" 
+                                    className="h-6 px-2 text-[9px] font-black uppercase text-muted-foreground hover:text-primary flex items-center gap-1.5"
+                                    onClick={() => setViewVotersFor({ question: post.poll!.question, optionIdx: i, voterIds: voters })}
+                                  >
+                                    <Users className="h-3 w-3" /> Breakdown
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
@@ -601,6 +682,18 @@ export default function FeedPage() {
               <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest h-9 px-8">Close Insight</Button>
             </DialogClose>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Option Image Lightbox */}
+      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+          {lightboxImage && (
+            <div className="relative group">
+              <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain animate-in zoom-in-95 duration-300" alt="Full size" />
+              <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full" onClick={() => setLightboxImage(null)}><X className="h-6 w-6" /></Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
