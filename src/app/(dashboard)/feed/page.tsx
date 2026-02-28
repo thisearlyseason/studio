@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -23,7 +22,6 @@ import {
   ChevronRight,
   Users,
   BarChart2,
-  Sparkles,
   Plus,
   XCircle,
   ImageIcon
@@ -33,11 +31,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { formatDistanceToNow, format } from 'date-fns';
-import { useTeam, Comment, Post, PollOption } from '@/components/providers/team-provider';
+import { useTeam } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc, increment, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
   Dialog, 
@@ -50,18 +48,12 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: string, teamId: string, isAdmin: boolean, currentUserId: string }) {
-  const { deleteComment } = useTeam();
   const db = useFirestore();
-  const q = useMemoFirebase(() => {
-    return query(
-      collection(db, 'teams', teamId, 'feedPosts', postId, 'comments'),
-      orderBy('createdAt', 'asc')
-    );
-  }, [db, teamId, postId]);
-  
-  const { data: comments, isLoading } = useCollection<Comment>(q);
+  const q = useMemoFirebase(() => query(collection(db, 'teams', teamId, 'feedPosts', postId, 'comments'), orderBy('createdAt', 'asc')), [db, teamId, postId]);
+  const { data: comments, isLoading } = useCollection(q);
 
   if (isLoading) return <div className="p-2 text-[10px] text-muted-foreground animate-pulse">Loading comments...</div>;
   if (!comments || comments.length === 0) return null;
@@ -79,23 +71,11 @@ function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: strin
               <div className="flex items-center gap-2">
                 <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
                 {(isAdmin || comment.authorId === currentUserId) && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
-                    onClick={() => deleteComment(postId, comment.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => deleteDocumentNonBlocking(doc(db, 'teams', teamId, 'feedPosts', postId, 'comments', comment.id))}><Trash2 className="h-3 w-3" /></Button>
                 )}
               </div>
             </div>
             <p className="text-xs font-medium text-foreground/80 leading-snug">{comment.content}</p>
-            {comment.imageUrl && (
-              <div className="mt-2 rounded-xl overflow-hidden border border-muted shadow-sm max-w-[200px]">
-                <img src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
-              </div>
-            )}
           </div>
         </div>
       ))}
@@ -104,16 +84,23 @@ function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: strin
 }
 
 export default function FeedPage() {
-  const { activeTeam, posts, addPost, deletePost, addComment, toggleLike, votePostPoll, user, updateTeamHero, formatTime, isSuperAdmin, events, games, members } = useTeam();
+  const { activeTeam, user, updateTeamHero, formatTime, isSuperAdmin, members } = useTeam();
+  const db = useFirestore();
   const router = useRouter();
+  
+  const postsQ = useMemoFirebase(() => activeTeam ? query(collection(db, 'teams', activeTeam.id, 'feedPosts'), orderBy('createdAt', 'desc'), limit(20)) : null, [db, activeTeam?.id]);
+  const eventsQ = useMemoFirebase(() => activeTeam ? query(collection(db, 'teams', activeTeam.id, 'events'), limit(3)) : null, [db, activeTeam?.id]);
+  const gamesQ = useMemoFirebase(() => activeTeam ? query(collection(db, 'teams', activeTeam.id, 'games'), limit(10)) : null, [db, activeTeam?.id]);
+
+  const { data: posts } = useCollection(postsQ);
+  const { data: events } = useCollection(eventsQ);
+  const { data: games } = useCollection(gamesQ);
+
   const [newPostContent, setNewPostContent] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [commentInputs, setCommentInputs] = useState<{ [key: string]: string }>({});
   const [commentImages, setCommentImages] = useState<{ [key: string]: string }>({});
-  const [mounted, setMounted] = useState(false);
   const [isUpdatingHero, setIsUpdatingHero] = useState(false);
-  
-  // Poll State
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<{text: string, image?: string}[]>([{text: '', image: undefined}, {text: '', image: undefined}]);
@@ -124,277 +111,116 @@ export default function FeedPage() {
   const heroInputRef = useRef<HTMLInputElement>(null);
   const optionImageInputRef = useRef<HTMLInputElement>(null);
   const activeOptionIdxRef = useRef<number | null>(null);
-  const commentFileInputRef = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || !activeTeam) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
-        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
-        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Preparing your feed...</p>
-      </div>
-    );
-  }
-
-  const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
-
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 1200;
-          let width = img.width;
-          let height = img.height;
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
-        };
-      };
-    });
-  };
+  if (!activeTeam) return null;
+  const isAdmin = activeTeam.role === 'Admin' || isSuperAdmin;
 
   const handlePost = () => {
     if (!newPostContent.trim() && !imageUrl) return;
-    addPost(newPostContent, imageUrl);
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts'), {
+      teamId: activeTeam.id,
+      content: newPostContent,
+      imageUrl: imageUrl || null,
+      type: 'user',
+      authorId: user?.id,
+      author: { name: user?.name, avatar: user?.avatar },
+      createdAt: new Date().toISOString(),
+      likes: []
+    });
     setNewPostContent('');
     setImageUrl(undefined);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const compressed = await compressImage(e.target.files[0]);
-      setImageUrl(compressed);
-    }
-  };
-
-  const handleOptionImageClick = (idx: number) => {
-    activeOptionIdxRef.current = idx;
-    optionImageInputRef.current?.click();
-  };
-
-  const handleOptionImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && activeOptionIdxRef.current !== null) {
-      const compressed = await compressImage(e.target.files[0]);
-      const newOpts = [...pollOptions];
-      newOpts[activeOptionIdxRef.current].image = compressed;
-      setPollOptions(newOpts);
-    }
-  };
-
   const handleCreatePoll = () => {
     const validOptions = pollOptions.filter(o => o.text.trim() !== '');
-    if (!pollQuestion || validOptions.length < 2) {
-      toast({ title: "Validation Error", description: "Poll needs a question and at least 2 options.", variant: "destructive" });
-      return;
-    }
-
-    const pollData = {
-      id: 'p' + Date.now(),
-      question: pollQuestion,
-      options: validOptions.map(o => ({ text: o.text, imageUrl: o.image, votes: 0 })),
-      totalVotes: 0,
-      voters: {},
-      isClosed: false
-    };
-
-    addPost(pollQuestion, undefined, 'poll', undefined, pollData);
+    if (!pollQuestion || validOptions.length < 2) return;
+    addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts'), {
+      teamId: activeTeam.id,
+      content: pollQuestion,
+      type: 'poll',
+      poll: {
+        id: 'p' + Date.now(),
+        question: pollQuestion,
+        options: validOptions.map(o => ({ text: o.text, imageUrl: o.image || null, votes: 0 })),
+        totalVotes: 0,
+        voters: {},
+        isClosed: false
+      },
+      authorId: user?.id,
+      author: { name: user?.name, avatar: user?.avatar },
+      createdAt: new Date().toISOString()
+    });
     setIsPollDialogOpen(false);
     setPollQuestion('');
     setPollOptions([{text: '', image: undefined}, {text: '', image: undefined}]);
   };
 
-  const handleAddPollOption = () => {
-    if (pollOptions.length < 6) setPollOptions([...pollOptions, {text: '', image: undefined}]);
+  const handleVote = async (postId: string, optionIdx: number) => {
+    const ref = doc(db, 'teams', activeTeam.id, 'feedPosts', postId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const poll = snap.data().poll;
+    const current = poll.voters?.[user?.id || ''];
+    const u: any = { [`poll.voters.${user?.id}`]: optionIdx };
+    if (current === undefined) { u[`poll.options.${optionIdx}.votes`] = increment(1); u['poll.totalVotes'] = increment(1); }
+    else if (current !== optionIdx) { u[`poll.options.${current}.votes`] = increment(-1); u[`poll.options.${optionIdx}.votes`] = increment(1); }
+    updateDocumentNonBlocking(ref, u);
   };
 
-  const handleRemovePollOption = (idx: number) => {
-    if (pollOptions.length > 2) setPollOptions(pollOptions.filter((_, i) => i !== idx));
+  const handleToggleLike = async (postId: string) => {
+    const ref = doc(db, 'teams', activeTeam.id, 'feedPosts', postId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const isLiked = snap.data().likes?.includes(user?.id);
+    updateDocumentNonBlocking(ref, { likes: isLiked ? arrayRemove(user?.id) : arrayUnion(user?.id) });
   };
-
-  async function handleHeroChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files && e.target.files[0]) {
-      setIsUpdatingHero(true);
-      try {
-        const compressed = await compressImage(e.target.files[0]);
-        await updateTeamHero(compressed);
-        toast({ title: "Hero Updated", description: "Team banner updated successfully." });
-      } catch (error) {
-        toast({ title: "Update Failed", description: "Could not update team hero image.", variant: "destructive" });
-      } finally {
-        setIsUpdatingHero(false);
-      }
-    }
-  }
-
-  function handleCommentFileChange(postId: string, e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files && e.target.files[0]) {
-      compressImage(e.target.files[0]).then(compressed => {
-        setCommentImages(prev => ({ ...prev, [postId]: compressed }));
-      });
-    }
-  }
-
-  function handleCommentSubmit(postId: string) {
-    const content = commentInputs[postId];
-    const image = commentImages[postId];
-    if (!content?.trim() && !image) return;
-    addComment(postId, content || '', image);
-    setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-    setCommentImages(prev => {
-      const updated = { ...prev };
-      delete updated[postId];
-      return updated;
-    });
-  }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 pb-12 animate-in fade-in duration-500">
+    <div className="flex flex-col lg:flex-row gap-8 pb-12">
       <div className="flex-1 min-w-0 space-y-8">
         <section className="relative h-48 sm:h-64 lg:h-80 rounded-[2.5rem] overflow-hidden shadow-2xl group ring-1 ring-black/5">
           <img src={activeTeam.heroImageUrl || "https://picsum.photos/seed/squadhero/1200/400"} alt="Team Hero" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           {isAdmin && (
             <div className="absolute top-6 right-6 z-20">
-              <input type="file" ref={heroInputRef} className="hidden" accept="image/*" onChange={handleHeroChange} />
-              <Button variant="secondary" size="sm" disabled={isUpdatingHero} className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-10 transition-all active:scale-95 shadow-lg px-5 font-bold" onClick={() => heroInputRef.current?.click()}>
+              <input type="file" ref={heroInputRef} className="hidden" accept="image/*" onChange={async (e) => {
+                if (e.target.files?.[0]) {
+                  setIsUpdatingHero(true);
+                  const reader = new FileReader();
+                  reader.onload = async (ev) => {
+                    await updateTeamHero(ev.target?.result as string);
+                    setIsUpdatingHero(false);
+                  };
+                  reader.readAsDataURL(e.target.files[0]);
+                }
+              }} />
+              <Button variant="secondary" size="sm" disabled={isUpdatingHero} className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-10 px-5 font-bold" onClick={() => heroInputRef.current?.click()}>
                 {isUpdatingHero ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Camera className="h-4 w-4 mr-2" />}
-                {isUpdatingHero ? "Uploading..." : "Change Cover"}
+                {isUpdatingHero ? "Updating..." : "Change Cover"}
               </Button>
             </div>
           )}
           <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
             <div className="space-y-1">
-              <Badge variant="secondary" className="mb-2 bg-white/20 backdrop-blur-md text-white border-none font-black uppercase tracking-wider text-[10px]">Active Squad</Badge>
-              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tighter drop-shadow-lg leading-none">{activeTeam.name}</h1>
-              <p className="text-white/70 text-base font-medium hidden sm:block">Join the discussion, coordinate the win.</p>
+              <Badge className="mb-2 bg-primary/80 text-white border-none font-black uppercase tracking-wider text-[10px]">Active Squad</Badge>
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tighter leading-none">{activeTeam.name}</h1>
             </div>
           </div>
         </section>
 
-        <Card className="rounded-[3rem] border-none shadow-xl shadow-primary/5 ring-1 ring-black/5 overflow-hidden">
+        <Card className="rounded-[3rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
           <CardContent className="p-8 pb-10">
             <div className="flex flex-col sm:flex-row gap-6 items-start">
-              <Avatar className="h-12 w-12 shrink-0 border-2 border-primary/10 shadow-sm">
+              <Avatar className="h-12 w-12 shrink-0 border-2 border-primary/10">
                 <AvatarImage src={user?.avatar} />
-                <AvatarFallback className="font-black">{user?.name?.[0] || '?'}</AvatarFallback>
+                <AvatarFallback className="font-black">{user?.name?.[0]}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0 w-full">
-                <Textarea 
-                  placeholder={`What's the play for ${activeTeam.name}?`} 
-                  value={newPostContent} 
-                  onChange={(e) => setNewPostContent(e.target.value)} 
-                  className="min-h-[100px] w-full resize-none border-none focus-visible:ring-0 p-4 text-lg sm:text-xl font-medium placeholder:text-muted-foreground/30 bg-transparent leading-relaxed" 
-                />
-                
-                {imageUrl && (
-                  <div className="mt-4 relative rounded-3xl overflow-hidden border-4 border-white shadow-lg animate-in zoom-in-95">
-                    <img src={imageUrl} alt="Preview" className="w-full h-auto object-cover max-h-[500px]" />
-                    <Button variant="destructive" size="icon" className="absolute top-4 right-4 h-10 w-10 rounded-full shadow-lg" onClick={() => setImageUrl(undefined)}><X className="h-5 w-5" /></Button>
-                  </div>
-                )}
-
-                <div className="flex flex-row items-center justify-center gap-4 sm:gap-6 pt-8 mt-4 border-t border-muted/50">
-                  <div className="flex items-center gap-3">
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-12 w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all shadow-sm" 
-                      onClick={() => fileInputRef.current?.click()}
-                      title="Add Media"
-                    >
-                      <ImagePlus className="h-5 w-5" />
-                    </Button>
-                    <Dialog open={isPollDialogOpen} onOpenChange={setIsPollDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-12 w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all shadow-sm"
-                          title="Create Poll"
-                        >
-                          <BarChart2 className="h-5 w-5" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
-                        <div className="overflow-y-auto flex-1 custom-scrollbar">
-                          <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
-                            <div className="p-8 bg-primary/5 lg:border-r space-y-6">
-                              <DialogHeader>
-                                <DialogTitle className="text-2xl font-black tracking-tight">Launch Squad Poll</DialogTitle>
-                                <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Collect squad consensus</DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 pt-4">
-                                <div className="space-y-2">
-                                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Question</Label>
-                                  <Input placeholder="e.g. Best time for extra training?" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="rounded-xl h-12 bg-background font-bold" />
-                                </div>
-                                <div className="p-6 bg-background rounded-2xl border-2 border-dashed border-primary/10">
-                                  <p className="text-xs text-muted-foreground font-medium leading-relaxed italic">
-                                    Use polls to finalize event locations, voting on jerseys, or deciding team meals. Add images to options for visual voting.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="p-8 space-y-6 flex flex-col justify-between">
-                              <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Polling Options</Label>
-                                  <Button variant="ghost" size="sm" onClick={handleAddPollOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
-                                </div>
-                                <div className="space-y-3">
-                                  <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
-                                  {pollOptions.map((opt, i) => (
-                                    <div key={i} className="flex gap-3 group animate-in fade-in slide-in-from-left-2">
-                                      <div className="flex-1 space-y-2">
-                                        <div className="flex gap-2">
-                                          <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={e => { const newOpts = [...pollOptions]; newOpts[i].text = e.target.value; setPollOptions(newOpts); }} className="rounded-xl h-11 bg-muted/30 focus:bg-background transition-colors" />
-                                          <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20 text-muted-foreground hover:bg-primary/10 hover:text-primary" onClick={() => handleOptionImageClick(i)}>
-                                            <ImageIcon className="h-4 w-4" />
-                                          </Button>
-                                          <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemovePollOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
-                                        </div>
-                                        {opt.image && (
-                                          <div className="relative inline-block ml-1">
-                                            <img src={opt.image} className="h-12 w-12 rounded-lg object-cover border-2 border-primary/20" alt="Option preview" />
-                                            <Button variant="destructive" size="icon" className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full" onClick={() => { const newOpts = [...pollOptions]; newOpts[i].image = undefined; setPollOptions(newOpts); }}><X className="h-2 w-2" /></Button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all mt-6" onClick={handleCreatePoll}>Launch Poll to Feed</Button>
-                              </DialogFooter>
-                            </div>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                  <Button 
-                    disabled={!newPostContent.trim() && !imageUrl} 
-                    onClick={handlePost} 
-                    className="rounded-full px-8 h-12 font-black uppercase text-[11px] tracking-[0.15em] shadow-xl shadow-primary/20 transition-all active:scale-95 shrink-0"
-                  >
-                    Post to Squad
-                  </Button>
+                <Textarea placeholder={`What's the play, ${user?.name}?`} value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="min-h-[100px] w-full resize-none border-none focus-visible:ring-0 p-4 text-lg font-medium placeholder:text-muted-foreground/30 bg-transparent" />
+                <div className="flex items-center gap-4 pt-4 mt-4 border-t">
+                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-5 w-5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => setIsPollDialogOpen(true)}><BarChart2 className="h-5 w-5" /></Button>
+                  <Button disabled={!newPostContent.trim() && !imageUrl} onClick={handlePost} className="ml-auto rounded-full px-8 h-12 font-black uppercase text-[11px] tracking-widest shadow-xl shadow-primary/20">Post to Squad</Button>
                 </div>
               </div>
             </div>
@@ -402,214 +228,91 @@ export default function FeedPage() {
         </Card>
 
         <div className="space-y-8">
-          {posts.map((post) => {
-            const isLiked = post.likes?.includes(user?.id || '');
-            const canDelete = isAdmin || (post.authorId === user?.id);
-            const isPoll = post.type === 'poll' && post.poll;
-            const hasOptionImages = isPoll && post.poll?.options.some(o => o.imageUrl);
-
-            return (
-              <Card key={post.id} className={cn("rounded-[2.5rem] border-none shadow-md overflow-hidden transition-all duration-500 hover:shadow-2xl ring-1 ring-black/5 group", post.type === 'system' ? 'bg-amber-50 dark:bg-amber-950/20 ring-amber-500/10' : '')}>
-                {post.type !== 'system' && (
-                  <CardHeader className="flex flex-row items-center gap-5 pb-4 pt-8 px-8">
-                    <Avatar className="h-12 w-12 border-2 border-background shadow-md">
-                      <AvatarImage src={post.author?.avatar} />
-                      <AvatarFallback className="font-black">{post.author?.name?.[0] || '?'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-black text-base tracking-tight leading-none">{post.author?.name || 'Anonymous'}</div>
-                      <div className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
-                        {post.createdAt ? formatDistanceToNow(new Date(post.createdAt)) + ' ago' : 'Live'}
-                        <div className="h-1 w-1 bg-muted-foreground/30 rounded-full" />
-                        {formatTime(post.createdAt)}
-                      </div>
-                    </div>
-                    {canDelete && (
-                      <Button variant="ghost" size="icon" className="h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 rounded-full" onClick={() => deletePost(post.id)}><Trash2 className="h-5 w-5" /></Button>
-                    )}
-                  </CardHeader>
+          {posts?.map((post) => (
+            <Card key={post.id} className={cn("rounded-[2.5rem] border-none shadow-md overflow-hidden ring-1 ring-black/5 group", post.type === 'system' ? 'bg-muted/30 ring-primary/10' : '')}>
+              <CardHeader className="flex flex-row items-center gap-5 pb-4 pt-8 px-8">
+                <Avatar className="h-12 w-12 border-2 border-background shadow-md">
+                  <AvatarImage src={post.author?.avatar} />
+                  <AvatarFallback className="font-black">{post.author?.name?.[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="font-black text-base tracking-tight">{post.author?.name}</div>
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">
+                    {formatDistanceToNow(new Date(post.createdAt))} ago
+                  </div>
+                </div>
+                {(isAdmin || post.authorId === user?.id) && (
+                  <Button variant="ghost" size="icon" className="h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 rounded-full" onClick={() => deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'feedPosts', post.id))}><Trash2 className="h-5 w-5" /></Button>
                 )}
-                <CardContent className={post.type === 'system' ? 'p-0' : 'pt-2 pb-6 px-8'}>
-                  {isPoll ? (
-                    <div className="w-full bg-card border rounded-[2rem] overflow-hidden shadow-sm hover:shadow-md transition-all">
-                      <div className="bg-primary/5 p-6 border-b">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Squad Poll</span>
-                          <BarChart2 className="h-5 w-5 text-primary opacity-50" />
-                        </div>
-                        <h4 className="font-black text-xl leading-tight tracking-tight">{post.poll?.question}</h4>
-                      </div>
-                      <div className={cn("p-6", hasOptionImages ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "space-y-4")}>
-                        {post.poll?.options.map((opt, i) => {
-                          const voters = Object.entries(post.poll?.voters || {})
-                            .filter(([_, votedIdx]) => votedIdx === i)
-                            .map(([uid]) => uid);
-                          const hasVoted = post.poll?.voters?.[user?.id || ''] === i;
-                          const percentage = post.poll!.totalVotes > 0 ? (opt.votes / post.poll!.totalVotes) * 100 : 0;
-
-                          return (
-                            <div key={i} className={cn("relative group", hasOptionImages ? "bg-muted/20 rounded-3xl overflow-hidden border border-transparent hover:border-primary/20 transition-all flex flex-col" : "")}>
-                              {hasOptionImages && (
-                                <div className="relative aspect-video overflow-hidden cursor-zoom-in" onClick={() => opt.imageUrl && setLightboxImage(opt.imageUrl)}>
-                                  {opt.imageUrl ? (
-                                    <img src={opt.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt={opt.text} />
-                                  ) : (
-                                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                                      <ImageIcon className="h-8 w-8 text-muted-foreground/20" />
-                                    </div>
-                                  )}
-                                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
-                                </div>
-                              )}
-                              
-                              <div className={cn("p-4 space-y-3", !hasOptionImages && "w-full")}>
-                                <button 
-                                  onClick={() => votePostPoll(post.id, i)}
-                                  className={cn(
-                                    "w-full text-left relative transition-all",
-                                    !hasOptionImages && "p-1 rounded-xl"
-                                  )}
-                                >
-                                  <div className="flex justify-between items-center mb-2 px-1">
-                                    <span className="flex items-center gap-2 font-bold text-sm">
-                                      {opt.text}
-                                      {hasVoted && <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />}
-                                    </span>
-                                    <span className="text-[10px] font-black text-muted-foreground uppercase">{opt.votes} votes</span>
-                                  </div>
-                                  <div className="relative">
-                                    <Progress value={percentage} className="h-3 rounded-full" />
-                                    {voters.length > 0 && (
-                                      <div className="absolute -top-1 -right-1 flex -space-x-2">
-                                        {voters.slice(0, 3).map(vid => {
-                                          const v = members.find(m => m.userId === vid);
-                                          return (
-                                            <Avatar key={vid} className="h-5 w-5 border-2 border-background ring-1 ring-black/5">
-                                              <AvatarImage src={v?.avatar} />
-                                              <AvatarFallback className="text-[6px]">{v?.name?.[0]}</AvatarFallback>
-                                            </Avatar>
-                                          );
-                                        })}
-                                        {voters.length > 3 && (
-                                          <div className="h-5 w-5 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[6px] font-bold">
-                                            +{voters.length - 3}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </button>
-                                {voters.length > 0 && (
-                                  <Button 
-                                    variant="ghost" 
-                                    className="h-6 px-2 text-[9px] font-black uppercase text-muted-foreground hover:text-primary flex items-center gap-1.5"
-                                    onClick={() => setViewVotersFor({ question: post.poll!.question, optionIdx: i, voterIds: voters })}
-                                  >
-                                    <Users className="h-3 w-3" /> Breakdown
-                                  </Button>
-                                )}
+              </CardHeader>
+              <CardContent className="pt-2 pb-6 px-8 space-y-4">
+                {post.type === 'poll' ? (
+                  <div className="bg-card border rounded-[2rem] overflow-hidden">
+                    <div className="bg-primary/5 p-6 border-b flex items-center justify-between">
+                      <h4 className="font-black text-xl tracking-tight">{post.poll?.question}</h4>
+                      <BarChart2 className="h-5 w-5 text-primary opacity-50" />
+                    </div>
+                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {post.poll?.options.map((opt: any, i: number) => {
+                        const hasVoted = post.poll?.voters?.[user?.id || ''] === i;
+                        const percentage = post.poll.totalVotes > 0 ? (opt.votes / post.poll.totalVotes) * 100 : 0;
+                        return (
+                          <div key={i} className="bg-muted/20 rounded-3xl overflow-hidden p-4 space-y-3 relative group/opt transition-all hover:bg-muted/30">
+                            {opt.imageUrl && <img src={opt.imageUrl} className="aspect-video w-full object-cover rounded-xl cursor-zoom-in" onClick={() => setLightboxImage(opt.imageUrl)} />}
+                            <button onClick={() => handleVote(post.id, i)} className="w-full text-left">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold text-sm flex items-center gap-2">{opt.text}{hasVoted && <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />}</span>
+                                <span className="text-[10px] font-black text-muted-foreground uppercase">{opt.votes} votes</span>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : post.type === 'system' ? (
-                    <div className="p-6 sm:p-10">
-                      {post.systemData ? (
-                        <div className="bg-white dark:bg-background rounded-[2rem] border-2 border-amber-500/20 shadow-lg overflow-hidden animate-in zoom-in-95">
-                          <div className="bg-amber-100 dark:bg-amber-900/40 py-2.5 px-6 flex justify-center">
-                            <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-[0.3em]">{post.systemData.updateType}</span>
+                              <Progress value={percentage} className="h-3 rounded-full" />
+                            </button>
                           </div>
-                          <div className="p-8 flex flex-col sm:flex-row items-center gap-8">
-                            <div className="flex flex-col items-center justify-center border-r-0 sm:border-r pr-0 sm:pr-10 min-w-[120px] text-center">
-                              <span className="text-sm font-black text-foreground/40 uppercase tracking-widest">{format(new Date(post.systemData.date), 'EEE')}</span>
-                              <span className="text-4xl font-black text-foreground tracking-tighter my-1">{format(new Date(post.systemData.date), 'MM/dd')}</span>
-                              <span className="text-[10px] font-black uppercase text-amber-600 mt-2 tracking-widest">{post.systemData.label || 'GAME UPDATE'}</span>
-                            </div>
-                            <div className="flex-1 space-y-4 text-center sm:text-left">
-                              <h3 className="text-2xl font-black text-foreground tracking-tight leading-none">{post.systemData.title}</h3>
-                              {post.systemData.detail && <p className="text-xs font-black text-amber-700 dark:text-amber-400/80 bg-amber-500/10 py-1.5 px-4 rounded-full inline-block uppercase tracking-widest">{post.systemData.detail}</p>}
-                              <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-xs font-bold text-muted-foreground uppercase tracking-[0.1em]">
-                                <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-amber-500" /> {post.systemData.startTime}{post.systemData.endTime ? ` - ${post.systemData.endTime}` : ''}</div>
-                                <div className="flex items-center gap-2 truncate max-w-xs"><MapPin className="h-4 w-4 text-amber-500" /> {post.systemData.location}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-6 p-2">
-                          <div className="bg-amber-100 dark:bg-amber-900/40 p-4 rounded-[1.5rem] text-amber-600 dark:text-amber-400 shadow-inner"><Info className="h-8 w-8" /></div>
-                          <div className="flex-1">
-                            <Badge className="mb-2 bg-amber-500/20 text-amber-600 border-none text-[10px] font-black uppercase tracking-[0.2em] px-3 h-6">System Alert</Badge>
-                            <p className="text-xl font-black tracking-tight text-foreground/90 leading-tight">{post.content}</p>
-                          </div>
-                          {isAdmin && <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => deletePost(post.id)}><Trash2 className="h-5 w-5" /></Button>}
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <p className="text-lg leading-relaxed whitespace-pre-wrap font-medium text-foreground/80 px-1">{post.content}</p>
-                      {post.imageUrl && <div className="rounded-[2rem] overflow-hidden border-2 border-muted/50 shadow-inner bg-muted/20"><img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover max-h-[600px]" /></div>}
-                    </div>
-                  )}
-                </CardContent>
-                {post.type !== 'system' && (
-                  <CardFooter className="flex flex-col border-t border-muted/30 pt-6 pb-8 gap-6 px-8">
-                    <div className="flex items-center gap-8 w-full">
-                      <Button variant="ghost" size="sm" className={cn("h-11 px-6 rounded-full font-black uppercase tracking-widest text-[10px] transition-all", isLiked ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-primary/5 hover:text-primary")} onClick={() => toggleLike(post.id)}>
-                        <Heart className={cn("h-4 w-4 mr-2", isLiked && "fill-current")} /> Like {post.likes && post.likes.length > 0 && <span className="ml-2 opacity-60">({post.likes.length})</span>}
-                      </Button>
-                      <div className="flex items-center gap-2 text-muted-foreground font-black uppercase tracking-widest text-[10px]"><MessageSquare className="h-4 w-4" /> Discussion</div>
-                    </div>
-                    <div className="w-full space-y-6">
-                      <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} />
-                      <div className="space-y-4 pt-2">
-                        {commentImages[post.id] && (
-                          <div className="relative inline-block rounded-2xl overflow-hidden border-2 border-primary/20 shadow-lg animate-in zoom-in-95">
-                            <img src={commentImages[post.id]} alt="Comment preview" className="h-24 w-auto object-cover" />
-                            <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full shadow-md" onClick={() => setCommentImages(prev => { const updated = { ...prev }; delete updated[post.id]; return updated; })}><X className="h-4 w-4" /></Button>
-                          </div>
-                        )}
-                        <div className="flex gap-3">
-                          <input type="file" ref={el => { commentFileInputRef.current[post.id] = el; }} className="hidden" accept="image/*" onChange={(e) => handleCommentFileChange(post.id, e)} />
-                          <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary shrink-0 transition-all" onClick={() => commentFileInputRef.current[post.id]?.click()}><ImagePlus className="h-5 w-5" /></Button>
-                          <Input placeholder="Write to your squad..." className="bg-muted/50 border-none rounded-2xl h-12 text-sm font-bold px-6 shadow-inner focus-visible:ring-2 focus-visible:ring-primary/20 transition-all" value={commentInputs[post.id] || ''} onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)} />
-                          <Button size="icon" className="rounded-2xl h-12 w-12 shrink-0 shadow-xl shadow-primary/20 active:scale-90 transition-all" onClick={() => handleCommentSubmit(post.id)}><Send className="h-5 w-5" /></Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardFooter>
+                  </div>
+                ) : (
+                  <p className="text-lg leading-relaxed font-medium text-foreground/80">{post.content}</p>
                 )}
-              </Card>
-            );
-          })}
+                {post.imageUrl && <img src={post.imageUrl} className="rounded-[2rem] w-full h-auto object-cover max-h-[600px] border shadow-inner" />}
+              </CardContent>
+              <CardFooter className="flex flex-col border-t border-muted/30 pt-6 pb-8 gap-6 px-8">
+                <div className="flex items-center gap-8 w-full">
+                  <Button variant="ghost" size="sm" className={cn("h-11 px-6 rounded-full font-black uppercase tracking-widest text-[10px]", post.likes?.includes(user?.id) ? "text-primary bg-primary/10" : "text-muted-foreground")} onClick={() => handleToggleLike(post.id)}>
+                    <Heart className={cn("h-4 w-4 mr-2", post.likes?.includes(user?.id) && "fill-current")} /> Like {post.likes?.length > 0 && `(${post.likes.length})`}
+                  </Button>
+                  <div className="flex items-center gap-2 text-muted-foreground font-black uppercase tracking-widest text-[10px]"><MessageSquare className="h-4 w-4" /> Discussion</div>
+                </div>
+                <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} />
+                <div className="flex gap-3 w-full">
+                  <Input placeholder="Write to your squad..." className="bg-muted/50 border-none rounded-2xl h-12 text-sm font-bold px-6 shadow-inner" value={commentInputs[post.id] || ''} onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))} />
+                  <Button size="icon" className="rounded-2xl h-12 w-12 shrink-0 shadow-xl shadow-primary/20" onClick={() => addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))}><Send className="h-5 w-5" /></Button>
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       </div>
 
-      <aside className="hidden lg:flex flex-col w-80 shrink-0 space-y-8 animate-in fade-in slide-in-from-right-4 duration-1000">
+      <aside className="hidden lg:flex flex-col w-80 shrink-0 space-y-8">
         <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
-          <CardHeader className="bg-primary/5 border-b border-primary/5 pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Upcoming Schedule</CardTitle>
-              <Calendar className="h-4 w-4 text-primary opacity-40" />
-            </div>
+          <CardHeader className="bg-primary/5 border-b pb-4">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary">Upcoming Schedule</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            {events.slice(0, 3).length > 0 ? events.slice(0, 3).map((event) => (
+            {events?.map((event: any) => (
               <div key={event.id} className="flex gap-4 group cursor-pointer" onClick={() => router.push('/events')}>
                 <div className="h-12 w-12 rounded-2xl bg-muted flex flex-col items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
-                  <span className="text-[8px] font-black uppercase text-muted-foreground group-hover:text-primary leading-none mb-0.5">{format(new Date(event.date), 'MMM')}</span>
-                  <span className="text-lg font-black tracking-tighter leading-none">{format(new Date(event.date), 'dd')}</span>
+                  <span className="text-[8px] font-black uppercase text-muted-foreground group-hover:text-primary leading-none">{format(new Date(event.date), 'MMM')}</span>
+                  <span className="text-lg font-black tracking-tighter">{format(new Date(event.date), 'dd')}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black truncate leading-tight group-hover:text-primary transition-colors">{event.title}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground mt-1">{event.startTime} • {event.location}</p>
+                  <p className="text-sm font-black truncate">{event.title}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1">{event.startTime}</p>
                 </div>
               </div>
-            )) : <p className="text-xs text-muted-foreground italic text-center py-4">No upcoming events scheduled.</p>}
-            <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest h-10 mt-2 rounded-xl" onClick={() => router.push('/events')}>Full Schedule <ChevronRight className="h-3 w-3 ml-2" /></Button>
+            ))}
+            <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest h-10 mt-2" onClick={() => router.push('/events')}>Full Schedule <ChevronRight className="h-3 w-3 ml-2" /></Button>
           </CardContent>
         </Card>
 
@@ -618,90 +321,78 @@ export default function FeedPage() {
             <Trophy className="h-8 w-8 text-white/40" />
             <h3 className="text-xl font-black tracking-tight leading-tight">Season Progress</h3>
             <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="bg-white/10 p-3 rounded-2xl border border-white/10 text-center">
-                <p className="text-[8px] font-black uppercase text-white/60 tracking-widest mb-1">Wins</p>
-                <p className="text-2xl font-black">{games.filter(g => g.result === 'Win').length}</p>
+              <div className="bg-white/10 p-3 rounded-2xl text-center">
+                <p className="text-[8px] font-black uppercase text-white/60 mb-1">Wins</p>
+                <p className="text-2xl font-black">{games?.filter((g: any) => g.result === 'Win').length || 0}</p>
               </div>
-              <div className="bg-white/10 p-3 rounded-2xl border border-white/10 text-center">
-                <p className="text-[8px] font-black uppercase text-white/60 tracking-widest mb-1">Losses</p>
-                <p className="text-2xl font-black">{games.filter(g => g.result === 'Loss').length}</p>
+              <div className="bg-white/10 p-3 rounded-2xl text-center">
+                <p className="text-[8px] font-black uppercase text-white/60 mb-1">Losses</p>
+                <p className="text-2xl font-black">{games?.filter((g: any) => g.result === 'Loss').length || 0}</p>
               </div>
             </div>
-            <Button variant="secondary" className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-primary hover:bg-white/90" onClick={() => router.push('/games')}>Scoreboard Dashboard</Button>
+            <Button variant="secondary" className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-primary hover:bg-white/90" onClick={() => router.push('/games')}>Scoreboard</Button>
           </CardContent>
         </Card>
-
-        <div className="bg-muted/30 p-6 rounded-[2rem] space-y-3 border-2 border-dashed">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <h4 className="font-black text-[10px] uppercase tracking-widest text-foreground">Squad Sync</h4>
-          </div>
-          <p className="text-xs text-muted-foreground font-medium leading-relaxed">Desktop hub active. Coordination is visible to all verified members. Stay high-priority.</p>
-        </div>
       </aside>
 
-      <Dialog open={!!viewVotersFor} onOpenChange={() => setViewVotersFor(null)}>
-        <DialogContent className="sm:max-w-md rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-primary/5 p-6 border-b flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 p-2 rounded-xl text-primary"><Users className="h-5 w-5" /></div>
-              <div>
-                <DialogTitle className="text-sm font-black uppercase tracking-widest">Voter Analysis</DialogTitle>
-                <DialogDescription className="text-[9px] font-bold text-primary/60 tracking-widest uppercase">Squad Consensus Tracking</DialogDescription>
+      <Dialog open={isPollDialogOpen} onOpenChange={setIsPollDialogOpen}>
+        <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+              <div className="p-8 bg-primary/5 lg:border-r space-y-6">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black tracking-tight">Launch Squad Poll</DialogTitle>
+                  <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Collect squad consensus</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Question</Label>
+                    <Input placeholder="e.g. Best time for extra training?" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="rounded-xl h-12 bg-background font-bold" />
+                  </div>
+                </div>
               </div>
-            </div>
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8"><XCircle className="h-5 w-5 text-muted-foreground" /></Button>
-            </DialogClose>
-          </div>
-          <ScrollArea className="max-h-[400px]">
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Option Selected</p>
-                <Badge variant="secondary" className="bg-primary/10 text-primary uppercase font-black text-[9px]">{viewVotersFor?.question.slice(0, 20)}...</Badge>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {viewVotersFor?.voterIds.map(vid => {
-                  const voter = members.find(m => m.userId === vid);
-                  return (
-                    <div key={vid} className="flex items-center gap-3 p-3 bg-muted/20 rounded-2xl hover:bg-muted/30 transition-all border border-transparent hover:border-black/5">
-                      <Avatar className="h-9 w-9 ring-2 ring-background">
-                        <AvatarImage src={voter?.avatar} />
-                        <AvatarFallback className="font-bold text-xs">{voter?.name?.[0] || '?'}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-black truncate">{voter?.name || 'Unknown'}</span>
-                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{voter?.position || 'Member'}</span>
+              <div className="p-8 space-y-6 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Polling Options</Label>
+                    <Button variant="ghost" size="sm" onClick={() => setPollOptions([...pollOptions, {text: '', image: undefined}])} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                  </div>
+                  <div className="space-y-3">
+                    {pollOptions.map((opt, i) => (
+                      <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-left-2">
+                        <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={e => { const n = [...pollOptions]; n[i].text = e.target.value; setPollOptions(n); }} className="rounded-xl h-11 bg-muted/30 focus:bg-background" />
+                        <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20" onClick={() => { activeOptionIdxRef.current = i; optionImageInputRef.current?.click(); }}><ImageIcon className="h-4 w-4" /></Button>
                       </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                </div>
+                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreatePoll}>Launch Poll</Button>
               </div>
             </div>
-          </ScrollArea>
-          <div className="p-4 bg-muted/10 border-t flex justify-center">
-            <DialogClose asChild>
-              <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest h-9 px-8">Close Insight</Button>
-            </DialogClose>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Option Image Lightbox */}
-      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
-        <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
-          <div className="sr-only">
-            <DialogTitle>Poll Option Image Preview</DialogTitle>
-            <DialogDescription>Viewing a full-sized version of the selected poll option media.</DialogDescription>
-          </div>
-          {lightboxImage && (
-            <div className="relative group">
-              <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain animate-in zoom-in-95 duration-300" alt="Full size" />
-              <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full" onClick={() => setLightboxImage(null)}><X className="h-6 w-6" /></Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={(e) => {
+        if (e.target.files?.[0] && activeOptionIdxRef.current !== null) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const n = [...pollOptions];
+            n[activeOptionIdxRef.current!].image = ev.target?.result as string;
+            setPollOptions(n);
+          };
+          reader.readAsDataURL(e.target.files[0]);
+        }
+      }} />
+
+      {lightboxImage && (
+        <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(null)}>
+          <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+            <DialogTitle className="sr-only">Image Preview</DialogTitle>
+            <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain" />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
