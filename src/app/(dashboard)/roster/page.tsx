@@ -6,9 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check, DollarSign, Lock, Sparkles, Users2 } from 'lucide-react';
+import { Search, MoreVertical, ShieldCheck, Mail, Phone, UserPlus, AtSign, Copy, Check, DollarSign, Lock, Sparkles, Users2, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTeam } from '@/components/providers/team-provider';
+import { useTeam, Member } from '@/components/providers/team-provider';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,23 +26,35 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export default function RosterPage() {
-  const { activeTeam, members, updateMember, inviteMember, user, toggleFeesPaid, isPro, isSuperAdmin } = useTeam();
+  const { activeTeam, members, updateMember, inviteMember, user, toggleFeesPaid, isPro, isSuperAdmin, purchasePro } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [mounted, setMounted] = useState(false);
   
-  const [editingMember, setEditingMember] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ position: '', jersey: '' });
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [editForm, setEditForm] = useState({ position: '', jersey: '', amountOwed: '0', feesPaid: false });
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (selectedMember) {
+      setEditForm({
+        position: selectedMember.position,
+        jersey: selectedMember.jersey,
+        amountOwed: (selectedMember.amountOwed || 0).toString(),
+        feesPaid: selectedMember.feesPaid || false
+      });
+    }
+  }, [selectedMember]);
 
   if (!mounted || !activeTeam) {
     return (
@@ -86,7 +98,7 @@ export default function RosterPage() {
               <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-purple-500" /> Fee Tracking Dashboard</li>
               <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-purple-500" /> Jersey & Position Control</li>
             </ul>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>
               Go Pro for $9.99 USD/mo
             </Button>
           </div>
@@ -102,24 +114,25 @@ export default function RosterPage() {
     member.position.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleEditClick = (member: any) => {
-    setEditingMember(member);
-    setEditForm({ position: member.position, jersey: member.jersey });
+  const handleMemberClick = (member: Member) => {
+    setSelectedMember(member);
   };
 
-  const handleSaveLabels = () => {
-    if (editingMember) {
+  const handleSaveDetails = () => {
+    if (selectedMember) {
       // Determine role based on position
       const adminPositions = ['Coach', 'Team Lead', 'Assistant Coach', 'Squad Leader'];
       const newRole = adminPositions.includes(editForm.position) ? 'Admin' : 'Member';
 
-      updateMember(editingMember.id, {
+      updateMember(selectedMember.id, {
         position: editForm.position,
         jersey: editForm.jersey,
-        role: newRole
+        role: newRole,
+        amountOwed: parseFloat(editForm.amountOwed) || 0,
+        feesPaid: editForm.feesPaid
       });
-      setEditingMember(null);
-      toast({ title: "Updated", description: "Member role and position updated." });
+      setSelectedMember(null);
+      toast({ title: "Updated", description: "Teammate profile updated." });
     }
   };
 
@@ -220,7 +233,11 @@ export default function RosterPage() {
 
       <div className="space-y-3">
         {filteredRoster.map((member) => (
-          <Card key={member.id} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-all duration-300 ring-1 ring-black/5 rounded-3xl">
+          <Card 
+            key={member.id} 
+            className="overflow-hidden border-none shadow-sm hover:shadow-md transition-all duration-300 ring-1 ring-black/5 rounded-3xl cursor-pointer"
+            onClick={() => handleMemberClick(member)}
+          >
             <CardContent className="p-4 flex items-center gap-4">
               <div className="relative shrink-0">
                 <Avatar className="h-14 w-14 rounded-2xl border-2 border-background shadow-md">
@@ -255,35 +272,21 @@ export default function RosterPage() {
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-center">
                   <span className="text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Fees</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    disabled={!isAdmin}
-                    className={cn(
-                      "h-8 px-2 rounded-lg font-bold text-[10px] border transition-all",
-                      member.feesPaid 
-                        ? "bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20" 
-                        : "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"
-                    )}
-                    onClick={() => toggleFeesPaid(member.id)}
-                  >
+                  <div className={cn(
+                    "h-8 px-2 rounded-lg font-bold text-[10px] border flex items-center justify-center transition-all",
+                    member.feesPaid 
+                      ? "bg-green-500/10 text-green-600 border-green-500/20" 
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                  )}>
                     {member.feesPaid ? <Check className="h-3 w-3 mr-1" /> : <DollarSign className="h-3 w-3 mr-1" />}
-                    {member.feesPaid ? "PAID" : "UNPAID"}
-                  </Button>
+                    {member.feesPaid ? "PAID" : `$${member.amountOwed || 0}`}
+                  </div>
                 </div>
 
                 {isAdmin && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="rounded-xl shadow-xl">
-                      <DropdownMenuItem onClick={() => handleEditClick(member)} className="font-medium p-2.5">Edit Role & Position</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive font-medium p-2.5">Remove from Squad</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={(e) => { e.stopPropagation(); handleMemberClick(member); }}>
+                    <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                  </Button>
                 )}
               </div>
             </CardContent>
@@ -291,46 +294,145 @@ export default function RosterPage() {
         ))}
       </div>
 
-      <Dialog open={!!editingMember} onOpenChange={() => setEditingMember(null)}>
-        <DialogContent className="rounded-3xl">
-          <DialogHeader>
-            <DialogTitle>Update Squad Role</DialogTitle>
-            <DialogDescription>Promote or reassign {editingMember?.name} within the team.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Position / Role</Label>
-              <Select 
-                value={editForm.position} 
-                onValueChange={(v) => setEditForm(prev => ({ ...prev, position: v }))}
-              >
-                <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder="Select position..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Coach">Coach (Admin)</SelectItem>
-                  <SelectItem value="Team Lead">Team Lead (Admin)</SelectItem>
-                  <SelectItem value="Assistant Coach">Assistant Coach (Admin)</SelectItem>
-                  <SelectItem value="Squad Leader">Squad Leader (Admin)</SelectItem>
-                  <SelectItem value="Player">Player (Teammate)</SelectItem>
-                  <SelectItem value="Parent">Parent / Guardian</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground px-1">Coaches and Leads have full administrative permissions.</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Jersey # or Identifier</Label>
-              <Input 
-                value={editForm.jersey} 
-                onChange={(e) => setEditForm(prev => ({ ...prev, jersey: e.target.value }))}
-                className="rounded-xl h-11"
-                placeholder="e.g. 23"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleSaveLabels} className="w-full rounded-xl h-11 text-base font-bold">Apply Changes</Button>
-          </DialogFooter>
+      {/* Member Details & Management Dialog */}
+      <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
+        <DialogContent className="rounded-[2.5rem] sm:max-w-lg overflow-y-auto max-h-[90vh]">
+          {selectedMember && (
+            <>
+              <DialogHeader className="flex flex-col items-center text-center space-y-4 pt-4">
+                <div className="relative">
+                  <Avatar className="h-24 w-24 rounded-[2rem] border-4 border-background shadow-xl">
+                    <AvatarImage src={selectedMember.avatar} />
+                    <AvatarFallback className="text-2xl font-black">{selectedMember.name[0]}</AvatarFallback>
+                  </Avatar>
+                  {selectedMember.role === 'Admin' && (
+                    <div className="absolute -top-2 -right-2 bg-primary text-white p-2 rounded-full shadow-lg border-2 border-background">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <DialogTitle className="text-3xl font-black tracking-tight">{selectedMember.name}</DialogTitle>
+                  <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">
+                    {selectedMember.position} • {selectedMember.role}
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-8 py-6">
+                {/* Financial Section (Admin Only) */}
+                {isAdmin ? (
+                  <div className="space-y-4 bg-muted/30 p-6 rounded-[2rem] border-2 border-dashed">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CreditCard className="h-4 w-4 text-primary" />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Financial Management</h4>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-bold">Total Fees Owed ($)</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            type="number"
+                            value={editForm.amountOwed}
+                            onChange={e => setEditForm(p => ({ ...p, amountOwed: e.target.value }))}
+                            className="rounded-xl h-11 pl-10"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between bg-white/50 p-4 rounded-xl border">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-bold">Mark as Fully Paid</Label>
+                          <p className="text-[10px] text-muted-foreground">Confirm that all dues have been cleared.</p>
+                        </div>
+                        <Checkbox 
+                          checked={editForm.feesPaid}
+                          onCheckedChange={(v) => setEditForm(p => ({ ...p, feesPaid: !!v }))}
+                          className="h-6 w-6"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-6 bg-primary/5 rounded-[2rem]">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Season Dues</p>
+                      <p className="text-2xl font-black">${selectedMember.amountOwed || 0}</p>
+                    </div>
+                    <Badge className={cn(
+                      "h-8 px-4 rounded-full font-black uppercase tracking-widest text-[10px]",
+                      selectedMember.feesPaid ? "bg-green-500" : "bg-amber-500"
+                    )}>
+                      {selectedMember.feesPaid ? "Paid" : "Outstanding"}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Role & Position (Admin Only) */}
+                {isAdmin && (
+                  <div className="space-y-5">
+                    <div className="flex items-center gap-2 px-1">
+                      <Users2 className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Roster Details</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Position / Role</Label>
+                        <Select 
+                          value={editForm.position} 
+                          onValueChange={(v) => setEditForm(prev => ({ ...prev, position: v }))}
+                        >
+                          <SelectTrigger className="rounded-xl h-11">
+                            <SelectValue placeholder="Select position..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Coach">Coach (Admin)</SelectItem>
+                            <SelectItem value="Team Lead">Team Lead (Admin)</SelectItem>
+                            <SelectItem value="Assistant Coach">Assistant Coach (Admin)</SelectItem>
+                            <SelectItem value="Squad Leader">Squad Leader (Admin)</SelectItem>
+                            <SelectItem value="Player">Player (Teammate)</SelectItem>
+                            <SelectItem value="Parent">Parent / Guardian</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Jersey #</Label>
+                        <Input 
+                          value={editForm.jersey} 
+                          onChange={(e) => setEditForm(prev => ({ ...prev, jersey: e.target.value }))}
+                          className="rounded-xl h-11"
+                          placeholder="e.g. 23"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!isAdmin && (
+                  <div className="space-y-4">
+                    <Button variant="outline" className="w-full h-12 rounded-xl border-primary/20 text-primary font-bold gap-2">
+                      <Mail className="h-4 w-4" /> Message Teammate
+                    </Button>
+                    <Button variant="outline" className="w-full h-12 rounded-xl border-primary/20 text-primary font-bold gap-2">
+                      <Phone className="h-4 w-4" /> Call Teammate
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {isAdmin && (
+                <DialogFooter className="pt-2">
+                  <Button onClick={handleSaveDetails} className="w-full rounded-2xl h-14 text-lg font-black shadow-xl shadow-primary/20">
+                    Apply Squad Changes
+                  </Button>
+                </DialogFooter>
+              )}
+            </>
+          )}
         </DialogContent>
       </Dialog>
       

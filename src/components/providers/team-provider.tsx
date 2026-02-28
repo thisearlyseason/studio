@@ -64,6 +64,7 @@ export type Member = {
   jersey: string;
   avatar: string;
   feesPaid?: boolean;
+  amountOwed?: number;
 };
 
 export type Chat = {
@@ -395,7 +396,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     position: m.position || 'Player',
     jersey: m.jersey || 'TBD',
     avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`,
-    feesPaid: m.feesPaid || false
+    feesPaid: m.feesPaid || false,
+    amountOwed: m.amountOwed || 0
   }));
 
   const postsQuery = useMemoFirebase(() => {
