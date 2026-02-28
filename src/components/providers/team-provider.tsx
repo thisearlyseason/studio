@@ -19,7 +19,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Purchases } from '@revenuecat/purchases-js';
-import { seedSubscriptionData } from '@/lib/db-seeder';
+import { seedSubscriptionData, launchDemoEnvironments, resetDemoEnvironment } from '@/lib/db-seeder';
 
 const REVENUECAT_PUBLIC_API_KEY = 'test_zvlronFHqIFQuWTkgaeWrdyYnkZ';
 const PRO_ENTITLEMENT_ID = 'The Squad Pro';
@@ -45,6 +45,7 @@ export type Team = {
   isPro?: boolean;
   planId?: string;
   role?: 'Admin' | 'Member';
+  isDemo?: boolean;
 };
 
 export type TeamEvent = {
@@ -177,6 +178,9 @@ interface TeamContextType {
   setIsPaywallOpen: (open: boolean) => void;
   formatTime: (date: string | Date) => string;
   plans: Plan[];
+  simulationPlanId: string | null;
+  setSimulationPlanId: (pid: string | null) => void;
+  resetDemo: () => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -192,14 +196,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isProEntitlementActive, setIsProEntitlementActive] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isRCInitialized, setIsRCInitialized] = useState(false);
+  const [simulationPlanId, setSimulationPlanId] = useState<string | null>(null);
 
   const isSuperAdmin = useMemo(() => firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false, [firebaseUser?.email]);
 
   useEffect(() => {
-    if (isSuperAdmin && db) {
+    if (isSuperAdmin && db && firebaseUser) {
       seedSubscriptionData(db);
+      launchDemoEnvironments(db, firebaseUser.uid);
     }
-  }, [isSuperAdmin, db]);
+  }, [isSuperAdmin, db, firebaseUser]);
 
   useEffect(() => {
     if (firebaseUser && !isRCInitialized) {
@@ -242,9 +248,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const teams = useMemo(() => {
     if (!teamsRawData) return [];
     return teamsRawData.map(m => isSuperAdmin ? {
-      id: m.id, name: m.teamName || m.name, code: m.teamCode || m.code, sport: m.sport, teamLogoUrl: m.teamLogoUrl, heroImageUrl: m.heroImageUrl, isPro: m.isPro || false, planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'), role: 'Admin'
+      id: m.id, name: m.teamName || m.name, code: m.teamCode || m.code, sport: m.sport, teamLogoUrl: m.teamLogoUrl, heroImageUrl: m.heroImageUrl, isPro: m.isPro || false, planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'), role: 'Admin', isDemo: m.isDemo || false
     } : {
-      id: m.teamId, name: m.teamName, code: m.teamCode, sport: m.sport, teamLogoUrl: m.teamLogoUrl, isPro: m.isPro || false, planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'), role: m.role || 'Member'
+      id: m.teamId, name: m.teamName, code: m.teamCode, sport: m.sport, teamLogoUrl: m.teamLogoUrl, isPro: m.isPro || false, planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'), role: m.role || 'Member', isDemo: m.isDemo || false
     });
   }, [teamsRawData, isSuperAdmin]);
 
@@ -261,10 +267,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const plans = useMemo(() => (plansData || []) as Plan[], [plansData]);
   
   const activePlanFeatures = useMemo(() => {
-    if (!activeTeam || !plans) return {};
-    const plan = plans.find(p => p.id === activeTeam.planId);
+    const pid = simulationPlanId || activeTeam?.planId;
+    if (!pid || !plans) return {};
+    const plan = plans.find(p => p.id === pid);
     return plan?.features || {};
-  }, [activeTeam, plans]);
+  }, [activeTeam, plans, simulationPlanId]);
 
   const membersQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
@@ -316,14 +323,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     submitLead: async (data: any) => { try { await addDoc(collection(db, 'leads'), { ...data, createdAt: new Date().toISOString() }); toast({ title: "Inquiry Sent", description: "Our team will reach out shortly." }); return true; } catch { toast({ title: "Submission Failed", variant: "destructive" }); return false; } },
     isLoading: isUserLoading, 
     isSuperAdmin,
-    isPro: activeTeam?.isPro || isProEntitlementActive || isSuperAdmin,
-    hasFeature: (featureKey: string) => { if (isSuperAdmin) return true; return !!activePlanFeatures[featureKey]; },
+    isPro: (activeTeam?.isPro || isProEntitlementActive || isSuperAdmin) || (simulationPlanId !== 'starter_squad' && simulationPlanId !== null),
+    hasFeature: (featureKey: string) => { if (isSuperAdmin && !simulationPlanId) return true; return !!activePlanFeatures[featureKey]; },
     purchasePro: async () => setIsPaywallOpen(true),
     manageSubscription: async () => { try { await Purchases.getSharedInstance().openCustomerCenter(); } catch { toast({ title: "Error", description: "Failed to open settings.", variant: "destructive" }); } },
     isPaywallOpen, setIsPaywallOpen,
     formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
-    plans
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans]);
+    plans,
+    simulationPlanId, setSimulationPlanId,
+    resetDemo: async () => { if (activeTeam?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeam.id, activeTeam.planId!, firebaseUser.uid); toast({ title: "Environment Reset", description: "Demo data has been restored." }); } }
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

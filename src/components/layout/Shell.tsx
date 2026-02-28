@@ -20,7 +20,9 @@ import {
   Dumbbell,
   Search,
   CreditCard,
-  ShieldAlert
+  ShieldAlert,
+  RotateCcw,
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,6 +36,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem
 } from "@/components/ui/dropdown-menu";
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -48,6 +52,17 @@ import {
   SidebarSeparator
 } from "@/components/ui/sidebar";
 import BrandLogo from '@/components/BrandLogo';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const tabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: false },
@@ -89,7 +104,10 @@ SidebarItem.displayName = "SidebarItem";
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin } = useTeam();
+  const { 
+    activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin, 
+    simulationPlanId, setSimulationPlanId, resetDemo 
+  } = useTeam();
   const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
   useEffect(() => {
@@ -157,10 +175,32 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       </Avatar>
                       <span className="font-bold text-sm truncate">{team.name}</span>
                     </div>
-                    {team.isPro && <Badge className="bg-amber-500 text-[8px] h-3 px-1">PRO</Badge>}
+                    {team.isDemo && <Badge className="bg-primary text-[8px] h-3 px-1">DEMO</Badge>}
+                    {team.isPro && !team.isDemo && <Badge className="bg-amber-500 text-[8px] h-3 px-1">PRO</Badge>}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator className="my-1" />
+                {activeTeam?.isDemo && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="p-3 text-red-600 cursor-pointer rounded-xl font-bold text-xs gap-2">
+                        <RotateCcw className="h-4 w-4" /> Reset Demo Data
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-[2.5rem] border-none shadow-2xl">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-2xl font-black">Restore Original State?</AlertDialogTitle>
+                        <AlertDialogDescription className="font-medium text-base pt-2">
+                          This will permanently delete all modifications made to this demo environment and re-seed the baseline squad data.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="mt-6">
+                        <AlertDialogCancel className="rounded-xl font-bold border-2">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={resetDemo} className="rounded-xl font-black bg-red-600 hover:bg-red-700 shadow-xl shadow-red-600/20">Purge & Re-seed</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
                 <DropdownMenuItem onClick={() => router.push('/team')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-2">
                   <Info className="h-4 w-4 text-muted-foreground" /> Squad Profile
                 </DropdownMenuItem>
@@ -200,23 +240,48 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {isSuperAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={pathname === '/admin/plans'}
-                    className={cn(
-                      "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                      pathname === '/admin/plans' 
-                        ? "bg-black text-white shadow-lg" 
-                        : "text-red-600 hover:bg-red-50"
-                    )}
-                  >
-                    <Link href="/admin/plans" className="flex items-center gap-4">
-                      <ShieldAlert className="h-5 w-5" />
-                      <span>Admin Tools</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={pathname === '/admin/plans'}
+                      className={cn(
+                        "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+                        pathname === '/admin/plans' 
+                          ? "bg-black text-white shadow-lg" 
+                          : "text-red-600 hover:bg-red-50"
+                      )}
+                    >
+                      <Link href="/admin/plans" className="flex items-center gap-4">
+                        <ShieldAlert className="h-5 w-5" />
+                        <span>Admin Tools</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  
+                  <div className="px-4 pt-4 pb-2">
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-3">Simulation Mode</p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full h-10 rounded-xl border-dashed border-2 text-[10px] font-black uppercase tracking-widest justify-between">
+                          <div className="flex items-center gap-2">
+                            <Eye className="h-3.5 w-3.5 text-primary" />
+                            {simulationPlanId ? simulationPlanId.replace('_', ' ') : 'Live View'}
+                          </div>
+                          <ChevronDown className="h-3 w-3 opacity-40" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-56 rounded-xl p-2">
+                        <DropdownMenuRadioGroup value={simulationPlanId || 'none'} onValueChange={(v) => setSimulationPlanId(v === 'none' ? null : v)}>
+                          <DropdownMenuRadioItem value="none" className="text-xs font-bold uppercase tracking-widest p-3">Normal Mode</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="starter_squad" className="text-xs font-bold uppercase tracking-widest p-3">Starter Simulation</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="squad_pro" className="text-xs font-bold uppercase tracking-widest p-3">Pro Simulation</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="club_custom" className="text-xs font-bold uppercase tracking-widest p-3">Club Simulation</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </>
               )}
             </SidebarMenu>
           </SidebarContent>
@@ -239,11 +304,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-col flex-1 min-w-0 h-screen overflow-y-auto">
           <header className="hidden md:flex sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-20 items-center px-10 justify-between shrink-0">
-            <div className="flex flex-col">
-              <h2 className="text-2xl font-black tracking-tighter uppercase">
-                {pathname === '/pricing' ? 'Pricing' : (pathname === '/admin/plans' ? 'Admin Suite' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard'))}
-              </h2>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.3em] ml-0.5">The Squad Hub • {activeTeam?.name}</p>
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col">
+                <h2 className="text-2xl font-black tracking-tighter uppercase">
+                  {pathname === '/pricing' ? 'Pricing' : (pathname === '/admin/plans' ? 'Admin Suite' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard'))}
+                </h2>
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.3em] ml-0.5">The Squad Hub • {activeTeam?.name}</p>
+              </div>
+              {activeTeam?.isDemo && (
+                <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Demo Mode</Badge>
+              )}
+              {simulationPlanId && (
+                <Badge variant="outline" className="border-primary/20 text-primary font-black uppercase tracking-widest text-[9px] h-6 px-3 italic">Simulating: {simulationPlanId.replace('_', ' ')}</Badge>
+              )}
             </div>
             
             <div className="flex items-center gap-6">

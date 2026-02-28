@@ -37,6 +37,10 @@
           "type": "string",
           "description": "Timestamp when the user account was created.",
           "format": "date-time"
+        },
+        "isDemo": {
+          "type": "boolean",
+          "description": "Flag indicating if this is a demo admin account."
         }
       },
       "required": [
@@ -90,6 +94,10 @@
         "isPro": {
           "type": "boolean",
           "description": "Legacy field indicating if the team has an active Pro subscription."
+        },
+        "isDemo": {
+          "type": "boolean",
+          "description": "Flag indicating if this is a pre-populated demo squad."
         }
       },
       "required": [

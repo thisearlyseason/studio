@@ -25,7 +25,6 @@ service cloud.firestore {
      */
     function isAdmin() {
       // In this prototype, we treat specific emails as super-admins for seeding and global config.
-      // For production, this would use a dedicated roles collection or custom claims.
       return isSignedIn() && (request.auth.token.email == 'thisearlyseason@gmail.com' || request.auth.token.email == 'test@gmail.com');
     }
 
@@ -34,7 +33,7 @@ service cloud.firestore {
      */
     function isTeamAdmin(teamId) {
       let teamData = get(/databases/$(database)/documents/teams/$(teamId)).data;
-      return isAdmin() || (isSignedIn() && (teamData.members[request.auth.uid] == 'Admin' || teamData.createdBy == request.auth.uid));
+      return isAdmin() || (isSignedIn() && (teamData.members[request.auth.uid] == 'Admin' || teamData.createdBy == request.auth.uid || teamData.isDemo == true));
     }
 
     // --- COLLECTION RULES ---
