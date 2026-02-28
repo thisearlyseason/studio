@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -41,9 +40,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useTeam, EventRecurrence, TeamEvent, RSVPStatus, EventRegistration, TournamentMatch } from '@/components/providers/team-provider';
+import { useTeam, TeamEvent, RSVPStatus } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -54,10 +52,10 @@ import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
 interface EventDetailDialogProps {
   event: TeamEvent;
-  updateRSVP: (id: string, status: RSVPStatus) => void;
+  updateRSVP: (id: string, status: string) => void;
   formatTime: (date: string | Date) => string;
   isAdmin: boolean;
-  promoteToRoster: (teamId: string, eventId: string, reg: EventRegistration) => Promise<void>;
+  promoteToRoster: (teamId: string, eventId: string, reg: any) => Promise<void>;
   onEdit: (event: TeamEvent) => void;
   onDelete: (eventId: string) => void;
   children: React.ReactNode;
@@ -72,7 +70,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
     return query(collection(db, 'teams', event.teamId, 'events', event.id, 'registrations'), orderBy('createdAt', 'desc'));
   }, [db, event.id, event.teamId, isAdmin]);
   
-  const { data: registrations } = useCollection<EventRegistration>(regQuery);
+  const { data: registrations } = useCollection<any>(regQuery);
 
   const copyRegLink = () => {
     const url = `${window.location.origin}/events/register/${event.teamId}?eventId=${event.id}`;
@@ -98,7 +96,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
       name: reg.name,
       avatar: undefined,
       role: 'Public Registrant',
-      status: 'going' as RSVPStatus,
+      status: 'going',
       isExternal: true,
       regData: reg
     }));
@@ -114,6 +112,10 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-5xl p-0 overflow-hidden rounded-[2.5rem] max-h-[90vh] flex flex-col border-none shadow-2xl">
+        <div className="sr-only">
+          <DialogTitle>{event.title}</DialogTitle>
+          <DialogDescription>Event and attendance details for the squad.</DialogDescription>
+        </div>
         <div className="overflow-y-auto flex-1 custom-scrollbar">
           <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
             <div className="lg:col-span-4 bg-muted/30 p-8 border-r flex flex-col justify-between">
@@ -122,14 +124,14 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                   <Badge variant="secondary" className={cn("border-none font-black uppercase tracking-widest text-[10px] px-3 h-6", event.isTournament ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary")}>
                     {event.isTournament ? "Tournament Series" : "Event Details"}
                   </Badge>
-                  <DialogTitle className="text-3xl font-black tracking-tighter leading-tight">{event.title}</DialogTitle>
-                  <DialogDescription className="font-bold text-primary text-lg">
+                  <h2 className="text-3xl font-black tracking-tighter leading-tight">{event.title}</h2>
+                  <p className="font-bold text-primary text-lg">
                     {event.isTournament && event.endDate ? (
                       `${format(new Date(event.date), 'MMM d')} - ${format(new Date(event.endDate), 'MMM d, yyyy')}`
                     ) : (
                       new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
                     )}
-                  </DialogDescription>
+                  </p>
                 </div>
 
                 <div className="space-y-4">
@@ -153,7 +155,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                   <div className="space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Tournament Schedule</p>
                     <div className="space-y-2">
-                      {event.tournamentSchedule.map((match) => (
+                      {event.tournamentSchedule.map((match: any) => (
                         <div key={match.id} className="bg-white p-3 rounded-xl border border-black/5 shadow-sm flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div className="bg-amber-50 text-amber-600 p-1.5 rounded-lg text-[10px] font-black uppercase leading-none text-center min-w-[40px]">
@@ -294,9 +296,16 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
 }
 
 export default function EventsPage() {
-  const { activeTeam, events, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, promoteToRoster, user, isSuperAdmin } = useTeam();
-  
-  // ALL HOOKS CONSOLIDATED AT THE TOP (FIXES HOOK ORDER ERRORS)
+  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, promoteToRoster, user, isSuperAdmin } = useTeam();
+  const db = useFirestore();
+
+  // ALL HOOKS AT TOP
+  const eventsQuery = useMemoFirebase(() => {
+    if (!activeTeam || !db) return null;
+    return query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc'));
+  }, [activeTeam?.id, db]);
+  const { data: events = [] } = useCollection<TeamEvent>(eventsQuery);
+
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [mounted, setMounted] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -311,7 +320,7 @@ export default function EventsPage() {
   const [newDescription, setNewDescription] = useState('');
   const [allowExternal, setAllowExternal] = useState(false);
   const [maxRegs, setMaxRegs] = useState('');
-  const [tournamentSchedule, setTournamentSchedule] = useState<Omit<TournamentMatch, 'id'>[]>([]);
+  const [tournamentSchedule, setTournamentSchedule] = useState<any[]>([]);
 
   const tournamentDays = useMemo(() => {
     return events.filter(e => e.isTournament && e.endDate).flatMap(e => {
@@ -418,11 +427,10 @@ export default function EventsPage() {
 
     const payload: any = {
       title: newTitle,
-      date: eventDate,
+      date: eventDate.toISOString(),
       startTime: formattedStartTime || 'TBD',
       location: newLocation,
       description: newDescription,
-      recurrence: 'none' as EventRecurrence,
       allowExternalRegistration: allowExternal,
       isTournament: isTournamentMode,
       tournamentSchedule: tournamentSchedule.map((m, idx) => ({ 
@@ -432,12 +440,11 @@ export default function EventsPage() {
     };
 
     if (formattedEndTime) payload.endTime = formattedEndTime;
-    // SANITIZE UNDEFINED (Fixes FirebaseError)
     if (maxRegs && !isNaN(parseInt(maxRegs))) {
       payload.maxRegistrations = parseInt(maxRegs);
     }
     if (isTournamentMode && newEndDate) {
-      payload.endDate = new Date(newEndDate);
+      payload.endDate = new Date(newEndDate).toISOString();
     }
 
     if (editingEvent) {
@@ -468,7 +475,7 @@ export default function EventsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="text-2xl font-bold">Schedule</h1>
+        <h1 className="text-2xl font-black uppercase tracking-tight">Schedule</h1>
         {isAdmin && (
           <div className="flex gap-2">
             <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) resetForm(); }}>
@@ -483,47 +490,51 @@ export default function EventsPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[95vh] flex flex-col border-none shadow-2xl">
-                <div className="overflow-y-auto flex-1 custom-scrollbar p-0">
+                <div className="sr-only">
+                  <DialogTitle>{editingEvent ? "Edit" : "New"} {isTournamentMode ? "Tournament" : "Event"}</DialogTitle>
+                  <DialogDescription>Coordinate dates and matches for your squad.</DialogDescription>
+                </div>
+                <ScrollArea className="flex-1">
                   <div className="grid grid-cols-1 lg:grid-cols-2 h-full min-h-[500px]">
                     <div className={cn("p-8 lg:border-r space-y-6", isTournamentMode ? "bg-amber-50/50" : "bg-primary/5")}>
                       <DialogHeader>
-                        <DialogTitle className="text-2xl font-black tracking-tight">
+                        <h2 className="text-2xl font-black tracking-tight">
                           {editingEvent ? "Update Schedule" : isTournamentMode ? "Plan Tournament Series" : "Plan New Match"}
-                        </DialogTitle>
-                        <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Team Coordination Hub</DialogDescription>
+                        </h2>
+                        <p className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Team Coordination Hub</p>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Title</Label>
-                          <Input placeholder={isTournamentMode ? "e.g. Regional Qualifiers" : "e.g. Open Tryouts"} value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl border-2" />
+                          <Input placeholder={isTournamentMode ? "e.g. Regional Qualifiers" : "e.g. Open Tryouts"} value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl border-2 font-bold" />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest ml-1">{isTournamentMode ? "Start Date" : "Date"}</Label>
-                            <Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2" />
+                            <Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-bold" />
                           </div>
                           {isTournamentMode ? (
                             <div className="space-y-2">
                               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">End Date</Label>
-                              <Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 rounded-xl border-2" />
+                              <Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 rounded-xl border-2 font-bold" />
                             </div>
                           ) : (
                             <div className="space-y-2">
                               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Time</Label>
-                              <Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl border-2" />
+                              <Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl border-2 font-bold" />
                             </div>
                           )}
                         </div>
 
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Location</Label>
-                          <Input placeholder="Arena or Field name..." value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 rounded-xl border-2" />
+                          <Input placeholder="Arena or Field name..." value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 rounded-xl border-2 font-bold" />
                         </div>
 
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Logistics & Strategy</Label>
-                          <Textarea placeholder="What should the squad bring? Tactical notes..." value={newDescription} onChange={e => setNewDescription(e.target.value)} className="min-h-[120px] rounded-2xl resize-none border-2" />
+                          <Textarea placeholder="What should the squad bring? Tactical notes..." value={newDescription} onChange={e => setNewDescription(e.target.value)} className="min-h-[120px] rounded-2xl resize-none border-2 font-bold" />
                         </div>
                       </div>
                     </div>
@@ -538,7 +549,7 @@ export default function EventsPage() {
                                 <Plus className="h-3 w-3 mr-1" /> Add Match
                               </Button>
                             </div>
-                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="space-y-3">
                               {tournamentSchedule.map((match, i) => (
                                 <div key={i} className="bg-white p-4 rounded-2xl border-2 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2">
                                   <div className="flex items-center justify-between">
@@ -556,7 +567,7 @@ export default function EventsPage() {
                                         next[i].label = e.target.value;
                                         setTournamentSchedule(next);
                                       }} 
-                                      className="h-10 text-xs rounded-xl" 
+                                      className="h-10 text-xs rounded-xl font-bold" 
                                     />
                                     <div className="grid grid-cols-2 gap-3">
                                       <div className="space-y-1">
@@ -569,7 +580,7 @@ export default function EventsPage() {
                                             next[i].date = e.target.value;
                                             setTournamentSchedule(next);
                                           }} 
-                                          className="h-10 text-[10px] rounded-xl" 
+                                          className="h-10 text-[10px] rounded-xl font-bold" 
                                         />
                                       </div>
                                       <div className="space-y-1">
@@ -582,7 +593,7 @@ export default function EventsPage() {
                                             next[i].time = e.target.value;
                                             setTournamentSchedule(next);
                                           }} 
-                                          className="h-10 text-[10px] rounded-xl" 
+                                          className="h-10 text-[10px] rounded-xl font-bold" 
                                         />
                                       </div>
                                     </div>
@@ -591,7 +602,7 @@ export default function EventsPage() {
                               ))}
                               {tournamentSchedule.length === 0 && (
                                 <div className="text-center py-10 bg-muted/20 rounded-2xl border-2 border-dashed">
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Add games to this series</p>
+                                  <p className="text-[10px] font-black text-muted-foreground uppercase">Add games to this series</p>
                                 </div>
                               )}
                             </div>
@@ -610,7 +621,7 @@ export default function EventsPage() {
                             {allowExternal && (
                               <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                                 <Label className="text-[10px] font-black uppercase tracking-widest">Roster Capacity Limit</Label>
-                                <Input type="number" placeholder="Leave blank for unlimited" value={maxRegs} onChange={e => setMaxRegs(e.target.value)} className="h-10 rounded-xl" />
+                                <Input type="number" placeholder="Leave blank for unlimited" value={maxRegs} onChange={e => setMaxRegs(e.target.value)} className="h-10 rounded-xl font-bold" />
                               </div>
                             )}
                           </div>
@@ -621,7 +632,7 @@ export default function EventsPage() {
                       </Button>
                     </div>
                   </div>
-                </div>
+                </ScrollArea>
               </DialogContent>
             </Dialog>
           </div>
@@ -697,7 +708,7 @@ export default function EventsPage() {
               <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
                 <CalendarDays className="h-8 w-8 text-muted-foreground opacity-20" />
               </div>
-              <p className="text-muted-foreground italic font-medium">Your squad's schedule is empty. Time to coordinate.</p>
+              <p className="text-muted-foreground italic font-black uppercase tracking-widest text-xs">Your squad's schedule is empty.</p>
             </div>
           )}
         </TabsContent>
@@ -721,7 +732,7 @@ export default function EventsPage() {
                 <div className="bg-primary/10 p-2 rounded-xl text-primary"><CalendarDays className="h-5 w-5" /></div>
                 <div>
                   <h3 className="font-black text-lg leading-none">{date ? format(date, 'MMMM d') : 'Select a date'}</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Agenda for selected day</p>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">Agenda for selected day</p>
                 </div>
               </div>
               
@@ -747,8 +758,8 @@ export default function EventsPage() {
                         {event.isTournament && event.tournamentSchedule && (
                           <div className="pt-2 border-t border-amber-100">
                             {event.tournamentSchedule
-                              .filter(m => !m.date || startOfDay(new Date(m.date)).getTime() === startOfDay(date!).getTime())
-                              .map((m, idx) => (
+                              .filter((m: any) => !m.date || startOfDay(new Date(m.date)).getTime() === startOfDay(date!).getTime())
+                              .map((m: any, idx: number) => (
                                 <div key={idx} className="flex items-center justify-between text-[10px] font-black text-amber-700 bg-amber-50/50 p-1.5 rounded-lg mb-1 last:mb-0">
                                   <span>{m.label}</span>
                                   <span>{m.time}</span>
@@ -762,7 +773,7 @@ export default function EventsPage() {
                   </EventDetailDialog>
                 )) : (
                   <div className="py-12 text-center bg-muted/20 rounded-[2rem] border-2 border-dashed">
-                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">No activities scheduled</p>
+                    <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">No activities scheduled</p>
                   </div>
                 )}
               </div>

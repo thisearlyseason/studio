@@ -7,15 +7,17 @@ import {
   query, 
   where, 
   doc, 
-  getDoc, 
   getDocs,
   limit,
   setDoc,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  deleteDoc,
+  updateDoc,
+  addDoc
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Purchases } from '@revenuecat/purchases-js';
 
 // Configuration for RevenueCat
@@ -44,15 +46,25 @@ export type Team = {
   role?: 'Admin' | 'Member';
 };
 
-export type MemberPosition = 'Coach' | 'Team Lead' | 'Assistant Coach' | 'Squad Leader' | 'Player' | 'Parent' | string;
-
-export type FeeItem = {
+export type TeamEvent = {
   id: string;
+  teamId: string;
   title: string;
-  amount: number;
-  paid: boolean;
-  createdAt: string;
+  date: any;
+  endDate?: any;
+  startTime: string;
+  endTime?: string;
+  location: string;
+  description: string;
+  userRsvp?: 'going' | 'maybe' | 'notGoing';
+  userRsvps?: Record<string, string>;
+  isTournament?: boolean;
+  tournamentSchedule?: any[];
+  allowExternalRegistration?: boolean;
+  maxRegistrations?: number;
 };
+
+export type MemberPosition = 'Coach' | 'Team Lead' | 'Assistant Coach' | 'Squad Leader' | 'Player' | 'Parent' | string;
 
 export type Member = {
   id: string;
@@ -65,7 +77,7 @@ export type Member = {
   avatar: string;
   feesPaid?: boolean;
   amountOwed?: number;
-  fees?: FeeItem[];
+  fees?: any[];
 };
 
 export type TeamAlert = {
@@ -85,12 +97,27 @@ interface TeamContextType {
   updateTeamHero: (url: string) => Promise<void>;
   updateTeamDetails: (updates: Partial<Team>) => Promise<void>;
   teams: Team[];
+  isTeamsLoading: boolean;
   members: Member[];
   updateMember: (id: string, updates: Partial<Member>) => void;
   alerts: TeamAlert[];
   createAlert: (title: string, message: string) => void;
   createNewTeam: (name: string, organizerPosition: string) => Promise<void>;
   joinTeamWithCode: (code: string, position: string) => Promise<boolean>;
+  addEvent: (event: any) => void;
+  updateEvent: (id: string, event: any) => void;
+  deleteEvent: (id: string) => void;
+  addGame: (game: any) => void;
+  updateGame: (id: string, game: any) => void;
+  addDrill: (drill: any) => void;
+  deleteDrill: (id: string) => void;
+  addFile: (name: string, type: string, size: string, url: string) => void;
+  deleteFile: (id: string) => void;
+  addMessage: (chatId: string, author: string, content: string, type: string, imageUrl?: string, poll?: any) => void;
+  votePoll: (chatId: string, messageId: string, optionIdx: number) => Promise<void>;
+  updateRSVP: (eventId: string, status: string) => void;
+  addRegistration: (teamId: string, eventId: string, data: any) => Promise<boolean>;
+  promoteToRoster: (teamId: string, eventId: string, reg: any) => Promise<void>;
   isLoading: boolean;
   isSuperAdmin: boolean;
   isPro: boolean;
@@ -162,7 +189,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return query(base, limit(20));
   }, [firebaseUser?.uid, db, isSuperAdmin]);
 
-  const { data: teamsRawData } = useCollection(teamsQuery);
+  const { data: teamsRawData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
   const teams = useMemo(() => {
     if (!teamsRawData) return [];
     return teamsRawData.map(m => isSuperAdmin ? {
@@ -201,12 +228,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     updateTeamHero: async (url: string) => { if (activeTeam && firebaseUser) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { heroImageUrl: url }); } },
     updateTeamDetails: async (updates: Partial<Team>) => { if (activeTeam && firebaseUser) { const f: any = {}; if (updates.name) f.teamName = updates.name; if (updates.sport) f.sport = updates.sport; if (updates.teamLogoUrl) f.teamLogoUrl = updates.teamLogoUrl; if (Object.keys(f).length > 0) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), f); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), f); } toast({ title: "Squad Updated" }); } },
     teams, 
+    isTeamsLoading,
     members, 
     updateMember: (id: string, u: any) => activeTeam && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'members', id), u),
     alerts, 
     createAlert: (t: string, m: string) => { if (activeTeam && firebaseUser) { setDocumentNonBlocking(doc(collection(db, 'teams', activeTeam.id, 'alerts')), { teamId: activeTeam.id, title: t, message: m, createdBy: firebaseUser.uid, createdAt: new Date().toISOString() }, { merge: true }); } },
     createNewTeam: async (name: string, pos: string) => { if (!firebaseUser) return; const tid = `team_${Date.now()}`; const code = Math.random().toString(36).substring(2, 8).toUpperCase(); const batch = writeBatch(db); batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, teamCode: code, createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: false }); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, teamCode: code, role: 'Admin', isPro: false, joinedAt: new Date().toISOString() }); await batch.commit(); setActiveTeamId(tid); },
     joinTeamWithCode: async (code: string, pos: string) => { if (!firebaseUser || !userProfile) return false; const qT = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1)); const snap = await getDocs(qT); if (snap.empty) return false; const tDoc = snap.docs[0]; const tid = tDoc.id; const batch = writeBatch(db); batch.update(doc(db, 'teams', tid), { [`members.${firebaseUser.uid}`]: 'Member' }); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Member', position: pos || 'Player', name: userProfile.name, avatar: userProfile.avatar, joinedAt: new Date().toISOString() }); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: tDoc.data().teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: tDoc.data().isPro || false, joinedAt: new Date().toISOString() }); await batch.commit(); setActiveTeamId(tid); return true; },
+    addEvent: (e: any) => activeTeam && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), { ...e, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString(), userRsvps: {} }),
+    updateEvent: (id: string, e: any) => activeTeam && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id), e),
+    deleteEvent: (id: string) => activeTeam && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id)),
+    addGame: (g: any) => activeTeam && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'games'), { ...g, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString() }),
+    updateGame: (id: string, g: any) => activeTeam && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'games', id), g),
+    addDrill: (d: any) => activeTeam && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'drills'), { ...d, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString() }),
+    deleteDrill: (id: string) => activeTeam && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'drills', id)),
+    addFile: (n: string, t: string, s: string, u: string) => activeTeam && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), { name: n, type: t, size: s, url: u, teamId: activeTeam.id, uploadedBy: userProfile?.name, uploaderId: firebaseUser?.uid, date: new Date().toISOString() }),
+    deleteFile: (id: string) => activeTeam && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'files', id)),
+    addMessage: (cid: string, auth: string, cont: string, type: string, img?: string, poll?: any) => activeTeam && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages'), { author: auth, authorId: firebaseUser?.uid, content: cont, type, imageUrl: img || null, poll: poll || null, createdAt: new Date().toISOString() }),
+    votePoll: async (cid: string, mid: string, oidx: number) => { if (!activeTeam || !firebaseUser) return; const ref = doc(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages', mid); const snap = await getDocs(query(collection(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages'), where('__name__', '==', mid))); if (snap.empty) return; const poll = snap.docs[0].data().poll; const current = poll.voters?.[firebaseUser.uid]; const u: any = { [`poll.voters.${firebaseUser.uid}`]: oidx }; if (current === undefined) { u[`poll.options.${oidx}.votes`] = poll.options[oidx].votes + 1; u['poll.totalVotes'] = poll.totalVotes + 1; } else if (current !== oidx) { u[`poll.options.${current}.votes`] = poll.options[current].votes - 1; u[`poll.options.${oidx}.votes`] = poll.options[oidx].votes + 1; } updateDocumentNonBlocking(ref, u); },
+    updateRSVP: (eid: string, s: string) => { if (activeTeam && firebaseUser) { const ref = doc(db, 'teams', activeTeam.id, 'events', eid); updateDocumentNonBlocking(ref, { [`userRsvps.${firebaseUser.uid}`]: s }); toast({ title: `RSVP Updated: ${s}` }); } },
+    addRegistration: async (tid: string, eid: string, d: any) => { try { await addDoc(collection(db, 'teams', tid, 'events', eid, 'registrations'), { ...d, status: 'pending', createdAt: new Date().toISOString() }); return true; } catch { return false; } },
+    promoteToRoster: async (tid: string, eid: string, reg: any) => { if (!firebaseUser) return; try { const mid = `member_${Date.now()}`; await setDoc(doc(db, 'teams', tid, 'members', mid), { userId: `ext_${Date.now()}`, teamId: tid, name: reg.name, role: 'Member', position: 'Player', avatar: '', joinedAt: new Date().toISOString() }); await deleteDoc(doc(db, 'teams', tid, 'events', eid, 'registrations', reg.id)); toast({ title: "Promoted to Roster" }); } catch { toast({ title: "Promotion Failed", variant: "destructive" }); } },
     isLoading: isUserLoading, 
     isSuperAdmin,
     isPro: activeTeam?.isPro || isProEntitlementActive || isSuperAdmin,
@@ -214,7 +256,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     manageSubscription: async () => { try { await Purchases.getSharedInstance().openCustomerCenter(); } catch { toast({ title: "Error", description: "Failed to open settings.", variant: "destructive" }); } },
     isPaywallOpen, setIsPaywallOpen,
     formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
-  }), [userProfile, activeTeam, teams, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser]);
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
