@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ImagePlus, MessageSquare, Trash2, Calendar, Send, Heart, Camera, Loader2, Info, X, MapPin, Clock } from 'lucide-react';
+import { ImagePlus, MessageSquare, Trash2, Calendar, Send, Heart, Camera, Loader2, Info, X, MapPin, Clock, Trophy, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -14,7 +14,7 @@ import { useTeam, Comment } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 
 function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: string, teamId: string, isAdmin: boolean, currentUserId: string }) {
   const { deleteComment } = useTeam();
@@ -69,7 +69,7 @@ function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: strin
 }
 
 export default function FeedPage() {
-  const { activeTeam, posts, addPost, deletePost, addComment, toggleLike, user, updateTeamHero, formatTime, isSuperAdmin } = useTeam();
+  const { activeTeam, posts, addPost, deletePost, addComment, toggleLike, user, updateTeamHero, formatTime, isSuperAdmin, events, games } = useTeam();
   const [newPostContent, setNewPostContent] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [commentInputs, setCommentInputs] = useState<{ [key: string]: string }>({});
@@ -176,259 +176,325 @@ export default function FeedPage() {
   };
 
   return (
-    <div className="space-y-8 pb-12 animate-in fade-in duration-500">
-      <section className="relative h-48 sm:h-64 rounded-3xl overflow-hidden shadow-2xl group ring-1 ring-black/5">
-        <img 
-          src={activeTeam.heroImageUrl || "https://picsum.photos/seed/squadhero/1200/400"} 
-          alt="Team Hero" 
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        
-        {isAdmin && (
-          <div className="absolute top-4 right-4 z-20">
-            <input type="file" ref={heroInputRef} className="hidden" accept="image/*" onChange={handleHeroChange} />
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              disabled={isUpdatingHero}
-              className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-9 transition-all active:scale-95 shadow-lg px-4"
-              onClick={() => heroInputRef.current?.click()}
-            >
-              {isUpdatingHero ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4 mr-2" />
-              )}
-              {isUpdatingHero ? "Uploading..." : "Change Cover"}
-            </Button>
-          </div>
-        )}
+    <div className="flex flex-col lg:flex-row gap-8 pb-12 animate-in fade-in duration-500">
+      {/* Main Feed Column */}
+      <div className="flex-1 space-y-8 min-w-0">
+        <section className="relative h-48 sm:h-64 lg:h-80 rounded-[2.5rem] overflow-hidden shadow-2xl group ring-1 ring-black/5">
+          <img 
+            src={activeTeam.heroImageUrl || "https://picsum.photos/seed/squadhero/1200/400"} 
+            alt="Team Hero" 
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          
+          {isAdmin && (
+            <div className="absolute top-6 right-6 z-20">
+              <input type="file" ref={heroInputRef} className="hidden" accept="image/*" onChange={handleHeroChange} />
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                disabled={isUpdatingHero}
+                className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-10 transition-all active:scale-95 shadow-lg px-5 font-bold"
+                onClick={() => heroInputRef.current?.click()}
+              >
+                {isUpdatingHero ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4 mr-2" />
+                )}
+                {isUpdatingHero ? "Uploading..." : "Change Cover"}
+              </Button>
+            </div>
+          )}
 
-        <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between">
-          <div className="space-y-1">
-            <Badge variant="secondary" className="mb-2 bg-white/20 backdrop-blur-md text-white border-none font-bold uppercase tracking-wider text-[10px]">
-              Active Squad
-            </Badge>
-            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-lg">
-              {activeTeam.name}
-            </h1>
-            <p className="text-white/70 text-sm font-medium">Join the discussion, coordinate the win.</p>
-          </div>
-        </div>
-      </section>
-
-      <Card className="rounded-3xl border-none shadow-xl shadow-primary/5 overflow-hidden ring-1 ring-black/5">
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <Avatar className="h-12 w-12 shrink-0 border-2 border-primary/10">
-              <AvatarImage src={user?.avatar} />
-              <AvatarFallback className="font-bold">{user?.name?.[0] || '?'}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 space-y-4 min-w-0">
-              <Textarea 
-                placeholder={`What's the play for ${activeTeam.name}?`} 
-                value={newPostContent}
-                onChange={(e) => setNewPostContent(e.target.value)}
-                className="min-h-[100px] resize-none border-none focus-visible:ring-0 p-0 text-lg font-medium placeholder:text-muted-foreground/50"
-              />
-              {imageUrl && (
-                <div className="relative rounded-2xl overflow-hidden border-4 border-white shadow-lg animate-in zoom-in-95">
-                  <img src={imageUrl} alt="Preview" className="w-full h-auto object-cover max-h-[400px]" />
-                  <Button variant="destructive" size="icon" className="absolute top-3 right-3 h-8 w-8 rounded-full shadow-lg" onClick={() => setImageUrl(undefined)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-4 border-t border-muted/50">
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground font-bold hover:bg-primary/5" onClick={() => fileInputRef.current?.click()}>
-                    <ImagePlus className="h-4 w-4 mr-2" />
-                    Media
-                  </Button>
-                </div>
-                <Button disabled={!newPostContent.trim() && !imageUrl} onClick={handlePost} className="rounded-full px-6 font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
-                  Post to Squad
-                </Button>
-              </div>
+          <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
+            <div className="space-y-1">
+              <Badge variant="secondary" className="mb-2 bg-white/20 backdrop-blur-md text-white border-none font-black uppercase tracking-wider text-[10px]">
+                Active Squad
+              </Badge>
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tighter drop-shadow-lg leading-none">
+                {activeTeam.name}
+              </h1>
+              <p className="text-white/70 text-base font-medium hidden sm:block">Join the discussion, coordinate the win.</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </section>
 
-      <div className="space-y-6">
-        {posts.map((post) => {
-          const isLiked = post.likes?.includes(user?.id || '');
-          const canDelete = isAdmin || (post.authorId === user?.id);
-
-          return (
-            <Card key={post.id} className={cn(
-              "rounded-3xl border-none shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl ring-1 ring-black/5 group",
-              post.type === 'system' ? 'bg-amber-50 dark:bg-amber-950/20 ring-amber-500/10' : ''
-            )}>
-              {post.type === 'user' && (
-                <CardHeader className="flex flex-row items-center gap-4 pb-3">
-                  <Avatar className="h-11 w-11 border-2 border-background shadow-sm">
-                    <AvatarImage src={post.author?.avatar} />
-                    <AvatarFallback className="font-bold">{post.author?.name?.[0] || '?'}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-extrabold text-sm tracking-tight">{post.author?.name || 'Anonymous'}</div>
-                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                      {post.createdAt ? formatDistanceToNow(new Date(post.createdAt)) + ' ago' : 'Live'} • {formatTime(post.createdAt)}
-                    </div>
-                  </div>
-                  {canDelete && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
-                      onClick={() => deletePost(post.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
+        <Card className="rounded-[2.5rem] border-none shadow-xl shadow-primary/5 overflow-hidden ring-1 ring-black/5">
+          <CardContent className="pt-8">
+            <div className="flex gap-5">
+              <Avatar className="h-14 w-14 shrink-0 border-2 border-primary/10 shadow-sm">
+                <AvatarImage src={user?.avatar} />
+                <AvatarFallback className="font-black text-lg">{user?.name?.[0] || '?'}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-4 min-w-0">
+                <Textarea 
+                  placeholder={`What's the play for ${activeTeam.name}?`} 
+                  value={newPostContent}
+                  onChange={(e) => setNewPostContent(e.target.value)}
+                  className="min-h-[120px] resize-none border-none focus-visible:ring-0 p-0 text-xl font-medium placeholder:text-muted-foreground/40 leading-relaxed"
+                />
+                {imageUrl && (
+                  <div className="relative rounded-3xl overflow-hidden border-4 border-white shadow-lg animate-in zoom-in-95">
+                    <img src={imageUrl} alt="Preview" className="w-full h-auto object-cover max-h-[500px]" />
+                    <Button variant="destructive" size="icon" className="absolute top-4 right-4 h-10 w-10 rounded-full shadow-lg" onClick={() => setImageUrl(undefined)}>
+                      <X className="h-5 w-5" />
                     </Button>
-                  )}
-                </CardHeader>
-              )}
-              <CardContent className={post.type === 'system' ? 'p-0' : 'pt-2 pb-4'}>
-                {post.type === 'system' ? (
-                  <div className="p-4 sm:p-6">
-                    {post.systemData ? (
-                      <div className="bg-white dark:bg-background rounded-2xl border-2 border-amber-500/20 shadow-sm overflow-hidden animate-in zoom-in-95">
-                        <div className="bg-amber-100 dark:bg-amber-900/40 py-2 px-4 flex justify-center">
-                          <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-[0.2em]">{post.systemData.updateType}</span>
-                        </div>
-                        <div className="p-6 flex flex-col sm:flex-row items-center gap-6">
-                          <div className="flex flex-col items-center justify-center border-r-0 sm:border-r pr-0 sm:pr-8 min-w-[100px] text-center">
-                            <span className="text-sm font-bold text-foreground/60 uppercase">{format(new Date(post.systemData.date), 'EEE')}</span>
-                            <span className="text-2xl font-black text-foreground">{format(new Date(post.systemData.date), 'MM/dd')}</span>
-                            <span className="text-[9px] font-black uppercase text-muted-foreground mt-2 tracking-widest">{post.systemData.label || 'GAME UPDATE'}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-6 border-t border-muted/50">
+                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                  <div className="flex gap-3">
+                    <Button variant="ghost" size="sm" className="rounded-full h-10 px-5 text-muted-foreground font-black uppercase text-[10px] tracking-widest hover:bg-primary/5 hover:text-primary transition-all" onClick={() => fileInputRef.current?.click()}>
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                      Add Media
+                    </Button>
+                  </div>
+                  <Button disabled={!newPostContent.trim() && !imageUrl} onClick={handlePost} className="rounded-full px-8 h-12 font-black uppercase text-[11px] tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95">
+                    Post to Squad
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-8">
+          {posts.map((post) => {
+            const isLiked = post.likes?.includes(user?.id || '');
+            const canDelete = isAdmin || (post.authorId === user?.id);
+
+            return (
+              <Card key={post.id} className={cn(
+                "rounded-[2.5rem] border-none shadow-md overflow-hidden transition-all duration-500 hover:shadow-2xl ring-1 ring-black/5 group",
+                post.type === 'system' ? 'bg-amber-50 dark:bg-amber-950/20 ring-amber-500/10' : ''
+              )}>
+                {post.type === 'user' && (
+                  <CardHeader className="flex flex-row items-center gap-5 pb-4 pt-8 px-8">
+                    <Avatar className="h-12 w-12 border-2 border-background shadow-md">
+                      <AvatarImage src={post.author?.avatar} />
+                      <AvatarFallback className="font-black">{post.author?.name?.[0] || '?'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-black text-base tracking-tight leading-none">{post.author?.name || 'Anonymous'}</div>
+                      <div className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
+                        {post.createdAt ? formatDistanceToNow(new Date(post.createdAt)) + ' ago' : 'Live'}
+                        <div className="h-1 w-1 bg-muted-foreground/30 rounded-full" />
+                        {formatTime(post.createdAt)}
+                      </div>
+                    </div>
+                    {canDelete && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 rounded-full"
+                        onClick={() => deletePost(post.id)}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    )}
+                  </CardHeader>
+                )}
+                <CardContent className={post.type === 'system' ? 'p-0' : 'pt-2 pb-6 px-8'}>
+                  {post.type === 'system' ? (
+                    <div className="p-6 sm:p-10">
+                      {post.systemData ? (
+                        <div className="bg-white dark:bg-background rounded-[2rem] border-2 border-amber-500/20 shadow-lg overflow-hidden animate-in zoom-in-95">
+                          <div className="bg-amber-100 dark:bg-amber-900/40 py-2.5 px-6 flex justify-center">
+                            <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-[0.3em]">{post.systemData.updateType}</span>
                           </div>
-                          <div className="flex-1 space-y-3 text-center sm:text-left">
-                            <h3 className="text-xl font-black text-foreground tracking-tight">{post.systemData.title}</h3>
-                            {post.systemData.detail && (
-                              <p className="text-sm font-bold text-amber-600 dark:text-amber-400/80 bg-amber-500/5 py-1 px-3 rounded-lg inline-block">{post.systemData.detail}</p>
-                            )}
-                            <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start text-sm font-bold text-muted-foreground">
-                              <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {post.systemData.startTime}{post.systemData.endTime ? ` - ${post.systemData.endTime}` : ''}</div>
-                              <div className="flex items-center gap-1.5 truncate max-w-xs"><MapPin className="h-4 w-4" /> {post.systemData.location}</div>
+                          <div className="p-8 flex flex-col sm:flex-row items-center gap-8">
+                            <div className="flex flex-col items-center justify-center border-r-0 sm:border-r pr-0 sm:pr-10 min-w-[120px] text-center">
+                              <span className="text-sm font-black text-foreground/40 uppercase tracking-widest">{format(new Date(post.systemData.date), 'EEE')}</span>
+                              <span className="text-4xl font-black text-foreground tracking-tighter my-1">{format(new Date(post.systemData.date), 'MM/dd')}</span>
+                              <span className="text-[10px] font-black uppercase text-amber-600 mt-2 tracking-widest">{post.systemData.label || 'GAME UPDATE'}</span>
+                            </div>
+                            <div className="flex-1 space-y-4 text-center sm:text-left">
+                              <h3 className="text-2xl font-black text-foreground tracking-tight leading-none">{post.systemData.title}</h3>
+                              {post.systemData.detail && (
+                                <p className="text-xs font-black text-amber-700 dark:text-amber-400/80 bg-amber-500/10 py-1.5 px-4 rounded-full inline-block uppercase tracking-widest">{post.systemData.detail}</p>
+                              )}
+                              <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-xs font-bold text-muted-foreground uppercase tracking-[0.1em]">
+                                <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-amber-500" /> {post.systemData.startTime}{post.systemData.endTime ? ` - ${post.systemData.endTime}` : ''}</div>
+                                <div className="flex items-center gap-2 truncate max-w-xs"><MapPin className="h-4 w-4 text-amber-500" /> {post.systemData.location}</div>
+                              </div>
                             </div>
                           </div>
                         </div>
+                      ) : (
+                        <div className="flex items-center gap-6 p-2">
+                          <div className="bg-amber-100 dark:bg-amber-900/40 p-4 rounded-[1.5rem] text-amber-600 dark:text-amber-400 shadow-inner">
+                            <Info className="h-8 w-8" />
+                          </div>
+                          <div className="flex-1">
+                            <Badge className="mb-2 bg-amber-500/20 text-amber-600 border-none text-[10px] font-black uppercase tracking-[0.2em] px-3 h-6">System Alert</Badge>
+                            <p className="text-xl font-black tracking-tight text-foreground/90 leading-tight">{post.content}</p>
+                          </div>
+                          {isAdmin && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-10 w-10 text-destructive hover:bg-destructive/10 rounded-full"
+                              onClick={() => deletePost(post.id)}
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <p className="text-lg leading-relaxed whitespace-pre-wrap font-medium text-foreground/80 px-1">{post.content}</p>
+                      {post.imageUrl && (
+                        <div className="rounded-[2rem] overflow-hidden border-2 border-muted/50 shadow-inner bg-muted/20">
+                          <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover max-h-[600px]" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+                {post.type === 'user' && (
+                  <CardFooter className="flex flex-col border-t border-muted/30 pt-6 pb-8 gap-6 px-8">
+                    <div className="flex items-center gap-8 w-full">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={cn(
+                          "h-11 px-6 rounded-full font-black uppercase tracking-widest text-[10px] transition-all",
+                          isLiked ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
+                        )}
+                        onClick={() => handleToggleLike(post.id)}
+                      >
+                        <Heart className={cn("h-4 w-4 mr-2", isLiked && "fill-current")} />
+                        Like
+                        {post.likes && post.likes.length > 0 && (
+                          <span className="ml-2 opacity-60">({post.likes.length})</span>
+                        )}
+                      </Button>
+                      <div className="flex items-center gap-2 text-muted-foreground font-black uppercase tracking-widest text-[10px]">
+                        <MessageSquare className="h-4 w-4" />
+                        Coordination Discussion
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-4">
-                        <div className="bg-amber-100 dark:bg-amber-900/40 p-3 rounded-2xl text-amber-600 dark:text-amber-400">
-                          <Info className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1">
-                          <Badge className="mb-2 bg-amber-500/20 text-amber-600 border-none text-[9px] font-black uppercase tracking-widest">System Update</Badge>
-                          <p className="text-base font-bold tracking-tight text-foreground/90 leading-tight">{post.content}</p>
-                        </div>
-                        {isAdmin && (
+                    </div>
+                    <div className="w-full space-y-6">
+                      <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} />
+                      
+                      <div className="space-y-4 pt-2">
+                        {commentImages[post.id] && (
+                          <div className="relative inline-block rounded-2xl overflow-hidden border-2 border-primary/20 shadow-lg animate-in zoom-in-95">
+                            <img src={commentImages[post.id]} alt="Comment preview" className="h-24 w-auto object-cover" />
+                            <Button 
+                              variant="destructive" 
+                              size="icon" 
+                              className="absolute -top-2 -right-2 h-7 w-7 rounded-full shadow-md"
+                              onClick={() => setCommentImages(prev => {
+                                const updated = { ...prev };
+                                delete updated[post.id];
+                                return updated;
+                              })}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        <div className="flex gap-3">
+                          <input 
+                            type="file" 
+                            ref={el => { commentFileInputRef.current[post.id] = el; }} 
+                            className="hidden" 
+                            accept="image/*" 
+                            onChange={(e) => handleCommentFileChange(post.id, e)} 
+                          />
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => deletePost(post.id)}
+                            className="h-12 w-12 rounded-2xl bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary shrink-0 transition-all"
+                            onClick={() => commentFileInputRef.current[post.id]?.click()}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <ImagePlus className="h-5 w-5" />
                           </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-base leading-relaxed whitespace-pre-wrap font-medium text-foreground/80 px-1">{post.content}</p>
-                    {post.imageUrl && (
-                      <div className="rounded-2xl overflow-hidden border-2 border-muted/50 shadow-sm bg-muted/30">
-                        <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover max-h-[500px]" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-              {post.type === 'user' && (
-                <CardFooter className="flex flex-col border-t border-muted/30 pt-4 pb-6 gap-4">
-                  <div className="flex items-center gap-6 w-full px-1">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className={cn(
-                        "h-9 px-4 rounded-full font-bold transition-all",
-                        isLiked ? "text-primary bg-primary/5" : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
-                      )}
-                      onClick={() => handleToggleLike(post.id)}
-                    >
-                      <Heart className={cn("h-4 w-4 mr-2", isLiked && "fill-current")} />
-                      Like
-                      {post.likes && post.likes.length > 0 && (
-                        <span className="ml-1.5 opacity-60">({post.likes.length})</span>
-                      )}
-                    </Button>
-                    <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">
-                      <MessageSquare className="h-4 w-4" />
-                      Discussion
-                    </div>
-                  </div>
-                  <div className="w-full space-y-4 px-1">
-                    <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} />
-                    
-                    <div className="space-y-3 pt-2">
-                      {commentImages[post.id] && (
-                        <div className="relative inline-block rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm animate-in zoom-in-95">
-                          <img src={commentImages[post.id]} alt="Comment preview" className="h-20 w-auto object-cover" />
-                          <Button 
-                            variant="destructive" 
-                            size="icon" 
-                            className="absolute -top-1 -right-1 h-5 w-5 rounded-full"
-                            onClick={() => setCommentImages(prev => {
-                              const updated = { ...prev };
-                              delete updated[post.id];
-                              return updated;
-                            })}
-                          >
-                            <X className="h-3 w-3" />
+                          <Input 
+                            placeholder="Write something to your squad..." 
+                            className="bg-muted/50 border-none rounded-2xl h-12 text-sm font-bold px-6 shadow-inner focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
+                            value={commentInputs[post.id] || ''}
+                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)}
+                          />
+                          <Button size="icon" className="rounded-2xl h-12 w-12 shrink-0 shadow-xl shadow-primary/20 active:scale-90 transition-all" onClick={() => handleCommentSubmit(post.id)}>
+                            <Send className="h-5 w-5" />
                           </Button>
                         </div>
-                      )}
-                      <div className="flex gap-2">
-                        <input 
-                          type="file" 
-                          ref={el => { commentFileInputRef.current[post.id] = el; }} 
-                          className="hidden" 
-                          accept="image/*" 
-                          onChange={(e) => handleCommentFileChange(post.id, e)} 
-                        />
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-11 w-11 rounded-2xl bg-muted/50 text-muted-foreground"
-                          onClick={() => commentFileInputRef.current[post.id]?.click()}
-                        >
-                          <ImagePlus className="h-5 w-5" />
-                        </Button>
-                        <Input 
-                          placeholder="Write something to your squad..." 
-                          className="bg-muted/50 border-none rounded-2xl h-11 text-sm font-medium px-5 shadow-inner"
-                          value={commentInputs[post.id] || ''}
-                          onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                          onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit(post.id)}
-                        />
-                        <Button size="icon" className="rounded-2xl h-11 w-11 shrink-0 shadow-lg shadow-primary/10 active:scale-90" onClick={() => handleCommentSubmit(post.id)}>
-                          <Send className="h-5 w-5" />
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                </CardFooter>
-              )}
-            </Card>
-          );
-        })}
+                  </CardFooter>
+                )}
+              </Card>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Desktop Helper Sidebar (Only visible on LG+) */}
+      <aside className="hidden lg:flex flex-col w-80 shrink-0 space-y-8 animate-in fade-in slide-in-from-right-4 duration-1000">
+        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
+          <CardHeader className="bg-primary/5 border-b border-primary/5 pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Upcoming Schedule</CardTitle>
+              <Calendar className="h-4 w-4 text-primary opacity-40" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            {events.slice(0, 3).length > 0 ? events.slice(0, 3).map((event) => (
+              <div key={event.id} className="flex gap-4 group cursor-pointer" onClick={() => router.push('/events')}>
+                <div className="h-12 w-12 rounded-2xl bg-muted flex flex-col items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
+                  <span className="text-[8px] font-black uppercase text-muted-foreground group-hover:text-primary leading-none mb-0.5">{format(event.date, 'MMM')}</span>
+                  <span className="text-lg font-black tracking-tighter leading-none">{format(event.date, 'dd')}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black truncate leading-tight group-hover:text-primary transition-colors">{event.title}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1">{event.startTime} • {event.location}</p>
+                </div>
+              </div>
+            )) : (
+              <p className="text-xs text-muted-foreground italic text-center py-4">No upcoming events scheduled.</p>
+            )}
+            <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest h-10 mt-2 rounded-xl" onClick={() => router.push('/events')}>
+              Full Schedule <ChevronRight className="h-3 w-3 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden bg-primary text-primary-foreground">
+          <CardContent className="p-8 space-y-4">
+            <Trophy className="h-8 w-8 text-white/40" />
+            <h3 className="text-xl font-black tracking-tight leading-tight">Season Progress</h3>
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="bg-white/10 p-3 rounded-2xl border border-white/10 text-center">
+                <p className="text-[8px] font-black uppercase text-white/60 tracking-widest mb-1">Wins</p>
+                <p className="text-2xl font-black">{games.filter(g => g.result === 'Win').length}</p>
+              </div>
+              <div className="bg-white/10 p-3 rounded-2xl border border-white/10 text-center">
+                <p className="text-[8px] font-black uppercase text-white/60 tracking-widest mb-1">Losses</p>
+                <p className="text-2xl font-black">{games.filter(g => g.result === 'Loss').length}</p>
+              </div>
+            </div>
+            <Button variant="secondary" className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-primary hover:bg-white/90" onClick={() => router.push('/games')}>
+              Scoreboard Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="bg-muted/30 p-6 rounded-[2rem] space-y-3 border-2 border-dashed">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            <h4 className="font-black text-[10px] uppercase tracking-widest text-foreground">Squad Sync</h4>
+          </div>
+          <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+            Desktop hub active. Your coordination is now visible to all verified members across platforms. Stay high-priority.
+          </p>
+        </div>
+      </aside>
     </div>
   );
 }
