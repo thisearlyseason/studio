@@ -33,7 +33,11 @@ service cloud.firestore {
      */
     function isTeamAdmin(teamId) {
       let teamData = get(/databases/$(database)/documents/teams/$(teamId)).data;
-      return isAdmin() || (isSignedIn() && (teamData.members[request.auth.uid] == 'Admin' || teamData.createdBy == request.auth.uid || teamData.isDemo == true));
+      return isAdmin() || (isSignedIn() && (
+        (teamData.members != null && teamData.members[request.auth.uid] == 'Admin') || 
+        teamData.createdBy == request.auth.uid || 
+        teamData.isDemo == true
+      ));
     }
 
     // --- COLLECTION RULES ---
@@ -59,7 +63,8 @@ service cloud.firestore {
 
       match /members/{memberId} {
         allow read: if isSignedIn();
-        allow write: if isTeamAdmin(teamId) || isOwner(request.resource.data.userId);
+        // Allow write/delete if admin or the user themselves
+        allow write: if isTeamAdmin(teamId) || isOwner(memberId) || (resource != null && isOwner(resource.data.userId));
       }
 
       match /events/{eventId} {
@@ -86,7 +91,7 @@ service cloud.firestore {
       match /files/{fileId} {
         allow read: if isSignedIn();
         allow create: if isSignedIn();
-        allow delete: if isTeamAdmin(teamId) || isOwner(resource.data.uploaderId);
+        allow delete: if isTeamAdmin(teamId) || (resource != null && isOwner(resource.data.uploaderId));
       }
 
       match /alerts/{alertId} {
@@ -97,12 +102,14 @@ service cloud.firestore {
       match /feedPosts/{postId} {
         allow read: if isSignedIn();
         allow create: if isSignedIn();
-        allow update, delete: if isTeamAdmin(teamId) || isOwner(resource.data.authorId);
+        // Allow updates for likes and poll voting
+        allow update: if isSignedIn();
+        allow delete: if isTeamAdmin(teamId) || (resource != null && isOwner(resource.data.authorId));
 
         match /comments/{commentId} {
           allow read: if isSignedIn();
           allow create: if isSignedIn();
-          allow delete: if isTeamAdmin(teamId) || isOwner(resource.data.authorId);
+          allow delete: if isTeamAdmin(teamId) || (resource != null && isOwner(resource.data.authorId));
         }
       }
 
@@ -115,7 +122,9 @@ service cloud.firestore {
         match /messages/{messageId} {
           allow read: if isSignedIn();
           allow create: if isSignedIn();
-          allow delete: if isTeamAdmin(teamId) || isOwner(resource.data.authorId);
+          // Allow update for poll voting
+          allow update: if isSignedIn();
+          allow delete: if isTeamAdmin(teamId) || (resource != null && isOwner(resource.data.authorId));
         }
       }
     }
