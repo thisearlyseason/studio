@@ -87,6 +87,24 @@ export type TeamAlert = {
   createdAt: string;
 };
 
+export type Message = {
+  id: string;
+  author: string;
+  authorId: string;
+  content: string;
+  type: 'text' | 'image' | 'poll';
+  imageUrl?: string;
+  createdAt: string;
+  poll?: {
+    id: string;
+    question: string;
+    options: { text: string; imageUrl?: string; votes: number }[];
+    totalVotes: number;
+    voters: Record<string, number>;
+    isClosed: boolean;
+  };
+};
+
 interface TeamContextType {
   user: UserProfile | null;
   updateUser: (updates: Partial<UserProfile>) => void;
@@ -111,6 +129,7 @@ interface TeamContextType {
   deleteDrill: (id: string) => void;
   addFile: (name: string, type: string, size: string, url: string) => void;
   deleteFile: (id: string) => void;
+  createChat: (name: string, memberIds: string[]) => Promise<string>;
   addMessage: (chatId: string, author: string, content: string, type: string, imageUrl?: string, poll?: any) => void;
   votePoll: (chatId: string, messageId: string, optionIdx: number) => Promise<void>;
   updateRSVP: (eventId: string, status: string) => void;
@@ -234,6 +253,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     deleteDrill: (id: string) => activeTeam && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'drills', id)),
     addFile: (n: string, t: string, s: string, u: string) => activeTeam && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), { name: n, type: t, size: s, url: u, teamId: activeTeam.id, uploadedBy: userProfile?.name, uploaderId: firebaseUser?.uid, date: new Date().toISOString() }),
     deleteFile: (id: string) => activeTeam && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'files', id)),
+    createChat: async (name: string, memberIds: string[]) => { if (!activeTeam || !firebaseUser) return ''; const docRef = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), { teamId: activeTeam.id, name, memberIds: [...memberIds, firebaseUser.uid], createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), lastMessage: '', unread: 0 }); return docRef.id; },
     addMessage: (cid: string, auth: string, cont: string, type: string, img?: string, poll?: any) => activeTeam && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages'), { author: auth, authorId: firebaseUser?.uid, content: cont, type, imageUrl: img || null, poll: poll || null, createdAt: new Date().toISOString() }),
     votePoll: async (cid: string, mid: string, oidx: number) => { if (!activeTeam || !firebaseUser) return; const ref = doc(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages', mid); const snap = await getDocs(query(collection(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages'), where('__name__', '==', mid))); if (snap.empty) return; const poll = snap.docs[0].data().poll; const current = poll.voters?.[firebaseUser.uid]; const u: any = { [`poll.voters.${firebaseUser.uid}`]: oidx }; if (current === undefined) { u[`poll.options.${oidx}.votes`] = poll.options[oidx].votes + 1; u['poll.totalVotes'] = poll.totalVotes + 1; } else if (current !== oidx) { u[`poll.options.${current}.votes`] = poll.options[current].votes - 1; u[`poll.options.${oidx}.votes`] = poll.options[oidx].votes + 1; } updateDocumentNonBlocking(ref, u); },
     updateRSVP: (eid: string, s: string) => { if (activeTeam && firebaseUser) { const ref = doc(db, 'teams', activeTeam.id, 'events', eid); updateDocumentNonBlocking(ref, { [`userRsvps.${firebaseUser.uid}`]: s }); toast({ title: `RSVP Updated: ${s}` }); } },
