@@ -129,6 +129,12 @@ export type Plan = {
   features: Record<string, boolean>;
 };
 
+export type Feature = {
+  id: string;
+  description: string;
+  defaultEnabled: boolean;
+};
+
 interface TeamContextType {
   user: UserProfile | null;
   updateUser: (updates: Partial<UserProfile>) => void;
@@ -136,6 +142,7 @@ interface TeamContextType {
   setActiveTeam: (team: Team) => void;
   updateTeamHero: (url: string) => Promise<void>;
   updateTeamDetails: (updates: Partial<Team>) => Promise<void>;
+  updateTeamPlan: (teamId: string, planId: string) => Promise<void>;
   teams: Team[];
   isTeamsLoading: boolean;
   members: Member[];
@@ -169,6 +176,7 @@ interface TeamContextType {
   isPaywallOpen: boolean;
   setIsPaywallOpen: (open: boolean) => void;
   formatTime: (date: string | Date) => string;
+  plans: Plan[];
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -187,7 +195,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const isSuperAdmin = useMemo(() => firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false, [firebaseUser?.email]);
 
-  // Seed default data if super admin is logged in
   useEffect(() => {
     if (isSuperAdmin && db) {
       seedSubscriptionData(db);
@@ -228,7 +235,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
     const base = isSuperAdmin ? collection(db, 'teams') : collection(db, 'users', firebaseUser.uid, 'teamMemberships');
-    return query(base, limit(20));
+    return query(base, limit(50));
   }, [firebaseUser?.uid, db, isSuperAdmin]);
 
   const { data: teamsRawData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
@@ -246,18 +253,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return teams.find(t => t.id === activeTeamId) || teams[0];
   }, [teams, activeTeamId]);
 
-  // Fetch active plan features dynamically
   const plansQuery = useMemoFirebase(() => {
     if (!db) return null;
     return collection(db, 'plans');
   }, [db]);
   const { data: plansData } = useCollection(plansQuery);
+  const plans = useMemo(() => (plansData || []) as Plan[], [plansData]);
   
   const activePlanFeatures = useMemo(() => {
-    if (!activeTeam || !plansData) return {};
-    const plan = plansData.find(p => p.id === activeTeam.planId);
+    if (!activeTeam || !plans) return {};
+    const plan = plans.find(p => p.id === activeTeam.planId);
     return plan?.features || {};
-  }, [activeTeam, plansData]);
+  }, [activeTeam, plans]);
 
   const membersQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
@@ -265,25 +272,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam?.id, db]);
   const { data: membersData } = useCollection(membersQuery);
   const members = useMemo(() => (membersData || []).map(m => ({
-    id: m.id, 
-    userId: m.userId, 
-    teamId: m.teamId, 
-    name: m.name || 'Member', 
-    role: m.role, 
-    position: m.position || 'Player', 
-    jersey: m.jersey || 'TBD', 
-    avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`, 
-    phone: m.phone,
-    feesPaid: m.feesPaid || false, 
-    amountOwed: m.amountOwed || 0, 
-    fees: m.fees || [],
-    birthdate: m.birthdate,
-    parentName: m.parentName,
-    parentEmail: m.parentEmail,
-    parentPhone: m.parentPhone,
-    emergencyContactName: m.emergencyContactName,
-    emergencyContactPhone: m.emergencyContactPhone,
-    notes: m.notes
+    id: m.id, userId: m.userId, teamId: m.teamId, name: m.name || 'Member', role: m.role, position: m.position || 'Player', jersey: m.jersey || 'TBD', avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`, phone: m.phone, feesPaid: m.feesPaid || false, amountOwed: m.amountOwed || 0, fees: m.fees || [], birthdate: m.birthdate, parentName: m.parentName, parentEmail: m.parentEmail, parentPhone: m.parentPhone, emergencyContactName: m.emergencyContactName, emergencyContactPhone: m.emergencyContactPhone, notes: m.notes
   })), [membersData]);
 
   const alertsQuery = useMemoFirebase(() => {
@@ -300,6 +289,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setActiveTeam: (t: Team) => setActiveTeamId(t.id),
     updateTeamHero: async (url: string) => { if (activeTeam && firebaseUser) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { heroImageUrl: url }); } },
     updateTeamDetails: async (updates: Partial<Team>) => { if (activeTeam && firebaseUser) { const f: any = {}; if (updates.name) f.teamName = updates.name; if (updates.sport) f.sport = updates.sport; if (updates.teamLogoUrl) f.teamLogoUrl = updates.teamLogoUrl; if (Object.keys(f).length > 0) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), f); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), f); } toast({ title: "Squad Updated" }); } },
+    updateTeamPlan: async (tid: string, pid: string) => { if (db) { const tRef = doc(db, 'teams', tid); const p = plans.find(p => p.id === pid); updateDocumentNonBlocking(tRef, { planId: pid, isPro: p?.billingType !== 'free' }); const memberships = await getDocs(query(collection(db, 'users'), limit(100))); memberships.forEach(async (uDoc) => { const memRef = doc(db, 'users', uDoc.id, 'teamMemberships', tid); try { await setDoc(memRef, { planId: pid, isPro: p?.billingType !== 'free' }, { merge: true }); } catch {} }); toast({ title: "Plan Synchronized" }); } },
     teams, 
     isTeamsLoading,
     members, 
@@ -331,8 +321,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     purchasePro: async () => setIsPaywallOpen(true),
     manageSubscription: async () => { try { await Purchases.getSharedInstance().openCustomerCenter(); } catch { toast({ title: "Error", description: "Failed to open settings.", variant: "destructive" }); } },
     isPaywallOpen, setIsPaywallOpen,
-    formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures]);
+    formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
+    plans
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

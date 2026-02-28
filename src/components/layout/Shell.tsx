@@ -19,7 +19,8 @@ import {
   Lock,
   Dumbbell,
   Search,
-  CreditCard
+  CreditCard,
+  ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import {
   SidebarMenuButton, 
   SidebarMenuItem, 
   SidebarProvider,
+  SidebarSeparator
 } from "@/components/ui/sidebar";
 import BrandLogo from '@/components/BrandLogo';
 
@@ -84,10 +86,10 @@ const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boo
 });
 SidebarItem.displayName = "SidebarItem";
 
-export default function Shell({ children }: { children: React.Node }) {
+export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeTeam, setActiveTeam, teams, user, isPro, alerts } = useTeam();
+  const { activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin } = useTeam();
   const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
   useEffect(() => {
@@ -197,6 +199,25 @@ export default function Shell({ children }: { children: React.Node }) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {isSuperAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === '/admin/plans'}
+                    className={cn(
+                      "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+                      pathname === '/admin/plans' 
+                        ? "bg-black text-white shadow-lg" 
+                        : "text-red-600 hover:bg-red-50"
+                    )}
+                  >
+                    <Link href="/admin/plans" className="flex items-center gap-4">
+                      <ShieldAlert className="h-5 w-5" />
+                      <span>Admin Tools</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarContent>
 
@@ -220,7 +241,7 @@ export default function Shell({ children }: { children: React.Node }) {
           <header className="hidden md:flex sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-20 items-center px-10 justify-between shrink-0">
             <div className="flex flex-col">
               <h2 className="text-2xl font-black tracking-tighter uppercase">
-                {pathname === '/pricing' ? 'Pricing' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard')}
+                {pathname === '/pricing' ? 'Pricing' : (pathname === '/admin/plans' ? 'Admin Suite' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard'))}
               </h2>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.3em] ml-0.5">The Squad Hub • {activeTeam?.name}</p>
             </div>

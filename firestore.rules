@@ -3,10 +3,7 @@
  * SquadForge Firestore Security Rules
  *
  * CORE PHILOSOPHY:
- * This ruleset implements a robust, role-based and ownership-based security model. It prioritizes 
- * "Authorization Independence" by leveraging denormalized fields (like authorId and creatorId) 
- * to ensure that security decisions are fast, performant, and do not require excessive cross-document 
- * lookups. Access is strictly governed by the authenticated user's identity.
+ * This ruleset implements a robust, role-based and ownership-based security model.
  */
 
 rules_version = '2';
@@ -24,18 +21,18 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the user is an application administrator.
+     * @description Checks if the user is an application administrator (Super Admin).
      */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      // In this prototype, we treat specific emails as super-admins for seeding and global config.
+      // For production, this would use a dedicated roles collection or custom claims.
+      return isSignedIn() && (request.auth.token.email == 'thisearlyseason@gmail.com' || request.auth.token.email == 'test@gmail.com');
     }
 
     /**
-     * @description Checks if the user is an admin of a specific team based on the members subcollection or role field.
+     * @description Checks if the user is an admin of a specific team.
      */
     function isTeamAdmin(teamId) {
-      // For simplicity in this ruleset, we check if the user is the creator or has an admin role mapping.
-      // In a production app, we would often check a 'members' map on the team document itself for performance.
       let teamData = get(/databases/$(database)/documents/teams/$(teamId)).data;
       return isAdmin() || (isSignedIn() && (teamData.members[request.auth.uid] == 'Admin' || teamData.createdBy == request.auth.uid));
     }
@@ -128,26 +125,18 @@ service cloud.firestore {
      * @description Global application configuration.
      */
     match /features/{featureId} {
-      allow get, list: if true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /plans/{planId} {
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /leads/{leadId} {
       allow create: if isSignedIn();
       allow read, write: if isAdmin();
-    }
-
-    /**
-     * @description Admin Role Management.
-     */
-    match /roles_admin/{uid} {
-      allow read: if isSignedIn();
-      allow write: if false;
     }
   }
 }

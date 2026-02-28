@@ -15,22 +15,25 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useTeam } from '@/components/providers/team-provider';
-import { ChevronLeft, Sparkles, CreditCard, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, Sparkles, CreditCard, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function NewTeamPage() {
   const router = useRouter();
-  const { createNewTeam, teams, isSuperAdmin } = useTeam();
+  const { createNewTeam, teams, isSuperAdmin, plans, activeTeam } = useTeam();
   const [teamName, setTeamName] = useState('');
   const [organizerPosition, setOrganizerPosition] = useState('Coach');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const hasExistingTeam = teams.length > 0;
+  // Determine limits based on the most capable plan owned
+  const currentPlan = plans.find(p => p.id === (activeTeam?.planId || 'starter_squad'));
+  const teamCount = teams.length;
+  const isAtLimit = !isSuperAdmin && currentPlan?.teamLimit !== null && teamCount >= (currentPlan?.teamLimit || 1);
 
   const handleCreate = async () => {
-    if (teamName.trim()) {
+    if (teamName.trim() && !isAtLimit) {
       setIsProcessing(true);
-      // Logic would go to payment here, for prototype we just simulate
       await createNewTeam(teamName, organizerPosition);
       router.push('/feed');
     }
@@ -43,38 +46,37 @@ export default function NewTeamPage() {
         Back
       </Button>
 
-      <Card className="border-none shadow-2xl rounded-[2rem] overflow-hidden">
+      {isAtLimit && (
+        <Alert variant="destructive" className="rounded-3xl border-2 shadow-lg bg-red-50">
+          <AlertCircle className="h-5 w-5" />
+          <AlertTitle className="font-black uppercase text-xs tracking-widest">Plan Limit Reached</AlertTitle>
+          <AlertDescription className="font-bold text-sm">
+            Your current plan allows for {currentPlan?.teamLimit} squad(s). Upgrade to a professional plan or club solution to scale your organization.
+          </AlertDescription>
+          <Button variant="outline" className="mt-4 w-full rounded-xl border-red-200 font-black text-[10px] uppercase tracking-widest bg-white" onClick={() => router.push('/pricing')}>Explore Plans</Button>
+        </Alert>
+      )}
+
+      <Card className={cn("border-none shadow-2xl rounded-[2rem] overflow-hidden", isAtLimit && "opacity-50 pointer-events-none")}>
         <div className="h-2 hero-gradient w-full" />
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-between">
             <CardTitle className="text-2xl font-black tracking-tight">Create Your Squad</CardTitle>
             <Sparkles className="h-5 w-5 text-amber-500" />
           </div>
-          <CardDescription className="font-medium">
-            {hasExistingTeam 
-              ? "Scale your organization with another professional hub." 
-              : "Establish a new hub for coordination and communication."}
-          </CardDescription>
+          <CardDescription className="font-medium">Establish a new hub for coordination and communication.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="teamName" className="text-xs font-bold uppercase tracking-widest ml-1">Squad Name</Label>
-            <Input 
-              id="teamName" 
-              placeholder="e.g. Westside Warriors" 
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              className="h-12 text-lg rounded-xl"
-            />
+            <Input id="teamName" placeholder="e.g. Westside Warriors" value={teamName} onChange={(e) => setTeamName(e.target.value)} className="h-12 text-lg rounded-xl" />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-widest ml-1">Your Role as Organizer</Label>
+            <Label className="text-xs font-bold uppercase tracking-widest ml-1">Your Role</Label>
             <Select value={organizerPosition} onValueChange={setOrganizerPosition}>
-              <SelectTrigger className="h-12 rounded-xl">
-                <SelectValue placeholder="Select your role..." />
-              </SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select your role..." /></SelectTrigger>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="Coach">Coach</SelectItem>
                 <SelectItem value="Team Lead">Team Lead</SelectItem>
                 <SelectItem value="Assistant Coach">Assistant Coach</SelectItem>
@@ -83,51 +85,20 @@ export default function NewTeamPage() {
               </SelectContent>
             </Select>
           </div>
-
-          {hasExistingTeam && !isSuperAdmin && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-amber-500 text-white p-2 rounded-lg shadow-md">
-                  <CreditCard className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-amber-900 leading-tight">Multi-Team Enrollment</p>
-                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Subscriber Discount Applied</p>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-amber-800">
-                  Add another team for only <span className="font-black text-amber-900">$8.50 USD a month</span> or <span className="font-black text-amber-900">$85 USD for the year</span>.
-                </p>
-                <ul className="text-[10px] font-bold text-amber-700/80 space-y-1">
-                  <li className="flex items-center gap-2">✓ Full Pro Access for the new squad</li>
-                  <li className="flex items-center gap-2">✓ Centralized dashboard management</li>
-                  <li className="flex items-center gap-2">✓ Priority tournament enrollment</li>
-                </ul>
-              </div>
-            </div>
-          )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button 
-            className="w-full h-14 text-lg font-black rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all" 
-            disabled={!teamName.trim() || isProcessing}
-            onClick={handleCreate}
-          >
-            {isProcessing ? "Processing Enrollment..." : hasExistingTeam ? "Pay & Create Squad" : "Create Squad"}
+          <Button className="w-full h-14 text-lg font-black rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all" disabled={!teamName.trim() || isProcessing || isAtLimit} onClick={handleCreate}>
+            {isProcessing ? "Processing Enrollment..." : "Create Squad"}
           </Button>
           <div className="flex items-center justify-center gap-2 text-muted-foreground opacity-60">
             <ShieldCheck className="h-3 w-3" />
-            <span className="text-[9px] font-bold uppercase tracking-widest">Secure Checkout Powered by SquadForge (USD)</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest">Secure Infrastructure (USD)</span>
           </div>
         </CardFooter>
       </Card>
       
       <div className="bg-muted/50 p-6 rounded-[2rem] text-center border-2 border-dashed">
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          By creating a team, you become the primary administrator. Free plans include Feed, Chat, and Schedule. Pro plans unlock Games, Library, and advanced Roster logic. All prices are in USD.
-        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed italic">By creating a team, you become the primary administrator. Multi-team discounts are available for professional squads.</p>
       </div>
     </div>
   );
