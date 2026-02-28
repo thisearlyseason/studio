@@ -28,8 +28,8 @@ service cloud.firestore {
     function isAdmin() {
       // Treating specific emails as super-admins for platform management and global config.
       return isSignedIn() && (
-        request.auth.token.email == 'thisearlyseason@gmail.com' || 
-        request.auth.token.email == 'test@gmail.com'
+        request.auth.token.email.lower() == 'thisearlyseason@gmail.com' || 
+        request.auth.token.email.lower() == 'test@gmail.com'
       );
     }
 
@@ -39,10 +39,10 @@ service cloud.firestore {
      */
     function isTeamAdmin(teamId) {
       let teamPath = /databases/$(database)/documents/teams/$(teamId);
-      let hasTeam = exists(teamPath);
-      let teamData = hasTeam ? get(teamPath).data : null;
+      let teamDoc = exists(teamPath) ? get(teamPath) : null;
+      let teamData = teamDoc != null ? teamDoc.data : null;
       
-      return isAdmin() || (isSignedIn() && hasTeam && (
+      return isAdmin() || (isSignedIn() && teamData != null && (
         (teamData.members != null && teamData.members[request.auth.uid] == 'Admin') || 
         teamData.createdBy == request.auth.uid || 
         teamData.creatorId == request.auth.uid ||

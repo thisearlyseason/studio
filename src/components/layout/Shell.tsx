@@ -254,7 +254,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     >
                       <Link href="/admin/plans" className="flex items-center gap-4">
                         <ShieldAlert className="h-5 w-5" />
-                        <span>Admin Tools</span>
+                        <span>Admin Suite</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -370,9 +370,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
-              <Link href="/pricing" className={cn("flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[50px]", pathname === '/pricing' ? "text-amber-500 bg-amber-500/5" : "text-muted-foreground")}>
-                <CreditCard className={cn("h-5 w-5", pathname === '/pricing' && "scale-110")} />
-                <span className="text-[8px] font-black tracking-tight uppercase truncate">Plans</span>
+              <Link href="/settings" className={cn("flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[50px]", pathname === '/settings' ? "text-primary bg-primary/5" : "text-muted-foreground")}>
+                <Settings className={cn("h-5 w-5", pathname === '/settings' && "scale-110")} />
+                <span className="text-[8px] font-black tracking-tight uppercase truncate">Profile</span>
               </Link>
             </div>
           </nav>
