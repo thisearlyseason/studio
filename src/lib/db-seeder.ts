@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -92,20 +91,20 @@ export async function seedSubscriptionData(db: Firestore) {
 }
 
 /**
- * Seeds realistic demo data for a team.
+ * Seeds realistic demo data for a team roster and sub-collections.
  */
 export async function seedDemoData(db: Firestore, teamId: string, planId: string, userId: string) {
   const batch = writeBatch(db);
   const now = new Date();
 
-  // 1. Setup Team Roster
-  const memberPositions = ['Coach', 'Assistant Coach', 'Captain', 'Defender', 'Midfielder', 'Forward', 'Goalie'];
+  // 1. Setup Team Roster (Staff and Players)
+  const memberPositions = ['Assistant Coach', 'Captain', 'Defender', 'Midfielder', 'Forward', 'Goalie'];
   const names = ['Jordan Smith', 'Alex Rivera', 'Sam Taylor', 'Casey Morgan', 'Riley Jones', 'Morgan Lee', 'Taylor Quinn', 'Chris Brooks', 'Jamie Day', 'Robin Hood'];
   
   names.forEach((name, i) => {
     const mid = `demo_mem_${teamId}_${i}`;
     batch.set(doc(db, 'teams', teamId, 'members', mid), {
-      id: mid, userId: `demo_user_${teamId}_${i}`, teamId, name, role: i === 0 ? 'Admin' : 'Member',
+      id: mid, userId: `demo_user_${teamId}_${i}`, teamId, name, role: 'Member',
       position: memberPositions[i % memberPositions.length], jersey: (i + 10).toString(),
       avatar: `https://picsum.photos/seed/demo_${i}/150/150`, joinedAt: now.toISOString(),
       phone: '(555) 000-0000', amountOwed: 0, feesPaid: true, isDemo: true
@@ -125,7 +124,7 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
     });
   });
 
-  // 3. Setup Games (for Pro/Club)
+  // 3. Setup Games
   if (planId !== 'starter_squad') {
     const games = [
       { opponent: 'Northern Tigers', date: new Date(now.getTime() - 86400000 * 3).toISOString(), myScore: 3, opponentScore: 1, result: 'Win', location: 'Home Field', notes: 'Great defensive pressure throughout.' },
@@ -142,11 +141,11 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
   batch.set(doc(db, 'teams', teamId, 'groupChats', cid), { id: cid, teamId, name: 'Squad Chat', memberIds: [userId], createdBy: userId, createdAt: now.toISOString(), lastMessage: 'Ready for the game!', isDemo: true });
   
   const messages = [
-    { author: 'Coach', authorId: 'demo_coach', content: 'Who is available for the extra training session on Tuesday?', createdAt: new Date(now.getTime() - 3600000).toISOString(), type: 'text' },
-    { author: 'Alex Rivera', authorId: 'demo_user_1', content: 'Count me in!', createdAt: new Date(now.getTime() - 3000000).toISOString(), type: 'text' }
+    { author: 'Jordan Smith', authorId: `demo_user_${teamId}_0`, content: 'Who is available for the extra training session on Tuesday?', createdAt: new Date(now.getTime() - 3600000).toISOString(), type: 'text' },
+    { author: 'Alex Rivera', authorId: `demo_user_${teamId}_1`, content: 'Count me in!', createdAt: new Date(now.getTime() - 3000000).toISOString(), type: 'text' }
   ];
   messages.forEach((m, i) => {
-    batch.set(doc(db, 'teams', teamId, 'groupChats', cid, 'messages', `msg_${i}`), { ...m, isDemo: true });
+    batch.set(doc(db, 'teams', teamId, 'groupChats', cid, 'messages', `msg_${teamId}_${i}`), { ...m, isDemo: true });
   });
 
   await batch.commit();
@@ -156,28 +155,15 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
  * Creates a fresh demo team for a guest user session.
  */
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
-  const teamId = `demo_guest_${userId.slice(-6)}_${Date.now()}`;
+  const timestamp = Date.now();
+  const teamId = `demo_guest_${userId.slice(-6)}_${timestamp}`;
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
-                   planId === 'squad_pro' ? 'Guest Pro Varsity' : 'Guest City Central United';
+                   planId === 'squad_pro' ? 'Guest Pro Varsity' : 'City Central Academy (Club)';
   
   const code = teamId.slice(-6).toUpperCase();
-  
   const batch = writeBatch(db);
   
-  // Create Team
-  batch.set(doc(db, 'teams', teamId), {
-    id: teamId, teamName, teamCode: code, createdBy: userId,
-    createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
-    isPro: planId !== 'starter_squad', planId, sport: 'Multi-Sport', isDemo: true
-  });
-  
-  // Create Membership
-  batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
-    userId, teamId, teamName, teamCode: code,
-    role: 'Admin', isPro: planId !== 'starter_squad', planId, isDemo: true, joinedAt: new Date().toISOString()
-  });
-
-  // Ensure User Doc exists so Settings page doesn't hang
+  // 1. Ensure User Doc exists so the app recognizes the guest as a manager
   batch.set(doc(db, 'users', userId), {
     id: userId,
     fullName: 'Guest Coordinator',
@@ -186,9 +172,64 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     createdAt: new Date().toISOString(),
     isDemo: true
   }, { merge: true });
+
+  // 2. Create Primary Team
+  batch.set(doc(db, 'teams', teamId), {
+    id: teamId, teamName, teamCode: code, createdBy: userId,
+    createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
+    isPro: planId !== 'starter_squad', planId, sport: 'Multi-Sport', isDemo: true,
+    description: planId === 'club_custom' ? 'The flagship developmental squad of the City Central Academy.' : 'A focused environment for competitive growth and coordination.'
+  });
+  
+  // 3. Create Membership for the guest user
+  batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
+    userId, teamId, teamName, teamCode: code,
+    role: 'Admin', isPro: planId !== 'starter_squad', planId, isDemo: true, 
+    joinedAt: new Date().toISOString(), createdBy: userId
+  });
+
+  // 4. Add guest user to the members subcollection as the primary Club Manager/Coach
+  batch.set(doc(db, 'teams', teamId, 'members', userId), {
+    id: userId, userId, teamId, name: 'Guest Coordinator', role: 'Admin',
+    position: planId === 'club_custom' ? 'Club Manager' : 'Coach', jersey: 'Staff',
+    avatar: `https://picsum.photos/seed/${userId}/150/150`, joinedAt: new Date().toISOString(),
+    phone: '(555) 000-1234', amountOwed: 0, feesPaid: true, isDemo: true
+  });
+
+  // 5. If Club, seed a second team to demonstrate organization hub
+  if (planId === 'club_custom') {
+    const secondaryTeamId = `demo_guest_sub_${userId.slice(-6)}_${timestamp}`;
+    const secondaryTeamName = 'Guest U14 Development';
+    const secondaryCode = secondaryTeamId.slice(-6).toUpperCase();
+
+    batch.set(doc(db, 'teams', secondaryTeamId), {
+      id: secondaryTeamId, teamName: secondaryTeamName, teamCode: secondaryCode, createdBy: userId,
+      createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
+      isPro: true, planId: 'club_custom', sport: 'Multi-Sport', isDemo: true,
+      description: 'The secondary training squad for academy prospects.'
+    });
+
+    batch.set(doc(db, 'users', userId, 'teamMemberships', secondaryTeamId), {
+      userId, teamId: secondaryTeamId, teamName: secondaryTeamName, teamCode: secondaryCode,
+      role: 'Admin', isPro: true, planId: 'club_custom', isDemo: true, 
+      joinedAt: new Date().toISOString(), createdBy: userId
+    });
+
+    batch.set(doc(db, 'teams', secondaryTeamId, 'members', userId), {
+      id: userId, userId, teamId: secondaryTeamId, name: 'Guest Coordinator', role: 'Admin',
+      position: 'Club Manager', jersey: 'Staff', avatar: `https://picsum.photos/seed/${userId}/150/150`,
+      joinedAt: new Date().toISOString(), phone: '(555) 000-1234', amountOwed: 0, feesPaid: true, isDemo: true
+    });
+  }
   
   await batch.commit();
+  
+  // 6. Seed subcollections asynchronously for both teams
   await seedDemoData(db, teamId, planId, userId);
+  if (planId === 'club_custom') {
+    await seedDemoData(db, `demo_guest_sub_${userId.slice(-6)}_${timestamp}`, 'club_custom', userId);
+  }
+
   return teamId;
 }
 
@@ -212,6 +253,14 @@ export async function resetDemoEnvironment(db: Firestore, teamId: string, planId
       await deleteDoc(d.ref);
     }
   }
+
+  // Restore the guest user member doc after wipe to ensure they don't lose admin status
+  await setDoc(doc(db, 'teams', teamId, 'members', userId), {
+    id: userId, userId, teamId, name: 'Guest Coordinator', role: 'Admin',
+    position: planId === 'club_custom' ? 'Club Manager' : 'Coach', jersey: 'Staff',
+    avatar: `https://picsum.photos/seed/${userId}/150/150`, joinedAt: new Date().toISOString(),
+    phone: '(555) 000-1234', amountOwed: 0, feesPaid: true, isDemo: true
+  });
 
   await seedDemoData(db, teamId, planId, userId);
 }
@@ -240,7 +289,14 @@ export async function launchDemoEnvironments(db: Firestore, superAdminId: string
       });
       batch.set(doc(db, 'users', superAdminId, 'teamMemberships', dt.id), {
         userId: superAdminId, teamId: dt.id, teamName: dt.name, teamCode: code,
-        role: 'Admin', isPro: dt.planId !== 'starter_squad', planId: dt.planId, isDemo: true, joinedAt: new Date().toISOString()
+        role: 'Admin', isPro: dt.planId !== 'starter_squad', planId: dt.planId, isDemo: true, joinedAt: new Date().toISOString(),
+        createdBy: superAdminId
+      });
+      // Add super admin to members subcollection
+      batch.set(doc(db, 'teams', dt.id, 'members', superAdminId), {
+        id: superAdminId, userId: superAdminId, teamId: dt.id, name: 'Platform Admin', role: 'Admin',
+        position: 'Platform Admin', jersey: 'HQ', avatar: `https://picsum.photos/seed/${superAdminId}/150/150`,
+        joinedAt: new Date().toISOString(), phone: '(555) 000-0000', amountOwed: 0, feesPaid: true, isDemo: true
       });
       await batch.commit();
       await seedDemoData(db, dt.id, dt.planId, superAdminId);
