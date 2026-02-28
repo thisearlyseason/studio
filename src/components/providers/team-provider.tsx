@@ -19,6 +19,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Purchases } from '@revenuecat/purchases-js';
+import { seedSubscriptionData } from '@/lib/db-seeder';
 
 const REVENUECAT_PUBLIC_API_KEY = 'test_zvlronFHqIFQuWTkgaeWrdyYnkZ';
 const PRO_ENTITLEMENT_ID = 'The Squad Pro';
@@ -78,7 +79,6 @@ export type Member = {
   feesPaid?: boolean;
   amountOwed?: number;
   fees?: any[];
-  // Extended Profile Fields
   birthdate?: string;
   parentName?: string;
   parentEmail?: string;
@@ -170,6 +170,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isRCInitialized, setIsRCInitialized] = useState(false);
 
   const isSuperAdmin = useMemo(() => firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false, [firebaseUser?.email]);
+
+  // Seed default data if super admin is logged in
+  useEffect(() => {
+    if (isSuperAdmin && db) {
+      seedSubscriptionData(db);
+    }
+  }, [isSuperAdmin, db]);
 
   useEffect(() => {
     if (firebaseUser && !isRCInitialized) {
