@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -315,20 +314,31 @@ export default function EventsPage() {
     setMounted(true);
   }, []);
 
-  const tournamentDays = useMemo(() => {
-    if (!events) return [];
-    return events.filter(e => e.isTournament && e.endDate).flatMap(e => {
-      const days = [];
+  const calendarModifiers = useMemo(() => {
+    if (!events) return {};
+    
+    const eventDays: Date[] = [];
+    const tournamentDays: Date[] = [];
+
+    events.forEach(e => {
       try {
-        let curr = startOfDay(new Date(e.date));
-        const last = endOfDay(new Date(e.endDate!));
-        while (curr <= last) {
-          days.push(new Date(curr));
-          curr.setDate(curr.getDate() + 1);
+        if (e.isTournament && e.endDate) {
+          let curr = startOfDay(new Date(e.date));
+          const last = endOfDay(new Date(e.endDate!));
+          while (curr <= last) {
+            tournamentDays.push(new Date(curr));
+            curr.setDate(curr.getDate() + 1);
+          }
+        } else {
+          eventDays.push(startOfDay(new Date(e.date)));
         }
       } catch (err) {}
-      return days;
     });
+
+    return {
+      hasEvent: eventDays,
+      hasTournament: tournamentDays
+    };
   }, [events]);
 
   const selectedDayEvents = useMemo(() => {
@@ -556,11 +566,35 @@ export default function EventsPage() {
         </TabsContent>
         <TabsContent value="calendar" className="mt-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <Card className="lg:col-span-2 border-none shadow-2xl rounded-[3rem] overflow-hidden"><CardContent className="p-8"><Calendar mode="single" selected={date} onSelect={setDate} className="rounded-md mx-auto w-full" modifiers={{ tournament: tournamentDays }} modifiersClassNames={{ tournament: "bg-primary/10 text-primary font-black border-2 border-primary/20" }}/></CardContent></Card>
+            <Card className="lg:col-span-2 border-none shadow-2xl rounded-[3rem] overflow-hidden">
+              <CardContent className="p-8">
+                <Calendar 
+                  mode="single" 
+                  selected={date} 
+                  onSelect={setDate} 
+                  className="rounded-md mx-auto w-full" 
+                  modifiers={calendarModifiers}
+                  modifiersClassNames={{ 
+                    hasEvent: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full",
+                    hasTournament: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-3 after:h-1 after:bg-black after:rounded-full"
+                  }}
+                />
+                <div className="flex justify-center gap-6 mt-6 px-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Match Day</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-1 bg-black rounded-full" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tournament Series</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <div className="space-y-6">
               <h3 className="font-black text-lg px-2">{date ? format(date, 'MMMM d') : 'Select a date'}</h3>
               <div className="space-y-4">
-                {selectedDayEvents.map(event => (
+                {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
                   <EventDetailDialog 
                     key={event.id} 
                     event={event} 
@@ -579,7 +613,12 @@ export default function EventsPage() {
                       <p className="text-[10px] font-black text-muted-foreground uppercase">{event.startTime} • {event.location}</p>
                     </Card>
                   </EventDetailDialog>
-                ))}
+                )) : (
+                  <div className="p-10 text-center border-2 border-dashed rounded-3xl opacity-40">
+                    <CalendarDays className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Open Date</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
