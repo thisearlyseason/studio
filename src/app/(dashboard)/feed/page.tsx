@@ -330,57 +330,59 @@ export default function FeedPage() {
                           <BarChart2 className="h-5 w-5" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0">
-                        <div className="grid grid-cols-1 lg:grid-cols-2">
-                          <div className="p-8 bg-primary/5 border-r space-y-6">
-                            <DialogHeader>
-                              <DialogTitle className="text-2xl font-black tracking-tight">Launch Squad Poll</DialogTitle>
-                              <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Collect squad consensus</DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 pt-4">
-                              <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Question</Label>
-                                <Input placeholder="e.g. Best time for extra training?" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="rounded-xl h-12 bg-background font-bold" />
-                              </div>
-                              <div className="p-6 bg-background rounded-2xl border-2 border-dashed border-primary/10">
-                                <p className="text-xs text-muted-foreground font-medium leading-relaxed italic">
-                                  Use polls to finalize event locations, voting on jerseys, or deciding team meals. Add images to options for visual voting.
-                                </p>
+                      <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col">
+                        <div className="overflow-y-auto flex-1">
+                          <div className="grid grid-cols-1 lg:grid-cols-2">
+                            <div className="p-8 bg-primary/5 border-r space-y-6">
+                              <DialogHeader>
+                                <DialogTitle className="text-2xl font-black tracking-tight">Launch Squad Poll</DialogTitle>
+                                <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Collect squad consensus</DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 pt-4">
+                                <div className="space-y-2">
+                                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Question</Label>
+                                  <Input placeholder="e.g. Best time for extra training?" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="rounded-xl h-12 bg-background font-bold" />
+                                </div>
+                                <div className="p-6 bg-background rounded-2xl border-2 border-dashed border-primary/10">
+                                  <p className="text-xs text-muted-foreground font-medium leading-relaxed italic">
+                                    Use polls to finalize event locations, voting on jerseys, or deciding team meals. Add images to options for visual voting.
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="p-8 space-y-6 flex flex-col justify-between">
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Polling Options</Label>
-                                <Button variant="ghost" size="sm" onClick={handleAddPollOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
-                              </div>
-                              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
-                                {pollOptions.map((opt, i) => (
-                                  <div key={i} className="flex gap-3 group animate-in fade-in slide-in-from-left-2">
-                                    <div className="flex-1 space-y-2">
-                                      <div className="flex gap-2">
-                                        <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={e => { const newOpts = [...pollOptions]; newOpts[i].text = e.target.value; setPollOptions(newOpts); }} className="rounded-xl h-11 bg-muted/30 focus:bg-background transition-colors" />
-                                        <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20 text-muted-foreground hover:bg-primary/10 hover:text-primary" onClick={() => handleOptionImageClick(i)}>
-                                          <ImageIcon className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemovePollOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
-                                      </div>
-                                      {opt.image && (
-                                        <div className="relative inline-block ml-1">
-                                          <img src={opt.image} className="h-12 w-12 rounded-lg object-cover border-2 border-primary/20" alt="Option preview" />
-                                          <Button variant="destructive" size="icon" className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full" onClick={() => { const newOpts = [...pollOptions]; newOpts[i].image = undefined; setPollOptions(newOpts); }}><X className="h-2 w-2" /></Button>
+                            <div className="p-8 space-y-6 flex flex-col justify-between">
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Polling Options</Label>
+                                  <Button variant="ghost" size="sm" onClick={handleAddPollOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                                </div>
+                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                  <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
+                                  {pollOptions.map((opt, i) => (
+                                    <div key={i} className="flex gap-3 group animate-in fade-in slide-in-from-left-2">
+                                      <div className="flex-1 space-y-2">
+                                        <div className="flex gap-2">
+                                          <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={e => { const newOpts = [...pollOptions]; newOpts[i].text = e.target.value; setPollOptions(newOpts); }} className="rounded-xl h-11 bg-muted/30 focus:bg-background transition-colors" />
+                                          <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20 text-muted-foreground hover:bg-primary/10 hover:text-primary" onClick={() => handleOptionImageClick(i)}>
+                                            <ImageIcon className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemovePollOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
                                         </div>
-                                      )}
+                                        {opt.image && (
+                                          <div className="relative inline-block ml-1">
+                                            <img src={opt.image} className="h-12 w-12 rounded-lg object-cover border-2 border-primary/20" alt="Option preview" />
+                                            <Button variant="destructive" size="icon" className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full" onClick={() => { const newOpts = [...pollOptions]; newOpts[i].image = undefined; setPollOptions(newOpts); }}><X className="h-2 w-2" /></Button>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  ))}
+                                </div>
                               </div>
+                              <DialogFooter>
+                                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreatePoll}>Launch Poll to Feed</Button>
+                              </DialogFooter>
                             </div>
-                            <DialogFooter>
-                              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreatePoll}>Launch Poll to Feed</Button>
-                            </DialogFooter>
                           </div>
                         </div>
                       </DialogContent>
@@ -598,8 +600,8 @@ export default function FeedPage() {
             {events.slice(0, 3).length > 0 ? events.slice(0, 3).map((event) => (
               <div key={event.id} className="flex gap-4 group cursor-pointer" onClick={() => router.push('/events')}>
                 <div className="h-12 w-12 rounded-2xl bg-muted flex flex-col items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
-                  <span className="text-[8px] font-black uppercase text-muted-foreground group-hover:text-primary leading-none mb-0.5">{format(event.date, 'MMM')}</span>
-                  <span className="text-lg font-black tracking-tighter leading-none">{format(event.date, 'dd')}</span>
+                  <span className="text-[8px] font-black uppercase text-muted-foreground group-hover:text-primary leading-none mb-0.5">{format(new Date(event.date), 'MMM')}</span>
+                  <span className="text-lg font-black tracking-tighter leading-none">{format(new Date(event.date), 'dd')}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black truncate leading-tight group-hover:text-primary transition-colors">{event.title}</p>
