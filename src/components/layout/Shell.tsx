@@ -303,6 +303,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </Sidebar>
 
         <div className="flex flex-col flex-1 min-w-0 h-screen overflow-y-auto">
+          {/* Desktop Header */}
           <header className="hidden md:flex sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-20 items-center px-10 justify-between shrink-0">
             <div className="flex items-center gap-4">
               <div className="flex flex-col">
@@ -329,6 +330,27 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   </Button>
                 </AlertsHistoryDialog>
               </div>
+            </div>
+          </header>
+
+          {/* Mobile Header */}
+          <header className="flex md:hidden sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 items-center px-4 justify-between shrink-0">
+            <Link href="/feed" className="flex items-center gap-2">
+              <BrandLogo variant="light-background" className="h-8 w-32 justify-start" priority />
+            </Link>
+            <div className="flex items-center gap-3">
+              <AlertsHistoryDialog>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative">
+                  <Bell className="h-5 w-5" />
+                  {hasUnreadAlerts && <span className="absolute top-2 right-2 h-1.5 w-1.5 bg-red-500 rounded-full border border-background" />}
+                </Button>
+              </AlertsHistoryDialog>
+              <Link href="/settings">
+                <Avatar className="h-8 w-8 border shadow-sm">
+                  <AvatarImage src={user?.avatar} />
+                  <AvatarFallback className="text-[10px] font-black">{user?.name?.[0]}</AvatarFallback>
+                </Avatar>
+              </Link>
             </div>
           </header>
 
