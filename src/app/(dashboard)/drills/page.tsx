@@ -201,7 +201,7 @@ export default function DrillsPage() {
                 Add Drill
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[95vh] flex flex-col">
+            <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
               <div className="overflow-y-auto flex-1 custom-scrollbar">
                 <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
                   <div className="p-8 bg-muted/30 lg:border-r space-y-6">
@@ -254,7 +254,7 @@ export default function DrillsPage() {
                         placeholder="Explain step-by-step how the squad should study and execute this drill..." 
                         value={newDescription} 
                         onChange={e => setNewDescription(e.target.value)} 
-                        className="rounded-[2rem] min-h-[350px] p-6 text-base leading-relaxed bg-muted/10 border-2" 
+                        className="rounded-[2rem] min-h-[300px] p-6 text-base leading-relaxed bg-muted/10 border-2" 
                       />
                     </div>
                     <DialogFooter>
@@ -328,7 +328,7 @@ export default function DrillsPage() {
 
       {/* Drill Detail View - Desktop Optimized */}
       <Dialog open={!!selectedDrill} onOpenChange={(open) => !open && setSelectedDrill(null)}>
-        <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 overflow-hidden flex flex-col lg:flex-row max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 overflow-hidden flex flex-col lg:flex-row max-h-[90vh] border-none shadow-2xl">
           {selectedDrill && (
             <>
               <div className="flex-1 bg-black aspect-video lg:aspect-auto lg:h-full relative">
@@ -362,7 +362,8 @@ export default function DrillsPage() {
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px]">Training Resource</Badge>
-                        <h2 className="text-3xl font-black tracking-tight leading-tight">{selectedDrill.title}</h2>
+                        <DialogTitle className="text-3xl font-black tracking-tight leading-tight">{selectedDrill.title}</DialogTitle>
+                        <DialogDescription className="sr-only">Comprehensive instructions and tactical breakdown for this squad exercise.</DialogDescription>
                       </div>
                       <div className="hidden lg:block">
                         <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setSelectedDrill(null)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>

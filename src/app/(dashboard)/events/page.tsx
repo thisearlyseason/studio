@@ -113,23 +113,23 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-4xl p-0 overflow-hidden rounded-[2.5rem] max-h-[95vh] flex flex-col">
+      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden rounded-[2.5rem] max-h-[90vh] flex flex-col">
         <div className="overflow-y-auto flex-1 custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-5 h-full min-h-[500px]">
-            <div className="lg:col-span-2 bg-muted/30 p-8 border-r flex flex-col justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-12 h-full min-h-[450px]">
+            <div className="lg:col-span-4 bg-muted/30 p-8 border-r flex flex-col justify-between">
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Badge variant="secondary" className={cn("border-none font-black uppercase tracking-widest text-[10px] px-3 h-6", event.isTournament ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary")}>
                     {event.isTournament ? "Tournament Series" : "Event Details"}
                   </Badge>
-                  <h2 className="text-3xl font-black tracking-tighter leading-tight">{event.title}</h2>
-                  <p className="font-bold text-primary text-lg">
+                  <DialogTitle className="text-3xl font-black tracking-tighter leading-tight">{event.title}</DialogTitle>
+                  <DialogDescription className="font-bold text-primary text-lg">
                     {event.isTournament && event.endDate ? (
                       `${format(new Date(event.date), 'MMM d')} - ${format(new Date(event.endDate), 'MMM d, yyyy')}`
                     ) : (
                       new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
                     )}
-                  </p>
+                  </DialogDescription>
                 </div>
 
                 <div className="space-y-4">
@@ -197,7 +197,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
               </div>
             </div>
 
-            <div className="lg:col-span-3 flex flex-col bg-background">
+            <div className="lg:col-span-8 flex flex-col bg-background">
               <Tabs defaultValue="attendance" className="flex-1 flex flex-col">
                 <div className="px-8 pt-8 pb-4 border-b flex items-center justify-between">
                   <TabsList className="bg-muted/50 rounded-xl p-1 h-11">
@@ -296,7 +296,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
 export default function EventsPage() {
   const { activeTeam, events, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, promoteToRoster, user, isSuperAdmin } = useTeam();
   
-  // HOOKS MUST BE AT TOP LEVEL
+  // TOURNAMENT CALCULATIONS
   const tournamentDays = useMemo(() => {
     return events.filter(e => e.isTournament && e.endDate).flatMap(e => {
       const days = [];
@@ -461,7 +461,6 @@ export default function EventsPage() {
   };
 
   const addScheduleMatch = () => {
-    // Default match date to the tournament start date or today
     const defaultDate = newDate || new Date().toISOString().split('T')[0];
     setTournamentSchedule([...tournamentSchedule, { date: defaultDate, time: '', label: 'Match' }]);
   };
@@ -483,9 +482,9 @@ export default function EventsPage() {
                   <Trophy className="h-4 w-4 mr-2" />New Tournament
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[95vh] flex flex-col">
+              <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[95vh] flex flex-col border-none shadow-2xl">
                 <div className="overflow-y-auto flex-1 custom-scrollbar p-0">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 h-full min-h-[600px]">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 h-full min-h-[500px]">
                     <div className={cn("p-8 lg:border-r space-y-6", isTournamentMode ? "bg-amber-50/50" : "bg-primary/5")}>
                       <DialogHeader>
                         <DialogTitle className="text-2xl font-black tracking-tight">

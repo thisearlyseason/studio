@@ -330,7 +330,7 @@ export default function FeedPage() {
                           <BarChart2 className="h-5 w-5" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col">
+                      <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
                         <div className="overflow-y-auto flex-1 custom-scrollbar">
                           <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
                             <div className="p-8 bg-primary/5 lg:border-r space-y-6">
@@ -641,7 +641,7 @@ export default function FeedPage() {
       </aside>
 
       <Dialog open={!!viewVotersFor} onOpenChange={() => setViewVotersFor(null)}>
-        <DialogContent className="sm:max-w-md rounded-[2rem] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-md rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
           <div className="bg-primary/5 p-6 border-b flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-primary/10 p-2 rounded-xl text-primary"><Users className="h-5 w-5" /></div>
@@ -690,6 +690,10 @@ export default function FeedPage() {
       {/* Option Image Lightbox */}
       <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+          <div className="sr-only">
+            <DialogTitle>Poll Option Image Preview</DialogTitle>
+            <DialogDescription>Viewing a full-sized version of the selected poll option media.</DialogDescription>
+          </div>
           {lightboxImage && (
             <div className="relative group">
               <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain animate-in zoom-in-95 duration-300" alt="Full size" />

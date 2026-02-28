@@ -364,67 +364,69 @@ export default function ChatRoomPage() {
                 <BarChart2 className="h-5 w-5" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-3xl rounded-[2.5rem] overflow-hidden p-0">
-              <div className="grid grid-cols-1 lg:grid-cols-2">
-                <div className="p-8 bg-primary/5 border-r space-y-6">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl font-black">Quick Squad Poll</DialogTitle>
-                    <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Real-time coordination</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Topic</Label>
-                      <div className="flex gap-2">
-                        <Input placeholder="e.g. Venue for tournament?" value={pollPrompt} onChange={(e) => setPollPrompt(e.target.value)} className="h-12 rounded-xl bg-background" />
-                        <Button variant="secondary" onClick={handleSuggestPoll} disabled={isGenerating || !pollPrompt.trim()} className="h-12 w-12 rounded-xl border border-primary/10">
-                          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-primary" />}
-                        </Button>
-                      </div>
-                    </div>
-                    {suggestedPoll && (
-                      <div className="bg-background p-6 rounded-2xl border-2 border-dashed border-primary/20 animate-in fade-in slide-in-from-top-2">
-                        <div className="flex justify-between items-center mb-3">
-                          <Label className="text-[10px] font-black text-primary uppercase tracking-widest">AI Generated Insight</Label>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setSuggestedPoll(null)}><X className="h-3 w-3" /></Button>
-                        </div>
-                        <p className="font-bold text-sm leading-tight mb-4">{suggestedPoll.question}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {suggestedPoll.options.map((opt, i) => (<Badge key={i} variant="outline" className="bg-white px-2 py-1 rounded-lg border text-[10px] font-bold uppercase">{opt}</Badge>))}
+            <DialogContent className="sm:max-w-3xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
+              <div className="overflow-y-auto flex-1 custom-scrollbar">
+                <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+                  <div className="p-8 bg-primary/5 border-r space-y-6">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-black">Quick Squad Poll</DialogTitle>
+                      <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Real-time coordination</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Topic</Label>
+                        <div className="flex gap-2">
+                          <Input placeholder="e.g. Venue for tournament?" value={pollPrompt} onChange={(e) => setPollPrompt(e.target.value)} className="h-12 rounded-xl bg-background" />
+                          <Button variant="secondary" onClick={handleSuggestPoll} disabled={isGenerating || !pollPrompt.trim()} className="h-12 w-12 rounded-xl border border-primary/10">
+                            {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-primary" />}
+                          </Button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div className="p-8 space-y-6 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Poll Options</Label>
-                      <Button variant="ghost" size="sm" onClick={handleAddOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
-                    </div>
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                      <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
-                      {pollOptions.map((opt, i) => (
-                        <div key={i} className="flex flex-col gap-2 group animate-in fade-in slide-in-from-left-2">
-                          <div className="flex gap-2">
-                            <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={(e) => handleUpdateOption(i, e.target.value)} className="h-11 rounded-xl bg-muted/30 focus:bg-background transition-all" />
-                            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20 text-muted-foreground" onClick={() => handleOptionImageClick(i)}>
-                              <ImageIcon className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-all" onClick={() => handleRemoveOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
+                      {suggestedPoll && (
+                        <div className="bg-background p-6 rounded-2xl border-2 border-dashed border-primary/20 animate-in fade-in slide-in-from-top-2">
+                          <div className="flex justify-between items-center mb-3">
+                            <Label className="text-[10px] font-black text-primary uppercase tracking-widest">AI Generated Insight</Label>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setSuggestedPoll(null)}><X className="h-3 w-3" /></Button>
                           </div>
-                          {opt.image && (
-                            <div className="relative inline-block ml-1">
-                              <img src={opt.image} className="h-10 w-10 rounded-lg object-cover border border-primary/20" alt="Option preview" />
-                              <Button variant="destructive" size="icon" className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full" onClick={() => { const newOpts = [...pollOptions]; newOpts[i].image = undefined; setPollOptions(newOpts); }}><X className="h-2 w-2" /></Button>
-                            </div>
-                          )}
+                          <p className="font-bold text-sm leading-tight mb-4">{suggestedPoll.question}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {suggestedPoll.options.map((opt, i) => (<Badge key={i} variant="outline" className="bg-white px-2 py-1 rounded-lg border text-[10px] font-bold uppercase">{opt}</Badge>))}
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreatePoll}>Launch Discussion Poll</Button>
-                  </DialogFooter>
+                  <div className="p-8 space-y-6 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Poll Options</Label>
+                        <Button variant="ghost" size="sm" onClick={handleAddOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                      </div>
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
+                        {pollOptions.map((opt, i) => (
+                          <div key={i} className="flex flex-col gap-2 group animate-in fade-in slide-in-from-left-2">
+                            <div className="flex gap-2">
+                              <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={(e) => handleUpdateOption(i, e.target.value)} className="h-11 rounded-xl bg-muted/30 focus:bg-background transition-all" />
+                              <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20 text-muted-foreground" onClick={() => handleOptionImageClick(i)}>
+                                <ImageIcon className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-all" onClick={() => handleRemoveOption(i)} disabled={pollOptions.length <= 2}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                            {opt.image && (
+                              <div className="relative inline-block ml-1">
+                                <img src={opt.image} className="h-10 w-10 rounded-lg object-cover border border-primary/20" alt="Option preview" />
+                                <Button variant="destructive" size="icon" className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full" onClick={() => { const newOpts = [...pollOptions]; newOpts[i].image = undefined; setPollOptions(newOpts); }}><X className="h-2 w-2" /></Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all mt-6" onClick={handleCreatePoll}>Launch Discussion Poll</Button>
+                    </DialogFooter>
+                  </div>
                 </div>
               </div>
             </DialogContent>
@@ -435,7 +437,7 @@ export default function ChatRoomPage() {
       </div>
 
       <Dialog open={!!viewVotersFor} onOpenChange={() => setViewVotersFor(null)}>
-        <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
           <div className="bg-primary/5 p-6 border-b flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-primary/10 p-2 rounded-xl text-primary"><Users className="h-5 w-5" /></div>
@@ -480,6 +482,10 @@ export default function ChatRoomPage() {
       {/* Option Image Lightbox */}
       <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+          <div className="sr-only">
+            <DialogTitle>Chat Poll Image Preview</DialogTitle>
+            <DialogDescription>Full-sized version of the chat poll option media.</DialogDescription>
+          </div>
           {lightboxImage && (
             <div className="relative group">
               <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain animate-in zoom-in-95 duration-300" alt="Full size" />
