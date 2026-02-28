@@ -247,9 +247,6 @@ interface TeamContextType {
   toggleFeesPaid: (memberId: string) => void;
   chats: Chat[];
   createChat: (name: string, memberIds: string[]) => Promise<string>;
-  messages: Message[];
-  activeChatId: string | null;
-  setActiveChatId: (id: string | null) => void;
   addMessage: (chatId: string, author: string, content: string, type: 'text' | 'poll' | 'image', imageUrl?: string, poll?: any) => void;
   votePoll: (chatId: string, messageId: string, optionIndex: number) => Promise<void>;
   posts: Post[];
@@ -299,9 +296,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const db = useFirestore();
   
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   
   const [isProEntitlementActive, setIsProEntitlementActive] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
@@ -442,14 +437,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     id: f.id, teamId: f.teamId, name: f.fileName, type: f.fileType, size: f.fileSize, uploadedBy: f.uploaderName || 'Unknown', uploaderId: f.uploadedBy || f.uploaderId || '', date: new Date(f.createdAt), url: f.fileUrl
   })), [filesData]);
 
-  useEffect(() => {
-    if (!activeTeam || !activeChatId || !db) { setMessages([]); return; }
-    const q = query(collection(db, 'teams', activeTeam.id, 'groupChats', activeChatId, 'messages'), orderBy('createdAt', 'asc'), limit(100));
-    return onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)));
-    });
-  }, [activeTeam?.id, activeChatId, db]);
-
   const contextValue = useMemo(() => ({
     user: userProfile, 
     updateUser: (u: any) => updateUser(u, firebaseUser, db, userProfile, setUserProfile),
@@ -462,7 +449,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toggleFeesPaid: (id: string) => { const m = members.find(x => x.id === id); if (m && activeTeam) updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'members', id), { feesPaid: !m.feesPaid }); },
     chats, 
     createChat: (n: string, ids: string[]) => createChat(n, ids, activeTeam, firebaseUser, db),
-    messages, activeChatId, setActiveChatId, 
     addMessage: (id: string, a: string, c: string, t: any, i?: string, p?: any) => addMessage(id, a, c, t, i, p, activeTeam, firebaseUser, db),
     votePoll: (cid: string, mid: string, idx: number) => votePoll(cid, mid, idx, activeTeam, firebaseUser, db),
     posts, 
@@ -500,7 +486,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     purchasePro: async () => setIsPaywallOpen(true),
     manageSubscription: async () => { try { await Purchases.getSharedInstance().openCustomerCenter(); } catch { toast({ title: "Error", description: "Failed to open settings.", variant: "destructive" }); } },
     isPaywallOpen, setIsPaywallOpen
-  }), [userProfile, activeTeam, teams, members, chats, messages, activeChatId, posts, events, games, files, drills, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser]);
+  }), [userProfile, activeTeam, teams, members, chats, posts, events, games, files, drills, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

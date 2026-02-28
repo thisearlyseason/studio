@@ -35,15 +35,20 @@ import { Progress } from '@/components/ui/progress';
 import { suggestPollQuestionAndOptions } from '@/ai/flows/poll-question-and-option-suggestion';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { useTeam } from '@/components/providers/team-provider';
+import { useTeam, Message } from '@/components/providers/team-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { useFirestore } from '@/firebase';
+import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 
 export default function ChatRoomPage() {
   const { chatId } = useParams();
   const router = useRouter();
-  const { chats, messages, addMessage, votePoll, setActiveChatId, user, formatTime, members } = useTeam();
+  const { chats, addMessage, votePoll, user, formatTime, members } = useTeam();
+  const db = useFirestore();
+  
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
   const [pollPrompt, setPollPrompt] = useState('');
@@ -62,9 +67,20 @@ export default function ChatRoomPage() {
   const currentChat = useMemo(() => chats.find(c => c.id === chatId), [chats, chatId]);
 
   useEffect(() => {
-    setActiveChatId(chatId as string);
-    return () => setActiveChatId(null);
-  }, [chatId, setActiveChatId]);
+    if (!currentChat || !db || !chatId) return;
+    
+    const q = query(
+      collection(db, 'teams', currentChat.teamId, 'groupChats', chatId as string, 'messages'),
+      orderBy('createdAt', 'asc'),
+      limit(100)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)));
+    });
+    
+    return () => unsubscribe();
+  }, [currentChat?.teamId, chatId, db]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -198,7 +214,12 @@ export default function ChatRoomPage() {
     await votePoll(currentChat.id, messageId, optionIdx);
   };
 
-  if (!currentChat) return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading discussion...</div>;
+  if (!currentChat) return (
+    <div className="flex flex-col items-center justify-center h-full gap-4">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Opening discussion...</p>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-130px)] -mt-4 -mx-4">
@@ -450,7 +471,7 @@ export default function ChatRoomPage() {
           </ScrollArea>
           <div className="p-4 bg-muted/10 border-t flex justify-center">
             <DialogClose asChild>
-              <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest h-9 px-8">Close Inbox</Button>
+              <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest h-9 px-8">Close Chat</Button>
             </DialogClose>
           </div>
         </DialogContent>
