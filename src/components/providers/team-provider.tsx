@@ -144,21 +144,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (firebaseUser && !isRCInitialized) {
-      if (!REVENUECAT_PUBLIC_API_KEY || REVENUECAT_PUBLIC_API_KEY.includes('placeholder') || REVENUECAT_PUBLIC_API_KEY.length < 10) {
-        setIsRCInitialized(true);
-        return;
-      }
       try {
         Purchases.configure(REVENUECAT_PUBLIC_API_KEY, firebaseUser.uid);
         const purchases = Purchases.getSharedInstance();
         purchases.getCustomerInfo().then(info => {
           setIsProEntitlementActive(!!info.entitlements.active[PRO_ENTITLEMENT_ID]);
         }).catch(() => {});
-        const unsubscribe = purchases.addCustomerInfoUpdateListener((info) => {
-          setIsProEntitlementActive(!!info.entitlements.active[PRO_ENTITLEMENT_ID]);
-        });
         setIsRCInitialized(true);
-        return () => { if (unsubscribe) unsubscribe(); };
       } catch (e) { setIsRCInitialized(true); }
     }
   }, [firebaseUser, isRCInitialized]);
