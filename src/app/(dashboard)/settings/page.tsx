@@ -25,7 +25,8 @@ import {
   HelpCircle,
   Loader2,
   CreditCard,
-  ExternalLink
+  ExternalLink,
+  Building
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -42,7 +43,7 @@ import { signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
-  const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro } = useTeam();
+  const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro, isClubManager } = useTeam();
   const auth = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
@@ -282,6 +283,24 @@ export default function SettingsPage() {
         <Card className="border-none shadow-sm rounded-3xl overflow-hidden ring-1 ring-black/5">
           <CardContent className="p-0">
             <div className="divide-y divide-muted/50">
+              {isClubManager && (
+                <button 
+                  onClick={() => navigateTo('/club')}
+                  className="w-full p-4 flex items-center justify-between hover:bg-black/5 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-black/10 p-2.5 rounded-2xl text-black">
+                      <Building className="h-5 w-5" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold">Club Hub</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Organization & Coach Management</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </button>
+              )}
+
               <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-2.5 rounded-2xl text-primary">

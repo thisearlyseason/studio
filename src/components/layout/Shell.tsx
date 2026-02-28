@@ -361,6 +361,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <BrandLogo variant="light-background" className="h-8 w-32 justify-start" priority />
             </Link>
             <div className="flex items-center gap-3">
+              {isClubManager && (
+                <Link href="/club">
+                  <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-xl", pathname === '/club' ? "text-primary bg-primary/5" : "text-muted-foreground")}>
+                    <Building className="h-5 w-5" />
+                  </Button>
+                </Link>
+              )}
               <AlertsHistoryDialog>
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative">
                   <Bell className="h-5 w-5" />
