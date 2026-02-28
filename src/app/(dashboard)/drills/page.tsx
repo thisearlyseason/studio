@@ -37,7 +37,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
 export default function DrillsPage() {
-  const { activeTeam, drills, addDrill, deleteDrill, user, isPro, isSuperAdmin } = useTeam();
+  const { activeTeam, drills, addDrill, deleteDrill, user, isPro, isSuperAdmin, purchasePro } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedDrill, setSelectedDrill] = useState<Drill | null>(null);
@@ -97,8 +97,8 @@ export default function DrillsPage() {
               <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-amber-500" /> YouTube Video Integration</li>
               <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-amber-500" /> Photo Aid Uploads</li>
             </ul>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
-              Unlock Training for $9.99 USD
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>
+              Unlock Training Library
             </Button>
           </div>
         </Card>
@@ -316,7 +316,6 @@ export default function DrillsPage() {
           {selectedDrill && (
             <>
               <div className="relative overflow-y-auto">
-                {/* Visual Header */}
                 <div className="aspect-video w-full bg-black relative">
                   {getYouTubeEmbedUrl(selectedDrill.videoUrl) ? (
                     <iframe 

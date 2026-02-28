@@ -24,6 +24,10 @@ import {
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Purchases, CustomerInfo } from '@revenuecat/purchases-js';
+
+// Configuration for RevenueCat
+const REVENUECAT_PUBLIC_API_KEY = 'goog_placeholder_api_key'; // Replace with your actual public key
 
 export type UserProfile = {
   id: string;
@@ -258,6 +262,9 @@ interface TeamContextType {
   formatTime: (date: string | Date) => string;
   isSuperAdmin: boolean;
   isPro: boolean;
+  purchasePro: () => Promise<void>;
+  isPaywallOpen: boolean;
+  setIsPaywallOpen: (open: boolean) => void;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -272,8 +279,32 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  // RevenueCat State
+  const [isProEntitlementActive, setIsProEntitlementActive] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   const isSuperAdmin = firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false;
+
+  // Initialize RevenueCat
+  useEffect(() => {
+    if (firebaseUser) {
+      const purchases = Purchases.getSharedInstance();
+      purchases.configure(REVENUECAT_PUBLIC_API_KEY, firebaseUser.uid);
+      
+      // Initial check for entitlements
+      purchases.getCustomerInfo().then(info => {
+        setIsProEntitlementActive(info.entitlements.active.hasOwnProperty('pro'));
+      });
+
+      // Listen for updates
+      const unsubscribe = purchases.addCustomerInfoUpdateListener((info) => {
+        setIsProEntitlementActive(info.entitlements.active.hasOwnProperty('pro'));
+      });
+
+      return () => unsubscribe();
+    }
+  }, [firebaseUser]);
 
   useEffect(() => {
     if (firebaseUser) {
@@ -385,9 +416,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }).sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const gamesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
+    if (!activeTeam || !db) return null;
     return collection(db, 'teams', activeTeam.id, 'games');
-  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
+  }, [activeTeam?.id, db]);
   const { data: gamesData } = useCollection(gamesQuery);
   const games: Game[] = (gamesData || []).map(g => ({
     id: g.id, teamId: g.teamId, opponent: g.opponent, date: new Date(g.date), myScore: g.myScore, opponentScore: g.opponentScore, result: g.result as GameResult, location: g.location, notes: g.notes, createdAt: g.createdAt
@@ -408,18 +439,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const chats: Chat[] = (chatsData || []).map(c => ({ id: c.id, teamId: c.teamId, name: c.name, memberIds: c.memberIds }));
 
   const drillsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
+    if (!activeTeam || !db) return null;
     return collection(db, 'teams', activeTeam.id, 'drills');
-  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
+  }, [activeTeam?.id, db]);
   const { data: drillsData } = useCollection(drillsQuery);
   const drills: Drill[] = (drillsData || []).map(d => ({
     id: d.id, teamId: d.teamId, title: d.title, description: d.description, thumbnailUrl: d.thumbnailUrl, photoUrl: d.photoUrl, videoUrl: d.videoUrl, category: d.category, createdBy: d.createdBy, createdAt: d.createdAt
   }));
 
   const filesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || (!activeTeam.isPro && !isSuperAdmin)) return null;
+    if (!activeTeam || !db) return null;
     return collection(db, 'teams', activeTeam.id, 'files');
-  }, [activeTeam?.id, db, activeTeam?.isPro, isSuperAdmin]);
+  }, [activeTeam?.id, db]);
   const { data: filesData } = useCollection(filesQuery);
   const files: TeamFile[] = (filesData || []).map(f => ({
     id: f.id, teamId: f.teamId, name: f.fileName, type: f.fileType, size: f.fileSize, uploadedBy: f.uploaderName || 'Unknown', uploaderId: f.uploadedBy || f.uploaderId || '', date: new Date(f.createdAt), url: f.fileUrl
@@ -669,12 +700,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const inviteMember = async (name: string, email: string, position: MemberPosition) => { console.log(`Invite: ${name}`); };
 
+  const purchasePro = async () => {
+    setIsPaywallOpen(true);
+  };
+
   return (
     <TeamContext.Provider value={{ 
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
       chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike,
       events, addEvent, updateEvent: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'events', id), u), updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'games', id), u), files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
-      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isUserLoading, formatTime, isSuperAdmin, isPro: activeTeam?.isPro || isSuperAdmin
+      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isUserLoading, formatTime, isSuperAdmin, 
+      isPro: activeTeam?.isPro || isProEntitlementActive || isSuperAdmin,
+      purchasePro, isPaywallOpen, setIsPaywallOpen
     }}>
       {children}
     </TeamContext.Provider>

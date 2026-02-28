@@ -1,3 +1,4 @@
+
 "use client";
 
 import Shell from '@/components/layout/Shell';
@@ -5,6 +6,7 @@ import { AlertOverlay } from '@/components/layout/AlertOverlay';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { RevenueCatPaywall } from '@/components/RevenueCatPaywall';
 
 export default function DashboardLayout({
   children,
@@ -34,6 +36,7 @@ export default function DashboardLayout({
   return (
     <>
       <AlertOverlay />
+      <RevenueCatPaywall />
       <Shell>{children}</Shell>
     </>
   );
