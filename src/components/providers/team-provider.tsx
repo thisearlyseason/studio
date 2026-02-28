@@ -301,18 +301,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   
-  // RevenueCat State
   const [isProEntitlementActive, setIsProEntitlementActive] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isRCInitialized, setIsRCInitialized] = useState(false);
 
   const isSuperAdmin = firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
-  // Initialize RevenueCat SDK with robust error handling
   useEffect(() => {
     if (firebaseUser && !isRCInitialized) {
       if (!REVENUECAT_PUBLIC_API_KEY || REVENUECAT_PUBLIC_API_KEY.includes('placeholder')) {
-        console.warn("RevenueCat: API Key is missing or default. Subscriptions will be disabled.");
         setIsRCInitialized(true);
         return;
       }
@@ -335,7 +332,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           if (unsubscribe) unsubscribe();
         };
       } catch (e: any) {
-        console.warn("RevenueCat: Initial configuration failed. Check your Billing API key.", e.message);
         setIsRCInitialized(true);
       }
     }
@@ -445,8 +441,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const userRsvpsMap = e.userRsvps || {};
     const counts = { going: 0, notGoing: 0, maybe: 0 };
     Object.values(userRsvpsMap).forEach(val => { if (val === 'going') counts.going++; if (val === 'notGoing') counts.notGoing++; if (val === 'maybe') counts.maybe++; });
+    
+    const d = new Date(e.date);
+    const validDate = isNaN(d.getTime()) ? new Date() : d;
+
     return {
-      id: e.id, teamId: e.teamId, title: e.title, date: new Date(e.date), startTime: e.startTime, endTime: e.endTime, location: e.location, description: e.description,
+      id: e.id, teamId: e.teamId, title: e.title, date: validDate, startTime: e.startTime, endTime: e.endTime, location: e.location, description: e.description,
       recurrence: e.recurrence || 'none', recurrenceDays: e.recurrenceDays, recurrenceEndDate: e.recurrenceEndDate, rsvps: counts, userRsvps: userRsvpsMap, userRsvp: userRsvpsMap[firebaseUser?.uid || ''] as RSVPStatus,
       maxRegistrations: e.maxRegistrations, allowExternalRegistration: e.allowExternalRegistration
     };

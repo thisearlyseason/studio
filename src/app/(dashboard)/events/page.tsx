@@ -43,9 +43,14 @@ interface EventDetailDialogProps {
 function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, children }: EventDetailDialogProps) {
   const { members } = useTeam();
   const db = useFirestore();
+  
+  // CRITICAL FIX: Only attempt to fetch registrations if the user is an admin.
+  // Standard users will be blocked by Firestore Security Rules, causing a crash.
   const regQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
     return query(collection(db, 'teams', event.teamId, 'events', event.id, 'registrations'), orderBy('createdAt', 'desc'));
-  }, [db, event.id, event.teamId]);
+  }, [db, event.id, event.teamId, isAdmin]);
+  
   const { data: registrations } = useCollection<EventRegistration>(regQuery);
 
   const copyRegLink = () => {
@@ -88,7 +93,6 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[550px] overflow-y-auto max-h-[90vh] p-0 flex flex-col">
-        {/* Header - Not sticky to allow the entire modal to scroll naturally as requested */}
         <div className="p-6 pb-2 bg-background z-10 border-b shrink-0">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
@@ -194,7 +198,6 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
             </TabsContent>
 
             <TabsContent value="attendance" className="p-6 space-y-8">
-              {/* Going Section */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -227,7 +230,6 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
                 )) : <p className="text-xs text-muted-foreground italic px-1">No one confirmed yet.</p>}
               </div>
 
-              {/* Maybe Section */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <HelpCircle className="h-4 w-4 text-amber-600" />
@@ -247,7 +249,6 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
                 )) : <p className="text-xs text-muted-foreground italic px-1">No undecided responses.</p>}
               </div>
 
-              {/* Not Going Section */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <XCircle className="h-4 w-4 text-red-600" />
@@ -270,7 +271,6 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
           </Tabs>
         </div>
 
-        {/* Footer - Static at bottom of content, no longer covering text */}
         <div className="p-6 border-t bg-muted/10 shrink-0">
           <DialogClose asChild>
             <Button variant="ghost" className="w-full font-bold">
@@ -284,7 +284,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, childr
 }
 
 export default function EventsPage() {
-  const { activeTeam, events, addEvent, updateRSVP, formatTime, promoteToRoster, user } = useTeam();
+  const { activeTeam, events, addEvent, updateRSVP, formatTime, promoteToRoster, user, isSuperAdmin } = useTeam();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   
@@ -296,7 +296,22 @@ export default function EventsPage() {
   const [allowExternal, setAllowExternal] = useState(false);
   const [maxRegs, setMaxRegs] = useState('');
 
-  const isAdmin = activeTeam?.role === 'Admin';
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !activeTeam) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
+        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Loading schedule...</p>
+      </div>
+    );
+  }
+
+  const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
 
   const handleCreateEvent = () => {
     if (!newTitle || !newDate || !newTime) {
@@ -344,8 +359,6 @@ export default function EventsPage() {
     setNewTitle(''); setNewDate(''); setNewTime(''); setNewLocation(''); setNewDescription('');
     setAllowExternal(false); setMaxRegs('');
   };
-
-  if (!activeTeam) return <div className="p-10 text-center animate-pulse">Loading schedule...</div>;
 
   return (
     <div className="space-y-6">
