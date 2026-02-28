@@ -205,6 +205,42 @@ export default function FeedPage() {
     if (pollOptions.length > 2) setPollOptions(pollOptions.filter((_, i) => i !== idx));
   };
 
+  async function handleHeroChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      setIsUpdatingHero(true);
+      try {
+        const compressed = await compressImage(e.target.files[0]);
+        await updateTeamHero(compressed);
+        toast({ title: "Hero Updated", description: "Team banner updated successfully." });
+      } catch (error) {
+        toast({ title: "Update Failed", description: "Could not update team hero image.", variant: "destructive" });
+      } finally {
+        setIsUpdatingHero(false);
+      }
+    }
+  }
+
+  function handleCommentFileChange(postId: string, e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      compressImage(e.target.files[0]).then(compressed => {
+        setCommentImages(prev => ({ ...prev, [postId]: compressed }));
+      });
+    }
+  }
+
+  function handleCommentSubmit(postId: string) {
+    const content = commentInputs[postId];
+    const image = commentImages[postId];
+    if (!content?.trim() && !image) return;
+    addComment(postId, content || '', image);
+    setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+    setCommentImages(prev => {
+      const updated = { ...prev };
+      delete updated[postId];
+      return updated;
+    });
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-8 pb-12 animate-in fade-in duration-500">
       <div className="flex-1 space-y-8 min-w-0">
@@ -229,23 +265,28 @@ export default function FeedPage() {
           </div>
         </section>
 
-        <Card className="rounded-[2.5rem] border-none shadow-xl shadow-primary/5 overflow-hidden ring-1 ring-black/5">
+        <Card className="rounded-[2.5rem] border-none shadow-xl shadow-primary/5 ring-1 ring-black/5">
           <CardContent className="pt-8">
-            <div className="flex gap-5">
-              <Avatar className="h-14 w-14 shrink-0 border-2 border-primary/10 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-5">
+              <Avatar className="h-14 w-14 shrink-0 border-2 border-primary/10 shadow-sm hidden sm:flex">
                 <AvatarImage src={user?.avatar} />
                 <AvatarFallback className="font-black text-lg">{user?.name?.[0] || '?'}</AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-4 min-w-0">
-                <Textarea placeholder={`What's the play for ${activeTeam.name}?`} value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="min-h-[120px] resize-none border-none focus-visible:ring-0 p-0 text-xl font-medium placeholder:text-muted-foreground/40 leading-relaxed" />
+                <Textarea 
+                  placeholder={`What's the play for ${activeTeam.name}?`} 
+                  value={newPostContent} 
+                  onChange={(e) => setNewPostContent(e.target.value)} 
+                  className="min-h-[100px] resize-none border-none focus-visible:ring-0 p-3 text-lg sm:text-xl font-medium placeholder:text-muted-foreground/40 leading-relaxed overflow-hidden" 
+                />
                 {imageUrl && (
                   <div className="relative rounded-3xl overflow-hidden border-4 border-white shadow-lg animate-in zoom-in-95">
                     <img src={imageUrl} alt="Preview" className="w-full h-auto object-cover max-h-[500px]" />
                     <Button variant="destructive" size="icon" className="absolute top-4 right-4 h-10 w-10 rounded-full shadow-lg" onClick={() => setImageUrl(undefined)}><X className="h-5 w-5" /></Button>
                   </div>
                 )}
-                <div className="flex items-center justify-between pt-6 border-t border-muted/50">
-                  <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 border-t border-muted/50">
+                  <div className="flex items-center gap-3">
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                     <Button variant="ghost" size="sm" className="rounded-full h-10 px-4 text-muted-foreground font-black uppercase text-[9px] tracking-widest hover:bg-primary/5 hover:text-primary transition-all" onClick={() => fileInputRef.current?.click()}>
                       <ImagePlus className="h-4 w-4 mr-2" /> Media
@@ -280,7 +321,13 @@ export default function FeedPage() {
                       </DialogContent>
                     </Dialog>
                   </div>
-                  <Button disabled={!newPostContent.trim() && !imageUrl} onClick={handlePost} className="rounded-full px-8 h-12 font-black uppercase text-[11px] tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95">Post to Squad</Button>
+                  <Button 
+                    disabled={!newPostContent.trim() && !imageUrl} 
+                    onClick={handlePost} 
+                    className="w-full sm:w-auto rounded-full px-8 h-12 font-black uppercase text-[11px] tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95"
+                  >
+                    Post to Squad
+                  </Button>
                 </div>
               </div>
             </div>
@@ -504,40 +551,4 @@ export default function FeedPage() {
       </Dialog>
     </div>
   );
-
-  async function handleHeroChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files && e.target.files[0]) {
-      setIsUpdatingHero(true);
-      try {
-        const compressed = await compressImage(e.target.files[0]);
-        await updateTeamHero(compressed);
-        toast({ title: "Hero Updated", description: "Team banner updated successfully." });
-      } catch (error) {
-        toast({ title: "Update Failed", description: "Could not update team hero image.", variant: "destructive" });
-      } finally {
-        setIsUpdatingHero(false);
-      }
-    }
-  }
-
-  function handleCommentFileChange(postId: string, e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files && e.target.files[0]) {
-      compressImage(e.target.files[0]).then(compressed => {
-        setCommentImages(prev => ({ ...prev, [postId]: compressed }));
-      });
-    }
-  }
-
-  function handleCommentSubmit(postId: string) {
-    const content = commentInputs[postId];
-    const image = commentImages[postId];
-    if (!content?.trim() && !image) return;
-    addComment(postId, content || '', image);
-    setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-    setCommentImages(prev => {
-      const updated = { ...prev };
-      delete updated[postId];
-      return updated;
-    });
-  }
 }

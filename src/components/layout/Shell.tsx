@@ -45,6 +45,7 @@ import {
   SidebarMenuItem, 
   SidebarProvider,
 } from "@/components/ui/sidebar";
+import BrandLogo from '@/components/BrandLogo';
 
 const tabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: false },
@@ -90,13 +91,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         {/* Desktop Sidebar (Only visible on MD+) */}
         <Sidebar collapsible="none" className="hidden md:flex border-r bg-muted/20 w-72 shrink-0 sticky top-0 h-screen">
           <SidebarHeader className="p-6">
-            <div className="flex items-center gap-3 mb-8 px-2">
-              <div className="h-10 w-10 hero-gradient rounded-xl flex items-center justify-center text-white shadow-lg">
-                <Trophy className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black tracking-tighter leading-none">THE SQUAD</h1>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mt-1">Coordination Hub</p>
+            <div className="flex flex-col gap-1.5 mb-8 px-2">
+              <BrandLogo variant="light-background" className="h-8 w-36 justify-start" priority />
+              <div className="flex items-center gap-2 ml-1">
+                <div className="h-[1px] w-4 bg-primary/30" />
+                <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] whitespace-nowrap">Coordination Hub</p>
               </div>
             </div>
 
