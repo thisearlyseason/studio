@@ -27,7 +27,6 @@ import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlo
 import { Purchases, CustomerInfo } from '@revenuecat/purchases-js';
 
 // Configuration for RevenueCat
-// Note: test_zvlronFHqIFQuWTkgaeWrdyYnkZ is the public key provided by the user
 const REVENUECAT_PUBLIC_API_KEY = 'test_zvlronFHqIFQuWTkgaeWrdyYnkZ';
 const PRO_ENTITLEMENT_ID = 'The Squad Pro';
 
@@ -300,19 +299,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const isSuperAdmin = firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
-  // Initialize RevenueCat SDK
+  // Initialize RevenueCat SDK with robust error handling
   useEffect(() => {
     if (firebaseUser && !isRCInitialized) {
+      // Preliminary check for key validity to avoid SDK-level synchronous crashes
+      if (!REVENUECAT_PUBLIC_API_KEY || REVENUECAT_PUBLIC_API_KEY.includes('placeholder')) {
+        console.warn("RevenueCat: API Key is missing or default. Subscriptions will be disabled.");
+        setIsRCInitialized(true);
+        return;
+      }
+
       try {
         // Configuration must happen before getSharedInstance
-        // We use try-catch to prevent app crash if the key is rejected by the SDK
+        // We use a try-catch to silence validation errors from the SDK in the dev console
         Purchases.configure(REVENUECAT_PUBLIC_API_KEY, firebaseUser.uid);
         const purchases = Purchases.getSharedInstance();
         
         // Initial check for entitlements
         purchases.getCustomerInfo().then(info => {
           setIsProEntitlementActive(!!info.entitlements.active[PRO_ENTITLEMENT_ID]);
-        }).catch(err => console.warn("RevenueCat customer info error:", err));
+        }).catch(err => console.warn("RevenueCat: Customer info retrieval failed.", err.message));
 
         // Listen for subscription updates
         const unsubscribe = purchases.addCustomerInfoUpdateListener((info) => {
@@ -324,8 +330,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         return () => {
           if (unsubscribe) unsubscribe();
         };
-      } catch (e) {
-        console.error("RevenueCat initialization failed:", e);
+      } catch (e: any) {
+        // Silently catch initialization errors if the key is rejected by the SDK
+        console.warn("RevenueCat: Initial configuration failed. Check your Billing API key.", e.message);
+        setIsRCInitialized(true);
       }
     }
   }, [firebaseUser, isRCInitialized]);
@@ -735,7 +743,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const purchases = Purchases.getSharedInstance();
       await purchases.openCustomerCenter();
     } catch (e) {
-      console.error("Failed to open Customer Center", e);
+      console.error("RevenueCat: Failed to open Customer Center.", e);
       toast({ title: "Management Error", description: "Could not open billing settings.", variant: "destructive" });
     }
   };
