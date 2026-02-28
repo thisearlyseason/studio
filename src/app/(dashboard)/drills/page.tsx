@@ -30,7 +30,8 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useTeam, Drill } from '@/components/providers/team-provider';
@@ -332,6 +333,10 @@ export default function DrillsPage() {
           {selectedDrill && (
             <>
               <div className="flex-1 bg-black aspect-video lg:aspect-auto lg:h-full relative">
+                <div className="sr-only">
+                  <DialogTitle>{selectedDrill.title}</DialogTitle>
+                  <DialogDescription>{selectedDrill.description}</DialogDescription>
+                </div>
                 {getYouTubeEmbedUrl(selectedDrill.videoUrl) ? (
                   <iframe 
                     src={getYouTubeEmbedUrl(selectedDrill.videoUrl)}
@@ -362,8 +367,7 @@ export default function DrillsPage() {
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px]">Training Resource</Badge>
-                        <DialogTitle className="text-3xl font-black tracking-tight leading-tight">{selectedDrill.title}</DialogTitle>
-                        <DialogDescription className="sr-only">Comprehensive instructions and tactical breakdown for this squad exercise.</DialogDescription>
+                        <h3 className="text-3xl font-black tracking-tight leading-tight">{selectedDrill.title}</h3>
                       </div>
                       <div className="hidden lg:block">
                         <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setSelectedDrill(null)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>

@@ -113,9 +113,9 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden rounded-[2.5rem] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-5xl p-0 overflow-hidden rounded-[2.5rem] max-h-[90vh] flex flex-col border-none shadow-2xl">
         <div className="overflow-y-auto flex-1 custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-12 h-full min-h-[450px]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
             <div className="lg:col-span-4 bg-muted/30 p-8 border-r flex flex-col justify-between">
               <div className="space-y-6">
                 <div className="space-y-2">
@@ -280,7 +280,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                   <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] text-center mb-4">Required: Update your status</p>
                   <div className="grid grid-cols-3 gap-4">
                     <Button variant={event.userRsvp === 'notGoing' ? 'default' : 'outline'} className={cn("rounded-2xl h-14 font-black transition-all text-[10px] uppercase tracking-widest", event.userRsvp === 'notGoing' ? "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20" : "hover:border-red-600 hover:text-red-600")} onClick={() => updateRSVP(event.id, 'notGoing')}><XCircle className="h-4 w-4 mr-2" /> No</Button>
-                    <Button variant={event.userRsvp === 'maybe' ? 'default' : 'outline'} className={cn("rounded-2xl h-14 font-black transition-all text-[10px] uppercase tracking-widest", event.userRsvp === 'maybe' ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20" : "hover:border-amber-500 hover:text-amber-500")} onClick={() => updateRSVP(event.id, 'maybe')}><HelpCircle className="h-4 w-4 mr-2" /> Maybe</Button>
+                    <Button variant={event.userRsvp === 'maybe' ? 'default' : 'outline'} className={cn("rounded-2xl h-14 font-black transition-all text-[10px] uppercase tracking-widest", event.userRsvp === 'maybe' ? "bg-amber-50 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20" : "hover:border-amber-500 hover:text-amber-500")} onClick={() => updateRSVP(event.id, 'maybe')}><HelpCircle className="h-4 w-4 mr-2" /> Maybe</Button>
                     <Button variant={event.userRsvp === 'going' ? 'default' : 'outline'} className={cn("rounded-2xl h-14 font-black transition-all text-[10px] uppercase tracking-widest", event.userRsvp === 'going' ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20" : "hover:border-green-600 hover:text-green-600")} onClick={() => updateRSVP(event.id, 'going')}><CheckCircle2 className="h-4 w-4 mr-2" /> Going</Button>
                   </div>
                 </div>
@@ -296,7 +296,23 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
 export default function EventsPage() {
   const { activeTeam, events, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, promoteToRoster, user, isSuperAdmin } = useTeam();
   
-  // TOURNAMENT CALCULATIONS
+  // ALL HOOKS CONSOLIDATED AT THE TOP (FIXES HOOK ORDER ERRORS)
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [mounted, setMounted] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isTournamentMode, setIsTournamentMode] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<TeamEvent | null>(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDate, setNewDate] = useState('');
+  const [newEndDate, setNewEndDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [newEndTime, setNewTimeEnd] = useState('');
+  const [newLocation, setNewLocation] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [allowExternal, setAllowExternal] = useState(false);
+  const [maxRegs, setMaxRegs] = useState('');
+  const [tournamentSchedule, setTournamentSchedule] = useState<Omit<TournamentMatch, 'id'>[]>([]);
+
   const tournamentDays = useMemo(() => {
     return events.filter(e => e.isTournament && e.endDate).flatMap(e => {
       const days = [];
@@ -312,8 +328,6 @@ export default function EventsPage() {
     });
   }, [events]);
 
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  
   const selectedDayEvents = useMemo(() => {
     if (!date) return [];
     const target = startOfDay(date);
@@ -326,23 +340,6 @@ export default function EventsPage() {
       return startOfDay(new Date(e.date)).getTime() === target.getTime();
     });
   }, [date, events]);
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isTournamentMode, setIsTournamentMode] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<TeamEvent | null>(null);
-  
-  const [newTitle, setNewTitle] = useState('');
-  const [newDate, setNewDate] = useState('');
-  const [newEndDate, setNewEndDate] = useState('');
-  const [newTime, setNewTime] = useState('');
-  const [newEndTime, setNewTimeEnd] = useState('');
-  const [newLocation, setNewLocation] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [allowExternal, setAllowExternal] = useState(false);
-  const [maxRegs, setMaxRegs] = useState('');
-  const [tournamentSchedule, setTournamentSchedule] = useState<Omit<TournamentMatch, 'id'>[]>([]);
-
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -435,7 +432,10 @@ export default function EventsPage() {
     };
 
     if (formattedEndTime) payload.endTime = formattedEndTime;
-    if (maxRegs && !isNaN(parseInt(maxRegs))) payload.maxRegistrations = parseInt(maxRegs);
+    // SANITIZE UNDEFINED (Fixes FirebaseError)
+    if (maxRegs && !isNaN(parseInt(maxRegs))) {
+      payload.maxRegistrations = parseInt(maxRegs);
+    }
     if (isTournamentMode && newEndDate) {
       payload.endDate = new Date(newEndDate);
     }
