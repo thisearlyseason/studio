@@ -6,7 +6,23 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ImagePlus, MessageSquare, Trash2, Calendar, Send, Heart, Camera, Loader2, Info, X, MapPin, Clock, Trophy, ChevronRight } from 'lucide-react';
+import { 
+  ImagePlus, 
+  MessageSquare, 
+  Trash2, 
+  Calendar, 
+  Send, 
+  Heart, 
+  Camera, 
+  Loader2, 
+  Info, 
+  X, 
+  MapPin, 
+  Clock, 
+  Trophy, 
+  ChevronRight,
+  Users
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -15,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: string, teamId: string, isAdmin: boolean, currentUserId: string }) {
   const { deleteComment } = useTeam();
@@ -70,6 +87,7 @@ function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: strin
 
 export default function FeedPage() {
   const { activeTeam, posts, addPost, deletePost, addComment, toggleLike, user, updateTeamHero, formatTime, isSuperAdmin, events, games } = useTeam();
+  const router = useRouter();
   const [newPostContent, setNewPostContent] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [commentInputs, setCommentInputs] = useState<{ [key: string]: string }>({});
