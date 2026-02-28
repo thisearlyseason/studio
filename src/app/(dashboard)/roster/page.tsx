@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -30,7 +31,8 @@ import {
   Edit3,
   Eye,
   XCircle,
-  Clock
+  Clock,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam, Member, FeeItem } from '@/components/providers/team-provider';
@@ -57,12 +59,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, differenceInYears } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function RosterPage() {
   const { activeTeam, members, updateMember, user, isPro, isSuperAdmin, purchasePro } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const isMobile = useIsMobile();
   
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -80,6 +84,7 @@ export default function RosterPage() {
         position: selectedMember.position,
         jersey: selectedMember.jersey,
         role: selectedMember.role,
+        phone: selectedMember.phone || '',
         birthdate: selectedMember.birthdate || '',
         parentName: selectedMember.parentName || '',
         parentEmail: selectedMember.parentEmail || '',
@@ -345,8 +350,8 @@ export default function RosterPage() {
           
           {selectedMember && (
             <>
-              {/* Header - Made responsive for mobile */}
-              <div className="bg-muted/30 p-6 sm:p-10 border-b flex flex-col sm:flex-row items-center sm:items-center justify-between gap-6 relative overflow-hidden shrink-0">
+              {/* Header - Responsive for mobile */}
+              <div className="bg-muted/30 p-6 sm:p-10 border-b flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
                   <Users2 className="h-48 w-48 -rotate-12" />
                 </div>
@@ -383,7 +388,7 @@ export default function RosterPage() {
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
                   
-                  {/* LEFT: Financials & Bio (4 cols) */}
+                  {/* LEFT: Financials & Status (4 cols) */}
                   <div className="lg:col-span-4 p-8 border-r bg-muted/5 space-y-8">
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 px-1">
@@ -475,6 +480,10 @@ export default function RosterPage() {
                             <Input value={editForm.jersey} onChange={e => setEditForm(p => ({ ...p, jersey: e.target.value }))} className="h-12 rounded-xl font-black text-xl text-primary bg-muted/20 border-2" placeholder="e.g. 23" />
                           </div>
                           <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Phone</Label>
+                            <Input value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} className="h-12 rounded-xl font-bold bg-muted/20 border-2" placeholder="(555) 000-0000" />
+                          </div>
+                          <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Date of Birth</Label>
                             <Input type="date" value={editForm.birthdate} onChange={e => setEditForm(p => ({ ...p, birthdate: e.target.value }))} className="h-12 rounded-xl font-bold bg-muted/20 border-2" />
                           </div>
@@ -540,16 +549,29 @@ export default function RosterPage() {
 
                           <div className="space-y-6">
                             <div className="flex items-center gap-3 px-1">
-                              <div className="bg-black/10 p-2 rounded-xl text-black"><Stethoscope className="h-4 w-4" /></div>
+                              <div className="bg-black/10 p-2 rounded-xl text-black"><MessageSquare className="h-4 w-4" /></div>
                               <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Contact & Support</h4>
                             </div>
                             <div className="grid grid-cols-1 gap-3">
-                              <Button variant="outline" className="h-14 rounded-2xl border-2 border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest gap-3 shadow-sm hover:bg-primary hover:text-white transition-all">
-                                <Mail className="h-4 w-4" /> Message Direct
-                              </Button>
-                              <Button variant="outline" className="h-14 rounded-2xl border-2 border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest gap-3 shadow-sm hover:bg-primary hover:text-white transition-all">
-                                <Phone className="h-4 w-4" /> Call Member
-                              </Button>
+                              {isMobile ? (
+                                <>
+                                  <Button asChild variant="outline" className="h-14 rounded-2xl border-2 border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest gap-3 shadow-sm hover:bg-primary hover:text-white transition-all">
+                                    <a href={selectedMember.phone ? `sms:${selectedMember.phone}` : '#'}>
+                                      <Mail className="h-4 w-4" /> Message Direct
+                                    </a>
+                                  </Button>
+                                  <Button asChild variant="outline" className="h-14 rounded-2xl border-2 border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest gap-3 shadow-sm hover:bg-primary hover:text-white transition-all">
+                                    <a href={selectedMember.phone ? `tel:${selectedMember.phone}` : '#'}>
+                                      <Phone className="h-4 w-4" /> Call Member
+                                    </a>
+                                  </Button>
+                                </>
+                              ) : (
+                                <div className="bg-muted/30 p-5 rounded-2xl">
+                                  <p className="text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Direct Phone</p>
+                                  <p className="text-sm font-black">{selectedMember.phone || 'No phone recorded'}</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -571,9 +593,17 @@ export default function RosterPage() {
                                     <Badge className="bg-primary text-white border-none text-[8px] h-4 uppercase tracking-widest font-black">Parent</Badge>
                                   </div>
                                   <div className="flex items-center gap-4 pt-2">
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white shadow-sm border text-primary"><Phone className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white shadow-sm border text-primary"><Mail className="h-4 w-4" /></Button>
-                                    <span className="text-[10px] font-bold text-muted-foreground font-mono">{selectedMember.parentPhone}</span>
+                                    <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white shadow-sm border text-primary">
+                                      <a href={selectedMember.parentPhone ? `tel:${selectedMember.parentPhone}` : '#'}>
+                                        <Phone className="h-4 w-4" />
+                                      </a>
+                                    </Button>
+                                    <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white shadow-sm border text-primary">
+                                      <a href={selectedMember.parentPhone ? `sms:${selectedMember.parentPhone}` : '#'}>
+                                        <Mail className="h-4 w-4" />
+                                      </a>
+                                    </Button>
+                                    <span className="text-[10px] font-bold text-muted-foreground font-mono">{selectedMember.parentPhone || 'No number'}</span>
                                   </div>
                                 </div>
                               )}
@@ -584,8 +614,12 @@ export default function RosterPage() {
                                     <p className="text-base font-black tracking-tight">{selectedMember.emergencyContactName}</p>
                                   </div>
                                   <div className="flex items-center gap-4 pt-2">
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white shadow-sm border text-black"><Phone className="h-4 w-4" /></Button>
-                                    <span className="text-[10px] font-bold text-muted-foreground font-mono">{selectedMember.emergencyContactPhone}</span>
+                                    <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-white shadow-sm border text-black">
+                                      <a href={selectedMember.emergencyContactPhone ? `tel:${selectedMember.emergencyContactPhone}` : '#'}>
+                                        <Phone className="h-4 w-4" />
+                                      </a>
+                                    </Button>
+                                    <span className="text-[10px] font-bold text-muted-foreground font-mono">{selectedMember.emergencyContactPhone || 'No number'}</span>
                                   </div>
                                 </div>
                               )}

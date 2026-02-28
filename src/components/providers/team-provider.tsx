@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
@@ -73,6 +74,7 @@ export type Member = {
   position: MemberPosition;
   jersey: string;
   avatar: string;
+  phone?: string;
   feesPaid?: boolean;
   amountOwed?: number;
   fees?: any[];
@@ -235,6 +237,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     position: m.position || 'Player', 
     jersey: m.jersey || 'TBD', 
     avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`, 
+    phone: m.phone,
     feesPaid: m.feesPaid || false, 
     amountOwed: m.amountOwed || 0, 
     fees: m.fees || [],
