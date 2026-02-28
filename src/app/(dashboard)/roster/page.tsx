@@ -20,18 +20,15 @@ import {
   Sparkles, 
   Users2, 
   CreditCard, 
-  ChevronDown, 
   Plus, 
   Trash2, 
   Circle,
-  Calendar,
   Heart,
   Baby,
   Stethoscope,
   BookOpen,
   Edit3,
   Eye,
-  ArrowLeft,
   XCircle,
   Clock
 } from 'lucide-react';
@@ -62,7 +59,7 @@ import { cn } from '@/lib/utils';
 import { format, differenceInYears } from 'date-fns';
 
 export default function RosterPage() {
-  const { activeTeam, members, updateMember, inviteMember, user, isPro, isSuperAdmin, purchasePro } = useTeam();
+  const { activeTeam, members, updateMember, user, isPro, isSuperAdmin, purchasePro } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -241,8 +238,6 @@ export default function RosterPage() {
     } catch { return null; }
   };
 
-  const isMinor = calculateAge(selectedMember?.birthdate) !== null && calculateAge(selectedMember?.birthdate)! < 18;
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
@@ -256,6 +251,7 @@ export default function RosterPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0">
+              <DialogTitle className="sr-only">Invite Team Members</DialogTitle>
               <div className="h-2 bg-primary w-full" />
               <div className="p-8 space-y-6">
                 <DialogHeader>
@@ -349,39 +345,36 @@ export default function RosterPage() {
           
           {selectedMember && (
             <>
-              {/* Header */}
-              <div className="bg-muted/30 p-8 border-b flex items-center justify-between relative overflow-hidden shrink-0">
+              {/* Header - Made responsive for mobile */}
+              <div className="bg-muted/30 p-6 sm:p-10 border-b flex flex-col sm:flex-row items-center sm:items-center justify-between gap-6 relative overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
                   <Users2 className="h-48 w-48 -rotate-12" />
                 </div>
-                <div className="flex items-center gap-6 relative z-10">
-                  <Avatar className="h-24 w-24 rounded-[2rem] border-4 border-background shadow-xl">
+                <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10 text-center sm:text-left w-full sm:w-auto">
+                  <Avatar className="h-24 w-24 sm:h-28 sm:w-28 rounded-[2rem] border-4 border-background shadow-xl">
                     <AvatarImage src={selectedMember.avatar} />
                     <AvatarFallback className="text-2xl font-black bg-muted">{selectedMember.name[0]}</AvatarFallback>
                   </Avatar>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-3xl font-black tracking-tighter leading-none">{selectedMember.name}</h2>
-                      {selectedMember.role === 'Admin' && <Badge className="bg-primary text-white border-none font-black text-[10px] h-5 uppercase tracking-widest">Leadership</Badge>}
+                  <div className="space-y-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <h2 className="text-3xl sm:text-4xl font-black tracking-tighter leading-none">{selectedMember.name}</h2>
+                      {selectedMember.role === 'Admin' && <Badge className="bg-primary text-white border-none font-black text-[10px] h-5 uppercase tracking-widest px-3">Leadership</Badge>}
                     </div>
-                    <p className="font-black text-primary uppercase tracking-[0.2em] text-xs">
-                      {selectedMember.position} • {selectedMember.jersey !== 'PAR' ? `#${selectedMember.jersey}` : 'Admin'}
+                    <p className="font-black text-primary uppercase tracking-[0.2em] text-xs sm:text-sm">
+                      {selectedMember.position} • {selectedMember.jersey !== 'PAR' ? `#${selectedMember.jersey}` : 'Staff'}
                     </p>
                   </div>
                 </div>
                 {isAdmin && (
-                  <div className="flex gap-2 relative z-10">
+                  <div className="flex items-center gap-3 relative z-10 w-full sm:w-auto justify-center">
                     <Button 
                       variant={isEditing ? "default" : "outline"} 
                       size="sm" 
-                      className={cn("rounded-full h-10 px-6 font-black uppercase text-[10px] tracking-widest transition-all", isEditing && "bg-black hover:bg-black/90 shadow-xl")}
+                      className={cn("rounded-full h-12 sm:h-10 px-8 sm:px-6 font-black uppercase text-[10px] tracking-widest transition-all shadow-lg", isEditing && "bg-black hover:bg-black/90")}
                       onClick={() => setIsEditing(!isEditing)}
                     >
                       {isEditing ? <><Eye className="h-3.5 w-3.5 mr-2" /> View Mode</> : <><Edit3 className="h-3.5 w-3.5 mr-2" /> Edit Member</>}
                     </Button>
-                    <DialogClose asChild>
-                      <Button variant="ghost" size="icon" className="rounded-full h-10 w-10"><XCircle className="h-5 w-5 text-muted-foreground" /></Button>
-                    </DialogClose>
                   </div>
                 )}
               </div>
@@ -404,13 +397,15 @@ export default function RosterPage() {
                           <p className="text-3xl font-black text-primary leading-none">${selectedMember.amountOwed || 0}</p>
                         </div>
                         {isAdmin && (
-                          <div className="pt-2 flex gap-2">
-                            <Input placeholder="Title" value={newFee.title} onChange={e => setNewFee(p => ({ ...p, title: e.target.value }))} className="h-10 text-xs rounded-xl font-bold" />
-                            <div className="relative w-24 shrink-0">
-                              <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                              <Input type="number" placeholder="0" value={newFee.amount} onChange={e => setNewFee(p => ({ ...p, amount: e.target.value }))} className="h-10 text-xs pl-8 rounded-xl font-bold" />
+                          <div className="pt-2 flex flex-col gap-2">
+                            <div className="flex gap-2">
+                              <Input placeholder="Title" value={newFee.title} onChange={e => setNewFee(p => ({ ...p, title: e.target.value }))} className="h-10 text-xs rounded-xl font-bold" />
+                              <div className="relative w-24 shrink-0">
+                                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <Input type="number" placeholder="0" value={newFee.amount} onChange={e => setNewFee(p => ({ ...p, amount: e.target.value }))} className="h-10 text-xs pl-8 rounded-xl font-bold" />
+                              </div>
                             </div>
-                            <Button size="icon" className="h-10 w-10 rounded-xl shrink-0" onClick={handleAddFee} disabled={!newFee.title || !newFee.amount}><Plus className="h-4 w-4" /></Button>
+                            <Button className="w-full h-10 rounded-xl" onClick={handleAddFee} disabled={!newFee.title || !newFee.amount}><Plus className="h-4 w-4 mr-2" /> Record Fee</Button>
                           </div>
                         )}
                       </div>
