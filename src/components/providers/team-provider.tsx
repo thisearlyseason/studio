@@ -14,7 +14,8 @@ import {
   writeBatch,
   onSnapshot,
   deleteDoc,
-  addDoc
+  addDoc,
+  updateDoc
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -24,6 +25,7 @@ import { useSearchParams } from 'next/navigation';
 
 const REVENUECAT_PUBLIC_API_KEY = 'test_zvlronFHqIFQuWTkgaeWrdyYnkZ';
 const PRO_ENTITLEMENT_ID = 'The Squad Pro';
+const DEMO_RESET_INTERVAL_MS = 5 * 60 * 1000; // 5 Minutes
 
 export type UserProfile = {
   id: string;
@@ -31,6 +33,8 @@ export type UserProfile = {
   email: string;
   phone: string;
   avatar: string;
+  createdAt?: string;
+  isDemo?: boolean;
 };
 
 export type Team = {
@@ -186,6 +190,7 @@ interface TeamContextType {
   resetDemo: () => Promise<void>;
   isSeedingDemo: boolean;
   isClubManager: boolean;
+  secondsUntilReset: number | null;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -204,13 +209,127 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isRCInitialized, setIsRCInitialized] = useState(false);
   const [simulationPlanId, setSimulationPlanId] = useState<string | null>(null);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
+  const [secondsUntilReset, setSecondsUntilReset] = useState<number | null>(null);
   
   const seedingRef = useRef(false);
+  const resetLockRef = useRef(false);
 
   const isSuperAdmin = useMemo(() => {
     const email = firebaseUser?.email?.toLowerCase();
     return email ? SUPER_ADMIN_EMAILS.includes(email) : false;
   }, [firebaseUser?.email]);
+
+  // --- Move Data Fetching Hooks above Effect Hooks ---
+
+  // Plans
+  const plansQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return collection(db, 'plans');
+  }, [db]);
+  const { data: plansData } = useCollection(plansQuery);
+  const plans = useMemo(() => (plansData || []) as Plan[], [plansData]);
+
+  // Teams
+  const teamsQuery = useMemoFirebase(() => {
+    if (!firebaseUser || !db) return null;
+    const base = isSuperAdmin ? collection(db, 'teams') : collection(db, 'users', firebaseUser.uid, 'teamMemberships');
+    return query(base, limit(50));
+  }, [firebaseUser?.uid, db, isSuperAdmin]);
+
+  const { data: teamsRawData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
+  const teams = useMemo(() => {
+    if (!teamsRawData) return [];
+    return teamsRawData.map(m => {
+      const tid = isSuperAdmin ? m.id : (m.teamId || m.id);
+      return {
+        id: tid,
+        name: m.teamName || m.name || 'Unnamed Team',
+        code: m.teamCode || m.code || '......',
+        sport: m.sport,
+        description: m.description,
+        teamLogoUrl: m.teamLogoUrl,
+        heroImageUrl: m.heroImageUrl,
+        isPro: m.isPro || false,
+        planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'),
+        role: m.role || (isSuperAdmin ? 'Admin' : 'Member'),
+        isDemo: m.isDemo || false,
+        createdBy: m.createdBy || m.userId
+      };
+    });
+  }, [teamsRawData, isSuperAdmin]);
+
+  const activeTeam = useMemo(() => {
+    if (!teams.length) return null;
+    return teams.find(t => t.id === activeTeamId) || teams[0];
+  }, [teams, activeTeamId]);
+
+  // Features based on plan
+  const activePlanFeatures = useMemo(() => {
+    const pid = simulationPlanId || activeTeam?.planId;
+    if (!pid || !plans) return {};
+    const plan = plans.find(p => p.id === pid);
+    return plan?.features || {};
+  }, [activeTeam, plans, simulationPlanId]);
+
+  // Members
+  const membersQuery = useMemoFirebase(() => {
+    if (!activeTeam?.id || !db) return null;
+    return collection(db, 'teams', activeTeam.id, 'members');
+  }, [activeTeam?.id, db]);
+  const { data: membersData } = useCollection(membersQuery);
+  const members = useMemo(() => (membersData || []).map(m => ({
+    id: m.id, userId: m.userId, teamId: m.teamId, name: m.name || 'Member', role: m.role, position: m.position || 'Player', jersey: m.jersey || 'TBD', avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`, phone: m.phone, feesPaid: m.feesPaid || false, amountOwed: m.amountOwed || 0, fees: m.fees || [], birthdate: m.birthdate, parentName: m.parentName, parentEmail: m.parentEmail, parentPhone: m.parentPhone, emergencyContactName: m.emergencyContactName, emergencyContactPhone: m.emergencyContactPhone, notes: m.notes
+  })), [membersData]);
+
+  // Alerts
+  const alertsQuery = useMemoFirebase(() => {
+    if (!activeTeam?.id || !db) return null;
+    return query(collection(db, 'teams', activeTeam.id, 'alerts'), limit(5));
+  }, [activeTeam?.id, db]);
+  const { data: alertsData } = useCollection(alertsQuery);
+  const alerts = useMemo(() => (alertsData || []).map(a => ({ id: a.id, teamId: a.teamId, title: a.title, message: a.message, createdBy: a.createdBy, createdAt: a.createdAt })), [alertsData]);
+
+  // --- Effect Hooks ---
+
+  // Demo Heartbeat: 5-minute cycle
+  useEffect(() => {
+    if (!userProfile?.isDemo || !userProfile?.createdAt || !activeTeamId) {
+      setSecondsUntilReset(null);
+      return;
+    }
+
+    const checkReset = async () => {
+      const start = new Date(userProfile.createdAt!).getTime();
+      const now = Date.now();
+      const elapsed = now - start;
+      const remaining = DEMO_RESET_INTERVAL_MS - (elapsed % DEMO_RESET_INTERVAL_MS);
+      
+      setSecondsUntilReset(Math.ceil(remaining / 1000));
+
+      if (remaining < 1000 && !resetLockRef.current) {
+        resetLockRef.current = true;
+        toast({ title: "Environment Resetting", description: "Demo session expired. Restoring baseline data..." });
+        
+        try {
+          // Reset team and user doc
+          const planId = teams.find(t => t.id === activeTeamId)?.planId || 'starter_squad';
+          await resetDemoEnvironment(db, activeTeamId, planId, userProfile.id);
+          
+          // Update the user doc createdAt to restart the cycle
+          await updateDoc(doc(db, 'users', userProfile.id), { createdAt: new Date().toISOString() });
+          
+          toast({ title: "Reset Complete", description: "Welcome back to the baseline squad." });
+        } catch (e) {
+          console.error("Auto reset failed", e);
+        } finally {
+          resetLockRef.current = false;
+        }
+      }
+    };
+
+    const interval = setInterval(checkReset, 1000);
+    return () => clearInterval(interval);
+  }, [userProfile, activeTeamId, db, teams]);
 
   useEffect(() => {
     if (isSuperAdmin && db && firebaseUser) {
@@ -268,7 +387,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             name: data.fullName || firebaseUser.displayName || 'Guest Coordinator',
             email: data.email || firebaseUser.email || '',
             phone: data.phone || '',
-            avatar: data.avatarUrl || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`
+            avatar: data.avatarUrl || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`,
+            createdAt: data.createdAt,
+            isDemo: data.isDemo || false
           });
         } else {
           setUserProfile({
@@ -276,76 +397,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             name: firebaseUser.displayName || 'Guest Coordinator',
             email: firebaseUser.email || 'guest@thesquad.io',
             phone: '',
-            avatar: `https://picsum.photos/seed/${firebaseUser.uid}/150/150`
+            avatar: `https://picsum.photos/seed/${firebaseUser.uid}/150/150`,
+            isDemo: false
           });
         }
       });
       return () => unsub();
     }
   }, [firebaseUser, db]);
-
-  const teamsQuery = useMemoFirebase(() => {
-    if (!firebaseUser || !db) return null;
-    const base = isSuperAdmin ? collection(db, 'teams') : collection(db, 'users', firebaseUser.uid, 'teamMemberships');
-    return query(base, limit(50));
-  }, [firebaseUser?.uid, db, isSuperAdmin]);
-
-  const { data: teamsRawData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
-  const teams = useMemo(() => {
-    if (!teamsRawData) return [];
-    return teamsRawData.map(m => {
-      const tid = isSuperAdmin ? m.id : (m.teamId || m.id);
-      return {
-        id: tid,
-        name: m.teamName || m.name || 'Unnamed Team',
-        code: m.teamCode || m.code || '......',
-        sport: m.sport,
-        description: m.description,
-        teamLogoUrl: m.teamLogoUrl,
-        heroImageUrl: m.heroImageUrl,
-        isPro: m.isPro || false,
-        planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'),
-        role: m.role || (isSuperAdmin ? 'Admin' : 'Member'),
-        isDemo: m.isDemo || false,
-        createdBy: m.createdBy || m.userId
-      };
-    });
-  }, [teamsRawData, isSuperAdmin]);
-
-  const activeTeam = useMemo(() => {
-    if (!teams.length) return null;
-    return teams.find(t => t.id === activeTeamId) || teams[0];
-  }, [teams, activeTeamId]);
-
-  const plansQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return collection(db, 'plans');
-  }, [db]);
-  const { data: plansData } = useCollection(plansQuery);
-  const plans = useMemo(() => (plansData || []) as Plan[], [plansData]);
-  
-  const activePlanFeatures = useMemo(() => {
-    const pid = simulationPlanId || activeTeam?.planId;
-    if (!pid || !plans) return {};
-    const plan = plans.find(p => p.id === pid);
-    return plan?.features || {};
-  }, [activeTeam, plans, simulationPlanId]);
-
-  const membersQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db) return null;
-    return collection(db, 'teams', activeTeam.id, 'members');
-  }, [activeTeam?.id, db]);
-  const { data: membersData } = useCollection(membersQuery);
-  const members = useMemo(() => (membersData || []).map(m => ({
-    id: m.id, userId: m.userId, teamId: m.teamId, name: m.name || 'Member', role: m.role, position: m.position || 'Player', jersey: m.jersey || 'TBD', avatar: m.avatar || `https://picsum.photos/seed/${m.userId}/150/150`, phone: m.phone, feesPaid: m.feesPaid || false, amountOwed: m.amountOwed || 0, fees: m.fees || [], birthdate: m.birthdate, parentName: m.parentName, parentEmail: m.parentEmail, parentPhone: m.parentPhone, emergencyContactName: m.emergencyContactName, emergencyContactPhone: m.emergencyContactPhone, notes: m.notes
-  })), [membersData]);
-
-  const alertsQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db) return null;
-    return query(collection(db, 'teams', activeTeam.id, 'alerts'), limit(5));
-  }, [activeTeam?.id, db]);
-  const { data: alertsData } = useCollection(alertsQuery);
-  const alerts = useMemo(() => (alertsData || []).map(a => ({ id: a.id, teamId: a.teamId, title: a.title, message: a.message, createdBy: a.createdBy, createdAt: a.createdAt })), [alertsData]);
 
   const isClubManager = useMemo(() => {
     return teams.some(t => t.createdBy === firebaseUser?.uid && t.planId === 'club_custom');
@@ -408,8 +467,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     simulationPlanId, setSimulationPlanId,
     resetDemo: async () => { if (activeTeam?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeam.id, activeTeam.planId!, firebaseUser.uid); toast({ title: "Environment Reset", description: "Demo data has been restored." }); } },
     isSeedingDemo,
-    isClubManager
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager]);
+    isClubManager,
+    secondsUntilReset
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

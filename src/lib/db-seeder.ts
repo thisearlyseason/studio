@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -253,6 +254,16 @@ export async function resetDemoEnvironment(db: Firestore, teamId: string, planId
       await deleteDoc(d.ref);
     }
   }
+
+  // Wipe guest user doc modifications (emails, names, etc.)
+  await setDoc(doc(db, 'users', userId), {
+    id: userId,
+    fullName: 'Guest Coordinator',
+    email: 'guest@thesquad.io',
+    notificationsEnabled: true,
+    createdAt: new Date().toISOString(),
+    isDemo: true
+  }, { merge: true });
 
   // Restore the guest user member doc after wipe to ensure they don't lose admin status
   await setDoc(doc(db, 'teams', teamId, 'members', userId), {
