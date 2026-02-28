@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -20,7 +19,8 @@ import {
   X,
   Camera,
   Loader2,
-  Youtube
+  Youtube,
+  XCircle
 } from 'lucide-react';
 import { 
   Dialog, 
