@@ -27,6 +27,7 @@ import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlo
 import { Purchases, CustomerInfo } from '@revenuecat/purchases-js';
 
 // Configuration for RevenueCat
+// Note: test_zvlronFHqIFQuWTkgaeWrdyYnkZ is the public key provided by the user
 const REVENUECAT_PUBLIC_API_KEY = 'test_zvlronFHqIFQuWTkgaeWrdyYnkZ';
 const PRO_ENTITLEMENT_ID = 'The Squad Pro';
 
@@ -295,35 +296,39 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   // RevenueCat State
   const [isProEntitlementActive, setIsProEntitlementActive] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [isRCInitialized, setIsRCInitialized] = useState(false);
 
   const isSuperAdmin = firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
   // Initialize RevenueCat SDK
   useEffect(() => {
-    if (firebaseUser) {
+    if (firebaseUser && !isRCInitialized) {
       try {
-        // Static configuration first
+        // Configuration must happen before getSharedInstance
+        // We use try-catch to prevent app crash if the key is rejected by the SDK
         Purchases.configure(REVENUECAT_PUBLIC_API_KEY, firebaseUser.uid);
         const purchases = Purchases.getSharedInstance();
         
         // Initial check for entitlements
         purchases.getCustomerInfo().then(info => {
           setIsProEntitlementActive(!!info.entitlements.active[PRO_ENTITLEMENT_ID]);
-        }).catch(err => console.error("RC Init Error:", err));
+        }).catch(err => console.warn("RevenueCat customer info error:", err));
 
         // Listen for subscription updates
         const unsubscribe = purchases.addCustomerInfoUpdateListener((info) => {
           setIsProEntitlementActive(!!info.entitlements.active[PRO_ENTITLEMENT_ID]);
         });
 
+        setIsRCInitialized(true);
+
         return () => {
           if (unsubscribe) unsubscribe();
         };
       } catch (e) {
-        console.error("RevenueCat setup failed:", e);
+        console.error("RevenueCat initialization failed:", e);
       }
     }
-  }, [firebaseUser]);
+  }, [firebaseUser, isRCInitialized]);
 
   useEffect(() => {
     if (firebaseUser) {
