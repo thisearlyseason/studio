@@ -114,7 +114,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-4xl p-0 overflow-hidden rounded-[2.5rem] max-h-[95vh] flex flex-col">
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1 custom-scrollbar">
           <div className="grid grid-cols-1 lg:grid-cols-5 h-full min-h-[500px]">
             <div className="lg:col-span-2 bg-muted/30 p-8 border-r flex flex-col justify-between">
               <div className="space-y-6">
@@ -152,7 +152,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                 {event.isTournament && event.tournamentSchedule && event.tournamentSchedule.length > 0 && (
                   <div className="space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Tournament Schedule</p>
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-2">
                       {event.tournamentSchedule.map((match) => (
                         <div key={match.id} className="bg-white p-3 rounded-xl border border-black/5 shadow-sm flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
@@ -209,7 +209,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                   </DialogClose>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar max-h-[500px]">
+                <div className="flex-1 px-8 py-6">
                   <TabsContent value="attendance" className="mt-0 space-y-8">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 px-1">
@@ -276,7 +276,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                   </TabsContent>
                 </div>
 
-                <div className="px-8 py-8 border-t bg-muted/10">
+                <div className="px-8 py-8 border-t bg-muted/10 mt-auto">
                   <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] text-center mb-4">Required: Update your status</p>
                   <div className="grid grid-cols-3 gap-4">
                     <Button variant={event.userRsvp === 'notGoing' ? 'default' : 'outline'} className={cn("rounded-2xl h-14 font-black transition-all text-[10px] uppercase tracking-widest", event.userRsvp === 'notGoing' ? "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20" : "hover:border-red-600 hover:text-red-600")} onClick={() => updateRSVP(event.id, 'notGoing')}><XCircle className="h-4 w-4 mr-2" /> No</Button>
@@ -295,7 +295,38 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
 
 export default function EventsPage() {
   const { activeTeam, events, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, promoteToRoster, user, isSuperAdmin } = useTeam();
+  
+  // TOURNAMENT CALCULATIONS (MUST BE BEFORE EARLY RETURNS)
+  const tournamentDays = useMemo(() => {
+    return events.filter(e => e.isTournament && e.endDate).flatMap(e => {
+      const days = [];
+      try {
+        let curr = startOfDay(new Date(e.date));
+        const last = endOfDay(new Date(e.endDate!));
+        while (curr <= last) {
+          days.push(new Date(curr));
+          curr.setDate(curr.getDate() + 1);
+        }
+      } catch (e) {}
+      return days;
+    });
+  }, [events]);
+
   const [date, setDate] = useState<Date | undefined>(new Date());
+  
+  const selectedDayEvents = useMemo(() => {
+    if (!date) return [];
+    const target = startOfDay(date);
+    return events.filter(e => {
+      if (e.isTournament && e.endDate) {
+        try {
+          return isWithinInterval(target, { start: startOfDay(new Date(e.date)), end: endOfDay(new Date(e.endDate)) });
+        } catch (err) { return false; }
+      }
+      return startOfDay(new Date(e.date)).getTime() === target.getTime();
+    });
+  }, [date, events]);
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTournamentMode, setIsTournamentMode] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TeamEvent | null>(null);
@@ -312,31 +343,6 @@ export default function EventsPage() {
   const [tournamentSchedule, setTournamentSchedule] = useState<Omit<TournamentMatch, 'id'>[]>([]);
 
   const [mounted, setMounted] = useState(false);
-
-  // Tournament-aware Calendar Modifiers (HOOOKS MUST BE AT TOP)
-  const tournamentDays = useMemo(() => {
-    return events.filter(e => e.isTournament && e.endDate).flatMap(e => {
-      const days = [];
-      let curr = startOfDay(new Date(e.date));
-      const last = endOfDay(new Date(e.endDate!));
-      while (curr <= last) {
-        days.push(new Date(curr));
-        curr.setDate(curr.getDate() + 1);
-      }
-      return days;
-    });
-  }, [events]);
-
-  const selectedDayEvents = useMemo(() => {
-    if (!date) return [];
-    const target = startOfDay(date);
-    return events.filter(e => {
-      if (e.isTournament && e.endDate) {
-        return isWithinInterval(target, { start: startOfDay(new Date(e.date)), end: endOfDay(new Date(e.endDate)) });
-      }
-      return startOfDay(new Date(e.date)).getTime() === target.getTime();
-    });
-  }, [date, events]);
 
   useEffect(() => {
     setMounted(true);
@@ -405,7 +411,7 @@ export default function EventsPage() {
     }
     
     const formattedStartTime = formatToDisplayTime(newTime);
-    const formattedEndTime = newEndTime ? formatToDisplayTime(newEndTime) : undefined;
+    const formattedEndTime = newEndTime ? formatToDisplayTime(newEndTime) : null;
 
     const eventDate = new Date(newDate);
     if (isNaN(eventDate.getTime())) {
@@ -413,20 +419,24 @@ export default function EventsPage() {
       return;
     }
 
+    // Build sanitized payload to avoid Firebase undefined errors
     const payload: any = {
       title: newTitle,
       date: eventDate,
       startTime: formattedStartTime,
-      endTime: formattedEndTime,
       location: newLocation,
       description: newDescription,
       recurrence: 'none' as EventRecurrence,
       allowExternalRegistration: allowExternal,
-      maxRegistrations: maxRegs ? parseInt(maxRegs) : undefined,
       isTournament: isTournamentMode,
-      tournamentSchedule: tournamentSchedule.map((m, idx) => ({ ...m, id: `tm_${idx}_${Date.now()}` }))
+      tournamentSchedule: tournamentSchedule.map((m, idx) => ({ 
+        ...m, 
+        id: `tm_${idx}_${Date.now()}` 
+      }))
     };
 
+    if (formattedEndTime) payload.endTime = formattedEndTime;
+    if (maxRegs && !isNaN(parseInt(maxRegs))) payload.maxRegistrations = parseInt(maxRegs);
     if (isTournamentMode && newEndDate) {
       payload.endDate = new Date(newEndDate);
     }
@@ -473,9 +483,9 @@ export default function EventsPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[95vh] flex flex-col">
-                <div className="overflow-y-auto flex-1">
-                  <div className="grid grid-cols-1 lg:grid-cols-2">
-                    <div className={cn("p-8 border-r space-y-6", isTournamentMode ? "bg-amber-50/50" : "bg-primary/5")}>
+                <div className="overflow-y-auto flex-1 custom-scrollbar">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+                    <div className={cn("p-8 lg:border-r space-y-6", isTournamentMode ? "bg-amber-50/50" : "bg-primary/5")}>
                       <DialogHeader>
                         <DialogTitle className="text-2xl font-black tracking-tight">
                           {editingEvent ? "Update Schedule" : isTournamentMode ? "Plan Tournament Series" : "Plan New Match"}
@@ -506,19 +516,6 @@ export default function EventsPage() {
                           )}
                         </div>
 
-                        {isTournamentMode && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Arrival Time</Label>
-                              <Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl" />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">End Time</Label>
-                              <Input type="time" value={newEndTime} onChange={e => setNewTimeEnd(e.target.value)} className="h-12 rounded-xl" />
-                            </div>
-                          </div>
-                        )}
-
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Location</Label>
                           <Input placeholder="Arena or Field name..." value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 rounded-xl" />
@@ -526,7 +523,7 @@ export default function EventsPage() {
                       </div>
                     </div>
                     
-                    <div className="p-8 space-y-6 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+                    <div className="p-8 space-y-6 flex flex-col justify-between">
                       <div className="space-y-6">
                         {isTournamentMode && (
                           <div className="space-y-4">

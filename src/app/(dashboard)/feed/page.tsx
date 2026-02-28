@@ -331,9 +331,9 @@ export default function FeedPage() {
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col">
-                        <div className="overflow-y-auto flex-1">
-                          <div className="grid grid-cols-1 lg:grid-cols-2">
-                            <div className="p-8 bg-primary/5 border-r space-y-6">
+                        <div className="overflow-y-auto flex-1 custom-scrollbar">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+                            <div className="p-8 bg-primary/5 lg:border-r space-y-6">
                               <DialogHeader>
                                 <DialogTitle className="text-2xl font-black tracking-tight">Launch Squad Poll</DialogTitle>
                                 <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Collect squad consensus</DialogDescription>
@@ -356,7 +356,7 @@ export default function FeedPage() {
                                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Polling Options</Label>
                                   <Button variant="ghost" size="sm" onClick={handleAddPollOption} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
                                 </div>
-                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="space-y-3">
                                   <input type="file" ref={optionImageInputRef} className="hidden" accept="image/*" onChange={handleOptionImageChange} />
                                   {pollOptions.map((opt, i) => (
                                     <div key={i} className="flex gap-3 group animate-in fade-in slide-in-from-left-2">
@@ -380,7 +380,7 @@ export default function FeedPage() {
                                 </div>
                               </div>
                               <DialogFooter>
-                                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreatePoll}>Launch Poll to Feed</Button>
+                                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all mt-6" onClick={handleCreatePoll}>Launch Poll to Feed</Button>
                               </DialogFooter>
                             </div>
                           </div>

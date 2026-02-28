@@ -201,67 +201,69 @@ export default function DrillsPage() {
                 Add Drill
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0">
-              <div className="grid grid-cols-1 lg:grid-cols-2">
-                <div className="p-8 bg-muted/30 border-r space-y-6">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl font-black">Publish Training Drill</DialogTitle>
-                    <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Define coordination exercises</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-5">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Drill Name</Label>
-                      <Input placeholder="e.g. Full Court Press, Zone Defense" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="rounded-xl h-12 bg-background shadow-sm" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">YouTube Integration (Optional)</Label>
-                      <div className="relative">
-                        <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="https://youtube.com/..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} className="rounded-xl h-12 pl-11 bg-background shadow-sm" />
+            <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[95vh] flex flex-col">
+              <div className="overflow-y-auto flex-1 custom-scrollbar">
+                <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
+                  <div className="p-8 bg-muted/30 lg:border-r space-y-6">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-black">Publish Training Drill</DialogTitle>
+                      <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Define coordination exercises</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Drill Name</Label>
+                        <Input placeholder="e.g. Full Court Press, Zone Defense" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="rounded-xl h-12 bg-background shadow-sm" />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Visual Aid (Optional)</Label>
-                      <div 
-                        className="border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-background hover:border-primary/20 transition-all bg-background/50"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                        {newPhotoUrl ? (
-                          <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg border">
-                            <img src={newPhotoUrl} className="w-full h-full object-cover" alt="Preview" />
-                            <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-xl" onClick={(e) => { e.stopPropagation(); setNewPhotoUrl(undefined); }}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="bg-white p-3 rounded-2xl shadow-sm mb-3">
-                              <Camera className="h-6 w-6 text-primary" />
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">YouTube Integration (Optional)</Label>
+                        <div className="relative">
+                          <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input placeholder="https://youtube.com/..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} className="rounded-xl h-12 pl-11 bg-background shadow-sm" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Visual Aid (Optional)</Label>
+                        <div 
+                          className="border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-background hover:border-primary/20 transition-all bg-background/50"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                          {newPhotoUrl ? (
+                            <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg border">
+                              <img src={newPhotoUrl} className="w-full h-full object-cover" alt="Preview" />
+                              <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-xl" onClick={(e) => { e.stopPropagation(); setNewPhotoUrl(undefined); }}>
+                                <X className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tap to upload diagram</p>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <div className="bg-white p-3 rounded-2xl shadow-sm mb-3">
+                                <Camera className="h-6 w-6 text-primary" />
+                              </div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tap to upload diagram</p>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="p-8 space-y-6 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Detailed Instructions</Label>
-                    <Textarea 
-                      placeholder="Explain step-by-step how the squad should study and execute this drill..." 
-                      value={newDescription} 
-                      onChange={e => setNewDescription(e.target.value)} 
-                      className="rounded-[2rem] min-h-[350px] p-6 text-base leading-relaxed bg-muted/10 border-2" 
-                    />
+                  <div className="p-8 space-y-6 flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Detailed Instructions</Label>
+                      <Textarea 
+                        placeholder="Explain step-by-step how the squad should study and execute this drill..." 
+                        value={newDescription} 
+                        onChange={e => setNewDescription(e.target.value)} 
+                        className="rounded-[2rem] min-h-[350px] p-6 text-base leading-relaxed bg-muted/10 border-2" 
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all mt-6" onClick={handleAddDrill} disabled={!newTitle || !newDescription || isUploading}>
+                        {isUploading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+                        Publish to Squad Library
+                      </Button>
+                    </DialogFooter>
                   </div>
-                  <DialogFooter>
-                    <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleAddDrill} disabled={!newTitle || !newDescription || isUploading}>
-                      {isUploading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
-                      Publish to Squad Library
-                    </Button>
-                  </DialogFooter>
                 </div>
               </div>
             </DialogContent>
@@ -326,10 +328,10 @@ export default function DrillsPage() {
 
       {/* Drill Detail View - Desktop Optimized */}
       <Dialog open={!!selectedDrill} onOpenChange={(open) => !open && setSelectedDrill(null)}>
-        <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 overflow-hidden flex flex-col lg:flex-row">
+        <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 overflow-hidden flex flex-col lg:flex-row max-h-[95vh]">
           {selectedDrill && (
             <>
-              <div className="flex-1 bg-black aspect-video lg:aspect-auto lg:h-[600px] relative">
+              <div className="flex-1 bg-black aspect-video lg:aspect-auto lg:h-full relative">
                 {getYouTubeEmbedUrl(selectedDrill.videoUrl) ? (
                   <iframe 
                     src={getYouTubeEmbedUrl(selectedDrill.videoUrl)}
@@ -354,8 +356,8 @@ export default function DrillsPage() {
                 </Button>
               </div>
 
-              <div className="w-full lg:w-[400px] flex flex-col bg-background p-8 lg:h-[600px]">
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+              <div className="w-full lg:w-[400px] flex flex-col bg-background p-8 lg:h-full overflow-y-auto custom-scrollbar">
+                <div className="flex-1">
                   <div className="space-y-6">
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
