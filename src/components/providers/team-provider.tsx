@@ -157,11 +157,19 @@ export type RSVPStatus = 'going' | 'notGoing' | 'maybe';
 
 export type EventRecurrence = 'none' | 'daily' | 'weekly' | 'monthly';
 
+export type TournamentMatch = {
+  id: string;
+  date: string;
+  time: string;
+  label: string;
+};
+
 export type TeamEvent = {
   id: string;
   teamId: string;
   title: string;
   date: Date;
+  endDate?: Date;
   startTime: string;
   endTime?: string;
   location: string;
@@ -174,6 +182,8 @@ export type TeamEvent = {
   userRsvp?: RSVPStatus;
   maxRegistrations?: number;
   allowExternalRegistration?: boolean;
+  isTournament?: boolean;
+  tournamentSchedule?: TournamentMatch[];
 };
 
 export type EventRegistration = {
@@ -391,8 +401,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const counts = { going: 0, notGoing: 0, maybe: 0 };
     Object.values(userRsvpsMap).forEach(val => { if (val === 'going') counts.going++; if (val === 'notGoing') counts.notGoing++; if (val === 'maybe') counts.maybe++; });
     const d = new Date(e.date);
+    const ed = e.endDate ? new Date(e.endDate) : undefined;
     return {
-      id: e.id, teamId: e.teamId, title: e.title, date: isNaN(d.getTime()) ? new Date() : d, startTime: e.startTime, endTime: e.endTime, location: e.location, description: e.description, recurrence: e.recurrence || 'none', recurrenceDays: e.recurrenceDays, recurrenceEndDate: e.recurrenceEndDate, rsvps: counts, userRsvps: userRsvpsMap, userRsvp: userRsvpsMap[firebaseUser?.uid || ''] as RSVPStatus, maxRegistrations: e.maxRegistrations, allowExternalRegistration: e.allowExternalRegistration
+      id: e.id, teamId: e.teamId, title: e.title, date: isNaN(d.getTime()) ? new Date() : d, endDate: ed && !isNaN(ed.getTime()) ? ed : undefined, startTime: e.startTime, endTime: e.endTime, location: e.location, description: e.description, recurrence: e.recurrence || 'none', recurrenceDays: e.recurrenceDays, recurrenceEndDate: e.recurrenceEndDate, rsvps: counts, userRsvps: userRsvpsMap, userRsvp: userRsvpsMap[firebaseUser?.uid || ''] as RSVPStatus, maxRegistrations: e.maxRegistrations, allowExternalRegistration: e.allowExternalRegistration, isTournament: e.isTournament || false, tournamentSchedule: e.tournamentSchedule || []
     };
   }).sort((a, b) => a.date.getTime() - b.date.getTime()), [eventsData, firebaseUser?.uid]);
 
@@ -583,7 +594,16 @@ async function votePostPoll(pid: string, idx: number, activeTeam: any, firebaseU
 function addEvent(ed: any, activeTeam: any, firebaseUser: any, db: any) {
   if (!activeTeam || !firebaseUser) return;
   const d = ed.date instanceof Date ? ed.date : new Date(ed.date);
-  addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), { ...ed, teamId: activeTeam.id, date: d.toISOString(), createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), userRsvps: {} });
+  const payload: any = { 
+    ...ed, 
+    teamId: activeTeam.id, 
+    date: d.toISOString(), 
+    createdBy: firebaseUser.uid, 
+    createdAt: new Date().toISOString(), 
+    userRsvps: {} 
+  };
+  if (ed.endDate) payload.endDate = ed.endDate instanceof Date ? ed.endDate.toISOString() : ed.endDate;
+  addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), payload);
 }
 
 function updateRSVP(eid: string, s: RSVPStatus, activeTeam: any, firebaseUser: any, db: any) {
