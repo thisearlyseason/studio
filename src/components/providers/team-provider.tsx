@@ -205,7 +205,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [simulationPlanId, setSimulationPlanId] = useState<string | null>(null);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
   
-  // Persistent guard to prevent multiple seeding triggers in one session
   const seedingRef = useRef(false);
 
   const isSuperAdmin = useMemo(() => {
@@ -230,7 +229,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const tid = await seedGuestDemoTeam(db, firebaseUser.uid, demoIntent);
           setActiveTeamId(tid);
           
-          // Clean up URL parameters to prevent re-seeding loop
           const url = new URL(window.location.href);
           url.searchParams.delete('seed_demo');
           window.history.replaceState({}, '', url.toString());
@@ -238,7 +236,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           toast({ title: "Demo Ready", description: `You are now exploring the ${demoIntent.replace('_', ' ')} environment.` });
         } catch (e) {
           console.error("Demo seeding failed", e);
-          seedingRef.current = false; // Allow retry on failure
+          seedingRef.current = false;
         } finally {
           setIsSeedingDemo(false);
         }
@@ -273,7 +271,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             avatar: data.avatarUrl || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`
           });
         } else {
-          // Provide a baseline fallback profile for anonymous/demo users so UI doesn't hang
           setUserProfile({
             id: firebaseUser.uid,
             name: firebaseUser.displayName || 'Guest Coordinator',

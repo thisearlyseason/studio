@@ -36,6 +36,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 export default function ClubManagementPage() {
   const { teams, user, isClubManager, createNewTeam, setActiveTeam } = useTeam();
@@ -70,14 +71,16 @@ export default function ClubManagementPage() {
     if (!newTeamName.trim()) return;
     setIsCreating(true);
     try {
+      // Create team with club_custom plan
       const tid = await createNewTeam(newTeamName, 'Coach', `Official club squad managed by ${user?.name}`, 'club_custom');
-      setIsCreating(false);
+      
       setIsCreating(false);
       setNewTeamName('');
       setInitialCoach('');
       toast({ title: "Club Squad Enrolled", description: `${newTeamName} is now live.` });
     } catch (e) {
       setIsCreating(false);
+      toast({ title: "Enrollment Failed", variant: "destructive" });
     }
   };
 
