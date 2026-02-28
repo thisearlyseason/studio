@@ -9,7 +9,8 @@ import {
   writeBatch,
   query,
   where,
-  deleteDoc
+  deleteDoc,
+  setDoc
 } from 'firebase/firestore';
 
 /**
@@ -152,6 +153,33 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
 }
 
 /**
+ * Creates a fresh demo team for a guest user session.
+ */
+export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
+  const teamId = `demo_guest_${userId.slice(-6)}_${Date.now()}`;
+  const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
+                   planId === 'squad_pro' ? 'Guest Pro Varsity' : 'Guest City CentralUnited';
+  
+  const code = teamId.slice(-6).toUpperCase();
+  
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'teams', teamId), {
+    id: teamId, teamName, teamCode: code, createdBy: userId,
+    createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
+    isPro: planId !== 'starter_squad', planId, sport: 'Multi-Sport', isDemo: true
+  });
+  
+  batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
+    userId, teamId, teamName, teamCode: code,
+    role: 'Admin', isPro: planId !== 'starter_squad', planId, isDemo: true, joinedAt: new Date().toISOString()
+  });
+  
+  await batch.commit();
+  await seedDemoData(db, teamId, planId, userId);
+  return teamId;
+}
+
+/**
  * Resets a demo environment by wiping and re-seeding.
  */
 export async function resetDemoEnvironment(db: Firestore, teamId: string, planId: string, userId: string) {
@@ -199,7 +227,7 @@ export async function launchDemoEnvironments(db: Firestore, superAdminId: string
       });
       batch.set(doc(db, 'users', superAdminId, 'teamMemberships', dt.id), {
         userId: superAdminId, teamId: dt.id, teamName: dt.name, teamCode: code,
-        role: 'Admin', isPro: dt.planId !== 'starter_squad', planId: dt.planId, isDemo: true
+        role: 'Admin', isPro: dt.planId !== 'starter_squad', planId: dt.planId, isDemo: true, joinedAt: new Date().toISOString()
       });
       await batch.commit();
       await seedDemoData(db, dt.id, dt.planId, superAdminId);

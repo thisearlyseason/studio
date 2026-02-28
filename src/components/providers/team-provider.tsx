@@ -19,7 +19,8 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Purchases } from '@revenuecat/purchases-js';
-import { seedSubscriptionData, launchDemoEnvironments, resetDemoEnvironment } from '@/lib/db-seeder';
+import { seedSubscriptionData, launchDemoEnvironments, resetDemoEnvironment, seedGuestDemoTeam } from '@/lib/db-seeder';
+import { useSearchParams } from 'next/navigation';
 
 const REVENUECAT_PUBLIC_API_KEY = 'test_zvlronFHqIFQuWTkgaeWrdyYnkZ';
 const PRO_ENTITLEMENT_ID = 'The Squad Pro';
@@ -181,6 +182,7 @@ interface TeamContextType {
   simulationPlanId: string | null;
   setSimulationPlanId: (pid: string | null) => void;
   resetDemo: () => Promise<void>;
+  isSeedingDemo: boolean;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -190,6 +192,7 @@ const SUPER_ADMIN_EMAILS = ['thisearlyseason@gmail.com', 'test@gmail.com'];
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading } = useUser();
   const db = useFirestore();
+  const searchParams = useSearchParams();
   
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -197,6 +200,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isRCInitialized, setIsRCInitialized] = useState(false);
   const [simulationPlanId, setSimulationPlanId] = useState<string | null>(null);
+  const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
   const isSuperAdmin = useMemo(() => firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false, [firebaseUser?.email]);
 
@@ -206,6 +210,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       launchDemoEnvironments(db, firebaseUser.uid);
     }
   }, [isSuperAdmin, db, firebaseUser]);
+
+  // Handle Guest Demo Seeding via URL param
+  useEffect(() => {
+    const demoIntent = searchParams.get('seed_demo');
+    if (demoIntent && firebaseUser && !isSeedingDemo) {
+      const runSeeding = async () => {
+        setIsSeedingDemo(true);
+        try {
+          const tid = await seedGuestDemoTeam(db, firebaseUser.uid, demoIntent);
+          setActiveTeamId(tid);
+          toast({ title: "Demo Ready", description: `You are now exploring the ${demoIntent.replace('_', ' ')} environment.` });
+        } catch (e) {
+          console.error("Demo seeding failed", e);
+        } finally {
+          setIsSeedingDemo(false);
+        }
+      };
+      runSeeding();
+    }
+  }, [searchParams, firebaseUser, db]);
 
   useEffect(() => {
     if (firebaseUser && !isRCInitialized) {
@@ -227,7 +251,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const data = docSnap.data();
           setUserProfile({
             id: firebaseUser.uid,
-            name: data.fullName || firebaseUser.displayName || 'Anonymous',
+            name: data.fullName || firebaseUser.displayName || 'Anonymous Guest',
             email: data.email || firebaseUser.email || '',
             phone: data.phone || '',
             avatar: data.avatarUrl || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`
@@ -331,8 +355,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
     plans,
     simulationPlanId, setSimulationPlanId,
-    resetDemo: async () => { if (activeTeam?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeam.id, activeTeam.planId!, firebaseUser.uid); toast({ title: "Environment Reset", description: "Demo data has been restored." }); } }
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId]);
+    resetDemo: async () => { if (activeTeam?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeam.id, activeTeam.planId!, firebaseUser.uid); toast({ title: "Environment Reset", description: "Demo data has been restored." }); } },
+    isSeedingDemo
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

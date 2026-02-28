@@ -1,3 +1,4 @@
+
 "use client";
 
 import Shell from '@/components/layout/Shell';
@@ -7,6 +8,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { RevenueCatPaywall } from '@/components/RevenueCatPaywall';
 import { useTeam } from '@/components/providers/team-provider';
+import { Loader2 } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -14,7 +16,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isUserLoading } = useUser();
-  const { teams, isTeamsLoading } = useTeam();
+  const { teams, isTeamsLoading, isSeedingDemo } = useTeam();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -26,18 +28,29 @@ export default function DashboardLayout({
 
   useEffect(() => {
     // If user is logged in, has finished loading teams, but has ZERO teams
-    // and isn't already trying to create one, send them to the setup page.
-    if (user && !isTeamsLoading && teams.length === 0 && pathname !== '/teams/new') {
+    // and isn't already trying to create one or seeding a demo, send them to the setup page.
+    if (user && !isTeamsLoading && !isSeedingDemo && teams.length === 0 && pathname !== '/teams/new') {
       router.push('/teams/new');
     }
-  }, [user, teams, isTeamsLoading, pathname, router]);
+  }, [user, teams, isTeamsLoading, isSeedingDemo, pathname, router]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || !user || isSeedingDemo) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="h-12 w-12 bg-primary/20 rounded-full" />
-          <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">Authenticating...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
+          <div className="bg-primary/10 p-6 rounded-[2.5rem] shadow-xl relative">
+            <div className="h-16 w-16 flex items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-black uppercase tracking-widest text-primary">
+              {isSeedingDemo ? "Seeding Demo Environment..." : "Authenticating..."}
+            </p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+              {isSeedingDemo ? "Building Guest Squad Data" : "Verifying Elite Credentials"}
+            </p>
+          </div>
         </div>
       </div>
     );
