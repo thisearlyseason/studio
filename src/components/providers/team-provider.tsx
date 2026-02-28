@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { 
   collection, 
@@ -317,6 +317,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        // Defensive check for standard placeholder API keys
+        if (REVENUECAT_PUBLIC_API_KEY.length < 10) {
+          setIsRCInitialized(true);
+          return;
+        }
+
         Purchases.configure(REVENUECAT_PUBLIC_API_KEY, firebaseUser.uid);
         const purchases = Purchases.getSharedInstance();
         
@@ -334,6 +340,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           if (unsubscribe) unsubscribe();
         };
       } catch (e: any) {
+        console.warn("RevenueCat Initialization failed", e.message);
         setIsRCInitialized(true);
       }
     }
@@ -778,15 +785,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Stability fix: Memoize the entire context value to prevent redundant re-renders of children
+  const contextValue = useMemo(() => ({ 
+    user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
+    chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike, votePostPoll,
+    events, addEvent, updateEvent: (id: string, u: any) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'events', id), u), deleteEvent, updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: (id: string, u: any) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'games', id), u), files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
+    createNewTeam, inviteMember, joinTeamWithCode, isLoading: isUserLoading, formatTime, isSuperAdmin, 
+    isPro: activeTeam?.isPro || isProEntitlementActive || isSuperAdmin,
+    purchasePro, manageSubscription, isPaywallOpen, setIsPaywallOpen
+  }), [
+    userProfile, activeTeam, teams, members, chats, messages, activeChatId, posts, events, games, files, drills, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db
+  ]);
+
   return (
-    <TeamContext.Provider value={{ 
-      user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
-      chats, createChat, messages, activeChatId, setActiveChatId, addMessage, votePoll, posts, addPost, deletePost, addComment, deleteComment, toggleLike, votePostPoll,
-      events, addEvent, updateEvent: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'events', id), u), deleteEvent, updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'games', id), u), files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
-      createNewTeam, inviteMember, joinTeamWithCode, isLoading: isUserLoading, formatTime, isSuperAdmin, 
-      isPro: activeTeam?.isPro || isProEntitlementActive || isSuperAdmin,
-      purchasePro, manageSubscription, isPaywallOpen, setIsPaywallOpen
-    }}>
+    <TeamContext.Provider value={contextValue}>
       {children}
     </TeamContext.Provider>
   );
