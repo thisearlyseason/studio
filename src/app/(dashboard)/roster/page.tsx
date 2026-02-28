@@ -105,7 +105,6 @@ export default function RosterPage() {
     );
   }
 
-  // Unified Admin Check
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
   const canEditDetails = hasFeature('full_roster_details');
 
@@ -205,6 +204,11 @@ export default function RosterPage() {
     } catch { return null; }
   };
 
+  // Club Manager Protection Logic
+  const isManager = (memberId: string) => {
+    return memberId === activeTeam?.createdBy;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
@@ -280,6 +284,9 @@ export default function RosterPage() {
                   <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-primary/20 text-primary font-black uppercase tracking-tighter">
                     {member.jersey !== 'PAR' && member.jersey !== 'TBD' ? `#${member.jersey}` : member.jersey}
                   </Badge>
+                  {isManager(member.userId) && (
+                    <Badge className="bg-black text-white border-none text-[7px] h-3.5 font-black uppercase px-1 shadow-sm">Manager</Badge>
+                  )}
                 </div>
                 <p className="text-[11px] text-muted-foreground font-black uppercase tracking-widest">{member.position}</p>
               </div>
@@ -312,7 +319,7 @@ export default function RosterPage() {
           
           {selectedMember && (
             <>
-              {/* Header - Responsive for mobile */}
+              {/* Header */}
               <div className="bg-muted/30 p-6 sm:p-10 border-b flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
                   <Users2 className="h-48 w-48 -rotate-12" />
@@ -326,6 +333,7 @@ export default function RosterPage() {
                     <div className="flex flex-col sm:flex-row items-center gap-3">
                       <h2 className="text-3xl sm:text-4xl font-black tracking-tighter leading-none">{selectedMember.name}</h2>
                       {selectedMember.role === 'Admin' && <Badge className="bg-primary text-white border-none font-black text-[10px] h-5 uppercase tracking-widest px-3">Leadership</Badge>}
+                      {isManager(selectedMember.userId) && <Badge className="bg-black text-white border-none font-black text-[10px] h-5 uppercase tracking-widest px-3">Primary Manager</Badge>}
                     </div>
                     <p className="font-black text-primary uppercase tracking-[0.2em] text-xs sm:text-sm">
                       {selectedMember.position} • {selectedMember.jersey !== 'PAR' ? `#${selectedMember.jersey}` : 'Staff'}
@@ -362,7 +370,7 @@ export default function RosterPage() {
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
                   
-                  {/* LEFT: Financials & Status (4 cols) */}
+                  {/* LEFT: Financials & Status */}
                   <div className="lg:col-span-4 p-8 border-r bg-muted/5 space-y-8">
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 px-1">
@@ -425,10 +433,9 @@ export default function RosterPage() {
                     </div>
                   </div>
 
-                  {/* RIGHT: Detailed Info (8 cols) */}
+                  {/* RIGHT: Detailed Info */}
                   <div className="lg:col-span-8 p-8 space-y-10">
                     {isEditing ? (
-                      /* EDIT MODE */
                       <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-2">
@@ -498,7 +505,6 @@ export default function RosterPage() {
                         </Button>
                       </div>
                     ) : (
-                      /* VIEW MODE */
                       <div className="space-y-10 animate-in fade-in slide-in-from-left-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                           <div className="space-y-6">
@@ -660,6 +666,25 @@ export default function RosterPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+              
+              <div className="p-6 bg-muted/10 border-t flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2">
+                  {isManager(selectedMember.userId) && (
+                    <div className="flex items-center gap-2 text-muted-foreground opacity-50 px-2">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span className="text-[9px] font-black uppercase tracking-widest leading-none">Protected Club Manager Profile</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  {isAdmin && !isManager(selectedMember.userId) && (
+                    <Button variant="ghost" className="h-12 px-6 rounded-xl text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] tracking-widest">
+                      <Trash2 className="h-4 w-4 mr-2" /> Remove Teammate
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setSelectedMember(null)} className="h-12 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest border-2">Close Profile</Button>
                 </div>
               </div>
             </>

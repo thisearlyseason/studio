@@ -48,6 +48,7 @@ export type Team = {
   planId?: string;
   role?: 'Admin' | 'Member';
   isDemo?: boolean;
+  createdBy?: string;
 };
 
 export type TeamEvent = {
@@ -152,7 +153,7 @@ interface TeamContextType {
   updateMember: (id: string, updates: Partial<Member>) => void;
   alerts: TeamAlert[];
   createAlert: (title: string, message: string) => void;
-  createNewTeam: (name: string, organizerPosition: string, description?: string) => Promise<void>;
+  createNewTeam: (name: string, organizerPosition: string, description?: string, planId?: string) => Promise<string>;
   joinTeamWithCode: (code: string, position: string) => Promise<boolean>;
   addEvent: (event: any) => void;
   updateEvent: (id: string, event: any) => void;
@@ -184,6 +185,7 @@ interface TeamContextType {
   setSimulationPlanId: (pid: string | null) => void;
   resetDemo: () => Promise<void>;
   isSeedingDemo: boolean;
+  isClubManager: boolean;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -215,7 +217,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [isSuperAdmin, db, firebaseUser]);
 
-  // Handle Guest Demo Seeding via URL param
   useEffect(() => {
     const demoIntent = searchParams.get('seed_demo');
     if (demoIntent && firebaseUser && !isSeedingDemo) {
@@ -276,7 +277,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const teams = useMemo(() => {
     if (!teamsRawData) return [];
     return teamsRawData.map(m => {
-      // Use document ID as primary fallback for team ID
       const tid = isSuperAdmin ? m.id : (m.teamId || m.id);
       return {
         id: tid,
@@ -289,7 +289,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         isPro: m.isPro || false,
         planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'),
         role: m.role || (isSuperAdmin ? 'Admin' : 'Member'),
-        isDemo: m.isDemo || false
+        isDemo: m.isDemo || false,
+        createdBy: m.createdBy || m.userId
       };
     });
   }, [teamsRawData, isSuperAdmin]);
@@ -329,6 +330,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: alertsData } = useCollection(alertsQuery);
   const alerts = useMemo(() => (alertsData || []).map(a => ({ id: a.id, teamId: a.teamId, title: a.title, message: a.message, createdBy: a.createdBy, createdAt: a.createdAt })), [alertsData]);
 
+  const isClubManager = useMemo(() => {
+    return teams.some(t => t.createdBy === firebaseUser?.uid && t.planId === 'club_custom');
+  }, [teams, firebaseUser?.uid]);
+
   const contextValue = useMemo(() => ({
     user: userProfile, 
     updateUser: (updates: Partial<UserProfile>) => { if (firebaseUser) updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid), updates); },
@@ -343,8 +348,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     updateMember: (id: string, u: any) => activeTeam?.id && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'members', id), u),
     alerts, 
     createAlert: (t: string, m: string) => { if (activeTeam?.id && firebaseUser) { setDocumentNonBlocking(doc(collection(db, 'teams', activeTeam.id, 'alerts')), { teamId: activeTeam.id, title: t, message: m, createdBy: firebaseUser.uid, createdAt: new Date().toISOString() }, { merge: true }); } },
-    createNewTeam: async (name: string, pos: string, description?: string) => { if (!firebaseUser) return; const tid = `team_${Date.now()}`; const code = Math.random().toString(36).substring(2, 8).toUpperCase(); const batch = writeBatch(db); batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: false, planId: 'starter_squad' }); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, description: description || '', teamCode: code, role: 'Admin', isPro: false, planId: 'starter_squad', joinedAt: new Date().toISOString() }); await batch.commit(); setActiveTeamId(tid); },
-    joinTeamWithCode: async (code: string, pos: string) => { if (!firebaseUser || !userProfile) return false; const qT = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1)); const snap = await getDocs(qT); if (snap.empty) return false; const tDoc = snap.docs[0]; const tData = tDoc.data(); const tid = tDoc.id; const batch = writeBatch(db); batch.update(doc(db, 'teams', tid), { [`members.${firebaseUser.uid}`]: 'Member' }); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Member', position: pos || 'Player', name: userProfile.name, avatar: userProfile.avatar, joinedAt: new Date().toISOString() }); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: tData.teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: tData.isPro || false, planId: tData.planId || (tData.isPro ? 'squad_pro' : 'starter_squad'), joinedAt: new Date().toISOString() }); await batch.commit(); setActiveTeamId(tid); return true; },
+    createNewTeam: async (name: string, pos: string, description?: string, planId?: string) => { 
+      if (!firebaseUser) return ''; 
+      const tid = `team_${Date.now()}`; 
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase(); 
+      const pId = planId || 'starter_squad';
+      const isP = pId !== 'starter_squad';
+      const batch = writeBatch(db); 
+      batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId }); 
+      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); 
+      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, description: description || '', teamCode: code, role: 'Admin', isPro: isP, planId: pId, joinedAt: new Date().toISOString(), createdBy: firebaseUser.uid }); 
+      await batch.commit(); 
+      setActiveTeamId(tid);
+      return tid;
+    },
+    joinTeamWithCode: async (code: string, pos: string) => { if (!firebaseUser || !userProfile) return false; const qT = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1)); const snap = await getDocs(qT); if (snap.empty) return false; const tDoc = snap.docs[0]; const tData = tDoc.data(); const tid = tDoc.id; const batch = writeBatch(db); batch.update(doc(db, 'teams', tid), { [`members.${firebaseUser.uid}`]: 'Member' }); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Member', position: pos || 'Player', name: userProfile.name, avatar: userProfile.avatar, joinedAt: new Date().toISOString() }); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: tData.teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: tData.isPro || false, planId: tData.planId || (tData.isPro ? 'squad_pro' : 'starter_squad'), joinedAt: new Date().toISOString(), createdBy: tData.createdBy }); await batch.commit(); setActiveTeamId(tid); return true; },
     addEvent: (e: any) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), { ...e, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString(), userRsvps: {} }),
     updateEvent: (id: string, e: any) => activeTeam?.id && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id), e),
     deleteEvent: (id: string) => activeTeam?.id && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id)),
@@ -372,8 +390,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     plans,
     simulationPlanId, setSimulationPlanId,
     resetDemo: async () => { if (activeTeam?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeam.id, activeTeam.planId!, firebaseUser.uid); toast({ title: "Environment Reset", description: "Demo data has been restored." }); } },
-    isSeedingDemo
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo]);
+    isSeedingDemo,
+    isClubManager
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isProEntitlementActive, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

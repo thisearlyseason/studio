@@ -22,7 +22,8 @@ import {
   CreditCard,
   ShieldAlert,
   RotateCcw,
-  Eye
+  Eye,
+  Building
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -106,7 +107,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { 
     activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin, 
-    simulationPlanId, setSimulationPlanId, resetDemo 
+    simulationPlanId, setSimulationPlanId, resetDemo, isClubManager 
   } = useTeam();
   const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
@@ -222,6 +223,27 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 />
               ))}
               <SidebarSeparator className="my-4 opacity-10" />
+              
+              {isClubManager && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === '/club'}
+                    className={cn(
+                      "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+                      pathname === '/club' 
+                        ? "bg-black text-white shadow-lg" 
+                        : "text-muted-foreground hover:bg-black/5 hover:text-black"
+                    )}
+                  >
+                    <Link href="/club" className="flex items-center gap-4">
+                      <Building className="h-5 w-5" />
+                      <span>Club Hub</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild 
@@ -308,7 +330,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-4">
               <div className="flex flex-col">
                 <h2 className="text-2xl font-black tracking-tighter uppercase">
-                  {pathname === '/pricing' ? 'Pricing' : (pathname === '/admin/plans' ? 'Admin Suite' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard'))}
+                  {pathname === '/pricing' ? 'Pricing' : (pathname === '/admin/plans' ? 'Admin Suite' : (pathname === '/club' ? 'Club Hub' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard')))}
                 </h2>
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.3em] ml-0.5">The Squad Hub • {activeTeam?.name}</p>
               </div>
