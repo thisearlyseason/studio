@@ -27,7 +27,8 @@ import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlo
 import { Purchases, CustomerInfo } from '@revenuecat/purchases-js';
 
 // Configuration for RevenueCat
-const REVENUECAT_PUBLIC_API_KEY = 'goog_placeholder_api_key'; // Replace with your actual public key
+const REVENUECAT_PUBLIC_API_KEY = 'test_zvlronFHqIFQuWTkgaeWrdyYnkZ';
+const PRO_ENTITLEMENT_ID = 'The Squad Pro';
 
 export type UserProfile = {
   id: string;
@@ -263,6 +264,7 @@ interface TeamContextType {
   isSuperAdmin: boolean;
   isPro: boolean;
   purchasePro: () => Promise<void>;
+  manageSubscription: () => Promise<void>;
   isPaywallOpen: boolean;
   setIsPaywallOpen: (open: boolean) => void;
 }
@@ -286,23 +288,29 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const isSuperAdmin = firebaseUser?.email ? SUPER_ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
-  // Initialize RevenueCat
+  // Initialize RevenueCat SDK
   useEffect(() => {
     if (firebaseUser) {
-      const purchases = Purchases.getSharedInstance();
-      purchases.configure(REVENUECAT_PUBLIC_API_KEY, firebaseUser.uid);
-      
-      // Initial check for entitlements
-      purchases.getCustomerInfo().then(info => {
-        setIsProEntitlementActive(info.entitlements.active.hasOwnProperty('pro'));
-      });
+      try {
+        const purchases = Purchases.getSharedInstance();
+        purchases.configure(REVENUECAT_PUBLIC_API_KEY, firebaseUser.uid);
+        
+        // Initial check for entitlements
+        purchases.getCustomerInfo().then(info => {
+          setIsProEntitlementActive(!!info.entitlements.active[PRO_ENTITLEMENT_ID]);
+        }).catch(err => console.error("RC Init Error:", err));
 
-      // Listen for updates
-      const unsubscribe = purchases.addCustomerInfoUpdateListener((info) => {
-        setIsProEntitlementActive(info.entitlements.active.hasOwnProperty('pro'));
-      });
+        // Listen for subscription updates
+        const unsubscribe = purchases.addCustomerInfoUpdateListener((info) => {
+          setIsProEntitlementActive(!!info.entitlements.active[PRO_ENTITLEMENT_ID]);
+        });
 
-      return () => unsubscribe();
+        return () => {
+          if (unsubscribe) unsubscribe();
+        };
+      } catch (e) {
+        console.error("RevenueCat setup failed:", e);
+      }
     }
   }, [firebaseUser]);
 
@@ -704,6 +712,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setIsPaywallOpen(true);
   };
 
+  const manageSubscription = async () => {
+    try {
+      const purchases = Purchases.getSharedInstance();
+      await purchases.openCustomerCenter();
+    } catch (e) {
+      console.error("Failed to open Customer Center", e);
+      toast({ title: "Management Error", description: "Could not open billing settings.", variant: "destructive" });
+    }
+  };
+
   return (
     <TeamContext.Provider value={{ 
       user: userProfile, updateUser, activeTeam, setActiveTeam, updateTeamHero, updateTeamDetails, teams, members, updateMember, toggleFeesPaid,
@@ -711,7 +729,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       events, addEvent, updateEvent: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'events', id), u), updateRSVP, addRegistration, promoteToRoster, games, addGame, updateGame: (id, u) => updateDocumentNonBlocking(doc(db, 'teams', activeTeam!.id, 'games', id), u), files, addFile, deleteFile, drills, addDrill, deleteDrill, alerts, createAlert,
       createNewTeam, inviteMember, joinTeamWithCode, isLoading: isUserLoading, formatTime, isSuperAdmin, 
       isPro: activeTeam?.isPro || isProEntitlementActive || isSuperAdmin,
-      purchasePro, isPaywallOpen, setIsPaywallOpen
+      purchasePro, manageSubscription, isPaywallOpen, setIsPaywallOpen
     }}>
       {children}
     </TeamContext.Provider>

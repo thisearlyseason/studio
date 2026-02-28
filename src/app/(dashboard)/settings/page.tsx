@@ -23,7 +23,9 @@ import {
   Camera, 
   ChevronRight,
   HelpCircle,
-  Loader2
+  Loader2,
+  CreditCard,
+  ExternalLink
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -40,7 +42,7 @@ import { signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
-  const { user, updateUser, members, activeTeam, updateMember } = useTeam();
+  const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro } = useTeam();
   const auth = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
@@ -79,7 +81,7 @@ export default function SettingsPage() {
     );
   }
 
-  const currentMember = members.find(m => m.id === user.id && m.teamId === activeTeam.id);
+  const currentMember = members.find(m => m.userId === user.id && m.teamId === activeTeam.id);
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -90,7 +92,7 @@ export default function SettingsPage() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_SIZE = 400; // Avatars can be smaller
+          const MAX_SIZE = 400;
           let width = img.width;
           let height = img.height;
           if (width > height) {
@@ -292,6 +294,24 @@ export default function SettingsPage() {
                 </div>
                 <Switch checked={notifications} onCheckedChange={setNotifications} />
               </div>
+
+              {isPro && (
+                <button 
+                  onClick={manageSubscription}
+                  className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-amber-100 p-2.5 rounded-2xl text-amber-600">
+                      <CreditCard className="h-5 w-5" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold">Manage Subscription</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Billing & plan management</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 transition-all" />
+                </button>
+              )}
               
               <button 
                 onClick={() => navigateTo('/privacy')}
