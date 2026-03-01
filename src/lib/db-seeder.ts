@@ -52,8 +52,11 @@ export async function seedSubscriptionData(db: Firestore) {
       await batch.commit();
     }
 
-    // 2. Seed Plans if missing
+    // 2. Authoritative Plan Catalog
     const plansSnapshot = await getDocs(collection(db, 'plans'));
+    
+    // For this update, we want the catalog to be authoritative, so we'll overwrite if needed
+    // or seed if empty.
     if (plansSnapshot.empty) {
       const batch = writeBatch(db);
 
@@ -69,19 +72,44 @@ export async function seedSubscriptionData(db: Firestore) {
 
       const plans = [
         {
-          id: 'starter_squad', name: 'Starter Squad', description: 'Basic coordination essentials for growing teams.',
+          id: 'starter_squad', name: 'Starter Squad', description: 'Essential coordination for unlimited teams.',
           priceDisplay: 'Free', billingCycle: '', isPublic: true, isContactOnly: false,
-          billingType: 'free', teamLimit: 1, features: starterFeatures
+          billingType: 'free', teamLimit: null, features: starterFeatures, proTeamLimit: 0
         },
         {
-          id: 'squad_pro', name: 'Elite Squad', description: 'Full-scale coordination and analytics for elite squads.',
-          priceDisplay: '$9.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 5, features: proFeaturesMap
+          id: 'squad_pro', name: 'Elite Solo', description: 'Pro features for a single competitive team.',
+          priceDisplay: '$12.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', teamLimit: 1, features: proFeaturesMap, proTeamLimit: 1
         },
         {
-          id: 'club_custom', name: 'Club / Custom', description: 'Enterprise solutions for leagues and multi-team organizations.',
+          id: 'squad_duo', name: 'Dynamic Duo', description: 'Power up two elite squads.',
+          priceDisplay: '$23.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', teamLimit: 2, features: proFeaturesMap, proTeamLimit: 2
+        },
+        {
+          id: 'squad_crew', name: 'The Crew', description: 'Coordination suite for up to 4 teams.',
+          priceDisplay: '$44.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', teamLimit: 4, features: proFeaturesMap, proTeamLimit: 4
+        },
+        {
+          id: 'squad_league', name: 'League Master', description: 'Full-scale coordination for 9 squads.',
+          priceDisplay: '$89.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', teamLimit: 9, features: proFeaturesMap, proTeamLimit: 9
+        },
+        {
+          id: 'squad_division', name: 'Division Lead', description: 'Elite oversight for 12 squads.',
+          priceDisplay: '$119.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', teamLimit: 12, features: proFeaturesMap, proTeamLimit: 12
+        },
+        {
+          id: 'squad_conference', name: 'Conference Pro', description: 'Master infrastructure for 15 teams.',
+          priceDisplay: '$149.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', teamLimit: 15, features: proFeaturesMap, proTeamLimit: 15
+        },
+        {
+          id: 'squad_organization', name: 'Organization', description: 'Custom enterprise-grade infrastructure for large clubs.',
           priceDisplay: 'Custom', billingCycle: '', isPublic: true, isContactOnly: true,
-          billingType: 'manual', teamLimit: null, features: proFeaturesMap
+          billingType: 'manual', teamLimit: null, features: proFeaturesMap, proTeamLimit: 15
         }
       ];
 
@@ -203,7 +231,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     id: teamId, teamName, teamCode: code, createdBy: userId,
     createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
     isPro, planId, sport: 'Multi-Sport', isDemo: true,
-    description: planId === 'club_custom' ? 'Elite multi-team development organization.' : 'Dynamic coordination for high-performance squads.'
+    description: planId === 'squad_organization' ? 'Elite multi-team development organization.' : 'Dynamic coordination for high-performance squads.'
   });
   
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
@@ -214,13 +242,13 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   batch.set(doc(db, 'teams', teamId, 'members', userId), {
     id: userId, userId, teamId, name: 'Guest Coordinator', role: 'Admin',
-    position: planId === 'club_custom' ? 'Club Manager' : 'Coach', jersey: 'Staff',
+    position: planId === 'squad_organization' ? 'Club Manager' : 'Coach', jersey: 'Staff',
     avatar: `https://picsum.photos/seed/${userId}/150/150`, joinedAt: new Date().toISOString(),
     phone: '(555) 000-1234', amountOwed: 0, feesPaid: true, isDemo: true
   });
 
   // 3. Club Sub-teams
-  if (planId === 'club_custom') {
+  if (planId === 'squad_organization') {
     const subs = [
       { id: `demo_sub_${userId.slice(-6)}_1`, name: 'Guest U14 Development' },
       { id: `demo_sub_${userId.slice(-6)}_2`, name: 'Guest U16 Regional Select' }
@@ -230,11 +258,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       batch.set(doc(db, 'teams', sub.id), {
         id: sub.id, teamName: sub.name, teamCode: sub.id.slice(-6).toUpperCase(), createdBy: userId,
         createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
-        isPro: true, planId: 'club_custom', isDemo: true
+        isPro: true, planId: 'squad_organization', isDemo: true
       });
       batch.set(doc(db, 'users', userId, 'teamMemberships', sub.id), {
         userId, teamId: sub.id, teamName: sub.name, role: 'Admin', isPro: true, 
-        planId: 'club_custom', isDemo: true, joinedAt: new Date().toISOString(), createdBy: userId
+        planId: 'squad_organization', isDemo: true, joinedAt: new Date().toISOString(), createdBy: userId
       });
       batch.set(doc(db, 'teams', sub.id, 'members', userId), {
         id: userId, userId, teamId: sub.id, name: 'Guest Coordinator', role: 'Admin',
@@ -248,9 +276,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   
   // Seed realistic content
   await seedDemoData(db, teamId, planId, userId);
-  if (planId === 'club_custom') {
-    await seedDemoData(db, `demo_sub_${userId.slice(-6)}_1`, 'club_custom', userId);
-    await seedDemoData(db, `demo_sub_${userId.slice(-6)}_2`, 'club_custom', userId);
+  if (planId === 'squad_organization') {
+    await seedDemoData(db, `demo_sub_${userId.slice(-6)}_1`, 'squad_organization', userId);
+    await seedDemoData(db, `demo_sub_${userId.slice(-6)}_2`, 'squad_organization', userId);
   }
 
   return teamId;
@@ -275,7 +303,6 @@ export async function resetDemoEnvironment(db: Firestore, teamId: string, planId
         const batch = writeBatch(db);
         for (const docSnap of snap.docs) {
           // Safety: Don't delete the active manager's member record during the wipe
-          // to avoid permission Denied if rules prevent manager deletion.
           if (sub === 'members' && docSnap.data().userId === userId) continue;
           
           // Handle nested subcollections
@@ -319,8 +346,8 @@ export async function resetDemoEnvironment(db: Firestore, teamId: string, planId
 export async function launchDemoEnvironments(db: Firestore, superAdminId: string) {
   const demoTeams = [
     { id: 'demo_starter_team', name: 'U10 Grassroots Stars', planId: 'starter_squad', sport: 'Soccer' },
-    { id: 'demo_pro_team', name: 'Elite Varsity Squad', planId: 'squad_pro', sport: 'Basketball' },
-    { id: 'demo_club_team_1', name: 'City Central United', planId: 'club_custom', sport: 'Football' }
+    { id: 'demo_pro_team', name: 'Elite Solo Squad', planId: 'squad_pro', sport: 'Basketball' },
+    { id: 'demo_club_team_1', name: 'City Central United', planId: 'squad_organization', sport: 'Football' }
   ];
 
   for (const dt of demoTeams) {
