@@ -17,13 +17,13 @@ import { Check, Loader2, Sparkles, Trophy, Zap } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export function RevenueCatPaywall() {
-  const { isPaywallOpen, setIsPaywallOpen, isPro } = useTeam();
+  const { isPaywallOpen, setIsPaywallOpen, isPro, isRCInitialized } = useTeam();
   const [offering, setOffering] = useState<Offering | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
 
   useEffect(() => {
-    if (isPaywallOpen) {
+    if (isPaywallOpen && isRCInitialized) {
       setIsLoading(true);
       Purchases.getSharedInstance().getOfferings()
         .then(offerings => {
@@ -36,7 +36,7 @@ export function RevenueCatPaywall() {
           toast({ title: "Network Error", description: "Could not load subscription details.", variant: "destructive" });
         });
     }
-  }, [isPaywallOpen]);
+  }, [isPaywallOpen, isRCInitialized]);
 
   const handlePurchase = async (pkg: Package) => {
     setIsPurchasing(true);

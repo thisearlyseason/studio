@@ -179,6 +179,7 @@ interface TeamContextType {
   manageSubscription: () => Promise<void>;
   isPaywallOpen: boolean;
   setIsPaywallOpen: (open: boolean) => void;
+  isRCInitialized: boolean;
   formatTime: (date: string | Date) => string;
   plans: Plan[];
   simulationPlanId: string | null;
@@ -472,8 +473,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       return !!activePlanFeatures[featureKey]; 
     },
     purchasePro: async () => setIsPaywallOpen(true),
-    manageSubscription: async () => { try { await Purchases.getSharedInstance().openCustomerCenter(); } catch { toast({ title: "Error", description: "Failed to open settings.", variant: "destructive" }); } },
+    manageSubscription: async () => { 
+      if (!isRCInitialized) {
+        toast({ title: "Please wait", description: "Subscription service is initializing." });
+        return;
+      }
+      try { await Purchases.getSharedInstance().openCustomerCenter(); } 
+      catch { toast({ title: "Error", description: "Failed to open settings.", variant: "destructive" }); } 
+    },
     isPaywallOpen, setIsPaywallOpen,
+    isRCInitialized,
     formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
     plans,
     simulationPlanId, setSimulationPlanId,
@@ -481,7 +490,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isSeedingDemo,
     isClubManager,
     secondsUntilReset
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro]);
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
