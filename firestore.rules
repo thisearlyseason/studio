@@ -140,18 +140,18 @@ service cloud.firestore {
     }
 
     match /features/{featureId} {
-      allow read: if true;
+      allow get, list: if true;
       allow write: if isAdmin();
     }
 
     match /plans/{planId} {
-      allow read: if true;
+      allow get, list: if true;
       allow write: if isAdmin();
     }
 
     match /leads/{leadId} {
       allow create: if true;
-      allow read, write: if isAdmin();
+      allow get, list, write: if isAdmin();
     }
   }
 }

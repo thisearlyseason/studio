@@ -283,18 +283,18 @@ export async function resetDemoEnvironment(db: Firestore, teamId: string, planId
             const msgs = await getDocs(collection(db, 'teams', tid, sub, docSnap.id, 'messages'));
             const msgBatch = writeBatch(db);
             msgs.forEach(m => msgBatch.delete(m.ref));
-            await msgBatch.commit();
+            if (msgs.size > 0) await msgBatch.commit();
           }
           if (sub === 'events') {
             const regs = await getDocs(collection(db, 'teams', tid, sub, docSnap.id, 'registrations'));
             const regBatch = writeBatch(db);
             regs.forEach(r => regBatch.delete(r.ref));
-            await regBatch.commit();
+            if (regs.size > 0) await regBatch.commit();
           }
 
           batch.delete(docSnap.ref);
         }
-        await batch.commit();
+        if (snap.size > 0) await batch.commit();
       }
     }
 

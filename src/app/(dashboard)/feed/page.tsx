@@ -102,12 +102,10 @@ export default function FeedPage() {
   const [newPostContent, setNewPostContent] = useState('');
   const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [commentInputs, setCommentInputs] = useState<{ [key: string]: string }>({});
-  const [commentImages, setCommentImages] = useState<{ [key: string]: string }>({});
   const [isUpdatingHero, setIsUpdatingHero] = useState(false);
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<{text: string, image?: string}[]>([{text: '', image: undefined}, {text: '', image: undefined}]);
-  const [viewVotersFor, setViewVotersFor] = useState<{question: string, optionIdx: number, voterIds: string[]} | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,7 +278,7 @@ export default function FeedPage() {
                         const percentage = post.poll.totalVotes > 0 ? (opt.votes / post.poll.totalVotes) * 100 : 0;
                         return (
                           <div key={i} className="bg-muted/20 rounded-3xl overflow-hidden p-4 space-y-3 relative group/opt transition-all hover:bg-muted/30">
-                            {opt.imageUrl && <img src={opt.imageUrl} className="aspect-video w-full object-cover rounded-xl cursor-zoom-in" onClick={() => setLightboxImage(opt.imageUrl)} />}
+                            {opt.imageUrl && <img src={opt.imageUrl} className="aspect-video w-full object-cover rounded-xl cursor-zoom-in" onClick={() => setLightboxImage(opt.imageUrl)} alt={opt.text} />}
                             <button onClick={() => handleVote(post.id, i)} className="w-full text-left">
                               <div className="flex justify-between items-center mb-2">
                                 <span className="font-bold text-sm flex items-center gap-2">{opt.text}{hasVoted && <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />}</span>
@@ -296,7 +294,7 @@ export default function FeedPage() {
                 ) : (
                   <p className="text-lg leading-relaxed font-medium text-foreground/80">{post.content}</p>
                 )}
-                {post.imageUrl && <img src={post.imageUrl} className="rounded-[2rem] w-full h-auto object-cover max-h-[600px] border shadow-inner" />}
+                {post.imageUrl && <img src={post.imageUrl} className="rounded-[2rem] w-full h-auto object-cover max-h-[600px] border shadow-inner" alt="Feed media" />}
               </CardContent>
               <CardFooter className="flex flex-col border-t border-muted/30 pt-6 pb-8 gap-6 px-8">
                 <div className="flex items-center gap-8 w-full">
@@ -307,8 +305,8 @@ export default function FeedPage() {
                 </div>
                 <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} />
                 <div className="flex gap-3 w-full">
-                  <Input placeholder="Write to your squad..." className="bg-muted/50 border-none rounded-2xl h-12 text-sm font-bold px-6 shadow-inner" value={commentInputs[post.id] || ''} onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))} />
-                  <Button size="icon" className="rounded-2xl h-12 w-12 shrink-0 shadow-xl shadow-primary/20" onClick={() => addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))}><Send className="h-5 w-5" /></Button>
+                  <Input placeholder="Write to your squad..." className="bg-muted/50 border-none rounded-2xl h-12 text-sm font-bold px-6 shadow-inner" value={commentInputs[post.id] || ''} onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))} />
+                  <Button size="icon" className="rounded-2xl h-12 w-12 shrink-0 shadow-xl shadow-primary/20" onClick={() => commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))}><Send className="h-5 w-5" /></Button>
                 </div>
               </CardFooter>
             </Card>
@@ -369,7 +367,7 @@ export default function FeedPage() {
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Question</Label>
-                    <Input placeholder="e.g. Best time for extra training?" value={pollQuestion} onChange={e => setpollQuestion(e.target.value)} className="rounded-xl h-12 bg-background font-bold" />
+                    <Input placeholder="e.g. Best time for extra training?" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="rounded-xl h-12 bg-background font-bold" />
                   </div>
                 </div>
               </div>
@@ -411,7 +409,7 @@ export default function FeedPage() {
         <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(null)}>
           <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
             <DialogTitle className="sr-only">Image Preview</DialogTitle>
-            <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain" />
+            <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain" alt="Enlarged view" />
           </DialogContent>
         </Dialog>
       )}

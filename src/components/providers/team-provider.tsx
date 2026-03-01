@@ -292,16 +292,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam, isProEntitlementActive, isSuperAdmin, simulationPlanId]);
 
   const isClubManager = useMemo(() => {
+    // Check simulation first
     if (simulationPlanId === 'club_custom') return true;
     if (simulationPlanId === 'starter_squad' || simulationPlanId === 'squad_pro') return false;
     
-    // For Demos, derive from the specific plan assigned
-    if (activeTeam?.isDemo) {
-      return activeTeam.planId === 'club_custom';
-    }
+    // Scoped to the active team context to prevent UI leakage
+    if (!activeTeam) return false;
+    if (activeTeam.planId === 'club_custom' && activeTeam.role === 'Admin') return true;
 
-    return teams.some(t => t.createdBy === firebaseUser?.uid && t.planId === 'club_custom');
-  }, [teams, firebaseUser?.uid, simulationPlanId, activeTeam]);
+    return false;
+  }, [simulationPlanId, activeTeam]);
 
   // Members
   const membersQuery = useMemoFirebase(() => {
@@ -329,6 +329,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
 
     const checkReset = async () => {
+      if (!userProfile?.createdAt) return;
       const start = new Date(userProfile.createdAt!).getTime();
       const now = Date.now();
       const elapsed = now - start;
