@@ -31,6 +31,10 @@ export type UserProfile = {
   avatar: string;
   createdAt?: string;
   isDemo?: boolean;
+  activePlanId?: string | null;
+  planSource?: 'free' | 'revenuecat' | 'manual';
+  proTeamLimit?: number | null;
+  revenueCatUserId?: string | null;
 };
 
 export type Team = {
@@ -45,10 +49,13 @@ export type Team = {
   contactPhone?: string;
   membersMap?: Record<string, string>;
   isPro?: boolean;
+  proAssignedAt?: string | null;
+  isProPendingRemoval?: boolean;
   planId?: string;
   role?: 'Admin' | 'Member';
   isDemo?: boolean;
   createdBy?: string;
+  ownerUserId?: string;
 };
 
 export type TeamEvent = {
@@ -137,6 +144,15 @@ export type Feature = {
   id: string;
   description: string;
   defaultEnabled: boolean;
+};
+
+export type Subscription = {
+  userId: string;
+  productId: string;
+  entitlementActive: boolean;
+  proTeamLimit: number;
+  source: 'revenuecat' | 'manual';
+  lastSyncedAt: string;
 };
 
 interface TeamContextType {
@@ -243,10 +259,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         teamLogoUrl: m.teamLogoUrl,
         heroImageUrl: m.heroImageUrl,
         isPro: m.isPro || false,
+        proAssignedAt: m.proAssignedAt,
+        isProPendingRemoval: m.isProPendingRemoval || false,
         planId: m.planId || (m.isPro ? 'squad_pro' : 'starter_squad'),
         role: m.role || (isSuperAdmin ? 'Admin' : 'Member'),
         isDemo: m.isDemo || false,
-        createdBy: m.createdBy || m.userId
+        createdBy: m.createdBy || m.userId,
+        ownerUserId: m.ownerUserId || m.createdBy || m.userId
       };
     });
   }, [teamsRawData, isSuperAdmin]);
@@ -418,7 +437,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             phone: data.phone || '',
             avatar: data.avatarUrl || `https://picsum.photos/seed/${firebaseUser.uid}/150/150`,
             createdAt: data.createdAt,
-            isDemo: data.isDemo || false
+            isDemo: data.isDemo || false,
+            activePlanId: data.activePlanId || null,
+            planSource: data.planSource || 'free',
+            proTeamLimit: data.proTeamLimit || null,
+            revenueCatUserId: data.revenueCatUserId || null
           });
         }
       });
@@ -433,7 +456,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setActiveTeam: (t: Team) => setActiveTeamId(t.id),
     updateTeamHero: async (url: string) => { if (activeTeam?.id && firebaseUser) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { heroImageUrl: url }); } },
     updateTeamDetails: async (updates: Partial<Team>) => { if (activeTeam?.id && firebaseUser) { const f: any = {}; if (updates.name) f.teamName = updates.name; if (updates.sport) f.sport = updates.sport; if (updates.description) f.description = updates.description; if (updates.teamLogoUrl) f.teamLogoUrl = updates.teamLogoUrl; if (Object.keys(f).length > 0) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), f); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), f); } toast({ title: "Squad Updated" }); } },
-    updateTeamPlan: async (tid: string, pid: string) => { if (db) { const tRef = doc(db, 'teams', tid); const p = plans.find(p => p.id === pid); updateDocumentNonBlocking(tRef, { planId: pid, isPro: p?.billingType !== 'free' }); const memberships = await getDocs(query(collection(db, 'users'), limit(100))); memberships.forEach(async (uDoc) => { const memRef = doc(db, 'users', uDoc.id, 'teamMemberships', tid); try { await setDoc(memRef, { planId: pid, isPro: p?.billingType !== 'free' }, { merge: true }); } catch {} }); toast({ title: "Plan Synchronized" }); } },
+    updateTeamPlan: async (tid: string, pid: string) => { if (db) { const tRef = doc(db, 'teams', tid); const p = plans.find(p => p.id === pid); updateDocumentNonBlocking(tRef, { planId: pid, isPro: p?.billingType !== 'free', proAssignedAt: new Date().toISOString() }); const memberships = await getDocs(query(collection(db, 'users'), limit(100))); memberships.forEach(async (uDoc) => { const memRef = doc(db, 'users', uDoc.id, 'teamMemberships', tid); try { await setDoc(memRef, { planId: pid, isPro: p?.billingType !== 'free', proAssignedAt: new Date().toISOString() }, { merge: true }); } catch {} }); toast({ title: "Plan Synchronized" }); } },
     teams, 
     isTeamsLoading,
     members, 
@@ -447,14 +470,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const pId = planId || 'starter_squad';
       const isP = pId !== 'starter_squad';
       const batch = writeBatch(db); 
-      batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId }); 
+      batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId, proAssignedAt: isP ? new Date().toISOString() : null }); 
       batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); 
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, description: description || '', teamCode: code, role: 'Admin', isPro: isP, planId: pId, joinedAt: new Date().toISOString(), createdBy: firebaseUser.uid }); 
+      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, description: description || '', teamCode: code, role: 'Admin', isPro: isP, planId: pId, joinedAt: new Date().toISOString(), createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid }); 
       await batch.commit(); 
       setActiveTeamId(tid);
       return tid;
     },
-    joinTeamWithCode: async (code: string, pos: string) => { if (!firebaseUser || !userProfile) return false; const qT = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1)); const snap = await getDocs(qT); if (snap.empty) return false; const tDoc = snap.docs[0]; const tData = tDoc.data(); const tid = tDoc.id; const batch = writeBatch(db); batch.update(doc(db, 'teams', tid), { [`members.${firebaseUser.uid}`]: 'Member' }); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Member', position: pos || 'Player', name: userProfile.name, avatar: userProfile.avatar, joinedAt: new Date().toISOString() }); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: tData.teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: tData.isPro || false, planId: tData.planId || (tData.isPro ? 'squad_pro' : 'starter_squad'), joinedAt: new Date().toISOString(), createdBy: tData.createdBy }); await batch.commit(); setActiveTeamId(tid); return true; },
+    joinTeamWithCode: async (code: string, pos: string) => { if (!firebaseUser || !userProfile) return false; const qT = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1)); const snap = await getDocs(qT); if (snap.empty) return false; const tDoc = snap.docs[0]; const tData = tDoc.data(); const tid = tDoc.id; const batch = writeBatch(db); batch.update(doc(db, 'teams', tid), { [`members.${firebaseUser.uid}`]: 'Member' }); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Member', position: pos || 'Player', name: userProfile.name, avatar: userProfile.avatar, joinedAt: new Date().toISOString() }); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: tData.teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: tData.isPro || false, planId: tData.planId || (tData.isPro ? 'squad_pro' : 'starter_squad'), joinedAt: new Date().toISOString(), createdBy: tData.createdBy, ownerUserId: tData.ownerUserId || tData.createdBy }); await batch.commit(); setActiveTeamId(tid); return true; },
     addEvent: (e: any) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), { ...e, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString(), userRsvps: {} }),
     updateEvent: (id: string, e: any) => activeTeam?.id && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id), e),
     deleteEvent: (id: string) => activeTeam?.id && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id)),

@@ -44,6 +44,7 @@ service cloud.firestore {
         (teamData.members != null && teamData.members[request.auth.uid] == 'Admin') || 
         teamData.createdBy == request.auth.uid || 
         teamData.creatorId == request.auth.uid ||
+        teamData.ownerUserId == request.auth.uid ||
         teamData.isDemo == true
       ));
     }
@@ -54,7 +55,11 @@ service cloud.firestore {
     function isManager(teamId, memberId) {
       let teamPath = /databases/$(database)/documents/teams/$(teamId);
       let teamData = exists(teamPath) ? get(teamPath).data : null;
-      return teamData != null && (teamData.createdBy == memberId || teamData.creatorId == memberId);
+      return teamData != null && (
+        teamData.createdBy == memberId || 
+        teamData.creatorId == memberId ||
+        teamData.ownerUserId == memberId
+      );
     }
 
     // --- COLLECTION RULES ---
@@ -66,6 +71,11 @@ service cloud.firestore {
       match /teamMemberships/{membershipId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+    }
+
+    match /subscriptions/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
     }
 
     match /teams/{teamId} {

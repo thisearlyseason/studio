@@ -41,6 +41,27 @@
         "isDemo": {
           "type": "boolean",
           "description": "Flag indicating if this is a demo admin account."
+        },
+        "activePlanId": {
+          "type": "string",
+          "description": "The ID of the plan currently active for the user's account."
+        },
+        "planSource": {
+          "type": "string",
+          "enum": [
+            "free",
+            "revenuecat",
+            "manual"
+          ],
+          "description": "The source of the active subscription state."
+        },
+        "proTeamLimit": {
+          "type": "number",
+          "description": "The maximum number of teams this user can assign Pro features to."
+        },
+        "revenueCatUserId": {
+          "type": "string",
+          "description": "The unique identifier for this user in RevenueCat."
         }
       },
       "required": [
@@ -86,6 +107,10 @@
           "type": "string",
           "description": "Reference to the User who created this team."
         },
+        "ownerUserId": {
+          "type": "string",
+          "description": "The primary owner of the team, responsible for subscription assignment."
+        },
         "createdBy": {
           "type": "string",
           "description": "Alias for creatorId used in Firestore implementation."
@@ -101,7 +126,18 @@
         },
         "isPro": {
           "type": "boolean",
-          "description": "Legacy field indicating if the team has an active Pro subscription."
+          "default": false,
+          "description": "Indicates if the team has an active Pro subscription."
+        },
+        "proAssignedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when Pro features were last assigned to this team."
+        },
+        "isProPendingRemoval": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates if Pro features are scheduled for removal (e.g., due to cancellation)."
         },
         "isDemo": {
           "type": "boolean",
@@ -122,6 +158,46 @@
         "teamCode",
         "createdBy",
         "createdAt"
+      ]
+    },
+    "Subscription": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Subscription",
+      "type": "object",
+      "description": "User-level subscription state synced from RevenueCat or set manually.",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "The active product identifier."
+        },
+        "entitlementActive": {
+          "type": "boolean",
+          "description": "Whether the Pro entitlement is currently active."
+        },
+        "proTeamLimit": {
+          "type": "number",
+          "description": "Number of Pro teams allowed by this subscription."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "revenuecat",
+            "manual"
+          ],
+          "description": "The authoritative source of this subscription state."
+        },
+        "lastSyncedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this state was last refreshed from the provider."
+        }
+      },
+      "required": [
+        "productId",
+        "entitlementActive",
+        "proTeamLimit",
+        "source",
+        "lastSyncedAt"
       ]
     },
     "Feature": {
@@ -287,6 +363,12 @@
         "$ref": "#/backend/entities/Team"
       },
       "description": "Collaborative team hubs."
+    },
+    "/subscriptions/{userId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Subscription"
+      },
+      "description": "Read-only subscription state for the user."
     }
   }
 }
