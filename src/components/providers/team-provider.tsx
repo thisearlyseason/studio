@@ -209,6 +209,7 @@ interface TeamContextType {
   proQuotaStatus: { current: number; limit: number; remaining: number; exceeded: boolean };
   canAddProTeam: boolean;
   resolveQuota: (selectedTeamIds: string[]) => Promise<void>;
+  assignManualPlan: (targetUserId: string, planId: string, limit: number) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -609,6 +610,37 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
       await batch.commit();
       toast({ title: "Quota Resolved", description: "Your Elite Squad assignments have been updated." });
+    },
+    assignManualPlan: async (targetUserId: string, planId: string, limit: number) => {
+      if (!isSuperAdmin || !db) return;
+      
+      try {
+        const timestamp = new Date().toISOString();
+        const batch = writeBatch(db);
+        
+        // Update User Profile
+        batch.update(doc(db, 'users', targetUserId), {
+          activePlanId: planId,
+          proTeamLimit: limit,
+          planSource: 'manual'
+        });
+
+        // Update Subscription Record
+        batch.set(doc(db, 'subscriptions', targetUserId), {
+          userId: targetUserId,
+          productId: planId,
+          entitlementActive: true,
+          proTeamLimit: limit,
+          source: 'manual',
+          lastSyncedAt: timestamp
+        }, { merge: true });
+
+        await batch.commit();
+        toast({ title: "Organization Assigned", description: `Plan ${planId} (Limit: ${limit}) assigned to user.` });
+      } catch (e) {
+        toast({ title: "Assignment Failed", variant: "destructive" });
+        console.error("Manual Provisioning Error:", e);
+      }
     }
   }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam]);
 
