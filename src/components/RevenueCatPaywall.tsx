@@ -25,16 +25,22 @@ export function RevenueCatPaywall() {
   useEffect(() => {
     if (isPaywallOpen && isRCInitialized) {
       setIsLoading(true);
-      Purchases.getSharedInstance().getOfferings()
-        .then(offerings => {
-          setOffering(offerings.current);
-          setIsLoading(false);
-        })
-        .catch(err => {
-          console.error("RC Offering Error:", err);
-          setIsLoading(false);
-          toast({ title: "Network Error", description: "Could not load subscription details.", variant: "destructive" });
-        });
+      try {
+        const instance = Purchases.getSharedInstance();
+        instance.getOfferings()
+          .then(offerings => {
+            setOffering(offerings.current);
+            setIsLoading(false);
+          })
+          .catch(err => {
+            console.error("RC Offering Error:", err);
+            setIsLoading(false);
+            // Don't show toast for common network flakes if dialog is still initializing
+          });
+      } catch (e) {
+        console.warn("Purchases not ready for offerings", e);
+        setIsLoading(false);
+      }
     }
   }, [isPaywallOpen, isRCInitialized]);
 
@@ -45,7 +51,6 @@ export function RevenueCatPaywall() {
       toast({ title: "Welcome to Pro!", description: "Subscription activated successfully." });
       setIsPaywallOpen(false);
     } catch (err: any) {
-      // User cancelled purchase is a common scenario, don't show error toast
       if (!err.userCancelled) {
         toast({ title: "Purchase Error", description: err.message || "Failed to process payment.", variant: "destructive" });
       }

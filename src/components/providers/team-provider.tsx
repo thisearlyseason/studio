@@ -211,6 +211,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   const seedingRef = useRef(false);
   const resetLockRef = useRef(false);
+  const rcInitRef = useRef(false);
 
   // 1. Core Data
   const plansQuery = useMemoFirebase(() => db ? collection(db, 'plans') : null, [db]);
@@ -255,14 +256,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return teams.find(t => t.id === activeTeamId) || teams[0];
   }, [teams, activeTeamId]);
 
-  // 2. Feature Gating Logic (Harden)
+  // 2. Feature Gating Logic
   const activePlanFeatures = useMemo(() => {
     const pid = simulationPlanId || activeTeam?.planId;
     if (!pid || !plans) return {};
     const plan = plans.find(p => p.id === pid);
     const baseFeatures = { ...(plan?.features || {}) };
 
-    // Dynamic Club Scaling
     if (pid === 'club_custom') {
       const teamCount = teams.length;
       if (teamCount >= 2) {
@@ -282,7 +282,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isPro = useMemo(() => {
     if (simulationPlanId === 'starter_squad') return false;
     if (simulationPlanId === 'squad_pro' || simulationPlanId === 'club_custom') return true;
-    if (isSuperAdmin) return true;
+    if (isSuperAdmin && !activeTeam?.isDemo) return true;
     if (isProEntitlementActive) return true;
     
     const pid = activeTeam?.planId;
@@ -294,7 +294,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (simulationPlanId === 'club_custom') return true;
     if (simulationPlanId === 'starter_squad' || simulationPlanId === 'squad_pro') return false;
     
-    // Demo constraint: in a demo, only show hub if active team IS a club team
     if (activeTeam?.isDemo) {
       return activeTeam.planId === 'club_custom';
     }
@@ -320,7 +319,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: alertsData } = useCollection(alertsQuery);
   const alerts = useMemo(() => (alertsData || []).map(a => ({ id: a.id, teamId: a.teamId, title: a.title, message: a.message, createdBy: a.createdBy, createdAt: a.createdAt })), [alertsData]);
 
-  // Demo Heartbeat (Harden)
+  // Demo Heartbeat
   useEffect(() => {
     if (!userProfile?.isDemo || !userProfile?.createdAt || !activeTeamId) {
       setSecondsUntilReset(null);
@@ -387,18 +386,25 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [searchParams, firebaseUser, db, isSeedingDemo]);
 
+  // Harden RevenueCat Initialization
   useEffect(() => {
-    if (firebaseUser && !isRCInitialized) {
+    if (firebaseUser && !rcInitRef.current) {
+      rcInitRef.current = true;
       try {
-        Purchases.configure('test_zvlronFHqIFQuWTkgaeWrdyYnkZ', firebaseUser.uid);
+        Purchases.configure('goog_vqlronFHqIFQuWTkgaeWrdyYnkZ', firebaseUser.uid);
         const purchases = Purchases.getSharedInstance();
         purchases.getCustomerInfo().then(info => {
           setIsProEntitlementActive(!!info.entitlements.active['The Squad Pro']);
-        }).catch(() => {});
-        setIsRCInitialized(true);
-      } catch (e) { setIsRCInitialized(true); }
+          setIsRCInitialized(true);
+        }).catch(() => {
+          setIsRCInitialized(true); 
+        });
+      } catch (e) { 
+        console.warn("RevenueCat config skipped or failed", e);
+        setIsRCInitialized(true); 
+      }
     }
-  }, [firebaseUser, isRCInitialized]);
+  }, [firebaseUser]);
 
   useEffect(() => {
     if (firebaseUser) {
@@ -469,7 +475,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isSuperAdmin,
     isPro,
     hasFeature: (featureKey: string) => { 
-      if (isSuperAdmin && !simulationPlanId) return true; 
+      if (isSuperAdmin && !simulationPlanId && !activeTeam?.isDemo) return true; 
       return !!activePlanFeatures[featureKey]; 
     },
     purchasePro: async () => setIsPaywallOpen(true),
