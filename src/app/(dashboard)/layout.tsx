@@ -7,6 +7,7 @@ import { useUser } from '@/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { RevenueCatPaywall } from '@/components/RevenueCatPaywall';
+import { QuotaResolutionOverlay } from '@/components/layout/QuotaResolutionOverlay';
 import { useTeam } from '@/components/providers/team-provider';
 import { Loader2 } from 'lucide-react';
 
@@ -27,8 +28,6 @@ export default function DashboardLayout({
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    // If user is logged in, has finished loading teams, but has ZERO teams
-    // and isn't already trying to create one or seeding a demo, send them to the setup page.
     if (user && !isTeamsLoading && !isSeedingDemo && teams.length === 0 && pathname !== '/teams/new') {
       router.push('/teams/new');
     }
@@ -60,6 +59,7 @@ export default function DashboardLayout({
     <>
       <AlertOverlay />
       <RevenueCatPaywall />
+      <QuotaResolutionOverlay />
       <Shell>{children}</Shell>
     </>
   );

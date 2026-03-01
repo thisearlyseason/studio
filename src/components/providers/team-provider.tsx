@@ -15,7 +15,8 @@ import {
   onSnapshot,
   deleteDoc,
   addDoc,
-  updateDoc
+  updateDoc,
+  orderBy
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -205,8 +206,9 @@ interface TeamContextType {
   isSeedingDemo: boolean;
   isClubManager: boolean;
   secondsUntilReset: number | null;
-  proQuotaStatus: { current: number; limit: number; remaining: number };
+  proQuotaStatus: { current: number; limit: number; remaining: number; exceeded: boolean };
   canAddProTeam: boolean;
+  resolveQuota: (selectedTeamIds: string[]) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -281,11 +283,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   // Quota Calculation
   const proQuotaStatus = useMemo(() => {
     const limit = userProfile?.proTeamLimit ?? 0;
-    const current = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro).length;
+    const ownedProTeams = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro);
+    const current = ownedProTeams.length;
     return {
       current,
       limit,
-      remaining: Math.max(0, limit - current)
+      remaining: Math.max(0, limit - current),
+      exceeded: current > limit
     };
   }, [teams, userProfile, firebaseUser?.uid]);
 
@@ -293,6 +297,38 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (isSuperAdmin) return true;
     return proQuotaStatus.remaining > 0;
   }, [isSuperAdmin, proQuotaStatus]);
+
+  // Handle Quota Decrease (Mark excess as pending)
+  useEffect(() => {
+    if (!firebaseUser || !userProfile || isTeamsLoading || proQuotaStatus.limit === null) return;
+    
+    if (proQuotaStatus.exceeded) {
+      // Find Pro teams that are not yet marked as pending removal
+      const ownedProTeams = teams
+        .filter(t => t.ownerUserId === firebaseUser.uid && t.isPro)
+        .sort((a, b) => {
+          // Sort by assignment date, newest first
+          const dateA = a.proAssignedAt ? new Date(a.proAssignedAt).getTime() : 0;
+          const dateB = b.proAssignedAt ? new Date(b.proAssignedAt).getTime() : 0;
+          return dateB - dateA;
+        });
+
+      const excessCount = proQuotaStatus.current - proQuotaStatus.limit;
+      const excessTeams = ownedProTeams.slice(0, excessCount).filter(t => !t.isProPendingRemoval);
+
+      if (excessTeams.length > 0) {
+        excessTeams.forEach(t => {
+          updateDocumentNonBlocking(doc(db, 'teams', t.id), { isProPendingRemoval: true });
+          updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), { isProPendingRemoval: true });
+        });
+        toast({ 
+          title: "Pro Quota Exceeded", 
+          description: "Your limit has changed. Please select which teams should remain Pro.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [proQuotaStatus.limit, proQuotaStatus.current, teams, firebaseUser, userProfile, isTeamsLoading, db]);
 
   // 2. Feature Gating Logic
   const activePlanFeatures = useMemo(() => {
@@ -330,14 +366,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam, isProEntitlementActive, isSuperAdmin, simulationPlanId]);
 
   const isClubManager = useMemo(() => {
-    // Check simulation first
     if (simulationPlanId === 'club_custom') return true;
     if (simulationPlanId === 'starter_squad' || simulationPlanId === 'squad_pro') return false;
-    
-    // Scoped to the active team context to prevent UI leakage
     if (!activeTeam) return false;
     if (activeTeam.planId === 'club_custom' && activeTeam.role === 'Admin') return true;
-
     return false;
   }, [simulationPlanId, activeTeam]);
 
@@ -480,23 +512,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         const p = plans.find(p => p.id === pid);
         const isTurningPro = p?.billingType !== 'free';
         
-        // Check Quota if turning Pro
         if (isTurningPro && !canAddProTeam && activeTeam?.planId === 'starter_squad') {
-          toast({ 
-            title: "Quota Reached", 
-            description: "You have reached your Pro team limit. Please upgrade your plan.", 
-            variant: "destructive" 
-          });
+          toast({ title: "Quota Reached", description: "You have reached your Pro team limit. Please upgrade your plan.", variant: "destructive" });
           return;
         }
 
         const tRef = doc(db, 'teams', tid); 
-        updateDocumentNonBlocking(tRef, { planId: pid, isPro: isTurningPro, proAssignedAt: new Date().toISOString() }); 
-        const memberships = await getDocs(query(collection(db, 'users'), limit(100))); 
-        memberships.forEach(async (uDoc) => { 
-          const memRef = doc(db, 'users', uDoc.id, 'teamMemberships', tid); 
-          try { await setDoc(memRef, { planId: pid, isPro: isTurningPro, proAssignedAt: new Date().toISOString() }, { merge: true }); } catch {} 
-        }); 
+        updateDocumentNonBlocking(tRef, { planId: pid, isPro: isTurningPro, proAssignedAt: new Date().toISOString(), isProPendingRemoval: false }); 
+        const memRef = doc(db, 'users', firebaseUser?.uid || '', 'teamMemberships', tid);
+        updateDocumentNonBlocking(memRef, { planId: pid, isPro: isTurningPro, proAssignedAt: new Date().toISOString(), isProPendingRemoval: false });
         toast({ title: "Plan Synchronized" }); 
       } 
     },
@@ -513,14 +537,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const pId = planId || 'starter_squad';
       const isP = pId !== 'starter_squad';
 
-      // Check Quota if creating as Pro
       if (isP && !canAddProTeam) {
-        toast({ 
-          title: "Pro Quota Reached", 
-          description: "This team will be created as a Starter Squad. Please upgrade to unlock more Pro slots.", 
-          variant: "destructive" 
-        });
-        // Fallback to starter
+        toast({ title: "Pro Quota Reached", description: "This team will be created as a Starter Squad.", variant: "destructive" });
         return await contextValue.createNewTeam(name, pos, description, 'starter_squad');
       }
 
@@ -558,10 +576,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
     purchasePro: async () => setIsPaywallOpen(true),
     manageSubscription: async () => { 
-      if (!isRCInitialized) {
-        toast({ title: "Please wait", description: "Subscription service is initializing." });
-        return;
-      }
+      if (!isRCInitialized) { toast({ title: "Please wait", description: "Subscription service is initializing." }); return; }
       try { await Purchases.getSharedInstance().openCustomerCenter(); } 
       catch { toast({ title: "Error", description: "Failed to open settings.", variant: "destructive" }); } 
     },
@@ -575,7 +590,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isClubManager,
     secondsUntilReset,
     proQuotaStatus,
-    canAddProTeam
+    canAddProTeam,
+    resolveQuota: async (selectedTeamIds: string[]) => {
+      if (!firebaseUser || !db) return;
+      const batch = writeBatch(db);
+      const ownedTeams = teams.filter(t => t.ownerUserId === firebaseUser.uid && t.isPro);
+      
+      ownedTeams.forEach(t => {
+        const isStillPro = selectedTeamIds.includes(t.id);
+        const updates = {
+          isPro: isStillPro,
+          planId: isStillPro ? t.planId : 'starter_squad',
+          isProPendingRemoval: false
+        };
+        batch.update(doc(db, 'teams', t.id), updates);
+        batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), updates);
+      });
+
+      await batch.commit();
+      toast({ title: "Quota Resolved", description: "Your Elite Squad assignments have been updated." });
+    }
   }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
