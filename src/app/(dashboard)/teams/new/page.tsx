@@ -16,13 +16,14 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useTeam } from '@/components/providers/team-provider';
-import { ChevronLeft, Sparkles, CreditCard, ShieldCheck, Check, Zap, Trophy, Lock } from 'lucide-react';
+import { ChevronLeft, Sparkles, CreditCard, ShieldCheck, Check, Zap, Trophy, Lock, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 export default function NewTeamPage() {
   const router = useRouter();
-  const { createNewTeam, isSuperAdmin, isPaywallOpen, setIsPaywallOpen } = useTeam();
+  const { createNewTeam, isSuperAdmin, isPaywallOpen, setIsPaywallOpen, canAddProTeam, proQuotaStatus } = useTeam();
   const [teamName, setTeamName] = useState('');
   const [description, setDescription] = useState('');
   const [organizerPosition, setOrganizerPosition] = useState('Coach');
@@ -32,13 +33,6 @@ export default function NewTeamPage() {
   const handleCreate = async () => {
     if (!teamName.trim()) return;
 
-    if (selectedPlan === 'squad_pro' && !isSuperAdmin) {
-      // In a real RC flow, we would wait for purchase completion
-      // For this prototype, we show the paywall and then proceed
-      setIsPaywallOpen(true);
-      return;
-    }
-
     setIsProcessing(true);
     try {
       await createNewTeam(teamName, organizerPosition, description, selectedPlan);
@@ -47,6 +41,9 @@ export default function NewTeamPage() {
       setIsProcessing(false);
     }
   };
+
+  const isProSelected = selectedPlan === 'squad_pro';
+  const overQuota = isProSelected && !canAddProTeam && !isSuperAdmin;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pt-4 pb-20">
@@ -137,6 +134,23 @@ export default function NewTeamPage() {
             </div>
           </div>
 
+          {overQuota && (
+            <Card className="border-none shadow-xl rounded-2xl bg-destructive/10 overflow-hidden ring-1 ring-destructive/20">
+              <CardContent className="p-4 flex gap-3">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-destructive uppercase tracking-widest">Quota Reached</p>
+                  <p className="text-[10px] font-bold text-foreground/70 leading-tight">
+                    You have used all {proQuotaStatus.limit} Pro slots. Upgrade to a larger tier to unlock more Elite Squads.
+                  </p>
+                  <Button asChild size="sm" variant="outline" className="h-7 text-[9px] font-black uppercase tracking-widest rounded-lg border-destructive/20 text-destructive hover:bg-destructive hover:text-white transition-colors">
+                    <Link href="/pricing">Upgrade Plan</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="bg-primary/5 p-6 rounded-[2rem] border-2 border-dashed border-primary/20">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-primary mb-4">Included in {selectedPlan === 'squad_pro' ? 'Pro' : 'Starter'}</h4>
             <ul className="space-y-3">
@@ -154,7 +168,7 @@ export default function NewTeamPage() {
 
           <Button 
             className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" 
-            disabled={!teamName.trim() || isProcessing} 
+            disabled={!teamName.trim() || isProcessing || overQuota} 
             onClick={handleCreate}
           >
             {isProcessing ? "Processing Enrollment..." : selectedPlan === 'squad_pro' ? "Pay & Create Pro Squad" : "Create Starter Squad"}

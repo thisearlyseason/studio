@@ -16,7 +16,8 @@ import {
   Loader2,
   Lock,
   Globe,
-  Zap
+  Zap,
+  Info
 } from 'lucide-react';
 import { useTeam, Plan } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -38,7 +39,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function PricingPage() {
-  const { activeTeam, purchasePro, submitLead, user } = useTeam();
+  const { activeTeam, purchasePro, submitLead, user, proQuotaStatus } = useTeam();
   const db = useFirestore();
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,7 +54,6 @@ export default function PricingPage() {
 
   const plansQuery = useMemoFirebase(() => {
     if (!db) return null;
-    // We order by proTeamLimit to show the natural progression of tiers
     return query(collection(db, 'plans'), orderBy('proTeamLimit', 'asc'));
   }, [db]);
 
@@ -96,9 +96,40 @@ export default function PricingPage() {
         </p>
       </div>
 
+      {/* Quota Status Banner */}
+      <div className="max-w-4xl mx-auto">
+        <Card className="rounded-[2.5rem] bg-black text-white border-none shadow-xl overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+            <Trophy className="h-32 w-32 -rotate-12" />
+          </div>
+          <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+            <div className="flex items-center gap-6">
+              <div className="h-16 w-16 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-xl shadow-primary/20">
+                <Users className="h-8 w-8 text-white" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-black tracking-tight uppercase leading-none">Your Coordination Footprint</h3>
+                <p className="text-white/60 text-xs font-bold uppercase tracking-widest">Managing Elite Squads Across the League</p>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-4">
+              <div className="text-center">
+                <p className="text-4xl font-black leading-none text-primary">{proQuotaStatus.current}</p>
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-1">Active Pro</p>
+              </div>
+              <div className="h-10 w-[1px] bg-white/10" />
+              <div className="text-center">
+                <p className="text-4xl font-black leading-none">{proQuotaStatus.limit}</p>
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-1">Pro Limit</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {plans?.filter(p => p.isPublic).map((plan) => {
-          const isCurrent = activeTeam?.planId === plan.id;
+          const isCurrent = user?.activePlanId === plan.id;
           const isProPlan = plan.billingType !== 'free';
           const isContact = plan.isContactOnly;
 
@@ -108,7 +139,7 @@ export default function PricingPage() {
               className={cn(
                 "rounded-[2.5rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02]",
                 isProPlan ? "bg-white ring-1 ring-black/5" : "bg-muted/30",
-                isCurrent && "ring-4 ring-primary"
+                isCurrent && "ring-4 ring-primary shadow-primary/20"
               )}
             >
               <div className={cn("h-1.5 w-full", isProPlan ? "bg-primary" : "bg-muted-foreground/20")} />

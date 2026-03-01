@@ -138,6 +138,7 @@ export type Plan = {
   billingType: 'free' | 'monthly' | 'annual' | 'manual';
   teamLimit: number | null;
   features: Record<string, boolean>;
+  proTeamLimit: number;
 };
 
 export type Feature = {
@@ -204,6 +205,8 @@ interface TeamContextType {
   isSeedingDemo: boolean;
   isClubManager: boolean;
   secondsUntilReset: number | null;
+  proQuotaStatus: { current: number; limit: number; remaining: number };
+  canAddProTeam: boolean;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -274,6 +277,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!teams.length) return null;
     return teams.find(t => t.id === activeTeamId) || teams[0];
   }, [teams, activeTeamId]);
+
+  // Quota Calculation
+  const proQuotaStatus = useMemo(() => {
+    const limit = userProfile?.proTeamLimit ?? 0;
+    const current = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro).length;
+    return {
+      current,
+      limit,
+      remaining: Math.max(0, limit - current)
+    };
+  }, [teams, userProfile, firebaseUser?.uid]);
+
+  const canAddProTeam = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return proQuotaStatus.remaining > 0;
+  }, [isSuperAdmin, proQuotaStatus]);
 
   // 2. Feature Gating Logic
   const activePlanFeatures = useMemo(() => {
@@ -440,7 +459,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             isDemo: data.isDemo || false,
             activePlanId: data.activePlanId || null,
             planSource: data.planSource || 'free',
-            proTeamLimit: data.proTeamLimit || null,
+            proTeamLimit: data.proTeamLimit || 0,
             revenueCatUserId: data.revenueCatUserId || null
           });
         }
@@ -456,7 +475,31 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     setActiveTeam: (t: Team) => setActiveTeamId(t.id),
     updateTeamHero: async (url: string) => { if (activeTeam?.id && firebaseUser) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { heroImageUrl: url }); } },
     updateTeamDetails: async (updates: Partial<Team>) => { if (activeTeam?.id && firebaseUser) { const f: any = {}; if (updates.name) f.teamName = updates.name; if (updates.sport) f.sport = updates.sport; if (updates.description) f.description = updates.description; if (updates.teamLogoUrl) f.teamLogoUrl = updates.teamLogoUrl; if (Object.keys(f).length > 0) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), f); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), f); } toast({ title: "Squad Updated" }); } },
-    updateTeamPlan: async (tid: string, pid: string) => { if (db) { const tRef = doc(db, 'teams', tid); const p = plans.find(p => p.id === pid); updateDocumentNonBlocking(tRef, { planId: pid, isPro: p?.billingType !== 'free', proAssignedAt: new Date().toISOString() }); const memberships = await getDocs(query(collection(db, 'users'), limit(100))); memberships.forEach(async (uDoc) => { const memRef = doc(db, 'users', uDoc.id, 'teamMemberships', tid); try { await setDoc(memRef, { planId: pid, isPro: p?.billingType !== 'free', proAssignedAt: new Date().toISOString() }, { merge: true }); } catch {} }); toast({ title: "Plan Synchronized" }); } },
+    updateTeamPlan: async (tid: string, pid: string) => { 
+      if (db) { 
+        const p = plans.find(p => p.id === pid);
+        const isTurningPro = p?.billingType !== 'free';
+        
+        // Check Quota if turning Pro
+        if (isTurningPro && !canAddProTeam && activeTeam?.planId === 'starter_squad') {
+          toast({ 
+            title: "Quota Reached", 
+            description: "You have reached your Pro team limit. Please upgrade your plan.", 
+            variant: "destructive" 
+          });
+          return;
+        }
+
+        const tRef = doc(db, 'teams', tid); 
+        updateDocumentNonBlocking(tRef, { planId: pid, isPro: isTurningPro, proAssignedAt: new Date().toISOString() }); 
+        const memberships = await getDocs(query(collection(db, 'users'), limit(100))); 
+        memberships.forEach(async (uDoc) => { 
+          const memRef = doc(db, 'users', uDoc.id, 'teamMemberships', tid); 
+          try { await setDoc(memRef, { planId: pid, isPro: isTurningPro, proAssignedAt: new Date().toISOString() }, { merge: true }); } catch {} 
+        }); 
+        toast({ title: "Plan Synchronized" }); 
+      } 
+    },
     teams, 
     isTeamsLoading,
     members, 
@@ -469,6 +512,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const code = Math.random().toString(36).substring(2, 8).toUpperCase(); 
       const pId = planId || 'starter_squad';
       const isP = pId !== 'starter_squad';
+
+      // Check Quota if creating as Pro
+      if (isP && !canAddProTeam) {
+        toast({ 
+          title: "Pro Quota Reached", 
+          description: "This team will be created as a Starter Squad. Please upgrade to unlock more Pro slots.", 
+          variant: "destructive" 
+        });
+        // Fallback to starter
+        return await contextValue.createNewTeam(name, pos, description, 'starter_squad');
+      }
+
       const batch = writeBatch(db); 
       batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId, proAssignedAt: isP ? new Date().toISOString() : null }); 
       batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); 
@@ -518,8 +573,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     resetDemo: async () => { if (activeTeam?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeam.id, activeTeam.planId!, firebaseUser.uid); toast({ title: "Environment Reset", description: "Demo data has been restored." }); } },
     isSeedingDemo,
     isClubManager,
-    secondsUntilReset
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro]);
+    secondsUntilReset,
+    proQuotaStatus,
+    canAddProTeam
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
