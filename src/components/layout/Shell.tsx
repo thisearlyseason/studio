@@ -26,7 +26,8 @@ import {
   Building,
   History,
   Timer,
-  ChevronRight
+  ChevronRight,
+  Layers
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -264,7 +265,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     key={tab.name} 
                     tab={tab} 
                     isActive={pathname.startsWith(tab.href)} 
-                    isActive={pathname.startsWith(tab.href)} 
                     isLocked={tab.pro && !isPro} 
                   />
                 ))}
@@ -383,9 +383,56 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </header>
 
             <header className="flex md:hidden sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 items-center px-4 justify-between shrink-0">
-              <Link href="/feed" className="flex items-center gap-2 min-w-0">
-                <BrandLogo variant="light-background" className="h-7 w-28 lg:h-8 lg:w-32 justify-start" priority />
-              </Link>
+              <div className="flex items-center gap-2 min-w-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="p-0 hover:bg-transparent flex items-center gap-2 shrink-0">
+                      <Avatar className="h-8 w-8 rounded-lg border shadow-sm">
+                        <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
+                        <AvatarFallback className="hero-gradient text-white font-black text-[10px]">
+                          {activeTeam?.name?.[0] || 'T'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start min-w-0">
+                        <span className="font-black text-xs tracking-tight truncate w-24 text-left leading-none">{activeTeam?.name}</span>
+                        {activeTeam?.isDemo && <span className="text-[7px] font-black text-primary uppercase leading-none mt-0.5">Demo</span>}
+                      </div>
+                      <ChevronDown className="h-3 w-3 opacity-40" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64 rounded-xl shadow-2xl border-muted p-2">
+                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-50 px-3 py-2">My Squads</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="my-1" />
+                    {teams.map((team) => (
+                      <DropdownMenuItem 
+                        key={team.id} 
+                        onClick={() => setActiveTeam(team)}
+                        className={cn(
+                          "flex items-center justify-between p-3 cursor-pointer rounded-xl transition-colors",
+                          team.id === activeTeam?.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8 rounded-lg shrink-0 border">
+                            <AvatarImage src={team.teamLogoUrl} className="object-cover" />
+                            <AvatarFallback className="bg-muted font-black text-xs">{team.name[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className="font-bold text-sm truncate max-w-[120px]">{team.name}</span>
+                        </div>
+                        {team.isDemo && <Badge className="bg-primary text-[8px] h-3 px-1">DEMO</Badge>}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator className="my-1" />
+                    <DropdownMenuItem onClick={() => router.push('/team')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-2">
+                      <Info className="h-4 w-4 text-muted-foreground" /> Squad Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/teams/new')} className="p-3 text-primary cursor-pointer rounded-xl font-bold text-xs gap-2">
+                      <PlusCircle className="h-4 w-4" /> New Squad
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
               <div className="flex items-center gap-2 shrink-0">
                 {isClubManager && (
                   <Link href="/club">
