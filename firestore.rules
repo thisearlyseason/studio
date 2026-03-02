@@ -14,8 +14,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'thisearlyseason@gmail.com' || 
-        request.auth.token.email == 'test@gmail.com'
+        request.auth.token.get('email', '') == 'thisearlyseason@gmail.com' || 
+        request.auth.token.get('email', '') == 'test@gmail.com'
       );
     }
 

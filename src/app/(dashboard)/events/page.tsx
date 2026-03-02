@@ -525,7 +525,7 @@ export default function EventsPage() {
 
   const invitedTournamentsQuery = useMemoFirebase(() => {
     // Explicitly check for team name and user to ensure query is valid and authorized
-    if (!activeTeam?.name || !db || !user) return null;
+    if (!activeTeam?.name || activeTeam.name.trim() === '' || !db || !user) return null;
     return query(collectionGroup(db, 'events'), where('tournamentTeams', 'array-contains', activeTeam.name), limit(20));
   }, [activeTeam?.name, db, user?.uid]);
 
@@ -679,7 +679,7 @@ export default function EventsPage() {
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">My Squad Itinerary</h2>
           </div>
           <div className="grid gap-4">
-            {events.map((event) => (
+            {events.length > 0 ? events.map((event) => (
               <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} onEdit={handleEdit} onDelete={(id) => { if(confirm("Delete?")) deleteEvent(id); }} hasAttendance={true} purchasePro={purchasePro}>
                 <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
                   <div className="flex items-stretch h-32">
@@ -697,7 +697,12 @@ export default function EventsPage() {
                   </div>
                 </Card>
               </EventDetailDialog>
-            ))}
+            )) : (
+              <div className="text-center py-12 bg-muted/10 rounded-[2rem] border-2 border-dashed opacity-40">
+                <CalendarX className="h-8 w-8 mx-auto mb-2" />
+                <p className="text-xs font-black uppercase tracking-widest">No local matches scheduled.</p>
+              </div>
+            )}
           </div>
         </section>
 
