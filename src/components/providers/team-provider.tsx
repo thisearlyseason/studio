@@ -71,6 +71,7 @@ export type League = {
   sport?: string;
   teams: Record<string, {
     teamName: string;
+    teamLogoUrl: string;
     wins: number;
     losses: number;
     ties: number;
@@ -667,7 +668,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         creatorId: firebaseUser.uid,
         createdAt: new Date().toISOString(),
         sport: sport || activeTeam.sport || 'General',
-        teams: { [activeTeam.id]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }
+        teams: { [activeTeam.id]: { teamName: activeTeam.name, teamLogoUrl: activeTeam.teamLogoUrl || '', wins: 0, losses: 0, ties: 0, points: 0 } }
       };
       await setDoc(doc(db, 'leagues', lid), lData);
       updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), { leagueIds: [...(activeTeam.leagueIds || []), lid] });
@@ -682,7 +683,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     acceptLeagueInvite: async (inviteId: string, leagueId: string) => {
       if (!activeTeam || !firebaseUser) return;
       const batch = writeBatch(db);
-      batch.update(doc(db, 'leagues', leagueId), { [`teams.${activeTeam.id}`]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } });
+      batch.update(doc(db, 'leagues', leagueId), { [`teams.${activeTeam.id}`]: { teamName: activeTeam.name, teamLogoUrl: activeTeam.teamLogoUrl || '', wins: 0, losses: 0, ties: 0, points: 0 } });
       batch.update(doc(db, 'leagues', leagueId, 'invites', inviteId), { status: 'accepted' });
       batch.update(doc(db, 'teams', activeTeam.id), { leagueIds: [...(activeTeam.leagueIds || []), leagueId] });
       batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { leagueIds: [...(activeTeam.leagueIds || []), leagueId] });

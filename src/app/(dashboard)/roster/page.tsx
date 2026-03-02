@@ -38,7 +38,9 @@ import {
   Truck,
   HeartPulse,
   Camera as CameraIcon,
-  Cake
+  Cake,
+  Users,
+  ChevronDown
 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useTeam, Member, FeeItem } from '@/components/providers/team-provider';
@@ -224,43 +226,61 @@ export default function RosterPage() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl lg:text-3xl font-black tracking-tight">Team Roster</h1>
-          <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="rounded-full px-4 lg:px-6 font-black uppercase text-[10px] lg:text-xs h-10 lg:h-11 tracking-widest shadow-lg shadow-primary/20">
-                <UserPlus className="h-3.5 w-3.5 lg:h-4 lg:w-4 mr-2" />
-                Invite
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md rounded-3xl lg:rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0">
-              <DialogTitle className="sr-only">Invite Team Members</DialogTitle>
-              <div className="h-2 bg-primary w-full" />
-              <div className="p-6 lg:p-8 space-y-6">
-                <DialogHeader>
-                  <DialogTitle className="text-xl lg:text-2xl font-black tracking-tight">Invite to Squad</DialogTitle>
-                  <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[8px] lg:text-[10px]">Official Recruitment</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6 py-2">
-                  <div className="p-6 lg:p-8 bg-primary/5 rounded-2xl lg:rounded-[2.5rem] text-center space-y-4 border-2 border-dashed border-primary/20 group cursor-pointer active:scale-95 transition-all" onClick={copyTeamCode}>
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Official Squad Code</p>
-                    <div className="flex items-center justify-center gap-2 lg:gap-4">
-                      <p className="text-4xl lg:text-5xl font-black text-primary tracking-widest">{activeTeam.code}</p>
-                      <Copy className="h-5 w-5 lg:h-6 lg:w-6 text-primary opacity-30 group-hover:opacity-100 transition-opacity" />
+          <div className="flex gap-2">
+            <Select onValueChange={(val) => {
+              const member = members.find(m => m.id === val);
+              if (member) handleMemberClick(member);
+            }}>
+              <SelectTrigger className="h-10 lg:h-11 rounded-full border-2 bg-background font-black text-[10px] lg:text-xs uppercase tracking-widest w-[160px] lg:w-[200px] shadow-sm">
+                <Users className="h-3.5 w-3.5 mr-2 text-primary" />
+                <SelectValue placeholder="Quick Jump" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl p-2">
+                {members.map(m => (
+                  <SelectItem key={m.id} value={m.id} className="rounded-xl p-3 font-bold text-xs uppercase tracking-tight">
+                    {m.name} {m.jersey !== 'PAR' ? `(#${m.jersey})` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="rounded-full px-4 lg:px-6 font-black uppercase text-[10px] lg:text-xs h-10 lg:h-11 tracking-widest shadow-lg shadow-primary/20">
+                  <UserPlus className="h-3.5 w-3.5 lg:h-4 lg:w-4 mr-2" />
+                  Invite
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md rounded-3xl lg:rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0">
+                <DialogTitle className="sr-only">Invite Team Members</DialogTitle>
+                <div className="h-2 bg-primary w-full" />
+                <div className="p-6 lg:p-8 space-y-6">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl lg:text-2xl font-black tracking-tight">Invite to Squad</DialogTitle>
+                    <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[8px] lg:text-[10px]">Official Recruitment</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6 py-2">
+                    <div className="p-6 lg:p-8 bg-primary/5 rounded-2xl lg:rounded-[2.5rem] text-center space-y-4 border-2 border-dashed border-primary/20 group cursor-pointer active:scale-95 transition-all" onClick={copyTeamCode}>
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Official Squad Code</p>
+                      <div className="flex items-center justify-center gap-2 lg:gap-4">
+                        <p className="text-4xl lg:text-5xl font-black text-primary tracking-widest">{activeTeam.code}</p>
+                        <Copy className="h-5 w-5 lg:h-6 lg:w-6 text-primary opacity-30 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <p className="text-[9px] lg:text-[10px] text-muted-foreground font-bold uppercase tracking-widest pt-2">Tap to copy and share</p>
                     </div>
-                    <p className="text-[9px] lg:text-[10px] text-muted-foreground font-bold uppercase tracking-widest pt-2">Tap to copy and share</p>
                   </div>
+                  <DialogFooter>
+                    <Button className="w-full rounded-xl h-12 lg:h-14 text-sm lg:text-base font-black uppercase tracking-widest" onClick={() => setIsInviteOpen(false)}>Dismiss</Button>
+                  </DialogFooter>
                 </div>
-                <DialogFooter>
-                  <Button className="w-full rounded-xl h-12 lg:h-14 text-sm lg:text-base font-black uppercase tracking-widest" onClick={() => setIsInviteOpen(false)}>Dismiss</Button>
-                </DialogFooter>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
         
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search squad..." 
+            placeholder="Search squad roster..." 
             className="pl-11 bg-muted/50 border-none rounded-2xl h-11 lg:h-12 shadow-inner font-black text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

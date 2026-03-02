@@ -39,10 +39,12 @@ import { collection, query, where, orderBy } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useRouter } from 'next/navigation';
 
 export default function LeaguesPage() {
-  const { activeTeam, user, createLeague, inviteTeamToLeague, acceptLeagueInvite, hasFeature, purchasePro } = useTeam();
+  const { activeTeam, user, createLeague, inviteTeamToLeague, acceptLeagueInvite, hasFeature, purchasePro, createChat } = useTeam();
   const db = useFirestore();
+  const router = useRouter();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [leagueName, setLeagueName] = useState('');
@@ -113,6 +115,19 @@ export default function LeaguesPage() {
     setIsInviteOpen(false);
     setInviteEmail('');
     setIsProcessing(false);
+  };
+
+  const handleMessageOpponent = async (teamName: string) => {
+    setIsProcessing(true);
+    try {
+      const chatId = await createChat(`Tactical: ${teamName}`, []);
+      router.push(`/chats/${chatId}`);
+      toast({ title: "Channel Established", description: `Cross-team chat created for ${teamName}.` });
+    } catch (e) {
+      toast({ title: "Connection Failed", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const sortedStandings = useMemo(() => {
@@ -238,9 +253,15 @@ export default function LeaguesPage() {
                             <td className="px-8 py-6">
                               <div className="flex items-center gap-4">
                                 <span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span>
-                                <div className="flex flex-col">
-                                  <span className="font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors">{team.teamName}</span>
-                                  {team.id === activeTeam?.id && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black uppercase h-4 px-1.5 w-fit mt-1">My Squad</Badge>}
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-10 w-10 rounded-xl border shadow-inner shrink-0">
+                                    <AvatarImage src={team.teamLogoUrl} className="object-cover" />
+                                    <AvatarFallback className="font-black text-xs">{team.teamName[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors truncate max-w-[120px] lg:max-w-[200px]">{team.teamName}</span>
+                                    {team.id === activeTeam?.id && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black uppercase h-4 px-1.5 w-fit mt-1">My Squad</Badge>}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -263,14 +284,15 @@ export default function LeaguesPage() {
               </div>
               <div className="space-y-3">
                 {sortedStandings.filter(t => t.id !== activeTeam?.id).map((team) => (
-                  <Card key={team.id} className="rounded-2xl border-none shadow-md ring-1 ring-black/5 hover:ring-primary/20 transition-all cursor-pointer bg-white group">
+                  <Card key={team.id} className="rounded-2xl border-none shadow-md ring-1 ring-black/5 hover:ring-primary/20 transition-all cursor-pointer bg-white group" onClick={() => handleMessageOpponent(team.teamName)}>
                     <CardContent className="p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 rounded-xl border shadow-inner">
+                          <AvatarImage src={team.teamLogoUrl} />
                           <AvatarFallback className="font-black text-xs">{team.teamName[0]}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-tight leading-none mb-1">{team.teamName}</p>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black uppercase tracking-tight leading-none mb-1 truncate max-w-[120px]">{team.teamName}</p>
                           <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Head Coach</p>
                         </div>
                       </div>
