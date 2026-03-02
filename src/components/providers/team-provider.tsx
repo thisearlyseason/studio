@@ -17,7 +17,8 @@ import {
   addDoc,
   updateDoc,
   orderBy,
-  increment
+  increment,
+  collectionGroup
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -145,6 +146,7 @@ export type TeamEvent = {
   tournamentSchedule?: any[];
   tournamentGames?: TournamentGame[];
   tournamentTeams?: string[];
+  teamAgreements?: Record<string, { agreed: boolean; captainName: string; timestamp: string }>;
   allowExternalRegistration?: boolean;
   isRegistrationRequired?: boolean;
   customFormFields?: any[];
@@ -209,6 +211,7 @@ interface TeamContextType {
   updateEvent: (id: string, event: any) => void;
   deleteEvent: (id: string) => void;
   submitEventWaiver: (eventId: string, agreed: boolean) => Promise<void>;
+  signTeamTournamentWaiver: (hostTeamId: string, eventId: string, teamName: string) => Promise<void>;
   addGame: (game: any) => void;
   updateGame: (id: string, game: any) => void;
   addDrill: (drill: any) => void;
@@ -594,13 +597,25 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         await batch.commit(); setActiveTeamId(tid); return true; 
       } catch (e) { return false; }
     },
-    addEvent: (e: any) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), { ...e, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString(), userRsvps: {}, specialWaiverResponses: {}, lastUpdated: new Date().toISOString() }),
+    addEvent: (e: any) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'events'), { ...e, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString(), userRsvps: {}, specialWaiverResponses: {}, teamAgreements: {}, lastUpdated: new Date().toISOString() }),
     updateEvent: (id: string, e: any) => activeTeam?.id && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id), { ...e, lastUpdated: new Date().toISOString() }),
     deleteEvent: (id: string) => activeTeam?.id && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'events', id)),
     submitEventWaiver: async (eid: string, agreed: boolean) => {
       if (!activeTeam?.id || !firebaseUser) return;
       const ref = doc(db, 'teams', activeTeam.id, 'events', eid);
       updateDocumentNonBlocking(ref, { [`specialWaiverResponses.${firebaseUser.uid}`]: { agreed, timestamp: new Date().toISOString() } });
+    },
+    signTeamTournamentWaiver: async (hostTeamId: string, eventId: string, teamName: string) => {
+      if (!firebaseUser || !userProfile) return;
+      const ref = doc(db, 'teams', hostTeamId, 'events', eventId);
+      updateDocumentNonBlocking(ref, {
+        [`teamAgreements.${teamName}`]: {
+          agreed: true,
+          captainName: userProfile.name,
+          timestamp: new Date().toISOString()
+        }
+      });
+      toast({ title: "Waiver Verified", description: `You have officially signed for ${teamName}.` });
     },
     addGame: (g: any) => {
       if (!activeTeam?.id) return;
