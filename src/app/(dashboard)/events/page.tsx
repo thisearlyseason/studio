@@ -65,7 +65,7 @@ interface EventDetailDialogProps {
 }
 
 function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
-  const { members } = useTeam();
+  const { members = [] } = useTeam();
   const db = useFirestore();
   
   const regQuery = useMemoFirebase(() => {

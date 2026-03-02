@@ -61,11 +61,11 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, differenceInYears } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 export default function RosterPage() {
-  const { activeTeam, updateMember, user, isPro, isSuperAdmin, purchasePro, hasFeature } = useTeam();
+  const { activeTeam, updateMember, user, isPro, isSuperAdmin, purchasePro, hasFeature, members, isMembersLoading } = useTeam();
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -76,15 +76,6 @@ export default function RosterPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Member>>({});
   const [newFee, setNewFee] = useState({ title: '', amount: '' });
-
-  // Localized members listener for read optimization
-  const membersQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db) return null;
-    return query(collection(db, 'teams', activeTeam.id, 'members'), orderBy('name', 'asc'), limit(100));
-  }, [activeTeam?.id, db]);
-
-  const { data: membersRaw, isLoading: isMembersLoading } = useCollection(membersQuery);
-  const members = useMemo(() => (membersRaw || []) as Member[], [membersRaw]);
 
   useEffect(() => {
     setMounted(true);
