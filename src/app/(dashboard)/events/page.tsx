@@ -136,13 +136,14 @@ function TournamentPaywall({ purchasePro }: { purchasePro: () => void }) {
 }
 
 function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
-  const { members = [], user, addRegistration, submitEventWaiver } = useTeam();
+  const { members = [], user, addRegistration, submitEventWaiver, updateEvent } = useTeam();
   const db = useFirestore();
   
   const [showInternalForm, setShowInternalForm] = useState(false);
   const [showWaiverStep, setShowWaiverStep] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSubmittingInternal, setIsSubmittingInternal] = useState(false);
+  const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
 
   const regQuery = useMemoFirebase(() => {
     return query(collection(db, 'teams', event.teamId, 'events', event.id, 'registrations'), orderBy('createdAt', 'desc'));
@@ -238,10 +239,32 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
     setIsSubmittingInternal(false);
   };
 
+  const handleSaveQuickGameEdit = async () => {
+    if (!editingGame || !isAdmin) return;
+    
+    const updatedGames = (event.tournamentGames || []).map(g => 
+      g.id === editingGame.id ? editingGame : g
+    );
+
+    // Auto-calculate winner if completed
+    const finalGames = updatedGames.map(g => {
+      if (g.isCompleted) {
+        if (g.score1 > g.score2) return { ...g, winnerId: g.team1 };
+        if (g.score2 > g.score1) return { ...g, winnerId: g.team2 };
+        return { ...g, winnerId: undefined };
+      }
+      return g;
+    });
+
+    await updateEvent(event.id, { tournamentGames: finalGames });
+    setEditingGame(null);
+    toast({ title: "Game Record Updated" });
+  };
+
   const currentStatus = event.userRsvps?.[user?.id || ''];
 
   return (
-    <Dialog onOpenChange={(open) => { if(!open) { setShowInternalForm(false); setShowWaiverStep(false); } }}>
+    <Dialog onOpenChange={(open) => { if(!open) { setShowInternalForm(false); setShowWaiverStep(false); setEditingGame(null); } }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-7xl p-0 overflow-hidden rounded-[2.5rem] h-[90vh] flex flex-col border-none shadow-2xl">
         <DialogTitle className="sr-only">{event.title}</DialogTitle>
@@ -287,8 +310,8 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
         ) : (
           <div className="flex flex-1 h-full overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-12 w-full h-full">
-              {/* Sidebar Revamped */}
-              <div className="lg:col-span-4 bg-black text-white p-8 border-r space-y-10 flex flex-col overflow-y-auto custom-scrollbar">
+              {/* Sidebar */}
+              <div className="lg:col-span-4 bg-black text-white p-8 border-r space-y-10 flex flex-col overflow-y-auto custom-scrollbar relative z-20">
                 <div className="space-y-6">
                   <div className="flex justify-between items-start">
                     <Badge className={cn("uppercase font-black tracking-widest text-[9px] px-3 h-6", event.isTournament ? "bg-primary text-white" : "bg-white/20 text-white")}>
@@ -316,7 +339,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                       </div>
                     </div>
                     {event.isTournament && isTournamentModuleUnlocked && (
-                      <Button onClick={copyPublicLink} variant="outline" className="w-full rounded-xl h-12 font-black text-xs uppercase gap-3 border-white/20 hover:bg-white/10 text-white">
+                      <Button onClick={copyPublicLink} variant="outline" className="w-full rounded-xl h-12 font-black text-xs uppercase gap-3 bg-white border-white text-black hover:bg-white/90">
                         <Share2 className="h-4 w-4" /> Share Spectator Hub
                       </Button>
                     )}
@@ -340,7 +363,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                   </div>
                 )}
 
-                <div className="pt-6 border-t border-white/10 flex gap-3 mt-auto">
+                <div className="pt-6 border-t border-white/10 flex gap-3 mt-auto shrink-0">
                   {isAdmin && (
                     <>
                       <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px] tracking-widest bg-white/10 text-white hover:bg-white/20" onClick={() => onEdit(event)}>
@@ -354,8 +377,8 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                 </div>
               </div>
 
-              {/* Main Content Revamped */}
-              <div className="lg:col-span-8 flex flex-col bg-background h-full overflow-hidden">
+              {/* Main Content */}
+              <div className="lg:col-span-8 flex flex-col bg-background h-full overflow-hidden relative z-10">
                 <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col h-full">
                   <div className="px-10 py-6 border-b bg-muted/30 shrink-0">
                     <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-fit">
@@ -380,42 +403,50 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                       {!isTournamentModuleUnlocked ? (
                         <TournamentPaywall purchasePro={purchasePro} />
                       ) : (
-                        <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
+                        <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto">
                           {event.tournamentGames?.map((game) => (
-                            <div key={game.id} className="p-8 bg-white rounded-[2.5rem] border shadow-md hover:shadow-xl transition-all group relative overflow-hidden ring-1 ring-black/5">
-                              <div className="flex justify-between items-center mb-8 relative z-10">
-                                <Badge variant="outline" className="text-[9px] font-black uppercase border-black/10 tracking-widest px-3 h-6">
+                            <button 
+                              key={game.id} 
+                              onClick={() => isAdmin && setEditingGame(game)}
+                              className={cn(
+                                "p-5 bg-white rounded-3xl border shadow-sm transition-all text-left relative overflow-hidden group ring-1 ring-black/5",
+                                isAdmin ? "hover:shadow-md cursor-pointer hover:ring-primary/20" : "cursor-default"
+                              )}
+                            >
+                              <div className="flex justify-between items-center mb-4">
+                                <Badge variant="outline" className="text-[8px] font-black uppercase border-black/10 tracking-widest px-2 h-5">
                                   {game.date} @ {game.time}
                                 </Badge>
-                                <Badge className={cn("text-[9px] font-black uppercase h-6 px-3 border-none shadow-sm", game.isCompleted ? "bg-black text-white" : "bg-primary text-white")}>
-                                  {game.isCompleted ? "Final Result" : "Scheduled Match"}
-                                </Badge>
+                                {game.isCompleted && <Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white">Final</Badge>}
                               </div>
                               
-                              <div className="grid grid-cols-7 items-center gap-4 relative z-10">
-                                <div className="col-span-3 text-right space-y-3">
-                                  <div className="flex items-center justify-end gap-3 min-w-0">
-                                    <p className="font-black text-lg uppercase truncate leading-none">{game.team1}</p>
-                                    {game.winnerId === game.team1 && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
+                              <div className="grid grid-cols-7 items-center gap-4">
+                                <div className="col-span-3 text-right">
+                                  <div className="flex items-center justify-end gap-2 mb-1">
+                                    <p className="font-black text-xs uppercase truncate">{game.team1}</p>
+                                    {game.winnerId === game.team1 && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
                                   </div>
-                                  <p className="text-5xl font-black text-primary tracking-tighter leading-none">{game.score1}</p>
+                                  <p className="text-3xl font-black text-primary leading-none">{game.score1}</p>
                                 </div>
                                 
-                                <div className="col-span-1 flex flex-col items-center">
-                                  <div className="h-12 w-[1px] bg-muted-foreground/20" />
-                                  <span className="font-black text-xs uppercase opacity-20 py-2">VS</span>
-                                  <div className="h-12 w-[1px] bg-muted-foreground/20" />
+                                <div className="col-span-1 flex items-center justify-center">
+                                  <span className="font-black text-[10px] uppercase opacity-20">VS</span>
                                 </div>
 
-                                <div className="col-span-3 space-y-3">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    {game.winnerId === game.team2 && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
-                                    <p className="font-black text-lg uppercase truncate leading-none">{game.team2}</p>
+                                <div className="col-span-3">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {game.winnerId === game.team2 && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
+                                    <p className="font-black text-xs uppercase truncate">{game.team2}</p>
                                   </div>
-                                  <p className="text-5xl font-black text-primary tracking-tighter leading-none">{game.score2}</p>
+                                  <p className="text-3xl font-black text-primary leading-none">{game.score2}</p>
                                 </div>
                               </div>
-                            </div>
+                              {isAdmin && (
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Edit3 className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                              )}
+                            </button>
                           ))}
                         </div>
                       )}
@@ -445,7 +476,10 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                       ) : (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between px-2 mb-6">
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Compliance Audit Logs</h4>
+                            <div className="space-y-1">
+                              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Compliance Audit Logs</h4>
+                              <p className="text-[9px] font-medium text-muted-foreground italic">Coach: Verify squad agreement before match start.</p>
+                            </div>
                             <span className="text-[9px] font-bold text-muted-foreground uppercase">{members.length} Members Tracked</span>
                           </div>
                           <div className="grid grid-cols-1 gap-3">
@@ -455,6 +489,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                                 <div key={m.id} className="flex items-center justify-between p-5 rounded-2xl border bg-white shadow-sm hover:ring-1 ring-primary/20 transition-all">
                                   <div className="flex items-center gap-4">
                                     <Avatar className="h-10 w-10 rounded-xl border">
+                                      <AvatarImage src={m.avatar} />
                                       <AvatarFallback className="font-bold text-xs">{m.name[0]}</AvatarFallback>
                                     </Avatar>
                                     <div>
@@ -517,6 +552,54 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
             </div>
           </div>
         )}
+
+        {/* Quick Game Editor Dialog */}
+        <Dialog open={!!editingGame} onOpenChange={(o) => !o && setEditingGame(null)}>
+          <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Game Ledger Entry</DialogTitle>
+              <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update Match Results</DialogDescription>
+            </DialogHeader>
+            {editingGame && (
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-2 gap-6 items-end">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase truncate">{editingGame.team1}</Label>
+                    <Input 
+                      type="number" 
+                      value={editingGame.score1} 
+                      onChange={e => setEditingGame({...editingGame, score1: parseInt(e.target.value) || 0})}
+                      className="h-12 rounded-xl font-black text-xl text-center"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase truncate">{editingGame.team2}</Label>
+                    <Input 
+                      type="number" 
+                      value={editingGame.score2} 
+                      onChange={e => setEditingGame({...editingGame, score2: parseInt(e.target.value) || 0})}
+                      className="h-12 rounded-xl font-black text-xl text-center"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-tight">Final Result</p>
+                    <p className="text-[8px] font-medium text-muted-foreground uppercase">Mark match as complete</p>
+                  </div>
+                  <Checkbox 
+                    checked={editingGame.isCompleted} 
+                    onCheckedChange={v => setEditingGame({...editingGame, isCompleted: !!v})}
+                    className="h-6 w-6 rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleSaveQuickGameEdit}>Commit Results</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
