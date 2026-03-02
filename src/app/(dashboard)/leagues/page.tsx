@@ -47,7 +47,6 @@ export default function LeaguesPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [leagueName, setLeagueName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const canUseLeagues = hasFeature('leagues');
@@ -58,7 +57,8 @@ export default function LeaguesPage() {
     return query(collection(db, 'leagues'), where(`teams.${activeTeam.id}`, '!=', null));
   }, [activeTeam?.id, db]);
 
-  const { data: leagues = [], isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
+  const { data: rawLeagues, isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
+  const leagues = useMemo(() => rawLeagues || [], [rawLeagues]);
 
   // Fetch invites for this user's email
   const invitesQuery = useMemoFirebase(() => {
@@ -66,8 +66,8 @@ export default function LeaguesPage() {
     return query(collection(db, 'leagues', 'global', 'invites'), where('invitedEmail', '==', user.email.toLowerCase()), where('status', '==', 'pending'));
   }, [user?.email, db]);
 
-  // Fallback if global collection doesn't exist, we fetch from all leagues (simulated for MVP)
-  const { data: invites = [] } = useCollection<LeagueInvite>(invitesQuery);
+  const { data: rawInvites } = useCollection<LeagueInvite>(invitesQuery);
+  const invites = useMemo(() => rawInvites || [], [rawInvites]);
 
   const activeLeague = useMemo(() => leagues[0] || null, [leagues]);
 
@@ -132,7 +132,7 @@ export default function LeaguesPage() {
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Official Leaderboards & Coordination</p>
         </div>
 
-        {!activeLeague && (
+        {!activeLeague && !isLeaguesLoading && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
@@ -160,7 +160,12 @@ export default function LeaguesPage() {
         )}
       </div>
 
-      {activeLeague ? (
+      {isLeaguesLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Opening Standings...</p>
+        </div>
+      ) : activeLeague ? (
         <div className="space-y-8">
           <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-black text-white relative group">
             <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
@@ -293,7 +298,7 @@ export default function LeaguesPage() {
           </div>
           <div className="space-y-2">
             <h3 className="text-2xl font-black uppercase tracking-tight">Competitive Desert</h3>
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-w-sm mx-auto">
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-sm:px-4 max-w-sm mx-auto">
               Your squad hasn't joined a league yet. Start your own or accept a challenge to enter the standings.
             </p>
           </div>

@@ -46,7 +46,7 @@ import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 export default function ChatRoomPage() {
   const { chatId } = useParams();
   const router = useRouter();
-  const { addMessage, votePoll, user, formatTime, members, activeTeam } = useTeam();
+  const { addMessage, votePoll, user, formatTime, activeTeam } = useTeam();
   const db = useFirestore();
   
   const [input, setInput] = useState('');
@@ -56,7 +56,6 @@ export default function ChatRoomPage() {
   const [suggestedPoll, setSuggestedPoll] = useState<{question: string, options: string[]} | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatImage, setChatImage] = useState<string | undefined>();
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,7 +76,8 @@ export default function ChatRoomPage() {
     );
   }, [activeTeam?.id, db, chatId]);
 
-  const { data: messages = [], isLoading: isMessagesLoading } = useCollection<Message>(messagesQuery);
+  const { data: rawMessages, isLoading: isMessagesLoading } = useCollection<Message>(messagesQuery);
+  const messages = useMemo(() => rawMessages || [], [rawMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -86,7 +86,7 @@ export default function ChatRoomPage() {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [messages?.length]);
+  }, [messages.length]);
 
   const handleSendMessage = () => {
     if ((!input.trim() && !chatImage) || !chatId || !user) return;
@@ -193,7 +193,7 @@ export default function ChatRoomPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-30">
                   <div className="bg-muted p-6 rounded-full"><Users className="h-8 w-8" /></div>
-                  <p className="text-xs font-black uppercase tracking-widest">Secure Coordination Channel</p>
+                  <p className="text-xs font-black uppercase tracking-widest">No messages yet. Start the coordination.</p>
                 </div>
               )}
             </>
