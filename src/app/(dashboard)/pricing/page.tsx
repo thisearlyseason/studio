@@ -79,9 +79,10 @@ export default function PricingPage() {
 
   const getDisplayPrice = (plan?: any) => {
     if (!plan) return '';
+    if (plan.id === 'squad_pro') {
+      return billingCycle === 'annual' ? '$99' : '$12.99';
+    }
     const price = (billingCycle === 'annual' && plan.annualPriceDisplay) ? plan.annualPriceDisplay : plan.priceDisplay;
-    // Ensure accurate annual display for pro tier specifically if seeder didn't propagate yet
-    if (plan.id === 'squad_pro' && billingCycle === 'annual') return '$99';
     return price;
   };
 
@@ -186,8 +187,8 @@ export default function PricingPage() {
             </div>
             <div className="space-y-1">
               <CardTitle className="text-3xl font-black uppercase tracking-tight leading-none">Club Suite</CardTitle>
-              <div className="flex items-baseline gap-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Includes ALL Pro Features + Hub Management</span>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Includes ALL Squad Pro Features + Hub Management</span>
               </div>
             </div>
             <CardDescription className="text-xs font-bold leading-relaxed text-muted-foreground">Consolidated management for multi-team organizations and academies.</CardDescription>
@@ -199,7 +200,7 @@ export default function PricingPage() {
                 {clubPlans.map(cp => (
                   <div key={cp.id} className={cn(
                     "flex justify-between items-center p-3 rounded-xl border-2 transition-all",
-                    activeTeam?.planId === cp.id ? "bg-primary/5 border-primary" : "bg-muted/30 border-transparent hover:border-muted"
+                    activeTeam?.planId === cp.id ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:border-muted"
                   )}>
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black uppercase tracking-tight">{cp.name.replace('Club ', '')}</span>
