@@ -21,7 +21,9 @@ import {
   Camera,
   Loader2,
   Youtube,
-  XCircle
+  XCircle,
+  ImageIcon,
+  Video
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -62,6 +64,7 @@ export default function DrillsPage() {
   const [newDescription, setNewDescription] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newPhotoUrl, setNewPhotoUrl] = useState<string | undefined>();
+  const [primaryMedia, setPrimaryMedia] = useState<'video' | 'image'>('video');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,7 +103,7 @@ export default function DrillsPage() {
           </div>
         </div>
         
-        <div className="text-center max-w-sm space-y-3">
+        <div className="text-center max-sm:px-4 space-y-3">
           <h1 className="text-3xl font-black tracking-tight">Squad Training</h1>
           <p className="text-muted-foreground font-bold leading-relaxed">
             Create a custom library of drills, tactics, and video lessons for your squad with a Pro subscription.
@@ -174,6 +177,7 @@ export default function DrillsPage() {
       description: newDescription,
       videoUrl: newVideoUrl,
       photoUrl: newPhotoUrl,
+      primaryMedia: primaryMedia,
       thumbnailUrl: newPhotoUrl || "https://picsum.photos/seed/drill/400/300"
     });
     setIsAddOpen(false);
@@ -245,9 +249,16 @@ export default function DrillsPage() {
                           )}
                         </div>
                       </div>
+                      <div className="space-y-3 bg-white/50 p-4 rounded-xl border border-black/5">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Primary Media Focus</Label>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <Button variant={primaryMedia === 'video' ? 'default' : 'outline'} className="h-10 rounded-lg text-[10px] font-black" onClick={() => setPrimaryMedia('video')}><Video className="h-3 w-3 mr-2" /> Video First</Button>
+                          <Button variant={primaryMedia === 'image' ? 'default' : 'outline'} className="h-10 rounded-lg text-[10px] font-black" onClick={() => setPrimaryMedia('image')}><ImageIcon className="h-3 w-3 mr-2" /> Image First</Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-8 space-y-6 flex flex-col justify-between">
+                  <div className="p-8 space-y-6 flex flex-col justify-between bg-background">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Detailed Instructions</Label>
                       <Textarea placeholder="Explain step-by-step..." value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-[2rem] min-h-[300px] p-6 text-base leading-relaxed bg-muted/10 border-2 font-bold" />
@@ -273,11 +284,11 @@ export default function DrillsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredDrills.length > 0 ? filteredDrills.map((drill) => (
-          <Card key={drill.id} className="group overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300 rounded-3xl ring-1 ring-black/5 cursor-pointer flex flex-col" onClick={() => setSelectedDrill(drill)}>
+          <Card key={drill.id} className="group overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300 rounded-3xl ring-1 ring-black/5 cursor-pointer flex flex-col" onClick={() => setSelectedDrill({ ...drill, viewerPrimary: drill.primaryMedia || (drill.videoUrl ? 'video' : 'image') })}>
             <div className="relative aspect-video overflow-hidden">
               <img src={drill.thumbnailUrl || "https://picsum.photos/seed/training/400/300"} alt={drill.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white scale-0 group-hover:scale-100 transition-transform"><Play className="h-6 w-6 fill-current ml-1" /></div>
+                <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white scale-0 group-hover:scale-100 transition-transform">{drill.videoUrl ? <Play className="h-6 w-6 fill-current ml-1" /> : <ImageIcon className="h-6 w-6" />}</div>
               </div>
               {drill.videoUrl && <div className="absolute top-3 right-3"><Badge className="bg-primary text-white border-none text-[9px] font-black uppercase tracking-widest px-2 h-5 shadow-lg">Video</Badge></div>}
             </div>
@@ -303,19 +314,44 @@ export default function DrillsPage() {
       </div>
 
       <Dialog open={!!selectedDrill} onOpenChange={(open) => !open && setSelectedDrill(null)}>
-        <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 overflow-hidden flex flex-col lg:flex-row max-h-[90vh] border-none shadow-2xl">
+        <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 overflow-hidden flex flex-col lg:flex-row max-h-[95vh] border-none shadow-2xl">
           {selectedDrill && (
             <>
-              <div className="flex-1 bg-black aspect-video lg:aspect-auto lg:h-full relative">
+              <div className="flex-1 bg-black relative flex items-center justify-center min-h-[300px] lg:min-h-0">
                 <div className="sr-only">
                   <DialogTitle>{selectedDrill.title}</DialogTitle>
                   <DialogDescription>{selectedDrill.description}</DialogDescription>
                 </div>
-                {getYouTubeEmbedUrl(selectedDrill.videoUrl) ? (
-                  <iframe src={getYouTubeEmbedUrl(selectedDrill.videoUrl)} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                
+                {selectedDrill.viewerPrimary === 'video' && getYouTubeEmbedUrl(selectedDrill.videoUrl) ? (
+                  <div className="w-full h-full aspect-video">
+                    <iframe src={getYouTubeEmbedUrl(selectedDrill.videoUrl)} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                  </div>
                 ) : (
-                  <img src={selectedDrill.photoUrl || selectedDrill.thumbnailUrl} className="w-full h-full object-contain" alt={selectedDrill.title} />
+                  <img src={selectedDrill.photoUrl || selectedDrill.thumbnailUrl} className="w-full h-full object-contain p-2" alt={selectedDrill.title} />
                 )}
+
+                {/* Tactical Mini-Toggle / Thumbnail */}
+                {(selectedDrill.videoUrl && selectedDrill.photoUrl) && (
+                  <div className="absolute bottom-6 right-6 z-20 flex gap-2">
+                    <button 
+                      onClick={() => setSelectedDrill({...selectedDrill, viewerPrimary: 'video'})}
+                      className={cn("h-16 w-24 rounded-xl border-2 overflow-hidden shadow-2xl transition-all hover:scale-105", selectedDrill.viewerPrimary === 'video' ? "border-primary ring-2 ring-primary/30" : "border-white/20 opacity-60")}
+                    >
+                      <div className="w-full h-full bg-black/50 flex items-center justify-center relative">
+                        <img src={selectedDrill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="Video thumb" />
+                        <Play className="h-4 w-4 text-white relative z-10" />
+                      </div>
+                    </button>
+                    <button 
+                      onClick={() => setSelectedDrill({...selectedDrill, viewerPrimary: 'image'})}
+                      className={cn("h-16 w-24 rounded-xl border-2 overflow-hidden shadow-2xl transition-all hover:scale-105", selectedDrill.viewerPrimary === 'image' ? "border-primary ring-2 ring-primary/30" : "border-white/20 opacity-60")}
+                    >
+                      <img src={selectedDrill.photoUrl} className="w-full h-full object-cover" alt="Photo thumb" />
+                    </button>
+                  </div>
+                )}
+
                 <Button variant="secondary" size="icon" className="absolute top-6 left-6 rounded-full bg-black/50 text-white border-none hover:bg-black/70 lg:hidden" onClick={() => setSelectedDrill(null)}><X className="h-4 w-4" /></Button>
               </div>
               <div className="w-full lg:w-[400px] flex flex-col bg-background p-8 lg:h-full overflow-y-auto custom-scrollbar">
@@ -342,7 +378,7 @@ export default function DrillsPage() {
                   </div>
                 </div>
                 <div className="pt-8 border-t mt-6 flex gap-3">
-                  {isAdmin && <Button variant="ghost" className="rounded-xl h-12 w-12 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { deleteDrill(selectedDrill.id); setSelectedDrill(null); }}><Trash2 className="h-5 w-5" /></Button>}
+                  {isAdmin && <Button variant="ghost" className="rounded-xl h-12 w-12 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { if(confirm("Purge?")) { deleteDrill(selectedDrill.id); setSelectedDrill(null); } }}><Trash2 className="h-5 w-5" /></Button>}
                   <Button className="flex-1 rounded-xl h-12 font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20" onClick={() => setSelectedDrill(null)}>Close Resource</Button>
                 </div>
               </div>

@@ -31,7 +31,10 @@ import {
   ListPlus,
   Table as TableIcon,
   ChevronLeft,
-  Loader2
+  Loader2,
+  CalendarCheck,
+  CalendarX,
+  CalendarQuestion
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -121,7 +124,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
   const notGoingList = attendanceData.filter(a => a.status === 'notGoing');
 
   const handleRSVP = (status: string) => {
-    if (status === 'going' && event.isRegistrationRequired) {
+    if (status === 'going' && event.isRegistrationRequired && event.userRsvp !== 'going') {
       setShowInternalForm(true);
     } else {
       updateRSVP(event.id, status);
@@ -152,10 +155,11 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
     const customFieldLabels = event.customFormFields?.map(f => f.label) || [];
     const headers = ['Name', 'Email', 'Phone', 'Status', ...customFieldLabels];
     const rows = registrations.map(reg => {
-      const basic = [reg.name, reg.email, reg.phone, reg.status];
+      const basic = [`"${reg.name}"`, `"${reg.email}"`, `"${reg.phone}"`, `"${reg.status}"`];
       const customValues = customFieldIds.map(fid => {
         const val = reg.responses?.[fid];
-        return typeof val === 'boolean' ? (val ? 'Yes' : 'No') : (val || '');
+        const displayVal = typeof val === 'boolean' ? (val ? 'Yes' : 'No') : (val || '');
+        return `"${displayVal}"`;
       });
       return [...basic, ...customValues].join(',');
     });
@@ -190,7 +194,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                     {field.type === 'long_text' && <Textarea value={formData[field.id] || ''} onChange={e => setFormData(p => ({ ...p, [field.id]: e.target.value }))} className="rounded-xl min-h-[100px] font-bold" />}
                     {field.type === 'checkbox' && (
                       <div className="flex items-center space-x-3 p-4 bg-muted/30 rounded-xl border-2">
-                        <Checkbox checked={formData[field.id] || false} onCheckedChange={v => setFormData(p => ({ ...p, [field.id]: !!v }))} />
+                        <Checkbox checked={!!formData[field.id]} onCheckedChange={v => setFormData(p => ({ ...p, [field.id]: !!v }))} />
                         <Label className="cursor-pointer font-bold">{field.label}</Label>
                       </div>
                     )}
@@ -237,6 +241,23 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                       </div>
                     </div>
                   </div>
+
+                  {event.isTournament && event.tournamentSchedule && event.tournamentSchedule.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Daily Schedule</p>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                        {event.tournamentSchedule.map((item: any, idx: number) => (
+                          <div key={idx} className="bg-background p-3 rounded-xl border border-black/5 shadow-sm">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[8px] font-black text-primary uppercase">{format(new Date(item.date), 'MMM d')}</span>
+                              <span className="text-[8px] font-bold text-muted-foreground">{item.time}</span>
+                            </div>
+                            <p className="text-[10px] font-black leading-tight">{item.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="p-4 lg:p-5 bg-background/50 rounded-xl lg:rounded-2xl border-2 border-dashed border-primary/20">
                     <p className="text-xs lg:text-sm text-muted-foreground font-black leading-relaxed italic break-words">"{event.description || 'No additional details.'}"</p>
@@ -360,30 +381,30 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
                       <p className="text-[8px] lg:text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em] text-center mb-4">Select Status</p>
                       <div className="grid grid-cols-3 gap-2 lg:gap-4">
                         <Button 
-                          variant={event.userRsvp === 'notGoing' ? 'default' : 'outline'} 
+                          variant="outline"
                           className={cn(
                             "rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase transition-all duration-300", 
-                            event.userRsvp === 'notGoing' ? "bg-red-600 text-black shadow-lg" : "hover:bg-red-600 hover:text-black hover:border-red-600"
+                            event.userRsvp === 'notGoing' ? "bg-red-600 text-black border-red-600 shadow-lg" : "hover:bg-red-600 hover:text-black hover:border-red-600"
                           )} 
                           onClick={() => handleRSVP('notGoing')}
                         >
                           NO
                         </Button>
                         <Button 
-                          variant={event.userRsvp === 'maybe' ? 'default' : 'outline'} 
+                          variant="outline"
                           className={cn(
                             "rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase transition-all duration-300", 
-                            event.userRsvp === 'maybe' ? "bg-amber-500 text-black shadow-lg" : "hover:bg-amber-500 hover:text-black hover:border-amber-500"
+                            event.userRsvp === 'maybe' ? "bg-amber-500 text-black border-amber-500 shadow-lg" : "hover:bg-amber-500 hover:text-black hover:border-amber-500"
                           )} 
                           onClick={() => handleRSVP('maybe')}
                         >
                           Maybe
                         </Button>
                         <Button 
-                          variant={event.userRsvp === 'going' ? 'default' : 'outline'} 
+                          variant="outline"
                           className={cn(
                             "rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase transition-all duration-300", 
-                            event.userRsvp === 'going' ? "bg-green-600 text-black shadow-lg" : "hover:bg-green-600 hover:text-black hover:border-green-600"
+                            event.userRsvp === 'going' ? "bg-green-600 text-black border-green-600 shadow-lg" : "hover:bg-green-600 hover:text-black hover:border-green-600"
                           )} 
                           onClick={() => handleRSVP('going')}
                         >
@@ -419,7 +440,7 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
 }
 
 export default function EventsPage() {
-  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, promoteToRoster, isSuperAdmin, hasFeature, purchasePro } = useTeam();
+  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, promoteToRoster, isSuperAdmin, hasFeature, purchasePro, user } = useTeam();
   const db = useFirestore();
 
   const eventsQuery = useMemoFirebase(() => {
@@ -538,6 +559,18 @@ export default function EventsPage() {
     setCustomFormFields(customFormFields.filter(f => f.id !== id));
   };
 
+  const addScheduleItem = () => {
+    setTournamentSchedule([...tournamentSchedule, { date: newDate || new Date().toISOString().split('T')[0], time: '10:00 AM', label: 'Match 1' }]);
+  };
+
+  const updateScheduleItem = (idx: number, field: string, val: string) => {
+    const n = [...tournamentSchedule]; n[idx][field] = val; setTournamentSchedule(n);
+  };
+
+  const removeScheduleItem = (idx: number) => {
+    setTournamentSchedule(tournamentSchedule.filter((_, i) => i !== idx));
+  };
+
   return (
     <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -599,64 +632,94 @@ export default function EventsPage() {
                 </div>
               </div>
               
-              <div className="lg:col-span-7 p-6 lg:p-8 space-y-6 flex flex-col justify-between">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ListPlus className="h-4 w-4 text-primary" />
-                      <h3 className="text-sm font-black uppercase tracking-widest">Registration Form Builder</h3>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Label htmlFor="req-reg" className="text-[10px] font-black uppercase tracking-widest opacity-60">Required?</Label>
-                      <Checkbox id="req-reg" checked={isRegRequired} onCheckedChange={v => setIsRegRequired(!!v)} />
-                    </div>
-                  </div>
+              <div className="lg:col-span-7 p-6 lg:p-8 space-y-6 flex flex-col justify-between bg-background">
+                <Tabs defaultValue={isTournamentMode ? "schedule" : "registration"} className="flex-1">
+                  <TabsList className="bg-muted/50 rounded-xl p-1 h-10 mb-6">
+                    {isTournamentMode && <TabsTrigger value="schedule" className="font-black text-[8px] uppercase px-4">Daily Games</TabsTrigger>}
+                    <TabsTrigger value="registration" className="font-black text-[8px] uppercase px-4">Reg Form</TabsTrigger>
+                  </TabsList>
 
-                  {isRegRequired && (
-                    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[9px] font-black uppercase tracking-widest">Max Regs</Label>
-                          <Input type="number" placeholder="Unlimited" value={maxRegs} onChange={e => setMaxRegs(e.target.value)} className="h-10 rounded-xl" />
+                  <TabsContent value="schedule" className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tournament Ledger</Label>
+                      <Button variant="outline" size="sm" className="h-8 font-black uppercase text-[8px]" onClick={addScheduleItem}>+ Add Game</Button>
+                    </div>
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                      {tournamentSchedule.length > 0 ? tournamentSchedule.map((item, idx) => (
+                        <div key={idx} className="p-4 bg-muted/20 rounded-xl border border-black/5 space-y-3 group relative">
+                          <div className="grid grid-cols-2 gap-3">
+                            <Input type="date" value={item.date} onChange={e => updateScheduleItem(idx, 'date', e.target.value)} className="h-9 text-[10px] rounded-lg" />
+                            <Input type="time" value={item.time} onChange={e => updateScheduleItem(idx, 'time', e.target.value)} className="h-9 text-[10px] rounded-lg" />
+                          </div>
+                          <Input placeholder="Game Label (e.g. Semi Finals)" value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)} className="h-9 text-[10px] rounded-lg font-bold" />
+                          <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 bg-white shadow-sm border rounded-full text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeScheduleItem(idx)}><Trash2 className="h-3 w-3" /></Button>
                         </div>
-                        <div className="flex items-center gap-3 self-end h-10 px-3 bg-muted/30 rounded-xl border">
-                          <Checkbox id="ext-reg" checked={allowExternal} onCheckedChange={v => setAllowExternal(!!v)} />
-                          <Label htmlFor="ext-reg" className="text-[9px] font-black uppercase cursor-pointer">Public Link?</Label>
+                      )) : (
+                        <div className="text-center py-12 border-2 border-dashed rounded-xl opacity-30">
+                          <p className="text-[10px] font-black uppercase">Schedule is empty</p>
                         </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="registration" className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ListPlus className="h-4 w-4 text-primary" />
+                        <h3 className="text-sm font-black uppercase tracking-widest">Form Builder</h3>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <Label htmlFor="req-reg" className="text-[10px] font-black uppercase tracking-widest opacity-60">Required?</Label>
+                        <Checkbox id="req-reg" checked={isRegRequired} onCheckedChange={v => setIsRegRequired(!!v)} />
+                      </div>
+                    </div>
 
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between px-1">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Custom Fields</Label>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => addFormField('short_text')}>+ Text</Button>
-                            <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => addFormField('checkbox')}>+ Check</Button>
+                    {isRegRequired && (
+                      <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label className="text-[9px] font-black uppercase tracking-widest">Max Regs</Label>
+                            <Input type="number" placeholder="Unlimited" value={maxRegs} onChange={e => setMaxRegs(e.target.value)} className="h-10 rounded-xl" />
+                          </div>
+                          <div className="flex items-center gap-3 self-end h-10 px-3 bg-muted/30 rounded-xl border">
+                            <Checkbox id="ext-reg" checked={allowExternal} onCheckedChange={v => setAllowExternal(!!v)} />
+                            <Label htmlFor="ext-reg" className="text-[9px] font-black uppercase cursor-pointer">Public Link?</Label>
                           </div>
                         </div>
-                        
-                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                          {customFormFields.length > 0 ? customFormFields.map((field) => (
-                            <div key={field.id} className="flex gap-2 items-center p-2 bg-muted/20 rounded-xl border group">
-                              <Badge variant="outline" className="text-[7px] font-black h-5 uppercase shrink-0">{field.type.replace('_', ' ')}</Badge>
-                              <Input 
-                                value={field.label} 
-                                onChange={e => updateFieldLabel(field.id, e.target.value)}
-                                className="h-8 text-xs font-bold bg-transparent border-none focus-visible:ring-0"
-                              />
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFormField(field.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between px-1">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Custom Fields</Label>
+                            <div className="flex gap-2">
+                              <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => addFormField('short_text')}>+ Text</Button>
+                              <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => addFormField('checkbox')}>+ Check</Button>
                             </div>
-                          )) : (
-                            <div className="text-center py-8 bg-muted/10 rounded-xl border-2 border-dashed opacity-40">
-                              <p className="text-[10px] font-black uppercase">No custom fields added</p>
-                            </div>
-                          )}
+                          </div>
+                          
+                          <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                            {customFormFields.length > 0 ? customFormFields.map((field) => (
+                              <div key={field.id} className="flex gap-2 items-center p-2 bg-muted/20 rounded-xl border group">
+                                <Badge variant="outline" className="text-[7px] font-black h-5 uppercase shrink-0">{field.type.replace('_', ' ')}</Badge>
+                                <Input 
+                                  value={field.label} 
+                                  onChange={e => updateFieldLabel(field.id, e.target.value)}
+                                  className="h-8 text-xs font-bold bg-transparent border-none focus-visible:ring-0"
+                                />
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFormField(field.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )) : (
+                              <div className="text-center py-8 bg-muted/10 rounded-xl border-2 border-dashed opacity-40">
+                                <p className="text-[10px] font-black uppercase">No custom fields added</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
                 <Button className="w-full h-14 rounded-2xl text-base lg:text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all mt-4" onClick={handleCreateEvent}>Save Event Hub</Button>
               </div>
             </div>
@@ -674,7 +737,7 @@ export default function EventsPage() {
             <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} promoteToRoster={promoteToRoster} onEdit={handleEdit} onDelete={(id) => { if(confirm("Delete?")) deleteEvent(id); }} hasAttendance={hasAttendanceTracking} purchasePro={purchasePro}>
               <Card className={cn("overflow-hidden hover:border-primary/30 transition-all duration-500 cursor-pointer group border-none shadow-sm hover:shadow-xl ring-1 ring-black/5 rounded-2xl lg:rounded-[2rem]", event.isTournament && "ring-primary/20")}>
                 <div className="flex items-stretch">
-                  <div className="w-16 sm:w-24 flex flex-col items-center justify-center border-r-2 shrink-0 transition-colors group-hover:bg-primary/10 bg-primary/5 p-2 lg:p-4">
+                  <div className={cn("w-16 sm:w-24 flex flex-col items-center justify-center border-r-2 shrink-0 transition-colors group-hover:bg-primary/10 p-2 lg:p-4", event.userRsvp === 'going' ? 'bg-green-50' : event.userRsvp === 'maybe' ? 'bg-amber-50' : event.userRsvp === 'notGoing' ? 'bg-red-50' : 'bg-primary/5')}>
                     <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest mb-0.5 text-primary">{format(new Date(event.date), 'MMM')}</span>
                     <span className="text-xl lg:text-3xl font-black tracking-tighter text-primary">{format(new Date(event.date), 'dd')}</span>
                   </div>
@@ -684,6 +747,11 @@ export default function EventsPage() {
                         <div className="flex gap-2 mb-1">
                           {event.isTournament && <Badge className="bg-primary text-white font-black text-[7px] lg:text-[8px] uppercase tracking-widest px-1.5 h-3.5 lg:h-4 border-none shadow-sm">Tourney</Badge>}
                           {event.isRegistrationRequired && <Badge variant="outline" className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest px-1.5 h-3.5 lg:h-4 border-blue-600/30 text-blue-600">Register</Badge>}
+                          {event.userRsvp && (
+                            <Badge className={cn("text-[7px] lg:text-[8px] font-black uppercase px-1.5 h-3.5 lg:h-4 border-none", event.userRsvp === 'going' ? 'bg-green-600' : event.userRsvp === 'maybe' ? 'bg-amber-500' : 'bg-red-600')}>
+                              {event.userRsvp === 'going' ? 'Going' : event.userRsvp === 'maybe' ? 'Maybe' : 'No'}
+                            </Badge>
+                          )}
                         </div>
                         <h3 className="font-black text-base lg:text-xl leading-tight group-hover:text-primary transition-colors truncate pr-4">{event.title}</h3>
                       </div>
@@ -713,7 +781,12 @@ export default function EventsPage() {
               <div className="space-y-3 lg:space-y-4">
                 {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => (
                   <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} promoteToRoster={promoteToRoster} onEdit={handleEdit} onDelete={(id) => { if(confirm("Delete?")) deleteEvent(id); }} hasAttendance={hasAttendanceTracking} purchasePro={purchasePro}>
-                    <Card className="cursor-pointer hover:scale-[1.02] transition-all border-none shadow-sm rounded-xl lg:rounded-2xl p-3 lg:p-4 space-y-1.5 lg:space-y-2 ring-1 ring-black/5">
+                    <Card className="cursor-pointer hover:scale-[1.02] transition-all border-none shadow-sm rounded-xl lg:rounded-2xl p-3 lg:p-4 space-y-1.5 lg:space-y-2 ring-1 ring-black/5 relative overflow-hidden bg-white">
+                      {event.userRsvp && (
+                        <div className={cn("absolute top-0 right-0 p-1.5 rounded-bl-xl", event.userRsvp === 'going' ? 'bg-green-600 text-white' : event.userRsvp === 'maybe' ? 'bg-amber-500 text-white' : 'bg-red-600 text-white')}>
+                          {event.userRsvp === 'going' ? <CalendarCheck className="h-3 w-3" /> : event.userRsvp === 'maybe' ? <CalendarQuestion className="h-3 w-3" /> : <CalendarX className="h-3 w-3" />}
+                        </div>
+                      )}
                       <span className="text-[7px] lg:text-[8px] font-black uppercase text-primary tracking-[0.2em]">{event.isTournament ? "TOURNAMENT" : "MATCH"}</span>
                       <h4 className="font-black text-sm lg:text-base leading-tight truncate">{event.title}</h4>
                       <p className="text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase">{event.startTime} • {event.location || 'TBD'}</p>
