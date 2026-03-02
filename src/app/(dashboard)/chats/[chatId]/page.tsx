@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -54,7 +53,6 @@ export default function ChatRoomPage() {
   const [pollOptions, setPollOptions] = useState<{text: string, image?: string}[]>([{text: '', image: undefined}, {text: '', image: undefined}]);
   const [suggestedPoll, setSuggestedPoll] = useState<{question: string, options: string[]} | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [viewVotersFor, setViewVotersFor] = useState<{question: string, optionIdx: number, voterIds: string[]} | null>(null);
   const [chatImage, setChatImage] = useState<string | undefined>();
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   
@@ -69,9 +67,9 @@ export default function ChatRoomPage() {
     return doc(db, 'teams', activeTeam.id, 'groupChats', chatId as string);
   }, [activeTeam?.id, db, chatId]);
 
-  const { data: currentChat } = useDoc(chatDocRef);
+  const { data: currentChat, isLoading: isChatLoading } = useDoc(chatDocRef);
 
-  // Memoized Messages Query
+  // Memoized Messages Query - Ordered by date to ensure fast loading and correct sequence
   const messagesQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || !chatId) return null;
     return query(
@@ -81,12 +79,15 @@ export default function ChatRoomPage() {
     );
   }, [activeTeam?.id, db, chatId]);
 
-  const { data: messages = [] } = useCollection<Message>(messagesQuery);
+  const { data: messages = [], isLoading: isMessagesLoading } = useCollection<Message>(messagesQuery);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or initial load
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
     }
   }, [messages?.length]);
 
@@ -133,15 +134,23 @@ export default function ChatRoomPage() {
     setIsPollDialogOpen(false); setSuggestedPoll(null); setPollPrompt(''); setPollOptions([{text: '', image: undefined}, {text: '', image: undefined}]);
   };
 
-  if (!currentChat) return (
+  if (isChatLoading) return (
     <div className="flex flex-col items-center justify-center h-full gap-4">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
       <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Opening discussion...</p>
     </div>
   );
 
+  if (!currentChat) return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+      <Users className="h-12 w-12 text-muted-foreground opacity-20" />
+      <h2 className="text-xl font-black uppercase tracking-tight">Chat Not Found</h2>
+      <Button variant="outline" onClick={() => router.push('/chats')}>Back to Chats</Button>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-[calc(100vh-160px)] md:h-[calc(100vh-130px)] -mt-4 md:-mt-4 -mx-4">
+    <div className="flex flex-col h-[calc(100vh-160px)] md:h-[calc(100vh-130px)] -mt-4 md:-mt-4 -mx-4 overflow-hidden">
       <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 border-b bg-background sticky top-0 z-10">
         <Button variant="ghost" size="icon" onClick={() => router.push('/chats')} className="rounded-full h-9 w-9 md:h-10 md:w-10"><ChevronLeft className="h-5 w-5" /></Button>
         <div className="flex-1 min-w-0">
@@ -151,10 +160,12 @@ export default function ChatRoomPage() {
         <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 md:h-10 md:w-10"><MoreVertical className="h-5 w-5" /></Button>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div ref={scrollRef} className="p-4 space-y-6">
-          {messages?.map((msg) => {
-            const isMe = msg.authorId === user?.id || msg.author === user?.name;
+      <ScrollArea className="flex-1" ref={scrollRef}>
+        <div className="p-4 space-y-6 pb-10">
+          {isMessagesLoading ? (
+            <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-20" /></div>
+          ) : messages.length > 0 ? messages.map((msg) => {
+            const isMe = msg.authorId === user?.id;
             const isPoll = (msg.type === 'poll' || !!msg.poll) && msg.poll;
             const hasOptionImages = isPoll && msg.poll?.options.some(o => o.imageUrl);
 
@@ -167,7 +178,7 @@ export default function ChatRoomPage() {
                 {!isPoll ? (
                   <div className={cn("max-w-[85%] sm:max-w-[70%] p-3 lg:p-3.5 rounded-2xl text-xs lg:text-sm shadow-sm space-y-2 break-words", isMe ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
                     {msg.imageUrl && (
-                      <div className="rounded-xl overflow-hidden border-2 border-white/20 shadow-lg">
+                      <div className="rounded-xl overflow-hidden border-2 border-white/20 shadow-lg mb-2">
                         <img src={msg.imageUrl} alt="Chat attachment" className="w-full h-auto max-h-[250px] lg:max-h-[300px] object-cover" />
                       </div>
                     )}
@@ -184,7 +195,6 @@ export default function ChatRoomPage() {
                     </div>
                     <div className={cn("p-4 lg:p-5", hasOptionImages ? "grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4" : "space-y-3 lg:space-y-4")}>
                       {msg.poll?.options.map((opt, i) => {
-                        const voters = Object.entries(msg.poll?.voters || {}).filter(([_, votedIdx]) => votedIdx === i).map(([uid]) => uid);
                         const hasVoted = msg.poll?.voters?.[user?.id || ''] === i;
                         const percentage = msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0;
                         return (
@@ -210,12 +220,16 @@ export default function ChatRoomPage() {
                   </div>
                 )}
               </div>
-            );
-          })}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-30">
+                <div className="bg-muted p-6 rounded-full"><Users className="h-8 w-8" /></div>
+                <p className="text-xs font-black uppercase tracking-widest">No messages yet. Start the coordination.</p>
+              </div>
+            )}
         </div>
       </ScrollArea>
 
-      <div className="p-3 md:p-4 bg-background border-t mt-auto shrink-0">
+      <div className="p-3 md:p-4 bg-background border-t mt-auto shrink-0 relative z-20">
         {chatImage && (
           <div className="mb-2 relative inline-block">
             <img src={chatImage} alt="Attachment" className="h-16 lg:h-24 w-auto rounded-xl border-2 border-primary/10 shadow-lg" />
