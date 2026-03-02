@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -55,7 +56,6 @@ export default function LoginPage() {
     setIsDemoLoading(true);
     try {
       // CRITICAL: Sign out first to ensure a fresh anonymous UID for each demo tier
-      // This prevents "Starter" demos from inheriting "Club" teams from previous clicks
       await signOut(auth);
       await signInAnonymously(auth);
       // We pass the demo intent via a URL parameter which the TeamProvider will pick up
@@ -162,7 +162,7 @@ export default function LoginPage() {
             {[
               { id: 'starter_squad', name: 'Starter Demo (FREE)', icon: Users, desc: 'Grassroots essentials' },
               { id: 'squad_pro', name: 'Elite Squad Demo (PRO)', icon: Zap, desc: 'Advanced analytics & strategy' },
-              { id: 'club_custom', name: 'Club Demo (CUSTOM)', icon: Trophy, desc: 'Multi-team organization' }
+              { id: 'squad_organization', name: 'Club Demo (CUSTOM)', icon: Trophy, desc: 'Multi-team organization' }
             ].map((demo) => (
               <Button 
                 key={demo.id} 

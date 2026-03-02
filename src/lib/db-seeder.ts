@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -126,6 +127,7 @@ export async function seedSubscriptionData(db: Firestore) {
  * Seeds realistic demo data for a team roster and sub-collections.
  */
 export async function seedDemoData(db: Firestore, teamId: string, planId: string, userId: string) {
+  console.log(`[Seeder] Seeding sub-collections for team ${teamId} (${planId})`);
   const batch = writeBatch(db);
   const now = new Date();
 
@@ -201,12 +203,14 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
   }
 
   await batch.commit();
+  console.log(`[Seeder] Sub-collections seeded for ${teamId}`);
 }
 
 /**
  * Creates a fresh demo team for a guest user session.
  */
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
+  console.log(`[Seeder] Creating guest demo session for user ${userId} (${planId})`);
   const timestamp = Date.now();
   const teamId = `demo_guest_${userId.slice(-6)}_${timestamp}`;
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
@@ -220,12 +224,14 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   batch.set(doc(db, 'users', userId), {
     id: userId, fullName: 'Guest Coordinator', email: 'guest@thesquad.io',
     notificationsEnabled: true, createdAt: new Date().toISOString(),
-    isDemo: true, avatarUrl: `https://picsum.photos/seed/${userId}/150/150`
+    isDemo: true, avatarUrl: `https://picsum.photos/seed/${userId}/150/150`,
+    activePlanId: planId, proTeamLimit: planId === 'squad_organization' ? 15 : (planId === 'squad_pro' ? 1 : 0),
+    planSource: 'free'
   }, { merge: true });
 
   // 2. Main Team
   batch.set(doc(db, 'teams', teamId), {
-    id: teamId, teamName, teamCode: code, createdBy: userId,
+    id: teamId, teamName, teamCode: code, createdBy: userId, ownerUserId: userId,
     createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
     isPro, planId, sport: 'Multi-Sport', isDemo: true,
     description: planId === 'squad_organization' ? 'Elite multi-team development organization.' : 'Dynamic coordination for high-performance squads.'
@@ -234,7 +240,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
     userId, teamId, teamName, teamCode: code, role: 'Admin', 
     isPro, planId, isDemo: true, 
-    joinedAt: new Date().toISOString(), createdBy: userId
+    joinedAt: new Date().toISOString(), createdBy: userId, ownerUserId: userId
   });
 
   batch.set(doc(db, 'teams', teamId, 'members', userId), {
@@ -253,13 +259,14 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
     for (const sub of subs) {
       batch.set(doc(db, 'teams', sub.id), {
-        id: sub.id, teamName: sub.name, teamCode: sub.id.slice(-6).toUpperCase(), createdBy: userId,
+        id: sub.id, teamName: sub.name, teamCode: sub.id.slice(-6).toUpperCase(), createdBy: userId, ownerUserId: userId,
         createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
         isPro: true, planId: 'squad_organization', isDemo: true
       });
       batch.set(doc(db, 'users', userId, 'teamMemberships', sub.id), {
         userId, teamId: sub.id, teamName: sub.name, role: 'Admin', isPro: true, 
-        planId: 'squad_organization', isDemo: true, joinedAt: new Date().toISOString(), createdBy: userId
+        planId: 'squad_organization', isDemo: true, joinedAt: new Date().toISOString(), 
+        createdBy: userId, ownerUserId: userId
       });
       batch.set(doc(db, 'teams', sub.id, 'members', userId), {
         id: userId, userId, teamId: sub.id, name: 'Guest Coordinator', role: 'Admin',
@@ -270,6 +277,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   }
   
   await batch.commit();
+  console.log(`[Seeder] Parent team(s) committed. Seeding content...`);
   
   // Seed realistic content
   await seedDemoData(db, teamId, planId, userId);
@@ -355,14 +363,14 @@ export async function launchDemoEnvironments(db: Firestore, superAdminId: string
       const code = dt.id.slice(0, 6).toUpperCase();
       const batch = writeBatch(db);
       batch.set(teamRef, {
-        id: dt.id, teamName: dt.name, teamCode: code, createdBy: superAdminId,
+        id: dt.id, teamName: dt.name, teamCode: code, createdBy: superAdminId, ownerUserId: superAdminId,
         createdAt: new Date().toISOString(), members: { [superAdminId]: 'Admin' },
         isPro: dt.planId !== 'starter_squad', planId: dt.planId, sport: dt.sport, isDemo: true
       });
       batch.set(doc(db, 'users', superAdminId, 'teamMemberships', dt.id), {
         userId: superAdminId, teamId: dt.id, teamName: dt.name, teamCode: code,
         role: 'Admin', isPro: dt.planId !== 'starter_squad', planId: dt.planId, isDemo: true, joinedAt: new Date().toISOString(),
-        createdBy: superAdminId
+        createdBy: superAdminId, ownerUserId: superAdminId
       });
       batch.set(doc(db, 'teams', dt.id, 'members', superAdminId), {
         id: superAdminId, userId: superAdminId, teamId: dt.id, name: 'Platform Admin', role: 'Admin',

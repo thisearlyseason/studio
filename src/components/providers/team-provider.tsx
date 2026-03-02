@@ -333,7 +333,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const plan = plans.find(p => p.id === pid);
     const baseFeatures = { ...(plan?.features || {}) };
 
-    if (pid === 'club_custom') {
+    if (pid === 'squad_organization') {
       const teamCount = teams.length;
       if (teamCount >= 2) {
         baseFeatures.multi_team_admin_dashboard = true;
@@ -351,7 +351,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const isPro = useMemo(() => {
     if (simulationPlanId === 'starter_squad') return false;
-    if (simulationPlanId === 'squad_pro' || simulationPlanId === 'club_custom') return true;
+    if (simulationPlanId === 'squad_pro' || simulationPlanId === 'squad_organization') return true;
     if (isSuperAdmin && !activeTeam?.isDemo) return true;
     if (isProEntitlementActive) return true;
     
@@ -361,10 +361,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam, isProEntitlementActive, isSuperAdmin, simulationPlanId]);
 
   const isClubManager = useMemo(() => {
-    if (simulationPlanId === 'club_custom') return true;
+    if (simulationPlanId === 'squad_organization') return true;
     if (simulationPlanId === 'starter_squad' || simulationPlanId === 'squad_pro') return false;
     if (!activeTeam) return false;
-    if (activeTeam.planId === 'club_custom' && activeTeam.role === 'Admin') return true;
+    if (activeTeam.planId === 'squad_organization' && activeTeam.role === 'Admin') return true;
     return false;
   }, [simulationPlanId, activeTeam]);
 
@@ -439,6 +439,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           url.searchParams.delete('seed_demo');
           window.history.replaceState({}, '', url.toString());
         } catch (e) {
+          console.error("Failed to seed guest demo:", e);
           seedingRef.current = false;
         } finally {
           setIsSeedingDemo(false);

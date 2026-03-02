@@ -32,19 +32,24 @@ service cloud.firestore {
     }
 
     /**
-     * @description Robust check if the user is an admin of a specific team.
+     * @description Robust check if the user is an admin or the owner of a specific team.
      */
     function isTeamAdmin(teamId) {
       let teamPath = /databases/$(database)/documents/teams/$(teamId);
       let teamDoc = exists(teamPath) ? get(teamPath) : null;
       let teamData = teamDoc != null ? teamDoc.data : null;
       
-      return isAdmin() || (isSignedIn() && teamData != null && (
-        (teamData.members != null && teamData.members[request.auth.uid] == 'Admin') || 
-        teamData.createdBy == request.auth.uid || 
-        teamData.creatorId == request.auth.uid ||
-        teamData.ownerUserId == request.auth.uid ||
-        teamData.isDemo == true
+      return isAdmin() || (isSignedIn() && (
+        (teamData != null && (
+          (teamData.members != null && teamData.members[request.auth.uid] == 'Admin') || 
+          teamData.createdBy == request.auth.uid || 
+          teamData.creatorId == request.auth.uid ||
+          teamData.ownerUserId == request.auth.uid ||
+          teamData.isDemo == true
+        )) ||
+        // Fallback for creation logic in batches
+        request.resource.data.ownerUserId == request.auth.uid ||
+        request.resource.data.createdBy == request.auth.uid
       ));
     }
 
@@ -53,7 +58,8 @@ service cloud.firestore {
      */
     function isManager(teamId, memberId) {
       let teamPath = /databases/$(database)/documents/teams/$(teamId);
-      let teamData = exists(teamPath) ? get(teamPath).data : null;
+      let teamDoc = exists(teamPath) ? get(teamPath) : null;
+      let teamData = teamDoc != null ? teamDoc.data : null;
       return teamData != null && (
         teamData.createdBy == memberId || 
         teamData.creatorId == memberId ||
@@ -80,7 +86,7 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.ownerUserId;
-      // Allow admins to update anything, OR allow any member to update ONLY their own membership status
+      // Allow admins or owners to update, OR allow members to update ONLY their own membership entry
       allow update: if isTeamAdmin(teamId) || (
         isSignedIn() && 
         request.resource.data.members[request.auth.uid] == 'Member' &&
@@ -97,7 +103,6 @@ service cloud.firestore {
 
       match /events/{eventId} {
         allow read: if isSignedIn();
-        // Allow members to update their own RSVP, but admins to update anything
         allow update: if isTeamAdmin(teamId) || (
           isSignedIn() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userRsvps'])
