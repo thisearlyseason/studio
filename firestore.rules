@@ -98,12 +98,17 @@ service cloud.firestore {
 
     match /plans/{planId} {
       allow get, list: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
 
     match /leads/{leadId} {
       allow create: if true;
       allow get, list, write: if isAdmin();
+    }
+
+    match /features/{featureId} {
+      allow get, list: if true;
+      allow write: if isSignedIn();
     }
   }
 }

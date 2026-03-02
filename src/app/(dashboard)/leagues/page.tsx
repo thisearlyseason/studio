@@ -108,7 +108,6 @@ export default function LeaguesPage() {
   const db = useFirestore();
   const router = useRouter();
   
-  // State Hooks
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [leagueName, setLeagueName] = useState('');
@@ -117,10 +116,8 @@ export default function LeaguesPage() {
   const [scoutTeamId, setScoutTeamId] = useState<string | null>(null);
   const [scoutTeamName, setScoutTeamName] = useState<string | null>(null);
 
-  // Feature Flag
   const canUseLeagues = hasFeature('leagues');
 
-  // Firestore Data Hooks
   const leaguesQuery = useMemoFirebase(() => {
     if (!activeTeam?.id || !db) return null;
     return query(collection(db, 'leagues'), where(`teams.${activeTeam.id}`, '!=', null));
@@ -137,7 +134,6 @@ export default function LeaguesPage() {
   const { data: rawInvites } = useCollection<LeagueInvite>(invitesQuery);
   const invites = useMemo(() => rawInvites || [], [rawInvites]);
 
-  // Derived Data Hooks
   const activeLeague = useMemo(() => {
     if (!leagues || leagues.length === 0) return null;
     return leagues[0];
@@ -150,7 +146,6 @@ export default function LeaguesPage() {
       .sort((a, b) => b.wins - a.wins || b.points - a.points);
   }, [activeLeague]);
 
-  // Action Handlers
   const handleCreateLeague = async () => {
     if (!leagueName.trim()) return;
     setIsProcessing(true);
@@ -183,10 +178,7 @@ export default function LeaguesPage() {
     }
   };
 
-  // --------------------------------------------------------------------------
-  // Early Returns (Rules of Hooks: Do not return before hooks are declared)
-  // --------------------------------------------------------------------------
-
+  // CONDITIONAL RETURNS MUST BE AT THE BOTTOM OF THE HOOK SECTION
   if (!canUseLeagues) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
@@ -219,10 +211,6 @@ export default function LeaguesPage() {
       </div>
     );
   }
-
-  // --------------------------------------------------------------------------
-  // Main Component JSX
-  // --------------------------------------------------------------------------
 
   return (
     <div className="space-y-10 pb-20">

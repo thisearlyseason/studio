@@ -220,6 +220,7 @@ interface TeamContextType {
   isRCInitialized: boolean;
   formatTime: (date: string | Date) => string;
   plans: Plan[];
+  isPlansLoading: boolean;
   simulationPlanId: string | null;
   setSimulationPlanId: (pid: string | null) => void;
   resetDemo: () => Promise<void>;
@@ -263,7 +264,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const rcInitRef = useRef(false);
 
   const plansQuery = useMemoFirebase(() => db ? collection(db, 'plans') : null, [db]);
-  const { data: plansData } = useCollection(plansQuery);
+  const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
   const plans = useMemo(() => (plansData || []) as Plan[], [plansData]);
 
   const isSuperAdmin = useMemo(() => {
@@ -395,6 +396,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [simulationPlanId, activeTeam]);
 
   useEffect(() => {
+    if (db && firebaseUser && !isPlansLoading && plans.length === 0) {
+      seedSubscriptionData(db);
+    }
+  }, [db, firebaseUser, isPlansLoading, plans.length]);
+
+  useEffect(() => {
     if (!userProfile?.isDemo || !userProfile?.createdAt) {
       setSecondsUntilReset(null);
       return;
@@ -428,7 +435,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isSuperAdmin && db && firebaseUser) {
-      seedSubscriptionData(db);
       launchDemoEnvironments(db, firebaseUser.uid);
     }
   }, [isSuperAdmin, db, firebaseUser]);
@@ -630,6 +636,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isRCInitialized,
     formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
     plans,
+    isPlansLoading,
     simulationPlanId, setSimulationPlanId,
     resetDemo: async () => { if (userProfile?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeamId || '', userProfile.activePlanId || 'starter_squad', firebaseUser.uid); toast({ title: "Environment Re-seeded" }); } },
     isSeedingDemo,
@@ -689,7 +696,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { leagueIds: [...(activeTeam.leagueIds || []), leagueId] });
       await batch.commit(); toast({ title: "Joined League" });
     }
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, isMembersLoading, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, alerts, router]);
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, isMembersLoading, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, isPlansLoading, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, alerts, router]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

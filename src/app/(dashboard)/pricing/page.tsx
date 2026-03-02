@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -18,9 +18,7 @@ import {
   Building,
   Shield
 } from 'lucide-react';
-import { useTeam, Plan } from '@/components/providers/team-provider';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { useTeam } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -37,8 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function PricingPage() {
-  const { activeTeam, purchasePro, submitLead, user, proQuotaStatus } = useTeam();
-  const db = useFirestore();
+  const { activeTeam, purchasePro, submitLead, user, plans, isPlansLoading } = useTeam();
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
@@ -51,12 +48,9 @@ export default function PricingPage() {
     message: ''
   });
 
-  const plansQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, 'plans'), orderBy('proTeamLimit', 'asc'));
-  }, [db]);
-
-  const { data: plans, isLoading } = useCollection<Plan>(plansQuery);
+  const sortedPlans = useMemo(() => {
+    return [...plans].sort((a, b) => (a.proTeamLimit || 0) - (b.proTeamLimit || 0));
+  }, [plans]);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +66,14 @@ export default function PricingPage() {
     setIsSubmitting(false);
   };
 
-  if (isLoading) return <div className="flex flex-col items-center justify-center py-20 gap-4"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Syncing Subscription Catalog...</p></div>;
+  if (isPlansLoading && plans.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Syncing Subscription Catalog...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-12 pb-20 max-w-6xl mx-auto">
@@ -93,7 +94,7 @@ export default function PricingPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {plans?.map((plan) => {
+        {sortedPlans.length > 0 ? sortedPlans.map((plan) => {
           const isCurrent = activeTeam?.planId === plan.id;
           const isStarter = plan.id === 'starter_squad';
           const isClub = plan.id === 'squad_organization';
@@ -124,7 +125,7 @@ export default function PricingPage() {
                 <div className="pt-6 border-t space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Capabilities</p>
                   <ul className="space-y-3">
-                    {Object.entries(plan.features).filter(([_, v]) => v).slice(0, 6).map(([key]) => (
+                    {Object.entries(plan.features || {}).filter(([_, v]) => v).slice(0, 6).map(([key]) => (
                       <li key={key} className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-tight">
                         <Check className="h-4 w-4 text-primary shrink-0" />
                         <span>{key.replace(/_/g, ' ')}</span>
@@ -158,7 +159,11 @@ export default function PricingPage() {
               </CardFooter>
             </Card>
           );
-        })}
+        }) : (
+          <div className="col-span-full py-20 text-center opacity-40">
+            <p className="font-black uppercase tracking-widest text-xs">Catalog initializing...</p>
+          </div>
+        )}
       </div>
 
       <div className="bg-black text-white rounded-[3rem] p-12 flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl relative overflow-hidden">
