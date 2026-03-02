@@ -98,7 +98,6 @@ export default function PricingPage() {
           const isCurrent = activeTeam?.planId === plan.id;
           const isStarter = plan.id === 'starter_squad';
           const isPro = plan.id === 'squad_pro';
-          const isClub = !isStarter && !isPro;
           
           const displayPrice = (billingCycle === 'annual' && plan.annualPriceDisplay) ? plan.annualPriceDisplay : plan.priceDisplay;
           const displayCycle = displayPrice === 'Free' || displayPrice === 'Custom' ? '' : (billingCycle === 'annual' ? '/yr' : '/mo');
@@ -115,17 +114,19 @@ export default function PricingPage() {
               <div className={cn("h-2 w-full", isStarter ? "bg-muted-foreground/20" : "bg-primary")} />
               <CardHeader className="p-10 pb-6 space-y-4">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <Badge variant="outline" className={cn("mb-2 font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center gap-1", isPro ? "border-white/20 text-white" : "border-primary/20 text-primary")}>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className={cn("font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center whitespace-nowrap", isPro ? "border-white/20 text-white" : "border-primary/20 text-primary")}>
                       {plan.billingType}
                     </Badge>
-                    <CardTitle className="text-3xl font-black uppercase tracking-tight leading-none">{plan.name}</CardTitle>
+                    {isCurrent && <Badge className="bg-primary text-white border-none font-black text-[8px] px-3 h-5 uppercase shadow-lg whitespace-nowrap">Active Squad</Badge>}
                   </div>
-                  {isCurrent && <Badge className="bg-primary text-white border-none font-black text-[10px] px-3 h-6 uppercase shadow-lg whitespace-nowrap">Active Squad</Badge>}
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black tracking-tighter">{displayPrice}</span>
-                  <span className={cn("text-xs font-black uppercase opacity-60", isPro ? "text-white/60" : "text-muted-foreground")}>{displayCycle}</span>
+                <div className="space-y-1">
+                  <CardTitle className="text-3xl font-black uppercase tracking-tight leading-none">{plan.name}</CardTitle>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-5xl font-black tracking-tighter">{displayPrice}</span>
+                    <span className={cn("text-xs font-black uppercase opacity-60", isPro ? "text-white/60" : "text-muted-foreground")}>{displayCycle}</span>
+                  </div>
                 </div>
                 <CardDescription className={cn("text-xs font-bold leading-relaxed", isPro ? "text-white/60" : "text-muted-foreground")}>{plan.description}</CardDescription>
               </CardHeader>
@@ -181,7 +182,7 @@ export default function PricingPage() {
           <p className="font-black uppercase tracking-widest text-sm">Flexible Grassroots Management</p>
         </div>
         <p className="text-base text-muted-foreground leading-relaxed font-bold max-w-2xl mx-auto italic">
-          Manage an unlimited amount of <span className="text-foreground">Starter Squad</span> teams for free under a single email. Upgrade individual squads to Pro or Club tiers as your organization grows.
+          Manage an <span className="text-foreground">unlimited amount</span> of <span className="text-foreground">Starter Squad</span> teams for free under a single email. Upgrade individual squads to Pro or Club tiers as your organization grows.
         </p>
       </div>
 
@@ -190,7 +191,8 @@ export default function PricingPage() {
         <div className="flex items-center gap-8 relative z-10">
           <div className="bg-primary w-20 h-20 rounded-[2rem] flex items-center justify-center shadow-xl shadow-primary/20 shrink-0"><Star className="h-10 w-10 text-white" /></div>
           <div className="space-y-1">
-            <h3 className="text-3xl font-black tracking-tight uppercase leading-none">Club Solutions</h3>
+            <Badge className="bg-primary text-white border-none font-black uppercase tracking-widest text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Elite Infrastructure</Badge>
+            <h3 className="text-3xl font-black tracking-tight uppercase leading-none mt-2">Club Solutions</h3>
             <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Master coordination for any scale</p>
           </div>
         </div>
