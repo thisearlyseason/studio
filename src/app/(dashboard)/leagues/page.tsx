@@ -51,7 +51,6 @@ export default function LeaguesPage() {
 
   const canUseLeagues = hasFeature('leagues');
 
-  // Fetch leagues the active team is part of
   const leaguesQuery = useMemoFirebase(() => {
     if (!activeTeam?.id || !db) return null;
     return query(collection(db, 'leagues'), where(`teams.${activeTeam.id}`, '!=', null));
@@ -60,7 +59,6 @@ export default function LeaguesPage() {
   const { data: rawLeagues, isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
   const leagues = useMemo(() => rawLeagues || [], [rawLeagues]);
 
-  // Fetch invites for this user's email
   const invitesQuery = useMemoFirebase(() => {
     if (!user?.email || !db) return null;
     return query(collection(db, 'leagues', 'global', 'invites'), where('invitedEmail', '==', user.email.toLowerCase()), where('status', '==', 'pending'));
@@ -69,7 +67,10 @@ export default function LeaguesPage() {
   const { data: rawInvites } = useCollection<LeagueInvite>(invitesQuery);
   const invites = useMemo(() => rawInvites || [], [rawInvites]);
 
-  const activeLeague = useMemo(() => leagues[0] || null, [leagues]);
+  const activeLeague = useMemo(() => {
+    if (!leagues || leagues.length === 0) return null;
+    return leagues[0];
+  }, [leagues]);
 
   if (!canUseLeagues) {
     return (
@@ -82,14 +83,12 @@ export default function LeaguesPage() {
             <Lock className="h-5 w-5" />
           </div>
         </div>
-        
         <div className="text-center max-w-md space-y-4">
           <h1 className="text-4xl font-black tracking-tight">Competitive Leagues</h1>
           <p className="text-muted-foreground font-bold leading-relaxed text-lg">
             Create or join high-stakes leagues, track global standings, and message opposing coaches. Reserved for Elite Pro squads.
           </p>
         </div>
-
         <Button className="h-14 px-10 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>
           Unlock Competitive Tiers
         </Button>
@@ -117,10 +116,10 @@ export default function LeaguesPage() {
   };
 
   const sortedStandings = useMemo(() => {
-    if (!activeLeague) return [];
+    if (!activeLeague || !activeLeague.teams) return [];
     return Object.entries(activeLeague.teams)
       .map(([id, stats]) => ({ id, ...stats }))
-      .sort((a, b) => b.points - a.points || b.wins - a.wins);
+      .sort((a, b) => b.wins - a.wins || b.points - a.points);
   }, [activeLeague]);
 
   return (
@@ -131,7 +130,6 @@ export default function LeaguesPage() {
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Leagues</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Official Leaderboards & Coordination</p>
         </div>
-
         {!activeLeague && !isLeaguesLoading && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -180,10 +178,9 @@ export default function LeaguesPage() {
                   <div>
                     <Badge className="bg-primary text-white mb-2 h-5 text-[8px] uppercase tracking-[0.2em] font-black px-3">Premier Hub</Badge>
                     <h2 className="text-4xl font-black tracking-tight leading-none uppercase">{activeLeague.name}</h2>
-                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-2">{activeLeague.sport} • {Object.keys(activeLeague.teams).length} Squads Enrolled</p>
+                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-2">{activeLeague.sport} • {Object.keys(activeLeague.teams || {}).length} Squads Enrolled</p>
                   </div>
                 </div>
-                
                 {activeLeague.creatorId === user?.id && (
                   <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                     <DialogTrigger asChild>
@@ -213,7 +210,6 @@ export default function LeaguesPage() {
               </div>
             </CardContent>
           </Card>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="flex items-center justify-between px-2">
@@ -223,7 +219,6 @@ export default function LeaguesPage() {
                 </div>
                 <p className="text-[9px] font-bold text-muted-foreground italic">Ranked by Wins & Points</p>
               </div>
-
               <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
@@ -261,7 +256,6 @@ export default function LeaguesPage() {
                 </CardContent>
               </Card>
             </div>
-
             <aside className="space-y-6">
               <div className="flex items-center gap-2 px-2">
                 <MessageSquare className="h-4 w-4 text-primary" />
@@ -308,7 +302,6 @@ export default function LeaguesPage() {
           </div>
         </div>
       )}
-
       {invites.length > 0 && (
         <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
           <div className="flex items-center gap-2 px-2">
