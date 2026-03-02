@@ -37,7 +37,8 @@ import {
   FileCheck,
   Truck,
   HeartPulse,
-  Camera as CameraIcon
+  Camera as CameraIcon,
+  Cake
 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useTeam, Member, FeeItem } from '@/components/providers/team-provider';
@@ -354,21 +355,9 @@ export default function RosterPage() {
                       variant={isEditing ? "default" : "outline"} 
                       size="sm" 
                       className={cn("rounded-full h-10 px-6 font-black uppercase text-[10px] tracking-widest transition-all shadow-lg", isEditing && "bg-black hover:bg-black/90")}
-                      onClick={() => {
-                        if (canEditDetails) {
-                          setIsEditing(!isEditing);
-                        } else {
-                          purchasePro();
-                        }
-                      }}
+                      onClick={() => setIsEditing(!isEditing)}
                     >
-                      {isEditing ? <><Eye className="h-3.5 w-3.5 mr-2" /> View</> : (
-                        <>
-                          <Edit3 className="h-3.5 w-3.5 mr-2" /> 
-                          Edit
-                          {!canEditDetails && <Lock className="ml-2 h-3 w-3 opacity-40" />}
-                        </>
-                      )}
+                      {isEditing ? <><Eye className="h-3.5 w-3.5 mr-2" /> View</> : <><Edit3 className="h-3.5 w-3.5 mr-2" /> Edit</>}
                     </Button>
                   </div>
                 )}
@@ -452,49 +441,68 @@ export default function RosterPage() {
                             <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest ml-1">Cell Phone</Label>
                             <Input value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} className="h-11 lg:h-12 rounded-xl font-bold bg-muted/20 border-2" />
                           </div>
-                        </div>
-
-                        <div className="bg-primary/5 p-6 lg:p-8 rounded-2xl lg:rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-6">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-primary/10 p-2 rounded-lg text-primary"><FileCheck className="h-4 w-4" /></div>
-                            <h4 className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-primary">Compliance & Waivers</h4>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
-                              <Checkbox id="waiverSigned" checked={editForm.waiverSigned} onCheckedChange={v => setEditForm(p => ({ ...p, waiverSigned: !!v }))} />
-                              <Label htmlFor="waiverSigned" className="text-[10px] font-black uppercase tracking-tight">General Waiver</Label>
-                            </div>
-                            <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
-                              <Checkbox id="transportationWaiverSigned" checked={editForm.transportationWaiverSigned} onCheckedChange={v => setEditForm(p => ({ ...p, transportationWaiverSigned: !!v }))} />
-                              <Label htmlFor="transportationWaiverSigned" className="text-[10px] font-black uppercase tracking-tight">Transport Waiver</Label>
-                            </div>
-                            <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
-                              <Checkbox id="medicalClearance" checked={editForm.medicalClearance} onCheckedChange={v => setEditForm(p => ({ ...p, medicalClearance: !!v }))} />
-                              <Label htmlFor="medicalClearance" className="text-[10px] font-black uppercase tracking-tight">Medical Cleared</Label>
-                            </div>
-                            <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
-                              <Checkbox id="mediaRelease" checked={editForm.mediaRelease} onCheckedChange={v => setEditForm(p => ({ ...p, mediaRelease: !!v }))} />
-                              <Label htmlFor="mediaRelease" className="text-[10px] font-black uppercase tracking-tight">Media Release</Label>
-                            </div>
+                          <div className="space-y-1.5 lg:space-y-2">
+                            <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest ml-1">Birthdate</Label>
+                            <Input type="date" value={editForm.birthdate} onChange={e => setEditForm(p => ({ ...p, birthdate: e.target.value }))} className="h-11 lg:h-12 rounded-xl font-bold bg-muted/20 border-2" />
                           </div>
                         </div>
 
-                        <div className="bg-black/5 p-6 lg:p-8 rounded-2xl lg:rounded-[2.5rem] border-2 border-dashed border-black/10 space-y-4 lg:space-y-6">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-black/10 p-2 rounded-lg text-black"><Baby className="h-4 w-4" /></div>
-                            <h4 className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-black">Emergency Network</h4>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
-                            <div className="space-y-1.5 lg:space-y-2">
-                              <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Guardian Name</Label>
-                              <Input value={editForm.parentName} onChange={e => setEditForm(p => ({ ...p, parentName: e.target.value }))} className="h-10 lg:h-11 rounded-xl bg-white" />
+                        {canEditDetails ? (
+                          <>
+                            <div className="bg-primary/5 p-6 lg:p-8 rounded-2xl lg:rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-6">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-primary/10 p-2 rounded-lg text-primary"><FileCheck className="h-4 w-4" /></div>
+                                <h4 className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-primary">Compliance & Waivers</h4>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
+                                  <Checkbox id="waiverSigned" checked={editForm.waiverSigned} onCheckedChange={v => setEditForm(p => ({ ...p, waiverSigned: !!v }))} />
+                                  <Label htmlFor="waiverSigned" className="text-[10px] font-black uppercase tracking-tight">General Waiver</Label>
+                                </div>
+                                <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
+                                  <Checkbox id="transportationWaiverSigned" checked={editForm.transportationWaiverSigned} onCheckedChange={v => setEditForm(p => ({ ...p, transportationWaiverSigned: !!v }))} />
+                                  <Label htmlFor="transportationWaiverSigned" className="text-[10px] font-black uppercase tracking-tight">Transport Waiver</Label>
+                                </div>
+                                <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
+                                  <Checkbox id="medicalClearance" checked={editForm.medicalClearance} onCheckedChange={v => setEditForm(p => ({ ...p, medicalClearance: !!v }))} />
+                                  <Label htmlFor="medicalClearance" className="text-[10px] font-black uppercase tracking-tight">Medical Cleared</Label>
+                                </div>
+                                <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border shadow-sm">
+                                  <Checkbox id="mediaRelease" checked={editForm.mediaRelease} onCheckedChange={v => setEditForm(p => ({ ...p, mediaRelease: !!v }))} />
+                                  <Label htmlFor="mediaRelease" className="text-[10px] font-black uppercase tracking-tight">Media Release</Label>
+                                </div>
+                              </div>
                             </div>
-                            <div className="space-y-1.5 lg:space-y-2">
-                              <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Guardian Phone</Label>
-                              <Input value={editForm.parentPhone} onChange={e => setEditForm(p => ({ ...p, parentPhone: e.target.value }))} className="h-10 lg:h-11 rounded-xl bg-white" />
+
+                            <div className="bg-black/5 p-6 lg:p-8 rounded-2xl lg:rounded-[2.5rem] border-2 border-dashed border-black/10 space-y-4 lg:space-y-6">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-black/10 p-2 rounded-lg text-black"><Baby className="h-4 w-4" /></div>
+                                <h4 className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-black">Emergency Network</h4>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+                                <div className="space-y-1.5 lg:space-y-2">
+                                  <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Guardian Name</Label>
+                                  <Input value={editForm.parentName} onChange={e => setEditForm(p => ({ ...p, parentName: e.target.value }))} className="h-10 lg:h-11 rounded-xl bg-white" />
+                                </div>
+                                <div className="space-y-1.5 lg:space-y-2">
+                                  <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Guardian Phone</Label>
+                                  <Input value={editForm.parentPhone} onChange={e => setEditForm(p => ({ ...p, parentPhone: e.target.value }))} className="h-10 lg:h-11 rounded-xl bg-white" />
+                                </div>
+                              </div>
                             </div>
+                          </>
+                        ) : (
+                          <div className="bg-primary/5 p-8 rounded-2xl border-2 border-dashed border-primary/20 text-center space-y-4">
+                            <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto shadow-sm">
+                              <Lock className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="space-y-1">
+                              <h4 className="text-sm font-black uppercase">Elite Fields Locked</h4>
+                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Waivers and Emergency contacts require Pro.</p>
+                            </div>
+                            <Button size="sm" className="rounded-full h-9 px-6 font-black uppercase text-[9px] tracking-widest" onClick={purchasePro}>Upgrade to Elite</Button>
                           </div>
-                        </div>
+                        )}
 
                         <Button onClick={handleSaveDetails} className="w-full h-14 lg:h-16 rounded-2xl lg:rounded-[2rem] text-base lg:text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
                           Save Changes
@@ -509,16 +517,22 @@ export default function RosterPage() {
                               <h4 className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em]">Bio</h4>
                             </div>
                             <div className="space-y-3 lg:space-y-4">
-                              <div className="bg-muted/30 p-4 lg:p-5 rounded-xl lg:rounded-2xl">
-                                <p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Age</p>
-                                <p className="text-xs lg:text-sm font-black flex items-center gap-2">
-                                  {selectedMember.birthdate ? format(new Date(selectedMember.birthdate), 'MMM d, yyyy') : 'No DOB'}
-                                  {calculateAge(selectedMember.birthdate) && <Badge variant="secondary" className="bg-primary/10 text-primary border-none h-4 lg:h-5 px-1.5 lg:px-2 text-[8px] lg:text-[9px] font-black uppercase tracking-widest">{calculateAge(selectedMember.birthdate)}y</Badge>}
-                                </p>
+                              <div className="bg-muted/30 p-4 lg:p-5 rounded-xl lg:rounded-2xl flex items-center gap-4">
+                                <div className="bg-white p-2 rounded-xl shadow-sm"><Cake className="h-4 w-4 text-primary" /></div>
+                                <div className="min-w-0">
+                                  <p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mb-0.5 tracking-widest">Age</p>
+                                  <p className="text-xs lg:text-sm font-black flex items-center gap-2">
+                                    {selectedMember.birthdate ? format(new Date(selectedMember.birthdate), 'MMM d, yyyy') : 'No DOB'}
+                                    {calculateAge(selectedMember.birthdate) && <Badge variant="secondary" className="bg-primary/10 text-primary border-none h-4 lg:h-5 px-1.5 lg:px-2 text-[8px] lg:text-[9px] font-black uppercase tracking-widest">{calculateAge(selectedMember.birthdate)}y</Badge>}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="bg-muted/30 p-4 lg:p-5 rounded-xl lg:rounded-2xl">
-                                <p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Cell</p>
-                                <p className="text-xs lg:text-sm font-black">{selectedMember.phone || 'No phone'}</p>
+                              <div className="bg-muted/30 p-4 lg:p-5 rounded-xl lg:rounded-2xl flex items-center gap-4">
+                                <div className="bg-white p-2 rounded-xl shadow-sm"><Phone className="h-4 w-4 text-primary" /></div>
+                                <div className="min-w-0">
+                                  <p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mb-0.5 tracking-widest">Cell</p>
+                                  <p className="text-xs lg:text-sm font-black">{selectedMember.phone || 'No phone registered'}</p>
+                                </div>
                               </div>
                             </div>
                           </div>

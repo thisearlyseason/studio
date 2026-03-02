@@ -739,11 +739,16 @@ export default function EventsPage() {
         <TabsContent value="list" className="space-y-3 lg:space-y-4 mt-6 lg:mt-8">
           {events.length > 0 ? events.map((event) => {
             const currentRSVP = event.userRsvps?.[user?.id || ''];
+            const showStatus = hasAttendanceTracking && currentRSVP;
+            
             return (
               <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} promoteToRoster={promoteToRoster} onEdit={handleEdit} onDelete={(id) => { if(confirm("Delete?")) deleteEvent(id); }} hasAttendance={hasAttendanceTracking} purchasePro={purchasePro}>
                 <Card className={cn("overflow-hidden hover:border-primary/30 transition-all duration-500 cursor-pointer group border-none shadow-sm hover:shadow-xl ring-1 ring-black/5 rounded-2xl lg:rounded-[2rem]", event.isTournament && "ring-primary/20")}>
                   <div className="flex items-stretch">
-                    <div className={cn("w-16 sm:w-24 flex flex-col items-center justify-center border-r-2 shrink-0 transition-colors group-hover:bg-primary/10 p-2 lg:p-4", currentRSVP === 'going' ? 'bg-green-50' : currentRSVP === 'maybe' ? 'bg-amber-50' : currentRSVP === 'notGoing' ? 'bg-red-50' : 'bg-primary/5')}>
+                    <div className={cn(
+                      "w-16 sm:w-24 flex flex-col items-center justify-center border-r-2 shrink-0 transition-colors group-hover:bg-primary/10 p-2 lg:p-4", 
+                      showStatus ? (currentRSVP === 'going' ? 'bg-green-50' : currentRSVP === 'maybe' ? 'bg-amber-50' : currentRSVP === 'notGoing' ? 'bg-red-50' : 'bg-primary/5') : 'bg-primary/5'
+                    )}>
                       <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest mb-0.5 text-primary">{format(new Date(event.date), 'MMM')}</span>
                       <span className="text-xl lg:text-3xl font-black tracking-tighter text-primary">{format(new Date(event.date), 'dd')}</span>
                     </div>
@@ -753,7 +758,7 @@ export default function EventsPage() {
                           <div className="flex gap-2 mb-1">
                             {event.isTournament && <Badge className="bg-primary text-white font-black text-[7px] lg:text-[8px] uppercase tracking-widest px-1.5 h-3.5 lg:h-4 border-none shadow-sm">Tourney</Badge>}
                             {event.isRegistrationRequired && <Badge variant="outline" className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest px-1.5 h-3.5 lg:h-4 border-blue-600/30 text-blue-600">Register</Badge>}
-                            {currentRSVP && (
+                            {showStatus && (
                               <Badge className={cn("text-[7px] lg:text-[8px] font-black uppercase px-1.5 h-3.5 lg:h-4 border-none", currentRSVP === 'going' ? 'bg-green-600' : currentRSVP === 'maybe' ? 'bg-amber-500' : 'bg-red-600')}>
                                 {currentRSVP === 'going' ? 'Going' : currentRSVP === 'maybe' ? 'Maybe' : 'No'}
                               </Badge>
@@ -788,10 +793,12 @@ export default function EventsPage() {
               <div className="space-y-3 lg:space-y-4">
                 {selectedDayEvents.length > 0 ? selectedDayEvents.map(event => {
                   const currentRSVP = event.userRsvps?.[user?.id || ''];
+                  const showStatus = hasAttendanceTracking && currentRSVP;
+                  
                   return (
                     <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} promoteToRoster={promoteToRoster} onEdit={handleEdit} onDelete={(id) => { if(confirm("Delete?")) deleteEvent(id); }} hasAttendance={hasAttendanceTracking} purchasePro={purchasePro}>
                       <Card className="cursor-pointer hover:scale-[1.02] transition-all border-none shadow-sm rounded-xl lg:rounded-2xl p-3 lg:p-4 space-y-1.5 lg:space-y-2 ring-1 ring-black/5 relative overflow-hidden bg-white">
-                        {currentRSVP && (
+                        {showStatus && (
                           <div className={cn("absolute top-0 right-0 p-1.5 rounded-bl-xl", currentRSVP === 'going' ? 'bg-green-600 text-white' : currentRSVP === 'maybe' ? 'bg-amber-500 text-white' : 'bg-red-600 text-white')}>
                             {currentRSVP === 'going' ? <CalendarCheck className="h-3 w-3" /> : currentRSVP === 'maybe' ? <CircleHelp className="h-3 w-3" /> : <CalendarX className="h-3 w-3" />}
                           </div>
