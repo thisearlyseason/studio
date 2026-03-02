@@ -115,10 +115,10 @@ function DemoResetBanner({ seconds }: { seconds: number | null }) {
       <div className="absolute inset-0 bg-primary/20 animate-pulse pointer-events-none" />
       <div className="flex items-center gap-2 relative z-10">
         <Timer className="h-3 w-3 text-primary animate-spin duration-[5000ms]" />
-        <span>Demo Session Heartbeat: Environment will reset in {minutes}:{remainingSeconds.toString().padStart(2, '0')}</span>
+        <span className="text-center">Demo Reset in {minutes}:{remainingSeconds.toString().padStart(2, '0')}</span>
       </div>
-      <div className="hidden sm:block h-3 w-[1px] bg-white/20 relative z-10" />
-      <span className="hidden sm:inline relative z-10 text-white/60">Any modifications will be purged to protect account integrity.</span>
+      <div className="hidden lg:block h-3 w-[1px] bg-white/20 relative z-10" />
+      <span className="hidden lg:inline relative z-10 text-white/60">Modifications will be purged soon.</span>
     </div>
   );
 }
@@ -150,7 +150,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full bg-background selection:bg-primary/20">
         <DemoResetBanner seconds={secondsUntilReset} />
-        <div className="flex flex-1">
+        <div className="flex flex-1 overflow-hidden">
           <Sidebar collapsible="none" className="hidden md:flex border-r bg-muted/20 w-72 shrink-0 sticky top-0 h-screen">
             <SidebarHeader className="p-6">
               <div className="flex flex-col mb-10 px-2">
@@ -264,6 +264,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     key={tab.name} 
                     tab={tab} 
                     isActive={pathname.startsWith(tab.href)} 
+                    isActive={pathname.startsWith(tab.href)} 
                     isLocked={tab.pro && !isPro} 
                   />
                 ))}
@@ -349,24 +350,26 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </SidebarFooter>
           </Sidebar>
 
-          <div className="flex flex-col flex-1 min-w-0 h-screen overflow-y-auto">
-            <header className="hidden md:flex sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-20 items-center px-10 justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col">
-                  <h2 className="text-2xl font-black tracking-tighter uppercase">
+          <div className="flex flex-col flex-1 min-w-0 h-screen overflow-y-auto bg-background">
+            <header className="hidden md:flex sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-20 items-center px-6 lg:px-10 justify-between shrink-0">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="flex flex-col min-w-0">
+                  <h2 className="text-xl lg:text-2xl font-black tracking-tighter uppercase truncate">
                     {pathname === '/pricing' ? 'Pricing' : (pathname === '/admin/plans' ? 'Admin Suite' : (pathname === '/club' ? 'Club Hub' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard')))}
                   </h2>
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.3em] ml-0.5">The Squad Hub • {activeTeam?.name}</p>
+                  <p className="text-[9px] lg:text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] lg:tracking-[0.3em] ml-0.5 truncate">The Squad Hub • {activeTeam?.name}</p>
                 </div>
-                {activeTeam?.isDemo && (
-                  <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Demo Mode</Badge>
-                )}
-                {simulationPlanId && (
-                  <Badge variant="outline" className="border-primary/20 text-primary font-black uppercase tracking-widest text-[9px] h-6 px-3 italic">Simulating: {simulationPlanId.replace('_', ' ')}</Badge>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {activeTeam?.isDemo && (
+                    <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[8px] lg:text-[9px] h-5 lg:h-6 px-2 lg:px-3 shadow-lg shadow-primary/20">Demo</Badge>
+                  )}
+                  {simulationPlanId && (
+                    <Badge variant="outline" className="hidden lg:inline-flex border-primary/20 text-primary font-black uppercase tracking-widest text-[9px] h-6 px-3 italic">Simulating: {simulationPlanId.replace('_', ' ')}</Badge>
+                  )}
+                </div>
               </div>
               
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4 lg:gap-6 shrink-0">
                 <div className="flex items-center gap-2">
                   <CreateAlertButton />
                   <AlertsHistoryDialog>
@@ -380,20 +383,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </header>
 
             <header className="flex md:hidden sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 items-center px-4 justify-between shrink-0">
-              <Link href="/feed" className="flex items-center gap-2">
-                <BrandLogo variant="light-background" className="h-8 w-32 justify-start" priority />
+              <Link href="/feed" className="flex items-center gap-2 min-w-0">
+                <BrandLogo variant="light-background" className="h-7 w-28 lg:h-8 lg:w-32 justify-start" priority />
               </Link>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 shrink-0">
                 {isClubManager && (
                   <Link href="/club">
-                    <Button variant="ghost" size="icon" className={cn("h-10 w-10 rounded-xl transition-all shadow-sm", pathname === '/club' ? "bg-black text-white" : "bg-primary/10 text-primary border border-primary/20")}>
-                      <Building className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-xl transition-all shadow-sm", pathname === '/club' ? "bg-black text-white" : "bg-primary/10 text-primary border border-primary/20")}>
+                      <Building className="h-4 w-4" />
                     </Button>
                   </Link>
                 )}
                 <AlertsHistoryDialog>
                   <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative">
-                    <Bell className="h-5 w-5" />
+                    <Bell className="h-4 w-4" />
                     {hasUnreadAlerts && <span className="absolute top-2 right-2 h-1.5 w-1.5 bg-red-500 rounded-full border border-background" />}
                   </Button>
                 </AlertsHistoryDialog>
@@ -406,11 +409,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </header>
 
-            <main className="flex-1 pb-32 md:pb-12 pt-6 px-4 md:px-10 max-w-7xl mx-auto w-full">
+            <main className="flex-1 pb-36 md:pb-12 pt-4 md:pt-6 px-4 md:px-10 max-w-7xl mx-auto w-full">
               {children}
             </main>
 
-            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[96%] max-w-2xl glass rounded-2xl shadow-2xl border-white/40 p-1">
+            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md glass rounded-2xl shadow-2xl border-white/40 p-1">
               <div className="flex items-center justify-around h-14 overflow-x-auto no-scrollbar">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -421,19 +424,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       key={tab.name} 
                       href={tab.href} 
                       className={cn(
-                        "flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[45px]", 
+                        "flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[42px]", 
                         isActive ? "text-primary bg-primary/5" : "text-muted-foreground"
                       )}
                     >
                       <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", isActive && "scale-110", isLocked && "opacity-50")} strokeWidth={isActive ? 3 : 2} />
-                      <span className="text-[7px] sm:text-[8px] font-black tracking-tight uppercase truncate">{tab.name}</span>
+                      <span className="text-[7px] sm:text-[8px] font-black tracking-tight uppercase truncate max-w-[40px]">{tab.name}</span>
                       {isLocked && <Lock className="absolute top-0.5 right-0.5 h-1.5 w-1.5 opacity-40" />}
                     </Link>
                   );
                 })}
-                <Link href="/settings" className={cn("flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[45px]", pathname === '/settings' ? "text-primary bg-primary/5" : "text-muted-foreground")}>
+                <Link href="/settings" className={cn("flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[42px]", pathname === '/settings' ? "text-primary bg-primary/5" : "text-muted-foreground")}>
                   <Settings className={cn("h-4 w-4 sm:h-5 sm:w-5", pathname === '/settings' && "scale-110")} />
-                  <span className="text-[7px] sm:text-[8px] font-black tracking-tight uppercase truncate">Profile</span>
+                  <span className="text-[7px] sm:text-[8px] font-black tracking-tight uppercase truncate max-w-[40px]">Profile</span>
                 </Link>
               </div>
             </nav>

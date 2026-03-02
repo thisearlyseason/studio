@@ -70,15 +70,15 @@ function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: strin
           </Avatar>
           <div className="flex-1 min-w-0 bg-muted/30 p-2.5 rounded-2xl relative">
             <div className="flex items-center justify-between mb-0.5">
-              <span className="text-[10px] font-black tracking-tight">{comment.authorName}</span>
+              <span className="text-[10px] font-black tracking-tight truncate max-w-[120px]">{comment.authorName}</span>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
+                <span className="text-[9px] text-muted-foreground whitespace-nowrap">{formatDistanceToNow(new Date(comment.createdAt))} ago</span>
                 {(isAdmin || comment.authorId === currentUserId) && (
                   <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => deleteDocumentNonBlocking(doc(db, 'teams', teamId, 'feedPosts', postId, 'comments', comment.id))}><Trash2 className="h-3 w-3" /></Button>
                 )}
               </div>
             </div>
-            <p className="text-xs font-medium text-foreground/80 leading-snug">{comment.content}</p>
+            <p className="text-xs font-medium text-foreground/80 leading-snug break-words">{comment.content}</p>
           </div>
         </div>
       ))}
@@ -178,13 +178,13 @@ export default function FeedPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 pb-12">
-      <div className="flex-1 min-w-0 space-y-8">
-        <section className="relative h-48 sm:h-64 lg:h-80 rounded-[2.5rem] overflow-hidden shadow-2xl group ring-1 ring-black/5">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 pb-12">
+      <div className="flex-1 min-w-0 space-y-6 lg:space-y-8">
+        <section className="relative h-48 sm:h-64 lg:h-80 rounded-3xl lg:rounded-[2.5rem] overflow-hidden shadow-xl lg:shadow-2xl group ring-1 ring-black/5">
           <img src={activeTeam.heroImageUrl || "https://picsum.photos/seed/squadhero/1200/400"} alt="Team Hero" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           {isAdmin && (
-            <div className="absolute top-6 right-6 z-20">
+            <div className="absolute top-4 right-4 lg:top-6 lg:right-6 z-20">
               <input type="file" ref={heroInputRef} className="hidden" accept="image/*" onChange={async (e) => {
                 if (e.target.files?.[0]) {
                   setIsUpdatingHero(true);
@@ -196,95 +196,95 @@ export default function FeedPage() {
                   reader.readAsDataURL(e.target.files[0]);
                 }
               }} />
-              <Button variant="secondary" size="sm" disabled={isUpdatingHero} className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-10 px-5 font-bold" onClick={() => heroInputRef.current?.click()}>
-                {isUpdatingHero ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4 mr-2" />}
+              <Button variant="secondary" size="sm" disabled={isUpdatingHero} className="bg-white/20 backdrop-blur-md text-white hover:bg-white/40 border-none rounded-full h-9 lg:h-10 px-4 lg:px-5 font-bold text-[10px] lg:text-xs" onClick={() => heroInputRef.current?.click()}>
+                {isUpdatingHero ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3 lg:h-4 lg:w-4 mr-2" />}
                 {isUpdatingHero ? "Updating..." : "Change Cover"}
               </Button>
             </div>
           )}
-          <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
+          <div className="absolute bottom-6 left-6 right-6 lg:bottom-8 lg:left-8 lg:right-8 flex items-end justify-between">
             <div className="space-y-1">
-              <Badge className="mb-2 bg-primary/80 text-white border-none font-black uppercase tracking-wider text-[10px]">Active Squad</Badge>
-              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tighter leading-none">{activeTeam.name}</h1>
+              <Badge className="mb-2 bg-primary/80 text-white border-none font-black uppercase tracking-wider text-[8px] lg:text-[10px] h-5 lg:h-6">Active Squad</Badge>
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter leading-none truncate max-w-[280px] sm:max-w-none">{activeTeam.name}</h1>
             </div>
           </div>
         </section>
 
         {canPost ? (
-          <Card className="rounded-[3rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
-            <CardContent className="p-8 pb-10">
-              <div className="flex flex-col sm:flex-row gap-6 items-start">
-                <Avatar className="h-12 w-12 shrink-0 border-2 border-primary/10">
+          <Card className="rounded-3xl lg:rounded-[3rem] border-none shadow-lg lg:shadow-xl ring-1 ring-black/5 overflow-hidden">
+            <CardContent className="p-6 lg:p-8 lg:pb-10">
+              <div className="flex flex-col sm:flex-row gap-4 lg:gap-6 items-start">
+                <Avatar className="h-10 w-10 lg:h-12 lg:w-12 shrink-0 border-2 border-primary/10">
                   <AvatarImage src={user?.avatar} />
-                  <AvatarFallback className="font-black">{user?.name?.[0] || '?'}</AvatarFallback>
+                  <AvatarFallback className="font-black text-xs lg:text-base">{user?.name?.[0] || '?'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0 w-full">
-                  <Textarea placeholder={`What's the play, ${user?.name}?`} value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="min-h-[100px] w-full resize-none border-none focus-visible:ring-0 p-4 text-lg font-medium placeholder:text-muted-foreground/30 bg-transparent" />
-                  <div className="flex items-center gap-4 pt-4 mt-4 border-t">
-                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-5 w-5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => setIsPollDialogOpen(true)}><BarChart2 className="h-5 w-5" /></Button>
-                    <Button disabled={!newPostContent.trim() && !imageUrl} onClick={handlePost} className="ml-auto rounded-full px-8 h-12 font-black uppercase text-[11px] tracking-widest shadow-xl shadow-primary/20">Post to Squad</Button>
+                  <Textarea placeholder={`What's the play, ${user?.name}?`} value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="min-h-[80px] lg:min-h-[100px] w-full resize-none border-none focus-visible:ring-0 p-2 lg:p-4 text-base lg:text-lg font-medium placeholder:text-muted-foreground/30 bg-transparent" />
+                  <div className="flex items-center gap-2 lg:gap-4 pt-4 mt-2 lg:mt-4 border-t">
+                    <Button variant="ghost" size="icon" className="h-10 w-10 lg:h-12 lg:w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => fileInputRef.current?.click()}><ImagePlus className="h-4 w-4 lg:h-5 lg:w-5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 lg:h-12 lg:w-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => setIsPollDialogOpen(true)}><BarChart2 className="h-4 w-4 lg:h-5 lg:w-5" /></Button>
+                    <Button disabled={!newPostContent.trim() && !imageUrl} onClick={handlePost} className="ml-auto rounded-full px-6 lg:px-8 h-10 lg:h-12 font-black uppercase text-[9px] lg:text-[11px] tracking-widest shadow-lg lg:shadow-xl shadow-primary/20">Post to Squad</Button>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <Card className="rounded-[3rem] border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-primary/5 border-2 border-dashed border-primary/20">
-            <CardContent className="p-10 flex flex-col items-center text-center space-y-4">
-              <div className="bg-white w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-lg relative">
-                <MessageSquare className="h-8 w-8 text-primary" />
+          <Card className="rounded-3xl lg:rounded-[3rem] border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-primary/5 border-2 border-dashed border-primary/20">
+            <CardContent className="p-8 lg:p-10 flex flex-col items-center text-center space-y-4">
+              <div className="bg-white w-14 h-14 lg:w-16 lg:h-16 rounded-2xl lg:rounded-[1.5rem] flex items-center justify-center shadow-lg relative">
+                <MessageSquare className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
                 <div className="absolute -top-2 -right-2 bg-black text-white p-1 rounded-full border-2 border-background shadow-md"><Lock className="h-3 w-3" /></div>
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl font-black tracking-tight">Post to your Squad</h3>
-                <p className="text-muted-foreground font-bold text-sm uppercase tracking-widest max-w-[280px]">Upgrade to Squad Pro to post updates, polls, and photos to the live feed.</p>
+                <h3 className="text-lg lg:text-xl font-black tracking-tight">Post to your Squad</h3>
+                <p className="text-muted-foreground font-bold text-[10px] lg:text-sm uppercase tracking-widest max-w-[280px]">Upgrade to Squad Pro to post updates, polls, and photos to the live feed.</p>
               </div>
-              <Button className="rounded-full px-8 h-11 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20" onClick={purchasePro}>
-                <Sparkles className="h-4 w-4 mr-2" /> Go Pro
+              <Button className="rounded-full px-6 lg:px-8 h-10 lg:h-11 font-black uppercase text-[9px] lg:text-[10px] tracking-widest shadow-lg lg:shadow-xl shadow-primary/20" onClick={purchasePro}>
+                <Sparkles className="h-3 w-3 lg:h-4 lg:w-4 mr-2" /> Go Pro
               </Button>
             </CardContent>
           </Card>
         )}
 
-        <div className="space-y-8">
+        <div className="space-y-6 lg:space-y-8">
           {posts?.map((post) => (
-            <Card key={post.id} className={cn("rounded-[2.5rem] border-none shadow-md overflow-hidden ring-1 ring-black/5 group", post.type === 'system' ? 'bg-muted/30 ring-primary/10' : '')}>
-              <CardHeader className="flex flex-row items-center gap-5 pb-4 pt-8 px-8">
-                <Avatar className="h-12 w-12 border-2 border-background shadow-md">
+            <Card key={post.id} className={cn("rounded-3xl lg:rounded-[2.5rem] border-none shadow-md overflow-hidden ring-1 ring-black/5 group", post.type === 'system' ? 'bg-muted/30 ring-primary/10' : '')}>
+              <CardHeader className="flex flex-row items-center gap-4 lg:gap-5 pb-4 pt-6 lg:pt-8 px-6 lg:px-8">
+                <Avatar className="h-10 w-10 lg:h-12 lg:w-12 border-2 border-background shadow-md">
                   <AvatarImage src={post.author?.avatar} />
-                  <AvatarFallback className="font-black">{post.author?.name?.[0] || '?'}</AvatarFallback>
+                  <AvatarFallback className="font-black text-xs lg:text-base">{post.author?.name?.[0] || '?'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <div className="font-black text-base tracking-tight">{post.author?.name}</div>
-                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">
+                  <div className="font-black text-sm lg:text-base tracking-tight truncate">{post.author?.name}</div>
+                  <div className="text-[8px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5 lg:mt-1">
                     {formatDistanceToNow(new Date(post.createdAt))} ago
                   </div>
                 </div>
                 {(isAdmin || post.authorId === user?.id) && (
-                  <Button variant="ghost" size="icon" className="h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 rounded-full" onClick={() => deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'feedPosts', post.id))}><Trash2 className="h-5 w-5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 lg:h-10 lg:w-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 rounded-full" onClick={() => deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'feedPosts', post.id))}><Trash2 className="h-4 w-4 lg:h-5 lg:w-5" /></Button>
                 )}
               </CardHeader>
-              <CardContent className="pt-2 pb-6 px-8 space-y-4">
+              <CardContent className="pt-2 pb-4 lg:pb-6 px-6 lg:px-8 space-y-4">
                 {post.type === 'poll' ? (
-                  <div className="bg-card border rounded-[2rem] overflow-hidden">
-                    <div className="bg-primary/5 p-6 border-b flex items-center justify-between">
-                      <h4 className="font-black text-xl tracking-tight">{post.poll?.question}</h4>
-                      <BarChart2 className="h-5 w-5 text-primary opacity-50" />
+                  <div className="bg-card border rounded-3xl lg:rounded-[2rem] overflow-hidden">
+                    <div className="bg-primary/5 p-4 lg:p-6 border-b flex items-center justify-between">
+                      <h4 className="font-black text-base lg:text-xl tracking-tight leading-tight">{post.poll?.question}</h4>
+                      <BarChart2 className="h-4 w-4 lg:h-5 lg:w-5 text-primary opacity-50 shrink-0 ml-2" />
                     </div>
-                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-4 lg:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                       {post.poll?.options.map((opt: any, i: number) => {
                         const hasVoted = post.poll?.voters?.[user?.id || ''] === i;
                         const percentage = post.poll.totalVotes > 0 ? (opt.votes / post.poll.totalVotes) * 100 : 0;
                         return (
-                          <div key={i} className="bg-muted/20 rounded-3xl overflow-hidden p-4 space-y-3 relative group/opt transition-all hover:bg-muted/30">
+                          <div key={i} className="bg-muted/20 rounded-2xl lg:rounded-3xl overflow-hidden p-3 lg:p-4 space-y-2 lg:space-y-3 relative group/opt transition-all hover:bg-muted/30">
                             {opt.imageUrl && <img src={opt.imageUrl} className="aspect-video w-full object-cover rounded-xl cursor-zoom-in" onClick={() => setLightboxImage(opt.imageUrl)} alt={opt.text} />}
                             <button onClick={() => handleVote(post.id, i)} className="w-full text-left">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="font-bold text-sm flex items-center gap-2">{opt.text}{hasVoted && <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />}</span>
-                                <span className="text-[10px] font-black text-muted-foreground uppercase">{opt.votes} votes</span>
+                              <div className="flex justify-between items-center mb-1.5 lg:mb-2">
+                                <span className="font-bold text-xs lg:text-sm flex items-center gap-2 truncate pr-2">{opt.text}{hasVoted && <div className="h-1.5 w-1.5 lg:h-2 lg:w-2 bg-primary rounded-full animate-pulse shrink-0" />}</span>
+                                <span className="text-[8px] lg:text-[10px] font-black text-muted-foreground uppercase shrink-0">{opt.votes} v</span>
                               </div>
-                              <Progress value={percentage} className="h-3 rounded-full" />
+                              <Progress value={percentage} className="h-2 lg:h-3 rounded-full" />
                             </button>
                           </div>
                         );
@@ -292,21 +292,21 @@ export default function FeedPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-lg leading-relaxed font-medium text-foreground/80">{post.content}</p>
+                  <p className="text-base lg:text-lg leading-relaxed font-medium text-foreground/80 break-words">{post.content}</p>
                 )}
-                {post.imageUrl && <img src={post.imageUrl} className="rounded-[2rem] w-full h-auto object-cover max-h-[600px] border shadow-inner" alt="Feed media" />}
+                {post.imageUrl && <img src={post.imageUrl} className="rounded-2xl lg:rounded-[2rem] w-full h-auto object-cover max-h-[400px] lg:max-h-[600px] border shadow-inner" alt="Feed media" />}
               </CardContent>
-              <CardFooter className="flex flex-col border-t border-muted/30 pt-6 pb-8 gap-6 px-8">
-                <div className="flex items-center gap-8 w-full">
-                  <Button variant="ghost" size="sm" className={cn("h-11 px-6 rounded-full font-black uppercase tracking-widest text-[10px]", post.likes?.includes(user?.id) ? "text-primary bg-primary/10" : "text-muted-foreground")} onClick={() => handleToggleLike(post.id)}>
-                    <Heart className={cn("h-4 w-4 mr-2", post.likes?.includes(user?.id) && "fill-current")} /> Like {post.likes?.length > 0 && `(${post.likes.length})`}
+              <CardFooter className="flex flex-col border-t border-muted/30 pt-4 lg:pt-6 pb-6 lg:pb-8 gap-4 lg:gap-6 px-6 lg:px-8">
+                <div className="flex items-center gap-4 lg:gap-8 w-full">
+                  <Button variant="ghost" size="sm" className={cn("h-9 lg:h-11 px-4 lg:px-6 rounded-full font-black uppercase tracking-widest text-[8px] lg:text-[10px]", post.likes?.includes(user?.id) ? "text-primary bg-primary/10" : "text-muted-foreground")} onClick={() => handleToggleLike(post.id)}>
+                    <Heart className={cn("h-3.5 w-3.5 lg:h-4 lg:w-4 mr-1.5 lg:mr-2", post.likes?.includes(user?.id) && "fill-current")} /> Like {post.likes?.length > 0 && `(${post.likes.length})`}
                   </Button>
-                  <div className="flex items-center gap-2 text-muted-foreground font-black uppercase tracking-widest text-[10px]"><MessageSquare className="h-4 w-4" /> Discussion</div>
+                  <div className="flex items-center gap-1.5 lg:gap-2 text-muted-foreground font-black uppercase tracking-widest text-[8px] lg:text-[10px]"><MessageSquare className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> Discussion</div>
                 </div>
                 <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} />
-                <div className="flex gap-3 w-full">
-                  <Input placeholder="Write to your squad..." className="bg-muted/50 border-none rounded-2xl h-12 text-sm font-bold px-6 shadow-inner" value={commentInputs[post.id] || ''} onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))} />
-                  <Button size="icon" className="rounded-2xl h-12 w-12 shrink-0 shadow-xl shadow-primary/20" onClick={() => commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))}><Send className="h-5 w-5" /></Button>
+                <div className="flex gap-2 lg:gap-3 w-full">
+                  <Input placeholder="Write to squad..." className="bg-muted/50 border-none rounded-xl lg:rounded-2xl h-10 lg:h-12 text-xs lg:text-sm font-bold px-4 lg:px-6 shadow-inner" value={commentInputs[post.id] || ''} onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))} />
+                  <Button size="icon" className="rounded-xl lg:rounded-2xl h-10 w-10 lg:h-12 lg:w-12 shrink-0 shadow-lg lg:shadow-xl shadow-primary/20" onClick={() => commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))}><Send className="h-4 w-4 lg:h-5 lg:w-5" /></Button>
                 </div>
               </CardFooter>
             </Card>
@@ -356,37 +356,37 @@ export default function FeedPage() {
       </aside>
 
       <Dialog open={isPollDialogOpen} onOpenChange={setIsPollDialogOpen}>
-        <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
+        <DialogContent className="sm:max-w-4xl rounded-3xl lg:rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
           <div className="overflow-y-auto flex-1 custom-scrollbar">
             <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
-              <div className="p-8 bg-primary/5 lg:border-r space-y-6">
+              <div className="p-6 lg:p-8 bg-primary/5 lg:border-r space-y-4 lg:space-y-6">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black tracking-tight">Launch Squad Poll</DialogTitle>
-                  <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[10px]">Collect squad consensus</DialogDescription>
+                  <DialogTitle className="text-xl lg:text-2xl font-black tracking-tight">Launch Squad Poll</DialogTitle>
+                  <DialogDescription className="font-bold text-primary/60 uppercase tracking-widest text-[8px] lg:text-[10px]">Collect squad consensus</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 pt-4">
+                <div className="space-y-4 pt-2 lg:pt-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">The Question</Label>
-                    <Input placeholder="e.g. Best time for extra training?" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="rounded-xl h-12 bg-background font-bold" />
+                    <Input placeholder="e.g. Best time for training?" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} className="rounded-xl h-11 lg:h-12 bg-background font-bold" />
                   </div>
                 </div>
               </div>
-              <div className="p-8 space-y-6 flex flex-col justify-between">
+              <div className="p-6 lg:p-8 space-y-4 lg:space-y-6 flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Polling Options</Label>
-                    <Button variant="ghost" size="sm" onClick={() => setPollOptions([...pollOptions, {text: '', image: undefined}])} disabled={pollOptions.length >= 6} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setPollOptions([...pollOptions, {text: '', image: undefined}])} disabled={pollOptions.length >= 6} className="h-7 text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2 lg:space-y-3">
                     {pollOptions.map((opt, i) => (
-                      <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-left-2">
-                        <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={e => { const n = [...pollOptions]; n[i].text = e.target.value; setPollOptions(n); }} className="rounded-xl h-11 bg-muted/30 focus:bg-background" />
-                        <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl bg-muted/20" onClick={() => { activeOptionIdxRef.current = i; optionImageInputRef.current?.click(); }}><ImageIcon className="h-4 w-4" /></Button>
+                      <div key={i} className="flex gap-2 lg:gap-3 animate-in fade-in slide-in-from-left-2">
+                        <Input placeholder={`Option ${i+1}`} value={opt.text} onChange={e => { const n = [...pollOptions]; n[i].text = e.target.value; setPollOptions(n); }} className="rounded-xl h-10 lg:h-11 bg-muted/30 focus:bg-background" />
+                        <Button variant="ghost" size="icon" className="h-10 w-10 lg:h-11 lg:w-11 rounded-xl bg-muted/20" onClick={() => { activeOptionIdxRef.current = i; optionImageInputRef.current?.click(); }}><ImageIcon className="h-4 w-4" /></Button>
                       </div>
                     ))}
                   </div>
                 </div>
-                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreatePoll}>Launch Poll</Button>
+                <Button className="w-full h-12 lg:h-14 rounded-2xl text-base lg:text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all mt-4 lg:mt-0" onClick={handleCreatePoll}>Launch Poll</Button>
               </div>
             </div>
           </div>
@@ -407,7 +407,7 @@ export default function FeedPage() {
 
       {lightboxImage && (
         <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(null)}>
-          <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-[2rem]">
+          <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-2xl lg:rounded-[2rem]">
             <DialogTitle className="sr-only">Image Preview</DialogTitle>
             <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain" alt="Enlarged view" />
           </DialogContent>
