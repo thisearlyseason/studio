@@ -147,8 +147,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
 
   const regQuery = useMemoFirebase(() => {
+    if (!db || !event?.id || !event?.teamId) return null;
     return query(collection(db, 'teams', event.teamId, 'events', event.id, 'registrations'), orderBy('createdAt', 'desc'));
-  }, [db, event.id, event.teamId]);
+  }, [db, event?.id, event?.teamId]);
   
   const { data: rawRegistrations } = useCollection<any>(regQuery);
   const registrations = rawRegistrations || [];
@@ -523,7 +524,8 @@ export default function EventsPage() {
   const events = rawEvents || [];
 
   const invitedTournamentsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !user) return null;
+    // Explicitly check for team name and user to ensure query is valid and authorized
+    if (!activeTeam?.name || !db || !user) return null;
     return query(collectionGroup(db, 'events'), where('tournamentTeams', 'array-contains', activeTeam.name), limit(20));
   }, [activeTeam?.name, db, user?.uid]);
 
@@ -719,7 +721,7 @@ export default function EventsPage() {
                             <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1 flex items-center gap-1"><MapPin className="h-3 w-3 text-amber-600" /> {event.location}</p>
                           </div>
                           <div className="flex flex-col items-end gap-2">
-                            <ChevronRight className="h-5 w-5 text-amber-600 opacity-20 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
+                            <ChevronRight className="h-5 w-5 text-amber-600 opacity-20 group-hover:opacity-100 transition-all group-hover:translate-x-1 mt-2" />
                             {event.teamAgreements?.[activeTeam?.name || '']?.agreed ? (
                               <Badge className="bg-green-600 text-white font-black text-[7px] uppercase h-4">Verified</Badge>
                             ) : (
