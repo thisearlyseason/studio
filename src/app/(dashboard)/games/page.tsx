@@ -407,7 +407,7 @@ export default function GamesPage() {
           <Trophy className="h-10 w-10 lg:h-12 lg:w-12 text-muted-foreground opacity-20 mx-auto" />
           <div>
             <p className="font-black text-lg lg:text-xl uppercase tracking-tight">No results logged</p>
-            <p className="text-[10px] lg:text-sm font-bold text-muted-foreground uppercase tracking-widest opacity-60">Record your first match to start.</p>
+            <p className="text-[10px] lg:sm font-bold text-muted-foreground uppercase tracking-widest opacity-60">Record your first match to start.</p>
           </div>
           {isAdmin && <Button variant="outline" className="rounded-full px-8 lg:px-10 font-black uppercase text-[10px] tracking-widest border-2 h-10 lg:h-12" onClick={() => setIsRecordOpen(true)}>Record Match</Button>}
         </div>

@@ -73,7 +73,7 @@ const tabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: false },
   { name: 'Schedule', href: '/events', icon: CalendarDays, pro: false },
   { name: 'Leagues', href: '/leagues', icon: Shield, pro: true },
-  { name: 'Games', href: '/games', icon: Trophy, pro: true },
+  { name: 'Games', href: '/games', icon: Trophy, pro: false },
   { name: 'Drills', href: '/drills', icon: Dumbbell, pro: true },
   { name: 'Chats', href: '/chats', icon: MessageCircle, pro: true },
   { name: 'Roster', href: '/roster', icon: Users2, pro: false },
