@@ -222,7 +222,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const resetLockRef = useRef(false);
   const rcInitRef = useRef(false);
 
-  // Authoritative Plan Catalog (Static-ish, limited fetch)
   const plansQuery = useMemoFirebase(() => db ? collection(db, 'plans') : null, [db]);
   const { data: plansData } = useCollection(plansQuery);
   const plans = useMemo(() => (plansData || []) as Plan[], [plansData]);
@@ -232,7 +231,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return email ? SUPER_ADMIN_EMAILS.includes(email) : false;
   }, [firebaseUser?.email]);
 
-  // Teams query is critical for the sidebar and global state
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
     const base = isSuperAdmin ? collection(db, 'teams') : collection(db, 'users', firebaseUser.uid, 'teamMemberships');
@@ -269,7 +267,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return teams.find(t => t.id === activeTeamId) || teams[0];
   }, [teams, activeTeamId]);
 
-  // Alerts listener (Targeted to active team)
   useEffect(() => {
     if (!activeTeam?.id || !db) {
       setAlerts([]);
@@ -284,16 +281,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [activeTeam?.id, db]);
 
-  // Quota Calculation (Computed locally from teams list)
   const proQuotaStatus = useMemo(() => {
-    const limit = userProfile?.proTeamLimit ?? 0;
+    const limitCount = userProfile?.proTeamLimit ?? 0;
     const ownedProTeams = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro);
     const current = ownedProTeams.length;
     return {
       current,
-      limit,
-      remaining: Math.max(0, limit - current),
-      exceeded: current > limit
+      limit: limitCount,
+      remaining: Math.max(0, limitCount - current),
+      exceeded: current > limitCount
     };
   }, [teams, userProfile, firebaseUser?.uid]);
 
@@ -302,7 +298,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return proQuotaStatus.remaining > 0;
   }, [isSuperAdmin, proQuotaStatus]);
 
-  // Handle Quota Decrease (Background correction)
   useEffect(() => {
     if (!firebaseUser || !userProfile || isTeamsLoading || proQuotaStatus.limit === null) return;
     
@@ -327,7 +322,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [proQuotaStatus.limit, proQuotaStatus.current, teams, firebaseUser, userProfile, isTeamsLoading, db]);
 
-  // Gating Logic (Computed from in-memory plan catalog)
   const activePlanFeatures = useMemo(() => {
     const pid = simulationPlanId || activeTeam?.planId;
     if (!pid || !plans) return {};
@@ -369,7 +363,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return false;
   }, [simulationPlanId, activeTeam]);
 
-  // Demo Logic (Heartbeat Reset)
   useEffect(() => {
     if (!userProfile?.isDemo || !userProfile?.createdAt) {
       setSecondsUntilReset(null);

@@ -112,7 +112,7 @@ function DemoResetBanner({ seconds }: { seconds: number | null }) {
   const remainingSeconds = seconds % 60;
   
   return (
-    <div className="bg-black text-white px-4 py-2 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] relative z-[60] overflow-hidden">
+    <div className="bg-black text-white px-4 py-2 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] relative z-[60] overflow-hidden shrink-0">
       <div className="absolute inset-0 bg-primary/20 animate-pulse pointer-events-none" />
       <div className="flex items-center gap-2 relative z-10">
         <Timer className="h-3 w-3 text-primary animate-spin duration-[5000ms]" />
@@ -350,7 +350,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </SidebarFooter>
           </Sidebar>
 
-          <div className="flex flex-col flex-1 min-w-0 h-screen overflow-y-auto bg-background">
+          <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden bg-background">
             <header className="hidden md:flex sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-20 items-center px-6 lg:px-10 justify-between shrink-0">
               <div className="flex items-center gap-4 min-w-0">
                 <div className="flex flex-col min-w-0">
@@ -456,7 +456,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </header>
 
-            <main className="flex-1 pb-36 md:pb-12 pt-4 md:pt-6 px-4 md:px-10 max-w-7xl mx-auto w-full">
+            <main className="flex-1 pb-36 md:pb-12 pt-4 md:pt-6 px-4 md:px-10 max-w-7xl mx-auto w-full overflow-y-auto">
               {children}
             </main>
 
