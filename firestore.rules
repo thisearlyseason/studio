@@ -102,7 +102,8 @@ service cloud.firestore {
       }
 
       match /events/{eventId} {
-        allow read: if isSignedIn();
+        // Allow public read for external registration portals
+        allow read: if true;
         allow update: if isTeamAdmin(teamId) || (
           isSignedIn() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userRsvps'])

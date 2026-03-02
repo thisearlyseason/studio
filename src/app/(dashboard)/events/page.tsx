@@ -29,7 +29,9 @@ import {
   Sparkles,
   Download,
   ListPlus,
-  Table as TableIcon
+  Table as TableIcon,
+  ChevronLeft,
+  Loader2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -69,9 +71,13 @@ interface EventDetailDialogProps {
 }
 
 function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
-  const { members = [] } = useTeam();
+  const { members = [], user, addRegistration } = useTeam();
   const db = useFirestore();
   
+  const [showInternalForm, setShowInternalForm] = useState(false);
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [isSubmittingInternal, setIsSubmittingInternal] = useState(false);
+
   const regQuery = useMemoFirebase(() => {
     return query(collection(db, 'teams', event.teamId, 'events', event.id, 'registrations'), orderBy('createdAt', 'desc'));
   }, [db, event.id, event.teamId]);
@@ -114,14 +120,37 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
   const maybeList = attendanceData.filter(a => a.status === 'maybe');
   const notGoingList = attendanceData.filter(a => a.status === 'notGoing');
 
+  const handleRSVP = (status: string) => {
+    if (status === 'going' && event.isRegistrationRequired) {
+      setShowInternalForm(true);
+    } else {
+      updateRSVP(event.id, status);
+    }
+  };
+
+  const handleInternalSubmit = async () => {
+    if (!user) return;
+    setIsSubmittingInternal(true);
+    const success = await addRegistration(event.teamId, event.id, {
+      name: user.name,
+      email: user.email,
+      phone: user.phone || 'N/A',
+      userId: user.id,
+      responses: formData
+    });
+    if (success) {
+      updateRSVP(event.id, 'going');
+      setShowInternalForm(false);
+      toast({ title: "Registration Confirmed" });
+    }
+    setIsSubmittingInternal(false);
+  };
+
   const handleDownloadCSV = () => {
     if (!registrations || registrations.length === 0) return;
-    
-    // Headers: Basic Info + Custom Fields
     const customFieldIds = event.customFormFields?.map(f => f.id) || [];
     const customFieldLabels = event.customFormFields?.map(f => f.label) || [];
     const headers = ['Name', 'Email', 'Phone', 'Status', ...customFieldLabels];
-    
     const rows = registrations.map(reg => {
       const basic = [reg.name, reg.email, reg.phone, reg.status];
       const customValues = customFieldIds.map(fid => {
@@ -130,7 +159,6 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
       });
       return [...basic, ...customValues].join(',');
     });
-
     const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -140,193 +168,251 @@ function EventDetailDialog({ event, updateRSVP, promoteToRoster, isAdmin, onEdit
   };
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => { if(!open) setShowInternalForm(false); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-5xl p-0 overflow-hidden rounded-3xl lg:rounded-[2.5rem] max-h-[95vh] flex flex-col border-none shadow-2xl">
         <DialogTitle className="sr-only">{event.title}</DialogTitle>
         <DialogDescription className="sr-only">Roster and logistics for {event.title}</DialogDescription>
-        <div className="overflow-y-auto flex-1 custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
-            <div className="lg:col-span-4 bg-muted/30 p-6 lg:p-8 border-b lg:border-b-0 lg:border-r flex flex-col justify-between space-y-6">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Badge className={cn("border-none font-black uppercase tracking-widest text-[8px] lg:text-[10px] px-2 lg:px-3 h-5 lg:h-6", event.isTournament ? "bg-black text-white" : "bg-primary text-white")}>
-                    {event.isTournament ? "Tournament" : "Match"}
-                  </Badge>
-                  <h2 className="text-2xl lg:text-3xl font-black tracking-tighter leading-tight break-words">{event.title}</h2>
-                  <p className="font-black text-primary text-base lg:text-lg">
-                    {event.isTournament && event.endDate ? (
-                      `${format(new Date(event.date), 'MMM d')} - ${format(new Date(event.endDate), 'MMM d, yyyy')}`
-                    ) : (
-                      new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-                    )}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 lg:gap-4">
-                  <div className="flex items-center gap-3 lg:gap-4 bg-background p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-sm border-2 border-black/5">
-                    <div className="bg-primary/10 p-2 lg:p-3 rounded-lg lg:rounded-xl text-primary"><Clock className="h-4 w-4 lg:h-5 lg:w-5" /></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Time</p>
-                      <p className="text-xs lg:text-sm font-black truncate">{event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 lg:gap-4 bg-background p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-sm border-2 border-black/5">
-                    <div className="bg-primary/10 p-2 lg:p-3 rounded-lg lg:rounded-xl text-primary"><MapPin className="h-4 w-4 lg:h-5 lg:w-5" /></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Loc</p>
-                      <p className="text-xs lg:text-sm font-black truncate">{event.location}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 lg:p-5 bg-background/50 rounded-xl lg:rounded-2xl border-2 border-dashed border-primary/20">
-                  <p className="text-xs lg:text-sm text-muted-foreground font-black leading-relaxed italic break-words">"{event.description || 'No additional details.'}"</p>
-                </div>
+        
+        {showInternalForm ? (
+          <div className="flex-1 flex flex-col bg-background animate-in slide-in-from-right duration-300">
+            <div className="p-6 lg:p-10 space-y-8 max-w-2xl mx-auto w-full">
+              <Button variant="ghost" onClick={() => setShowInternalForm(false)} className="rounded-full h-10 px-4 -ml-4 font-black uppercase text-[10px] tracking-widest"><ChevronLeft className="h-4 w-4 mr-2" /> Back</Button>
+              <div className="space-y-2">
+                <h3 className="text-3xl font-black tracking-tight">Complete Registration</h3>
+                <p className="text-muted-foreground font-bold">Please provide the details required for this match.</p>
               </div>
+              <div className="space-y-6">
+                {event.customFormFields?.map((field) => (
+                  <div key={field.id} className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">{field.label}</Label>
+                    {field.type === 'short_text' && <Input value={formData[field.id] || ''} onChange={e => setFormData(p => ({ ...p, [field.id]: e.target.value }))} className="h-12 rounded-xl font-bold" />}
+                    {field.type === 'long_text' && <Textarea value={formData[field.id] || ''} onChange={e => setFormData(p => ({ ...p, [field.id]: e.target.value }))} className="rounded-xl min-h-[100px] font-bold" />}
+                    {field.type === 'checkbox' && (
+                      <div className="flex items-center space-x-3 p-4 bg-muted/30 rounded-xl border-2">
+                        <Checkbox checked={formData[field.id] || false} onCheckedChange={v => setFormData(p => ({ ...p, [field.id]: !!v }))} />
+                        <Label className="cursor-pointer font-bold">{field.label}</Label>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 mt-4" onClick={handleInternalSubmit} disabled={isSubmittingInternal}>
+                  {isSubmittingInternal ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : "Confirm My Spot"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
+              <div className="lg:col-span-4 bg-muted/30 p-6 lg:p-8 border-b lg:border-b-0 lg:border-r flex flex-col justify-between space-y-6">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Badge className={cn("border-none font-black uppercase tracking-widest text-[8px] lg:text-[10px] px-2 lg:px-3 h-5 lg:h-6", event.isTournament ? "bg-black text-white" : "bg-primary text-white")}>
+                      {event.isTournament ? "Tournament" : "Match"}
+                    </Badge>
+                    <h2 className="text-2xl lg:text-3xl font-black tracking-tighter leading-tight break-words">{event.title}</h2>
+                    <p className="font-black text-primary text-base lg:text-lg">
+                      {event.isTournament && event.endDate ? (
+                        `${format(new Date(event.date), 'MMM d')} - ${format(new Date(event.endDate), 'MMM d, yyyy')}`
+                      ) : (
+                        new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+                      )}
+                    </p>
+                  </div>
 
-              <div className="pt-4 lg:pt-8 space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  {event.isRegistrationRequired && <Badge className="bg-blue-600 text-white font-black px-2 lg:px-3 h-6 lg:h-7 text-[8px] lg:text-[10px] uppercase shadow-lg">Registration On</Badge>}
-                  {isAdmin && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="icon" className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl border-primary/20 text-primary" onClick={() => onEdit(event)}><Edit3 className="h-4 w-4" /></Button>
-                      <Button variant="outline" size="icon" className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl border-destructive/20 text-destructive" onClick={() => onDelete(event.id)}><Trash2 className="h-4 w-4" /></Button>
+                  <div className="grid grid-cols-1 gap-3 lg:gap-4">
+                    <div className="flex items-center gap-3 lg:gap-4 bg-background p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-sm border-2 border-black/5">
+                      <div className="bg-primary/10 p-2 lg:p-3 rounded-lg lg:rounded-xl text-primary"><Clock className="h-4 w-4 lg:h-5 lg:w-5" /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Time</p>
+                        <p className="text-xs lg:text-sm font-black truncate">{event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 lg:gap-4 bg-background p-3 lg:p-4 rounded-xl lg:rounded-2xl shadow-sm border-2 border-black/5">
+                      <div className="bg-primary/10 p-2 lg:p-3 rounded-lg lg:rounded-xl text-primary"><MapPin className="h-4 w-4 lg:h-5 lg:w-5" /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Loc</p>
+                        <p className="text-xs lg:text-sm font-black truncate">{event.location}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 lg:p-5 bg-background/50 rounded-xl lg:rounded-2xl border-2 border-dashed border-primary/20">
+                    <p className="text-xs lg:text-sm text-muted-foreground font-black leading-relaxed italic break-words">"{event.description || 'No additional details.'}"</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 lg:pt-8 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    {event.isRegistrationRequired && <Badge className="bg-blue-600 text-white font-black px-2 lg:px-3 h-6 lg:h-7 text-[8px] lg:text-[10px] uppercase shadow-lg">Registration On</Badge>}
+                    {isAdmin && (
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="icon" className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl border-primary/20 text-primary" onClick={() => onEdit(event)}><Edit3 className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" className="h-9 w-9 lg:h-10 lg:w-10 rounded-xl border-destructive/20 text-destructive" onClick={() => onDelete(event.id)}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    )}
+                  </div>
+                  {hasAttendance && (
+                    <div className="grid grid-cols-3 gap-2 text-center bg-background rounded-xl lg:rounded-2xl p-3 lg:p-4 shadow-inner border-2">
+                      <div><p className="text-lg lg:text-xl font-black text-green-600 leading-none">{goingList.length}</p><p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mt-1">Yes</p></div>
+                      <div><p className="text-lg lg:text-xl font-black text-amber-600 leading-none">{maybeList.length}</p><p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mt-1">Maybe</p></div>
+                      <div><p className="text-lg lg:text-xl font-black text-red-600 leading-none">{notGoingList.length}</p><p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mt-1">No</p></div>
                     </div>
                   )}
                 </div>
-                {hasAttendance && (
-                  <div className="grid grid-cols-3 gap-2 text-center bg-background rounded-xl lg:rounded-2xl p-3 lg:p-4 shadow-inner border-2">
-                    <div><p className="text-lg lg:text-xl font-black text-green-600 leading-none">{goingList.length}</p><p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mt-1">Yes</p></div>
-                    <div><p className="text-lg lg:text-xl font-black text-amber-600 leading-none">{maybeList.length}</p><p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mt-1">Maybe</p></div>
-                    <div><p className="text-lg lg:text-xl font-black text-red-600 leading-none">{notGoingList.length}</p><p className="text-[7px] lg:text-[8px] font-black uppercase text-muted-foreground mt-1">No</p></div>
+              </div>
+
+              <div className="lg:col-span-8 flex flex-col bg-background">
+                {hasAttendance ? (
+                  <Tabs defaultValue="attendance" className="flex-1 flex flex-col">
+                    <div className="px-6 lg:px-8 pt-6 lg:pt-8 pb-4 border-b flex items-center justify-between">
+                      <TabsList className="bg-muted/50 rounded-xl p-1 h-10 lg:h-11">
+                        <TabsTrigger value="attendance" className="rounded-lg font-black text-[8px] lg:text-[10px] uppercase tracking-widest px-4 lg:px-6 data-[state=active]:bg-primary data-[state=active]:text-white">Roster</TabsTrigger>
+                        {event.isRegistrationRequired && <TabsTrigger value="responses" className="rounded-lg font-black text-[8px] lg:text-[10px] uppercase tracking-widest px-4 lg:px-6 data-[state=active]:bg-primary data-[state=active]:text-white">Form Responses</TabsTrigger>}
+                        {event.allowExternalRegistration && <TabsTrigger value="links" className="rounded-lg font-black text-[8px] lg:text-[10px] uppercase tracking-widest px-4 lg:px-6 data-[state=active]:bg-primary data-[state=active]:text-white">Links</TabsTrigger>}
+                      </TabsList>
+                      <DialogClose asChild><Button variant="ghost" size="icon" className="rounded-full h-8 w-8"><XCircle className="h-5 w-5 text-muted-foreground" /></Button></DialogClose>
+                    </div>
+
+                    <div className="flex-1 px-6 lg:px-8 py-4 lg:py-6 overflow-y-auto">
+                      <TabsContent value="attendance" className="mt-0 space-y-6 lg:space-y-8">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 px-1">
+                            <CheckCircle2 className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-green-600" />
+                            <span className="text-[8px] lg:text-[10px] font-black uppercase text-green-600 tracking-[0.2em]">Going ({goingList.length})</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 lg:gap-3">
+                            {goingList.length > 0 ? goingList.map((person) => (
+                              <div key={person.id} className="flex items-center justify-between p-2.5 lg:p-3 bg-muted/20 rounded-xl lg:rounded-2xl ring-2 ring-black/5">
+                                <div className="flex items-center gap-2 lg:gap-3 min-w-0">
+                                  <Avatar className="h-7 w-7 lg:h-8 lg:w-8 shrink-0"><AvatarImage src={person.avatar} /><AvatarFallback className="font-black text-[10px]">{person.name[0]}</AvatarFallback></Avatar>
+                                  <div className="flex flex-col min-w-0">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="text-[11px] lg:text-xs font-black truncate">{person.name}</span>
+                                      {person.isExternal && <Badge className="text-[6px] h-3 bg-primary text-white font-black uppercase px-1 shrink-0">Public</Badge>}
+                                    </div>
+                                    <span className="text-[7px] lg:text-[8px] text-muted-foreground font-black uppercase tracking-widest truncate">{person.role}</span>
+                                  </div>
+                                </div>
+                                {person.isExternal && person.regData?.status === 'pending' && isAdmin && (
+                                  <Button size="sm" variant="ghost" className="h-6 text-[8px] font-black text-primary hover:bg-primary/10 rounded-full shrink-0" onClick={() => promoteToRoster(event.teamId, event.id, person.regData!)}>Add</Button>
+                                )}
+                              </div>
+                            )) : <p className="text-[10px] lg:text-xs text-muted-foreground font-black italic px-1">No responses yet...</p>}
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="responses" className="mt-0 pt-4 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Detailed Registration Submissions</h4>
+                          {isAdmin && registrations && registrations.length > 0 && (
+                            <Button variant="outline" size="sm" className="rounded-full h-8 px-4 font-black uppercase text-[8px] tracking-widest gap-2" onClick={handleDownloadCSV}>
+                              <Download className="h-3 w-3" /> Export CSV
+                            </Button>
+                          )}
+                        </div>
+                        <ScrollArea className="h-[400px]">
+                          <div className="space-y-4 pr-4">
+                            {registrations && registrations.length > 0 ? registrations.map((reg) => (
+                              <div key={reg.id} className="p-4 rounded-2xl border bg-muted/10 space-y-3">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-black text-sm">{reg.name}</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground">{reg.email} • {reg.phone}</p>
+                                  </div>
+                                  <Badge variant="secondary" className="text-[8px] font-black uppercase">{reg.status}</Badge>
+                                </div>
+                                {event.customFormFields?.map((field) => (
+                                  <div key={field.id} className="pt-2 border-t border-dashed">
+                                    <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest mb-1">{field.label}</p>
+                                    <p className="text-xs font-medium">
+                                      {field.type === 'checkbox' 
+                                        ? (reg.responses?.[field.id] ? 'Yes' : 'No')
+                                        : (reg.responses?.[field.id] || 'N/A')}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            )) : (
+                              <div className="text-center py-20 opacity-30">
+                                <ListPlus className="h-10 w-10 mx-auto mb-2" />
+                                <p className="text-[10px] font-black uppercase tracking-widest">No detailed responses found.</p>
+                              </div>
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
+
+                      <TabsContent value="links" className="mt-0 pt-4">
+                        <div className="bg-primary/5 p-6 lg:p-8 rounded-2xl lg:rounded-[2rem] border-2 border-dashed border-primary/20 text-center space-y-4 lg:space-y-6">
+                          <div className="bg-white w-12 h-12 lg:w-16 lg:h-16 rounded-2xl lg:rounded-3xl flex items-center justify-center mx-auto shadow-xl">
+                            <LinkIcon className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
+                          </div>
+                          <h4 className="text-lg lg:text-xl font-black tracking-tight">Public Portal</h4>
+                          <Button className="w-full h-12 lg:h-14 rounded-xl lg:rounded-2xl font-black text-[10px] lg:text-xs uppercase tracking-widest shadow-lg gap-2" onClick={copyRegLink}><Copy className="h-3.5 w-3.5" /> Copy Link</Button>
+                        </div>
+                      </TabsContent>
+                    </div>
+
+                    <div className="px-6 lg:px-8 py-6 lg:py-8 border-t bg-muted/10 mt-auto shrink-0">
+                      <p className="text-[8px] lg:text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em] text-center mb-4">Select Status</p>
+                      <div className="grid grid-cols-3 gap-2 lg:gap-4">
+                        <Button 
+                          variant={event.userRsvp === 'notGoing' ? 'default' : 'outline'} 
+                          className={cn(
+                            "rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase transition-all duration-300", 
+                            event.userRsvp === 'notGoing' ? "bg-red-600 text-black shadow-lg" : "hover:bg-red-600 hover:text-black hover:border-red-600"
+                          )} 
+                          onClick={() => handleRSVP('notGoing')}
+                        >
+                          NO
+                        </Button>
+                        <Button 
+                          variant={event.userRsvp === 'maybe' ? 'default' : 'outline'} 
+                          className={cn(
+                            "rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase transition-all duration-300", 
+                            event.userRsvp === 'maybe' ? "bg-amber-500 text-black shadow-lg" : "hover:bg-amber-500 hover:text-black hover:border-amber-500"
+                          )} 
+                          onClick={() => handleRSVP('maybe')}
+                        >
+                          Maybe
+                        </Button>
+                        <Button 
+                          variant={event.userRsvp === 'going' ? 'default' : 'outline'} 
+                          className={cn(
+                            "rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase transition-all duration-300", 
+                            event.userRsvp === 'going' ? "bg-green-600 text-black shadow-lg" : "hover:bg-green-600 hover:text-black hover:border-green-600"
+                          )} 
+                          onClick={() => handleRSVP('going')}
+                        >
+                          Going
+                        </Button>
+                      </div>
+                    </div>
+                  </Tabs>
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-1 p-8 lg:p-12 text-center space-y-6">
+                    <div className="bg-primary/10 p-5 lg:p-6 rounded-2xl lg:rounded-[2rem] shadow-xl relative">
+                      <Users className="h-8 w-8 lg:h-12 lg:w-12 text-primary" />
+                      <div className="absolute -top-2 -right-2 bg-black text-white p-1 rounded-full border-2 border-background"><Lock className="h-3 w-3" /></div>
+                    </div>
+                    <div className="space-y-2 max-w-sm">
+                      <h3 className="text-xl lg:text-2xl font-black tracking-tight">RSVP Tracking</h3>
+                      <p className="text-muted-foreground font-bold text-xs lg:text-sm leading-relaxed">
+                        Track squad confirmations and manage public sign-ups with a Pro plan.
+                      </p>
+                    </div>
+                    <Button className="rounded-xl lg:rounded-2xl h-11 lg:h-12 px-8 lg:px-10 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20" onClick={purchasePro}>
+                      Upgrade
+                    </Button>
                   </div>
                 )}
               </div>
             </div>
-
-            <div className="lg:col-span-8 flex flex-col bg-background">
-              {hasAttendance ? (
-                <Tabs defaultValue="attendance" className="flex-1 flex flex-col">
-                  <div className="px-6 lg:px-8 pt-6 lg:pt-8 pb-4 border-b flex items-center justify-between">
-                    <TabsList className="bg-muted/50 rounded-xl p-1 h-10 lg:h-11">
-                      <TabsTrigger value="attendance" className="rounded-lg font-black text-[8px] lg:text-[10px] uppercase tracking-widest px-4 lg:px-6 data-[state=active]:bg-primary data-[state=active]:text-white">Roster</TabsTrigger>
-                      {event.isRegistrationRequired && <TabsTrigger value="responses" className="rounded-lg font-black text-[8px] lg:text-[10px] uppercase tracking-widest px-4 lg:px-6 data-[state=active]:bg-primary data-[state=active]:text-white">Form Responses</TabsTrigger>}
-                      {event.allowExternalRegistration && <TabsTrigger value="links" className="rounded-lg font-black text-[8px] lg:text-[10px] uppercase tracking-widest px-4 lg:px-6 data-[state=active]:bg-primary data-[state=active]:text-white">Links</TabsTrigger>}
-                    </TabsList>
-                    <DialogClose asChild><Button variant="ghost" size="icon" className="rounded-full h-8 w-8"><XCircle className="h-5 w-5 text-muted-foreground" /></Button></DialogClose>
-                  </div>
-
-                  <div className="flex-1 px-6 lg:px-8 py-4 lg:py-6">
-                    <TabsContent value="attendance" className="mt-0 space-y-6 lg:space-y-8">
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-green-600" />
-                          <span className="text-[8px] lg:text-[10px] font-black uppercase text-green-600 tracking-[0.2em]">Going ({goingList.length})</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 lg:gap-3">
-                          {goingList.length > 0 ? goingList.map((person) => (
-                            <div key={person.id} className="flex items-center justify-between p-2.5 lg:p-3 bg-muted/20 rounded-xl lg:rounded-2xl ring-2 ring-black/5">
-                              <div className="flex items-center gap-2 lg:gap-3 min-w-0">
-                                <Avatar className="h-7 w-7 lg:h-8 lg:w-8 shrink-0"><AvatarImage src={person.avatar} /><AvatarFallback className="font-black text-[10px]">{person.name[0]}</AvatarFallback></Avatar>
-                                <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className="text-[11px] lg:text-xs font-black truncate">{person.name}</span>
-                                    {person.isExternal && <Badge className="text-[6px] h-3 bg-primary text-white font-black uppercase px-1 shrink-0">Public</Badge>}
-                                  </div>
-                                  <span className="text-[7px] lg:text-[8px] text-muted-foreground font-black uppercase tracking-widest truncate">{person.role}</span>
-                                </div>
-                              </div>
-                              {person.isExternal && person.regData?.status === 'pending' && isAdmin && (
-                                <Button size="sm" variant="ghost" className="h-6 text-[8px] font-black text-primary hover:bg-primary/10 rounded-full shrink-0" onClick={() => promoteToRoster(event.teamId, event.id, person.regData!)}>Add</Button>
-                              )}
-                            </div>
-                          )) : <p className="text-[10px] lg:text-xs text-muted-foreground font-black italic px-1">No responses yet...</p>}
-                        </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="responses" className="mt-0 pt-4 space-y-6">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Detailed Registration Submissions</h4>
-                        {isAdmin && registrations && registrations.length > 0 && (
-                          <Button variant="outline" size="sm" className="rounded-full h-8 px-4 font-black uppercase text-[8px] tracking-widest gap-2" onClick={handleDownloadCSV}>
-                            <Download className="h-3 w-3" /> Export CSV
-                          </Button>
-                        )}
-                      </div>
-                      <ScrollArea className="h-[400px]">
-                        <div className="space-y-4 pr-4">
-                          {registrations && registrations.length > 0 ? registrations.map((reg) => (
-                            <div key={reg.id} className="p-4 rounded-2xl border bg-muted/10 space-y-3">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="font-black text-sm">{reg.name}</p>
-                                  <p className="text-[10px] font-bold text-muted-foreground">{reg.email} • {reg.phone}</p>
-                                </div>
-                                <Badge variant="secondary" className="text-[8px] font-black uppercase">{reg.status}</Badge>
-                              </div>
-                              {event.customFormFields?.map((field) => (
-                                <div key={field.id} className="pt-2 border-t border-dashed">
-                                  <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest mb-1">{field.label}</p>
-                                  <p className="text-xs font-medium">
-                                    {field.type === 'checkbox' 
-                                      ? (reg.responses?.[field.id] ? 'Yes' : 'No')
-                                      : (reg.responses?.[field.id] || 'N/A')}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          )) : (
-                            <div className="text-center py-20 opacity-30">
-                              <ListPlus className="h-10 w-10 mx-auto mb-2" />
-                              <p className="text-[10px] font-black uppercase tracking-widest">No detailed responses found.</p>
-                            </div>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </TabsContent>
-
-                    <TabsContent value="links" className="mt-0 pt-4">
-                      <div className="bg-primary/5 p-6 lg:p-8 rounded-2xl lg:rounded-[2rem] border-2 border-dashed border-primary/20 text-center space-y-4 lg:space-y-6">
-                        <div className="bg-white w-12 h-12 lg:w-16 lg:h-16 rounded-2xl lg:rounded-3xl flex items-center justify-center mx-auto shadow-xl">
-                          <LinkIcon className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
-                        </div>
-                        <h4 className="text-lg lg:text-xl font-black tracking-tight">Public Portal</h4>
-                        <Button className="w-full h-12 lg:h-14 rounded-xl lg:rounded-2xl font-black text-[10px] lg:text-xs uppercase tracking-widest shadow-lg gap-2" onClick={copyRegLink}><Copy className="h-3.5 w-3.5" /> Copy Link</Button>
-                      </div>
-                    </TabsContent>
-                  </div>
-
-                  <div className="px-6 lg:px-8 py-6 lg:py-8 border-t bg-muted/10 mt-auto">
-                    <p className="text-[8px] lg:text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em] text-center mb-4">Select Status</p>
-                    <div className="grid grid-cols-3 gap-2 lg:gap-4">
-                      <Button variant={event.userRsvp === 'notGoing' ? 'default' : 'outline'} className={cn("rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase", event.userRsvp === 'notGoing' ? "bg-red-600 text-white" : "hover:text-red-600")} onClick={() => updateRSVP(event.id, 'notGoing')}>No</Button>
-                      <Button variant={event.userRsvp === 'maybe' ? 'default' : 'outline'} className={cn("rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase", event.userRsvp === 'maybe' ? "bg-amber-500 text-white" : "hover:text-amber-500")} onClick={() => updateRSVP(event.id, 'maybe')}>Maybe</Button>
-                      <Button variant={event.userRsvp === 'going' ? 'default' : 'outline'} className={cn("rounded-xl lg:rounded-2xl h-12 lg:h-14 font-black text-[8px] lg:text-[10px] uppercase", event.userRsvp === 'going' ? "bg-green-600 text-white" : "hover:text-green-600")} onClick={() => updateRSVP(event.id, 'going')}>Going</Button>
-                    </div>
-                  </div>
-                </Tabs>
-              ) : (
-                <div className="flex flex-col items-center justify-center flex-1 p-8 lg:p-12 text-center space-y-6">
-                  <div className="bg-primary/10 p-5 lg:p-6 rounded-2xl lg:rounded-[2rem] shadow-xl relative">
-                    <Users className="h-8 w-8 lg:h-12 lg:w-12 text-primary" />
-                    <div className="absolute -top-2 -right-2 bg-black text-white p-1 rounded-full border-2 border-background"><Lock className="h-3 w-3" /></div>
-                  </div>
-                  <div className="space-y-2 max-w-sm">
-                    <h3 className="text-xl lg:text-2xl font-black tracking-tight">RSVP Tracking</h3>
-                    <p className="text-muted-foreground font-bold text-xs lg:text-sm leading-relaxed">
-                      Track squad confirmations and manage public sign-ups with a Pro plan.
-                    </p>
-                  </div>
-                  <Button className="rounded-xl lg:rounded-2xl h-11 lg:h-12 px-8 lg:px-10 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20" onClick={purchasePro}>
-                    Upgrade
-                  </Button>
-                </div>
-              )}
-            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -440,7 +526,7 @@ export default function EventsPage() {
   const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setAllowExternal(false); setIsRegRequired(false); setMaxRegs(''); setCustomFormFields([]); setTournamentSchedule([]); };
 
   const addFormField = (type: FormFieldType) => {
-    const newField: CustomFormField = { id: `field_${Date.now()}`, label: 'New Field', type, required: false };
+    const newField: CustomFormField = { id: `field_${Date.now()}`, label: 'New Field Label', type, required: false };
     setCustomFormFields([...customFormFields, newField]);
   };
 
