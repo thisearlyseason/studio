@@ -22,7 +22,7 @@ import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Purchases } from '@revenuecat/purchases-js';
 import { seedSubscriptionData, launchDemoEnvironments, resetDemoEnvironment, seedGuestDemoTeam } from '@/lib/db-seeder';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -223,6 +223,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading } = useUser();
   const db = useFirestore();
   const searchParams = useSearchParams();
+  const router = useRouter();
   
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -386,15 +387,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: alertsData } = useCollection(alertsQuery);
   const alerts = useMemo(() => (alertsData || []).map(a => ({ id: a.id, teamId: a.teamId, title: a.title, message: a.message, createdBy: a.createdBy, createdAt: a.createdAt })), [alertsData]);
 
-  // Demo Heartbeat
+  // Demo Heartbeat & Reset
   useEffect(() => {
-    if (!userProfile?.isDemo || !userProfile?.createdAt || !activeTeamId) {
+    if (!userProfile?.isDemo || !userProfile?.createdAt) {
       setSecondsUntilReset(null);
       return;
     }
 
     const checkReset = async () => {
-      if (!userProfile?.createdAt) return;
       const start = new Date(userProfile.createdAt!).getTime();
       const now = Date.now();
       const elapsed = now - start;
@@ -405,10 +405,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (remaining < 1000 && !resetLockRef.current) {
         resetLockRef.current = true;
         try {
-          const planId = teams.find(t => t.id === activeTeamId)?.planId || 'starter_squad';
-          await resetDemoEnvironment(db, activeTeamId, planId, userProfile.id);
+          const pid = userProfile.activePlanId || 'starter_squad';
+          await resetDemoEnvironment(db, activeTeamId || '', pid, userProfile.id);
+          toast({ title: "Demo Reset Complete", description: "Environment has been restored to baseline." });
         } catch (e) {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `teams/${activeTeamId}`, operation: 'delete' }));
+          console.error("Heartbeat Reset Error:", e);
         } finally {
           resetLockRef.current = false;
         }
@@ -417,7 +418,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(checkReset, 1000);
     return () => clearInterval(interval);
-  }, [userProfile, activeTeamId, db, teams]);
+  }, [userProfile, activeTeamId, db]);
+
+  // Best effort reset on page leave
+  useEffect(() => {
+    const handleUnload = () => {
+      if (userProfile?.isDemo && !isSuperAdmin) {
+        // We can't reliably await Firestore here, but we can attempt a navigator.sendBeacon
+        // or just let the next session handle the stale data if needed.
+        // For this prototype, the heartbeat is the primary mechanism.
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [userProfile, isSuperAdmin]);
 
   useEffect(() => {
     if (isSuperAdmin && db && firebaseUser) {
@@ -639,7 +653,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     formatTime: (d: any) => (typeof d === 'string' ? new Date(d) : d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
     plans,
     simulationPlanId, setSimulationPlanId,
-    resetDemo: async () => { if (activeTeam?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeam.id, activeTeam.planId!, firebaseUser.uid); } },
+    resetDemo: async () => { if (userProfile?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeamId || '', userProfile.activePlanId || 'starter_squad', firebaseUser.uid); toast({ title: "Environment Re-seeded" }); } },
     isSeedingDemo,
     isClubManager,
     secondsUntilReset,
@@ -696,7 +710,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `users/${targetUserId}`, operation: 'update' }));
       }
     }
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam]);
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, alerts, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, router]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
