@@ -107,17 +107,20 @@ export default function LeaguesPage() {
   const { activeTeam, user, createLeague, inviteTeamToLeague, acceptLeagueInvite, hasFeature, purchasePro, createChat } = useTeam();
   const db = useFirestore();
   const router = useRouter();
+  
+  // State Hooks
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [leagueName, setLeagueName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  
   const [scoutTeamId, setScoutTeamId] = useState<string | null>(null);
   const [scoutTeamName, setScoutTeamName] = useState<string | null>(null);
 
+  // Feature Flag
   const canUseLeagues = hasFeature('leagues');
 
+  // Firestore Data Hooks
   const leaguesQuery = useMemoFirebase(() => {
     if (!activeTeam?.id || !db) return null;
     return query(collection(db, 'leagues'), where(`teams.${activeTeam.id}`, '!=', null));
@@ -134,35 +137,20 @@ export default function LeaguesPage() {
   const { data: rawInvites } = useCollection<LeagueInvite>(invitesQuery);
   const invites = useMemo(() => rawInvites || [], [rawInvites]);
 
+  // Derived Data Hooks
   const activeLeague = useMemo(() => {
     if (!leagues || leagues.length === 0) return null;
     return leagues[0];
   }, [leagues]);
 
-  if (!canUseLeagues) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
-        <div className="relative">
-          <div className="bg-primary/10 p-8 rounded-[3rem] shadow-2xl">
-            <Shield className="h-20 w-20 text-primary" />
-          </div>
-          <div className="absolute -top-3 -right-3 bg-black text-white p-2.5 rounded-full shadow-lg border-4 border-background">
-            <Lock className="h-5 w-5" />
-          </div>
-        </div>
-        <div className="text-center max-w-md space-y-4">
-          <h1 className="text-4xl font-black tracking-tight">Competitive Leagues</h1>
-          <p className="text-muted-foreground font-bold leading-relaxed text-lg">
-            Create or join high-stakes leagues, track global standings, and message opposing coaches. Reserved for Elite Pro squads.
-          </p>
-        </div>
-        <Button className="h-14 px-10 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>
-          Unlock Competitive Tiers
-        </Button>
-      </div>
-    );
-  }
+  const sortedStandings = useMemo(() => {
+    if (!activeLeague || !activeLeague.teams) return [];
+    return Object.entries(activeLeague.teams)
+      .map(([id, stats]) => ({ id, ...stats }))
+      .sort((a, b) => b.wins - a.wins || b.points - a.points);
+  }, [activeLeague]);
 
+  // Action Handlers
   const handleCreateLeague = async () => {
     if (!leagueName.trim()) return;
     setIsProcessing(true);
@@ -195,12 +183,46 @@ export default function LeaguesPage() {
     }
   };
 
-  const sortedStandings = useMemo(() => {
-    if (!activeLeague || !activeLeague.teams) return [];
-    return Object.entries(activeLeague.teams)
-      .map(([id, stats]) => ({ id, ...stats }))
-      .sort((a, b) => b.wins - a.wins || b.points - a.points);
-  }, [activeLeague]);
+  // --------------------------------------------------------------------------
+  // Early Returns (Rules of Hooks: Do not return before hooks are declared)
+  // --------------------------------------------------------------------------
+
+  if (!canUseLeagues) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="relative">
+          <div className="bg-primary/10 p-8 rounded-[3rem] shadow-2xl">
+            <Shield className="h-20 w-20 text-primary" />
+          </div>
+          <div className="absolute -top-3 -right-3 bg-black text-white p-2.5 rounded-full shadow-lg border-4 border-background">
+            <Lock className="h-5 w-5" />
+          </div>
+        </div>
+        <div className="text-center max-w-md space-y-4">
+          <h1 className="text-4xl font-black tracking-tight">Competitive Leagues</h1>
+          <p className="text-muted-foreground font-bold leading-relaxed text-lg">
+            Create or join high-stakes leagues, track global standings, and message opposing coaches. Reserved for Elite Pro squads.
+          </p>
+        </div>
+        <Button className="h-14 px-10 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>
+          Unlock Competitive Tiers
+        </Button>
+      </div>
+    );
+  }
+
+  if (isLeaguesLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Opening Standings...</p>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Main Component JSX
+  // --------------------------------------------------------------------------
 
   return (
     <div className="space-y-10 pb-20">
@@ -210,7 +232,7 @@ export default function LeaguesPage() {
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Leagues</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Official Leaderboards & Coordination</p>
         </div>
-        {!activeLeague && !isLeaguesLoading && (
+        {!activeLeague && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
@@ -238,12 +260,7 @@ export default function LeaguesPage() {
         )}
       </div>
 
-      {isLeaguesLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Opening Standings...</p>
-        </div>
-      ) : activeLeague ? (
+      {activeLeague ? (
         <div className="space-y-8">
           <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-black text-white relative group">
             <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
