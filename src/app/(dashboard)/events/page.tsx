@@ -62,7 +62,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTeam, TeamEvent, CustomFormField, FormFieldType, TournamentGame } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, collectionGroup, where } from 'firebase/firestore';
+import { collection, query, orderBy, collectionGroup, where, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -150,7 +150,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
     return query(collection(db, 'teams', event.teamId, 'events', event.id, 'registrations'), orderBy('createdAt', 'desc'));
   }, [db, event.id, event.teamId]);
   
-  const { data: registrations } = useCollection<any>(regQuery);
+  const { data: rawRegistrations } = useCollection<any>(regQuery);
+  const registrations = rawRegistrations || [];
 
   const isTournamentModuleUnlocked = event.isTournamentPaid || !event.isTournament;
 
@@ -169,7 +170,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
       const member = members.find(m => m.userId === uid);
       return { id: uid, name: member?.name || 'Unknown Member', avatar: member?.avatar, role: member?.position || 'Member', status };
     });
-    const external = (registrations || []).map(reg => ({ id: reg.id, name: reg.name, avatar: undefined, role: 'Public Registrant', status: 'going' }));
+    const external = registrations.map(reg => ({ id: reg.id, name: reg.name, avatar: undefined, role: 'Public Registrant', status: 'going' }));
     return [...internal, ...external];
   }, [event.userRsvps, members, registrations]);
 
@@ -517,14 +518,16 @@ export default function EventsPage() {
     return query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc'));
   }, [activeTeam?.id, db]);
   
-  const { data: events = [] } = useCollection<TeamEvent>(eventsQuery);
+  const { data: rawEvents } = useCollection<TeamEvent>(eventsQuery);
+  const events = rawEvents || [];
 
   const invitedTournamentsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
     return query(collectionGroup(db, 'events'), where('tournamentTeams', 'array-contains', activeTeam.name), limit(20));
   }, [activeTeam?.name, db]);
 
-  const { data: invitedTournaments = [] } = useCollection<TeamEvent>(invitedTournamentsQuery);
+  const { data: rawInvitedTournaments } = useCollection<TeamEvent>(invitedTournamentsQuery);
+  const invitedTournaments = rawInvitedTournaments || [];
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTournamentMode, setIsTournamentMode] = useState(false);
