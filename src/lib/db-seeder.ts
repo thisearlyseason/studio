@@ -10,7 +10,8 @@ import {
   where,
   deleteDoc,
   setDoc,
-  updateDoc
+  updateDoc,
+  addDoc
 } from 'firebase/firestore';
 
 /**
@@ -18,7 +19,6 @@ import {
  */
 export async function seedSubscriptionData(db: Firestore) {
   try {
-    // 1. Seed Features if missing
     const featuresSnapshot = await getDocs(collection(db, 'features'));
     if (featuresSnapshot.empty) {
       const batch = writeBatch(db);
@@ -37,11 +37,6 @@ export async function seedSubscriptionData(db: Firestore) {
         { id: 'media_uploads', description: 'Upload and share playbooks, photos, and files.', defaultEnabled: false },
         { id: 'history_unlimited', description: 'Retain full history of posts, chats, and results.', defaultEnabled: false },
         { id: 'high_priority_alerts', description: 'Broadcast urgent team-wide popups.', defaultEnabled: false },
-        { id: 'multi_team_admin_dashboard', description: 'Centralized dashboard for multi-team owners.', defaultEnabled: false },
-        { id: 'cross_team_announcements', description: 'Broadcast alerts to multiple squads at once.', defaultEnabled: false },
-        { id: 'priority_support', description: 'Direct access to support specialists.', defaultEnabled: false },
-        { id: 'early_feature_access', description: 'Access new tools before public release.', defaultEnabled: false },
-        { id: 'custom_permissions', description: 'Define custom access levels for staff.', defaultEnabled: false },
       ];
 
       defaultFeatures.forEach((f) => {
@@ -52,7 +47,6 @@ export async function seedSubscriptionData(db: Firestore) {
       await batch.commit();
     }
 
-    // 2. Authoritative Plan Catalog
     const plansSnapshot = await getDocs(collection(db, 'plans'));
     
     if (plansSnapshot.empty) {
@@ -91,21 +85,6 @@ export async function seedSubscriptionData(db: Firestore) {
           billingType: 'monthly', teamLimit: 4, features: proFeaturesMap, proTeamLimit: 4
         },
         {
-          id: 'squad_league', name: 'League Master', description: 'Full-scale coordination for 9 squads.',
-          priceDisplay: '$89.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 9, features: proFeaturesMap, proTeamLimit: 9
-        },
-        {
-          id: 'squad_division', name: 'Division Lead', description: 'Elite oversight for 12 squads.',
-          priceDisplay: '$119.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 12, features: proFeaturesMap, proTeamLimit: 12
-        },
-        {
-          id: 'squad_conference', name: 'Conference Pro', description: 'Master infrastructure for 15 teams.',
-          priceDisplay: '$149.99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 15, features: proFeaturesMap, proTeamLimit: 15
-        },
-        {
           id: 'squad_organization', name: 'Organization', description: 'Custom enterprise-grade infrastructure for large clubs.',
           priceDisplay: 'Custom', billingCycle: '', isPublic: true, isContactOnly: true,
           billingType: 'manual', teamLimit: null, features: proFeaturesMap, proTeamLimit: 15
@@ -126,6 +105,7 @@ export async function seedSubscriptionData(db: Firestore) {
 
 /**
  * Seeds realistic demo data for a team roster and sub-collections.
+ * Uses teamId to diversify mock data.
  */
 export async function seedDemoData(db: Firestore, teamId: string, planId: string, userId: string) {
   console.log(`[Seeder] Seeding unique sub-collections for team ${teamId} (${planId})`);
@@ -134,11 +114,10 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
   const isStarter = planId === 'starter_squad';
   const isPro = !isStarter;
 
-  // 1. Unique Team Identity Logic
   const teamType = teamId.includes('sub') ? 'sub' : (teamId.includes('pro') ? 'pro' : 'base');
   const teamSuffix = teamId.slice(-1);
 
-  // 2. Setup Team Roster
+  // 1. Setup Team Roster
   const count = isStarter ? 10 : 15;
   const names = [
     'Jordan Smith', 'Alex Rivera', 'Sam Taylor', 'Casey Morgan', 'Riley Jones', 
@@ -156,25 +135,25 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
     });
   }
 
-  // 3. Setup Events (Unique per team)
+  // 2. Setup Events
   const eventTitles = teamType === 'sub' 
-    ? [`U${teamSuffix} Regional Qualifier`, 'Strategy Session', 'Team Dinner']
-    : ['Championship Match', 'Practice Session', 'Recovery Day'];
+    ? [`U${teamSuffix} Regional Qualifier`, 'Tactical Review', 'Squad Lunch']
+    : ['Championship Finals', 'Intensive Training', 'Video Analysis'];
 
   eventTitles.forEach((title, i) => {
     const eid = `demo_evt_${teamId}_${i}`;
     batch.set(doc(db, 'teams', teamId, 'events', eid), {
       id: eid, teamId, title, date: new Date(now.getTime() + 86400000 * (i + 1)).toISOString(),
-      startTime: '10:00 AM', location: 'Team Grounds', description: 'Arrive 15 mins early.',
+      startTime: '10:00 AM', location: 'Team Grounds', description: 'High priority event.',
       userRsvps: { [userId]: 'going' }, isDemo: true, createdAt: now.toISOString()
     });
   });
 
-  // 4. Setup Drills (Only for Pro/Club)
+  // 3. Setup Drills
   if (isPro) {
     const drills = teamType === 'sub' && teamSuffix === '1'
-      ? [{ title: 'Fundamental Dribbling', desc: 'Control the ball with eyes up.' }, { title: 'Passing Triangle', desc: 'Short, sharp passes.' }]
-      : [{ title: 'Full Court Press', desc: 'Aggressive defensive setup.' }, { title: 'Set Piece Tactics', desc: 'Corner and free kick routines.' }];
+      ? [{ title: 'Dribbling Fundamentals', desc: 'Eyes up coordination drills.' }, { title: 'The Triangle Play', desc: 'Rapid sequence passing.' }]
+      : [{ title: 'Full Court Defensive Trap', desc: 'High energy pressure setup.' }, { title: 'Set Piece Wizardry', desc: 'Mastering set piece execution.' }];
 
     drills.forEach((d, i) => {
       const did = `demo_drill_${teamId}_${i}`;
@@ -185,34 +164,34 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
     });
   }
 
-  // 5. Setup Games (Unique results per team)
+  // 4. Setup Games
   if (isPro) {
     const games = [
-      { opponent: 'North City', result: 'Win', myScore: 3, opponentScore: 1 },
-      { opponent: 'Valley United', result: 'Loss', myScore: 0, opponentScore: 2 }
+      { opponent: 'Wildcats', result: 'Win', myScore: 4, opponentScore: 2 },
+      { opponent: 'Storm', result: 'Loss', myScore: 1, opponentScore: 3 }
     ];
     games.forEach((g, i) => {
       const gid = `demo_game_${teamId}_${i}`;
       batch.set(doc(db, 'teams', teamId, 'games', gid), {
         ...g, id: gid, teamId, date: new Date(now.getTime() - 86400000 * (i + 2)).toISOString(),
-        location: 'Neutral Venue', notes: 'Solid performance.', isDemo: true, createdAt: now.toISOString()
+        location: 'Arena Central', notes: 'Elite execution.', isDemo: true, createdAt: now.toISOString()
       });
     });
   }
 
-  // 6. Setup Chat & Messages
+  // 5. Setup Chat & Messages
   if (isPro) {
     const cid = `demo_chat_${teamId}`;
-    const chatName = teamType === 'sub' ? `Team ${teamSuffix} Strategy` : 'Main Tactical Hub';
+    const chatName = teamType === 'sub' ? `Academy Team ${teamSuffix}` : 'Tactical Command';
     batch.set(doc(db, 'teams', teamId, 'groupChats', cid), {
       id: cid, teamId, name: chatName, memberIds: [userId], createdBy: userId, 
-      createdAt: now.toISOString(), lastMessage: 'See you at the match!', unread: 0, isDemo: true
+      createdAt: now.toISOString(), lastMessage: 'Review the plays.', unread: 0, isDemo: true
     });
 
     const messages = [
-      { content: 'Welcome to the tactical channel.', author: 'Guest Coordinator' },
-      { content: 'Check out the new drills in the library.', author: 'Guest Coordinator' },
-      { content: 'See you at the match!', author: 'Guest Coordinator' }
+      { content: `Initializing ${chatName} channel.`, author: 'System' },
+      { content: 'New drill added to the library.', author: 'Guest Coordinator' },
+      { content: 'Strategy for the weekend is now live.', author: 'Guest Coordinator' }
     ];
 
     messages.forEach((m, i) => {
@@ -230,17 +209,15 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
  * Creates a fresh demo team for a guest user session.
  */
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
-  console.log(`[Seeder] Creating unique guest demo session for user ${userId} (${planId})`);
   const timestamp = Date.now();
   const teamId = `demo_guest_${userId.slice(-4)}_${timestamp}`;
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
-                   planId === 'squad_pro' ? 'Guest Pro Varsity' : 'City Central Academy (Club)';
+                   planId === 'squad_pro' ? 'Guest Pro Elite' : 'Metro Academy Hub';
   
   const code = teamId.slice(-6).toUpperCase();
   const isPro = planId !== 'starter_squad';
   const batch = writeBatch(db);
   
-  // 1. User Profile
   batch.set(doc(db, 'users', userId), {
     id: userId, fullName: 'Guest Coordinator', email: 'guest@thesquad.io',
     notificationsEnabled: true, createdAt: new Date().toISOString(),
@@ -249,12 +226,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     planSource: 'free'
   }, { merge: true });
 
-  // 2. Parent Team
   batch.set(doc(db, 'teams', teamId), {
     id: teamId, teamName, teamCode: code, createdBy: userId, ownerUserId: userId,
     createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
     isPro, planId, sport: 'Multi-Sport', isDemo: true,
-    description: planId === 'squad_organization' ? 'Elite multi-team organization.' : 'Dynamic coordination for elite squads.'
+    description: planId === 'squad_organization' ? 'Enterprise organization management.' : 'Professional coordination suite.'
   });
   
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
@@ -265,23 +241,22 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   batch.set(doc(db, 'teams', teamId, 'members', userId), {
     id: userId, userId, teamId, name: 'Guest Coordinator', role: 'Admin',
-    position: planId === 'squad_organization' ? 'Club Manager' : 'Coach', jersey: 'Staff',
+    position: planId === 'squad_organization' ? 'Club Manager' : 'Coach', jersey: 'HQ',
     avatar: `https://picsum.photos/seed/${userId}/150/150`, joinedAt: new Date().toISOString(),
-    phone: '(555) 000-1234', amountOwed: 0, feesPaid: true, isDemo: true
+    phone: '(555) 000-9999', amountOwed: 0, feesPaid: true, isDemo: true
   });
 
-  // 3. Unique Sub-teams for Club Plan
   if (planId === 'squad_organization') {
     const subTeams = [
-      { id: `demo_sub_${userId.slice(-4)}_1`, name: 'U14 Development Squad' },
-      { id: `demo_sub_${userId.slice(-4)}_2`, name: 'U16 Regional Elite' }
+      { id: `demo_sub_${userId.slice(-4)}_1`, name: 'Elite Development U14' },
+      { id: `demo_sub_${userId.slice(-4)}_2`, name: 'Varsity Regional U16' }
     ];
 
     for (const sub of subTeams) {
       batch.set(doc(db, 'teams', sub.id), {
         id: sub.id, teamName: sub.name, teamCode: sub.id.slice(-6).toUpperCase(), createdBy: userId, ownerUserId: userId,
         createdAt: new Date().toISOString(), members: { [userId]: 'Admin' },
-        isPro: true, planId: 'squad_organization', isDemo: true, sport: 'Academy'
+        isPro: true, planId: 'squad_organization', isDemo: true, sport: 'Club'
       });
       batch.set(doc(db, 'users', userId, 'teamMemberships', sub.id), {
         userId, teamId: sub.id, teamName: sub.name, role: 'Admin', isPro: true, 
@@ -298,7 +273,6 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   
   await batch.commit();
   
-  // Seed content sequentially to ensure unique IDs and avoid write conflicts
   await seedDemoData(db, teamId, planId, userId);
   if (planId === 'squad_organization') {
     await seedDemoData(db, `demo_sub_${userId.slice(-4)}_1`, 'squad_organization', userId);
@@ -309,7 +283,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 }
 
 /**
- * Resiliently resets a demo environment.
+ * Atomic reset for demo environments.
  */
 export async function resetDemoEnvironment(db: Firestore, teamId: string, planId: string, userId: string) {
   try {
@@ -352,13 +326,13 @@ export async function resetDemoEnvironment(db: Firestore, teamId: string, planId
       await seedDemoData(db, tid, planId, userId);
     }
   } catch (error) {
-    console.error("Atomic Demo Reset Failed:", error);
+    console.error("Demo reset error:", error);
     throw error;
   }
 }
 
 /**
- * Launches global demo environments.
+ * Initializes global baseline demo environments.
  */
 export async function launchDemoEnvironments(db: Firestore, superAdminId: string) {
   const demoTeams = [

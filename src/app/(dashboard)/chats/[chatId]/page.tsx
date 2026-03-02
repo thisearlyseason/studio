@@ -61,7 +61,6 @@ export default function ChatRoomPage() {
   const optionImageInputRef = useRef<HTMLInputElement>(null);
   const activeOptionIdxRef = useRef<number | null>(null);
 
-  // Memoized Chat Metadata Ref
   const chatDocRef = useMemoFirebase(() => {
     if (!activeTeam || !db || !chatId) return null;
     return doc(db, 'teams', activeTeam.id, 'groupChats', chatId as string);
@@ -69,7 +68,6 @@ export default function ChatRoomPage() {
 
   const { data: currentChat, isLoading: isChatLoading } = useDoc(chatDocRef);
 
-  // Memoized Messages Query - Ordered by date to ensure fast loading and correct sequence
   const messagesQuery = useMemoFirebase(() => {
     if (!activeTeam || !db || !chatId) return null;
     return query(
@@ -81,7 +79,6 @@ export default function ChatRoomPage() {
 
   const { data: messages = [], isLoading: isMessagesLoading } = useCollection<Message>(messagesQuery);
 
-  // Auto-scroll to bottom on new messages or initial load
   useEffect(() => {
     if (scrollRef.current) {
       const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -164,68 +161,75 @@ export default function ChatRoomPage() {
         <div className="p-4 space-y-6 pb-10">
           {isMessagesLoading ? (
             <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-20" /></div>
-          ) : messages.length > 0 ? messages.map((msg) => {
-            const isMe = msg.authorId === user?.id;
-            const isPoll = (msg.type === 'poll' || !!msg.poll) && msg.poll;
-            const hasOptionImages = isPoll && msg.poll?.options.some(o => o.imageUrl);
+          ) : (
+            <>
+              {messages.length > 0 ? (
+                messages.map((msg) => {
+                  const isMe = msg.authorId === user?.id;
+                  const isPoll = (msg.type === 'poll' || !!msg.poll) && msg.poll;
+                  const hasOptionImages = isPoll && msg.poll?.options.some(o => o.imageUrl);
 
-            return (
-              <div key={msg.id} className={cn("flex flex-col gap-1.5", isMe ? 'items-end' : 'items-start')}>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[8px] lg:text-[9px] font-black uppercase text-muted-foreground tracking-widest truncate max-w-[100px]">{msg.author}</span>
-                  <span className="text-[8px] lg:text-[9px] text-muted-foreground/50 font-bold whitespace-nowrap">{formatTime(msg.createdAt)}</span>
-                </div>
-                {!isPoll ? (
-                  <div className={cn("max-w-[85%] sm:max-w-[70%] p-3 lg:p-3.5 rounded-2xl text-xs lg:text-sm shadow-sm space-y-2 break-words", isMe ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
-                    {msg.imageUrl && (
-                      <div className="rounded-xl overflow-hidden border-2 border-white/20 shadow-lg mb-2">
-                        <img src={msg.imageUrl} alt="Chat attachment" className="w-full h-auto max-h-[250px] lg:max-h-[300px] object-cover" />
+                  return (
+                    <div key={msg.id} className={cn("flex flex-col gap-1.5", isMe ? 'items-end' : 'items-start')}>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[8px] lg:text-[9px] font-black uppercase text-muted-foreground tracking-widest truncate max-w-[100px]">{msg.author}</span>
+                        <span className="text-[8px] lg:text-[9px] text-muted-foreground/50 font-bold whitespace-nowrap">{formatTime(msg.createdAt)}</span>
                       </div>
-                    )}
-                    {msg.content && <p className="font-medium leading-relaxed">{msg.content}</p>}
-                  </div>
-                ) : (
-                  <div className="w-full max-w-[95%] sm:max-w-[80%] bg-card border rounded-2xl lg:rounded-[2rem] overflow-hidden shadow-md">
-                    <div className="bg-primary/5 p-4 lg:p-5 border-b">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[8px] lg:text-[9px] font-black text-primary uppercase tracking-widest">Squad Poll</span>
-                        <BarChart2 className="h-3.5 w-3.5 text-primary opacity-50" />
-                      </div>
-                      <h4 className="font-black text-sm lg:text-lg leading-tight tracking-tight">{msg.poll?.question}</h4>
-                    </div>
-                    <div className={cn("p-4 lg:p-5", hasOptionImages ? "grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4" : "space-y-3 lg:space-y-4")}>
-                      {msg.poll?.options.map((opt, i) => {
-                        const hasVoted = msg.poll?.voters?.[user?.id || ''] === i;
-                        const percentage = msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0;
-                        return (
-                          <div key={i} className={cn("relative group", hasOptionImages ? "bg-muted/20 rounded-2xl lg:rounded-3xl overflow-hidden flex flex-col border hover:border-primary/20 transition-all" : "")}>
-                            {hasOptionImages && (
-                              <div className="relative aspect-video overflow-hidden cursor-zoom-in" onClick={() => opt.imageUrl && setLightboxImage(opt.imageUrl)}>
-                                {opt.imageUrl ? <img src={opt.imageUrl} className="w-full h-full object-cover" alt={opt.text} /> : <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-5 w-5 text-muted-foreground/20" /></div>}
-                              </div>
-                            )}
-                            <div className={cn("p-2 lg:p-3 space-y-2 lg:space-y-3", !hasOptionImages && "w-full")}>
-                              <button onClick={() => votePoll(chatId as string, msg.id, i)} className={cn("w-full text-left relative transition-all p-1", hasVoted ? "ring-2 ring-primary ring-offset-1 rounded-xl" : "hover:bg-muted/50 rounded-xl")}>
-                                <div className="flex justify-between text-[8px] lg:text-[10px] font-black uppercase tracking-widest mb-1.5 px-1">
-                                  <span className="flex items-center gap-1.5 truncate max-w-[120px]">{opt.text}{hasVoted && <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse shrink-0" />}</span>
-                                  <span className="text-primary shrink-0">{opt.votes}</span>
-                                </div>
-                                <div className="relative"><Progress value={percentage} className="h-2 lg:h-2.5 rounded-full" /></div>
-                              </button>
+                      {!isPoll ? (
+                        <div className={cn("max-w-[85%] sm:max-w-[70%] p-3 lg:p-3.5 rounded-2xl text-xs lg:text-sm shadow-sm space-y-2 break-words", isMe ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
+                          {msg.imageUrl && (
+                            <div className="rounded-xl overflow-hidden border-2 border-white/20 shadow-lg mb-2">
+                              <img src={msg.imageUrl} alt="Chat attachment" className="w-full h-auto max-h-[250px] lg:max-h-[300px] object-cover" />
                             </div>
+                          )}
+                          {msg.content && <p className="font-medium leading-relaxed">{msg.content}</p>}
+                        </div>
+                      ) : (
+                        <div className="w-full max-w-[95%] sm:max-w-[80%] bg-card border rounded-2xl lg:rounded-[2rem] overflow-hidden shadow-md">
+                          <div className="bg-primary/5 p-4 lg:p-5 border-b">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[8px] lg:text-[9px] font-black text-primary uppercase tracking-widest">Squad Poll</span>
+                              <BarChart2 className="h-3.5 w-3.5 text-primary opacity-50" />
+                            </div>
+                            <h4 className="font-black text-sm lg:text-lg leading-tight tracking-tight">{msg.poll?.question}</h4>
                           </div>
-                        );
-                      })}
+                          <div className={cn("p-4 lg:p-5", hasOptionImages ? "grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4" : "space-y-3 lg:space-y-4")}>
+                            {msg.poll?.options.map((opt, i) => {
+                              const hasVoted = msg.poll?.voters?.[user?.id || ''] === i;
+                              const percentage = msg.poll!.totalVotes > 0 ? (opt.votes / msg.poll!.totalVotes) * 100 : 0;
+                              return (
+                                <div key={i} className={cn("relative group", hasOptionImages ? "bg-muted/20 rounded-2xl lg:rounded-3xl overflow-hidden flex flex-col border hover:border-primary/20 transition-all" : "")}>
+                                  {hasOptionImages && (
+                                    <div className="relative aspect-video overflow-hidden cursor-zoom-in" onClick={() => opt.imageUrl && setLightboxImage(opt.imageUrl)}>
+                                      {opt.imageUrl ? <img src={opt.imageUrl} className="w-full h-full object-cover" alt={opt.text} /> : <div className="w-full h-full bg-muted flex items-center justify-center"><ImageIcon className="h-5 w-5 text-muted-foreground/20" /></div>}
+                                    </div>
+                                  )}
+                                  <div className={cn("p-2 lg:p-3 space-y-2 lg:space-y-3", !hasOptionImages && "w-full")}>
+                                    <button onClick={() => votePoll(chatId as string, msg.id, i)} className={cn("w-full text-left relative transition-all p-1", hasVoted ? "ring-2 ring-primary ring-offset-1 rounded-xl" : "hover:bg-muted/50 rounded-xl")}>
+                                      <div className="flex justify-between text-[8px] lg:text-[10px] font-black uppercase tracking-widest mb-1.5 px-1">
+                                        <span className="flex items-center gap-1.5 truncate max-w-[120px]">{opt.text}{hasVoted && <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse shrink-0" />}</span>
+                                        <span className="text-primary shrink-0">{opt.votes}</span>
+                                      </div>
+                                      <div className="relative"><Progress value={percentage} className="h-2 lg:h-2.5 rounded-full" /></div>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-30">
-                <div className="bg-muted p-6 rounded-full"><Users className="h-8 w-8" /></div>
-                <p className="text-xs font-black uppercase tracking-widest">No messages yet. Start the coordination.</p>
-              </div>
-            )}
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-30">
+                  <div className="bg-muted p-6 rounded-full"><Users className="h-8 w-8" /></div>
+                  <p className="text-xs font-black uppercase tracking-widest">No messages yet. Start the coordination.</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </ScrollArea>
 
