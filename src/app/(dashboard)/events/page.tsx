@@ -514,8 +514,19 @@ export default function EventsPage() {
   };
 
   const addTournamentTeam = () => {
-    if (!newTeamName.trim()) return;
-    setTournamentTeams([...tournamentTeams, newTeamName]);
+    const trimmedName = newTeamName.trim();
+    if (!trimmedName) return;
+    
+    if (tournamentTeams.includes(trimmedName)) {
+      toast({ 
+        title: "Duplicate Team", 
+        description: `${trimmedName} is already added to the tournament.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setTournamentTeams([...tournamentTeams, trimmedName]);
     setNewTeamName('');
   };
 
@@ -605,7 +616,7 @@ export default function EventsPage() {
                     {isTournamentMode ? (
                       <div className="space-y-1.5">
                         <Label className="text-[10px] font-black uppercase tracking-widest ml-1">End Date</Label>
-                        <Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 rounded-xl font-black border-2" />
+                        <Input type="date" value={newDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 rounded-xl font-black border-2" />
                       </div>
                     ) : (
                       <div className="space-y-1.5">
@@ -636,7 +647,7 @@ export default function EventsPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         {tournamentTeams.map((t, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border">
+                          <div key={`${t}-${i}`} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border">
                             <span className="font-black text-xs uppercase truncate pr-2">{t}</span>
                             <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setTournamentTeams(tournamentTeams.filter((_, idx) => idx !== i))}><X className="h-3.5 w-3.5" /></Button>
                           </div>
@@ -656,7 +667,7 @@ export default function EventsPage() {
                               <div className="flex justify-between items-center gap-4">
                                 <Select value={game.team1} onValueChange={(v) => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, team1: v} : g))}>
                                   <SelectTrigger className="h-10 rounded-xl font-bold"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{tournamentTeams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                  <SelectContent>{tournamentTeams.map((t, idx) => <SelectItem key={`${t}-${idx}-1`} value={t}>{t}</SelectItem>)}</SelectContent>
                                 </Select>
                                 <div className="flex items-center gap-2">
                                   <Input type="number" value={game.score1} onChange={e => updateGameScore(game.id, 1, e.target.value)} className="w-16 h-10 text-center font-black" />
@@ -665,7 +676,7 @@ export default function EventsPage() {
                                 </div>
                                 <Select value={game.team2} onValueChange={(v) => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, team2: v} : g))}>
                                   <SelectTrigger className="h-10 rounded-xl font-bold"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{tournamentTeams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                  <SelectContent>{tournamentTeams.map((t, idx) => <SelectItem key={`${t}-${idx}-2`} value={t}>{t}</SelectItem>)}</SelectContent>
                                 </Select>
                               </div>
                               <div className="flex justify-between items-center border-t border-muted pt-3">
