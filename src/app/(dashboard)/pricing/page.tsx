@@ -162,7 +162,7 @@ export default function PricingPage() {
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Basic Schedule</li>
                 <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Basic Roster</li>
-                <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Squad Feed Read</li>
+                <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Tactical Chats</li>
               </ul>
             </div>
           </CardContent>
@@ -231,11 +231,11 @@ export default function PricingPage() {
               )}
             </div>
             
-            <CardTitle className="text-5xl font-black uppercase tracking-tight leading-none">CLUB<br className="hidden md:block" /> SUITE</CardTitle>
+            <CardTitle className="text-5xl font-black uppercase tracking-tight leading-none text-primary">CLUB<br className="hidden md:block" /> SUITE</CardTitle>
             
             <div className="space-y-1">
-              <p className="text-[13px] font-black uppercase tracking-tight text-primary leading-tight">
-                INCLUDES ALL SQUAD PRO FEATURES + HUB MANAGEMENT
+              <p className="text-[11px] font-black uppercase tracking-tight text-black leading-tight">
+                INCLUDES ALL SQUAD PRO FEATURES + CLUB HUB MANAGEMENT
               </p>
             </div>
           </CardHeader>
@@ -271,23 +271,20 @@ export default function PricingPage() {
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{cp.proTeamLimit} Teams</p>
                         </div>
                         
-                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-muted/50">
-                          <div className="flex flex-col">
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-2xl font-black text-primary leading-none">{priceLabel}</span>
-                              <span className="text-[9px] font-bold uppercase text-muted-foreground">{cycleLabel}</span>
-                            </div>
+                        <div className="flex flex-col gap-3 mt-auto pt-4 border-t border-muted/50">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-primary leading-none">{priceLabel}</span>
+                            <span className="text-[9px] font-bold uppercase text-muted-foreground">{cycleLabel}</span>
                           </div>
                           <Button 
-                            size="sm" 
                             className={cn(
-                              "h-10 px-8 rounded-full font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all",
+                              "w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg",
                               isCurrentSub ? "bg-muted text-muted-foreground" : "bg-black text-white hover:bg-black/80 shadow-black/20"
                             )}
                             onClick={cp.isContactOnly ? () => setIsContactOpen(true) : purchasePro}
                             disabled={isCurrentSub}
                           >
-                            {isCurrentSub ? "Active" : cp.isContactOnly ? "Quote" : "Select"}
+                            {isCurrentSub ? "Active" : cp.isContactOnly ? "Quote" : "Select Tier"}
                           </Button>
                         </div>
                       </div>
