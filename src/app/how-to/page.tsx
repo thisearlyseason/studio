@@ -25,7 +25,17 @@ import {
   BarChart2,
   ExternalLink,
   Signature,
-  Download
+  Download,
+  Settings,
+  Bell,
+  Camera,
+  Share2,
+  History,
+  AlertTriangle,
+  HeartPulse,
+  ShieldCheck,
+  MousePointer2,
+  Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -41,194 +51,201 @@ export default function HowToGuidePage() {
 
   const featureSections = [
     {
-      title: "The Squad Feed",
+      title: "1. The Live Squad Feed",
       icon: LayoutDashboard,
-      description: "High-priority broadcast hub for your entire team.",
-      tier: "Starter / Pro",
+      description: "The primary broadcast hub for daily squad coordination and engagement.",
       manual: [
         {
-          step: "Stay Informed",
-          details: "Check the top of the feed for 'Pinned Alerts' from coaches. These are high-priority notifications that stay visible until understood."
+          step: "Posting Updates",
+          details: "Navigate to 'Feed'. Tap the 'What's the play?' input box. Type your message and tap 'Post to Squad'. Pro members can attach high-resolution photos using the image icon."
         },
         {
-          step: "Create a Post",
-          details: "Tap the input box to write an update. Use the icons to add a photo or launch a poll. (Pro feature for members, free for admins)."
+          step: "Advanced Squad Polls",
+          details: "Tap the bar chart icon. Enter a question and at least 2 options. Pro users can tap the 'Image' icon next to any option to attach a visual aid (e.g., play diagrams or jersey designs)."
         },
         {
-          step: "Launch a Poll",
-          details: "Ask questions like 'Training at 5 or 6?'. Add up to 6 options and even attach photos to options for visual voting."
+          step: "Pinned Alerts",
+          details: "Coaches can create high-priority broadcast alerts (via the megaphone icon in the top header). These alerts appear as un-missable popups for every member until acknowledged."
         },
         {
-          step: "Engagement",
-          details: "Tap 'Like' or the 'Discussion' icon to comment on posts. This is the primary place for public squad motivation."
+          step: "Engaging & Discussing",
+          details: "Tap the 'Heart' to like a post. Tap 'Discussion' to open the comment thread. Comments are real-time and provide a public space for team motivation."
+        },
+        {
+          step: "Updating Team Hero",
+          details: "Admins can tap 'Change Cover' on the main feed banner. Upload a high-resolution team photo to set the tactical mood for the entire squad's dashboard."
         }
       ]
     },
     {
-      title: "Schedule & Itinerary",
+      title: "2. Schedule & Match Day",
       icon: CalendarDays,
-      description: "Match day logistics and attendance tracking.",
-      tier: "Starter / Elite",
+      description: "Managing logistics, itinerary, and real-time attendance.",
       manual: [
         {
-          step: "Create an Event",
-          details: "Tap '+ Match' for a standard team outing. Enter the date, location, and a description. All members are notified instantly."
+          step: "Scheduling a Standard Match",
+          details: "Tap '+ Match'. Enter the opponent, date, time, and location. This creates a dedicated 'Match Hub' where members can RSVP and view directions."
         },
         {
-          step: "Deploy a Tournament",
-          details: "Select '+ Tournament'. You can manage multi-day brackets, list participating teams, and track match scores across several dates."
+          step: "Deploying a Tournament",
+          details: "Tap '+ Tournament'. Unlike matches, tournaments can span multiple days. Enter start and end dates, list all participating teams, and set up your initial matches in the 'Matchups' tab."
         },
         {
-          step: "Elite Hub (Add-on)",
-          details: "Buy a 'Tournament Credit' ($50) to launch an Elite Hub. This generates a public URL for parents and scouts to view live scores and brackets."
+          step: "Elite Tournament Hubs ($50)",
+          details: "Purchase a Tournament Credit in the 'Pricing' tab. Use it to 'Publish Elite Hub'. This generates a public Spectator URL. Anyone with this link (parents, scouts) can view live brackets and scores without logging in."
         },
         {
-          step: "RSVP Protocol",
-          details: "Members tap 'Going', 'Maybe', or 'Decline'. Coaches see a real-time count and detailed roster list for every event."
+          step: "Attendance Protocol",
+          details: "Members see a persistent attendance bar at the bottom of event hubs. Tap 'Going', 'Maybe', or 'Decline'. Coaches can view the 'Squad Roster' tab to see a verified list of who is attending in real-time."
+        },
+        {
+          step: "Team Enrollment Ledger",
+          details: "In Elite Tournaments, coaches can track which participating teams have signed their entry waivers. Check the 'Compliance Audit' tab to see a verified ledger of participating squad signatures."
         }
       ]
     },
     {
-      title: "Leagues & Cross-Team",
+      title: "3. Leagues & Cross-Team Control",
       icon: Shield,
-      description: "Global standings and inter-squad coordination.",
-      tier: "Pro / Club",
+      description: "Inter-squad coordination and regional standings.",
       manual: [
         {
-          step: "Start a League",
-          details: "If you are a league organizer, tap 'Start New League'. You become the commissioner of this competitive hub."
+          step: "Establishing a League",
+          details: "Tap 'Start New League'. You become the League Commissioner. Give it a professional name (e.g., 'Metro Varsity Premier')."
         },
         {
-          step: "Invite Opponents",
-          details: "Enter the email of an opposing coach. When they accept, their verified squad data and rosters link to your standings."
+          step: "Digital Coach Invites",
+          details: "Tap 'Invite Team'. Enter the email of an opposing coach. When they accept, their squad's logo and stats are automatically linked to your league leaderboard."
         },
         {
-          step: "Manual Enrollment",
-          details: "No account for an opponent? Add them manually! You can still track their scores and keep the standings updated."
+          step: "Manual Score Entry",
+          details: "If an opponent isn't on the platform, use 'Manual Entry'. You can still add their name and logo, and manually update their wins/losses to maintain accurate standings."
         },
         {
-          step: "Tactical Channels",
-          details: "Tap the coach's name in the directory to message them. Perfect for coordinate logistics like field changes or jersey colors."
+          step: "Tactical Messaging",
+          details: "Tap any team in the league directory to 'Message Opponent'. This creates a private cross-team chat channel between you and their coaching staff for field changes or color coordination."
         }
       ]
     },
     {
-      title: "Games & Stats",
+      title: "4. Games & Season Analytics",
       icon: Trophy,
-      description: "Documenting your season results and trajectory.",
-      tier: "Starter / Pro",
+      description: "Documenting results and visualizing squad trajectory.",
       manual: [
         {
-          step: "Record a Match",
-          details: "After a game, tap 'Record Match'. Enter the final score and result (Win, Loss, or Tie)."
+          step: "Recording Results",
+          details: "After a game, navigate to 'Games' and tap 'Record Match'. Enter the score and the platform will automatically determine the Result (Win/Loss/Tie)."
         },
         {
-          step: "Add Highlights",
-          details: "Use the notes section to record key plays or tactical adjustments. (Pro features allow detailed highlights)."
+          step: "Tactical Highlights",
+          details: "In the record form, use the 'Highlights' box to log key plays, MVP performances, or adjustments needed for the next match. Pro users get unlimited historical storage for these notes."
         },
         {
-          step: "Momentum Charts",
-          details: "Visit this tab to see your 'Season Trajectory' chart. It visualizes your scoring trends vs. your opponents."
+          step: "Season Trajectory Charts",
+          details: "The Games dashboard features a visual chart. The solid line tracks your scoring trends, while the dashed line represents your opponents. Use this to identify momentum shifts across the season."
         },
         {
-          step: "Export Data",
-          details: "Tap the 'Export' button to download a CSV of your entire season history for league reporting."
+          step: "Exporting Match Ledger",
+          details: "Tap 'Export' to download a professional CSV file. This is useful for submitting season reports to sanctioning bodies or high school athletic departments."
         }
       ]
     },
     {
-      title: "Training Vault (Drills)",
+      title: "5. Training Vault (Drills)",
       icon: Dumbbell,
-      description: "Your team's private playbook and tactical resource.",
-      tier: "Pro",
+      description: "Private playbook and video lesson repository.",
       manual: [
         {
-          step: "Add a Drill",
-          details: "Tap 'Add Drill'. Enter a title and paste a YouTube URL to embed a video for the squad to study."
+          step: "Adding a Video Lesson",
+          details: "Tap 'Add Drill'. Enter a title and paste a YouTube URL. The platform will automatically embed the video into a distraction-free 'Theater Mode' for the squad."
         },
         {
-          step: "Visual Aids",
-          details: "Upload an image of a diagram or a whiteboard play. Members can toggle between the video and the image view."
+          step: "Uploading Visual Aids",
+          details: "Upload a 'Visual Aid' image (like a play diagram or whiteboard photo). Members can toggle between the video view and the image view during study sessions."
         },
         {
-          step: "Instructions",
-          details: "Provide step-by-step guidance in the text box. This creates a standardized reference for everyone."
-        },
-        {
-          step: "Study Mode",
-          details: "Members can tap any drill card to open a full-screen theater mode for focused learning."
+          step: "Step-by-Step Instructions",
+          details: "Provide detailed text instructions in the description box. This creates a 'Digital Playbook' that ensures every member understands the coordination required."
         }
       ]
     },
     {
-      title: "Tactical Chats",
+      title: "6. Tactical Chats",
       icon: MessageCircle,
-      description: "Private, role-based discussion threads.",
-      tier: "Pro",
+      description: "Secure, role-based private messaging.",
       manual: [
         {
-          step: "Launch a Thread",
-          details: "Tap '+ New Chat'. Give it a specific name like 'Travel Plans' or 'Defensive Strategy'."
+          step: "Thread Creation",
+          details: "Tap '+ New Chat'. Name it specifically (e.g., 'Offensive Unit' or 'Travel Logistics')."
         },
         {
-          step: "Select Members",
-          details: "Only people you select will be added to the thread. This is ideal for keeping parents or specific units separate."
+          step: "Member Selection",
+          details: "Choose specific teammates or parents to add. This keeps tactical discussions private from the rest of the squad and minimizes notification noise."
         },
         {
-          step: "Share Media",
-          details: "Send photos of field maps or logistics documents directly into the chat for quick reference."
-        },
-        {
-          step: "Consensus Polls",
-          details: "Need a quick decision? Tap the bar chart icon in chat to launch a mini-poll for the participants."
+          step: "Media & Strategy Polls",
+          details: "Use the image icon to send maps or field diagrams. Use the poll icon to get instant consensus on logistics like 'Arrival time at gate?'."
         }
       ]
     },
     {
-      title: "Roster Logic",
+      title: "7. Roster & Financials",
       icon: Users2,
-      description: "Coordinating member details and authority.",
-      tier: "Starter / Pro",
+      description: "Managing authority, recruitments, and dues.",
       manual: [
         {
-          step: "Invite Members",
-          details: "Tap 'Invite'. Copy your unique 6-character 'Team Code' and text it to your players or parents."
+          step: "Recruiting with Team Codes",
+          details: "Tap 'Invite'. Copy your unique 6-character 'Squad Code'. Send this to new players or parents. When they sign up and enter the code, they are instantly verified."
         },
         {
-          step: "Manage Roles",
-          details: "Tap a member's card to change their position or authority level (e.g., promote a player to 'Assistant Coach')."
+          step: "Authority & Roles",
+          details: "Tap a member's card to change their 'Position' (e.g., Player to Assistant Coach). Positions like 'Coach' or 'Lead' automatically grant Administrative permissions."
         },
         {
-          step: "Track Payments",
-          details: "Tap 'Add Fee' on a member's profile to log dues. You can track individual balances and mark them as paid."
+          step: "Tracking Fees & Dues",
+          details: "Tap 'Add Fee' on a member's profile. Enter the amount and title. You can track individual balances and mark them as 'Paid' to maintain a professional fiscal ledger."
         },
         {
           step: "Compliance Audit",
-          details: "Monitor if members have signed their waivers or provided medical clearance via the status icons."
+          details: "Monitor the 'Compliance Status' icons. These indicate if a member has completed their general waivers, medical clearances, and media releases."
         }
       ]
     },
     {
-      title: "Team Library",
+      title: "8. Team Library",
       icon: FolderClosed,
-      description: "Secure storage for squad-wide documentation.",
-      tier: "Pro",
+      description: "Secure squad-wide storage for documents and resources.",
       manual: [
         {
-          step: "Upload Files",
-          details: "Upload PDFs, JPGs, or other documents. These are siloed and only visible to your specific squad."
+          step: "Resource Uploads",
+          details: "Upload PDFs, JPGs, or Word docs. These are strictly siloed to your squad. Select an 'Acknowledgment Type' if you need every member to digitally sign the file."
         },
         {
-          step: "Acknowledgment Categories",
-          details: "When uploading, select a 'Compliance Type' like 'General Waiver' if you need members to digitally sign it."
+          step: "Tactical External Links",
+          details: "Tap 'Add Link'. Enter a URL for external resources like Hudl game tape, hotel reservation pages, or league rulebooks. These appear as unified cards in the library."
         },
         {
-          step: "Tactical Links",
-          details: "Add external URLs for things like Hudl, team websites, or hotel booking pages."
+          step: "Digital Acknowledgment Audit",
+          details: "For documents requiring signatures, Admins can tap 'View Audit' to see a timestamped list of every member who has agreed or declined the resource."
+        }
+      ]
+    },
+    {
+      title: "9. Institutional Management (Clubs)",
+      icon: Building,
+      description: "Scaling coordination for multi-team organizations.",
+      manual: [
+        {
+          step: "Multi-Team Dashboard",
+          details: "If you are on a 'Club Duo' or higher plan, you get access to the 'Club Hub'. This shows an overview of every squad you manage under one organization."
         },
         {
-          step: "Digital Signatures",
-          details: "Members tap 'Agree' on compliance files. Admins can view a full audit log of who has agreed."
+          step: "Quota Seat Assignment",
+          details: "When you upgrade a plan (e.g., from 4 to 9 teams), you must navigate to the 'Pricing' page or use the 'Quota Overlay' to select which squads get the 'Pro' seats."
+        },
+        {
+          step: "Staff Hierarchy",
+          details: "As a Club Manager, coaches you add to your teams will inherit Pro features for their specific squad, but you retain master administrative control over the organization."
         }
       ]
     }
@@ -256,44 +273,50 @@ export default function HowToGuidePage() {
       <main className="container mx-auto px-6 py-12 max-w-5xl space-y-24">
         <section className="text-center space-y-6">
           <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] px-4 h-7">Master Coordination</Badge>
-          <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-none uppercase">The Squad <span className="text-primary italic">Manual.</span></h1>
+          <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-none uppercase">The Tactical <span className="text-primary italic">Manual.</span></h1>
           <p className="text-xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">
-            A comprehensive, step-by-step guide to every tactical module. Learn to coordinate your team like a pro.
+            The complete source of truth for every module. From grassroots logistics to elite institutional scaling.
           </p>
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          {featureSections.map((feature, i) => (
-            <Card key={i} className="rounded-[3rem] border-none shadow-2xl overflow-hidden group hover:ring-4 ring-primary/10 transition-all flex flex-col">
-              <CardHeader className="bg-muted/30 border-b p-10">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-white p-4 rounded-2xl shadow-sm text-primary group-hover:scale-110 transition-transform">
-                    <feature.icon className="h-8 w-8" />
-                  </div>
-                  <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 text-primary px-3 h-6">{feature.tier}</Badge>
-                </div>
-                <CardTitle className="text-3xl font-black uppercase tracking-tight">{feature.title}</CardTitle>
-                <CardDescription className="font-bold text-muted-foreground uppercase text-[11px] tracking-[0.2em]">{feature.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-10 space-y-8 flex-1">
-                <div className="space-y-6">
-                  {feature.manual.map((m, idx) => (
-                    <div key={idx} className="space-y-2 group/step">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary text-white h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black shadow-lg shadow-primary/20">
-                          {idx + 1}
-                        </div>
-                        <h4 className="font-black text-xs uppercase tracking-wider">{m.step}</h4>
-                      </div>
-                      <p className="text-sm font-medium leading-relaxed text-muted-foreground pl-9">
-                        {m.details}
-                      </p>
+        <section className="space-y-12">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-black uppercase tracking-tight">Mastering the Modules</h2>
+            <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Detailed step-by-step guides</p>
+          </div>
+
+          <Accordion type="single" collapsible className="w-full space-y-6">
+            {featureSections.map((section, i) => (
+              <AccordionItem key={i} value={`section-${i}`} className="bg-white border-none shadow-2xl rounded-[2.5rem] px-8 lg:px-12 overflow-hidden ring-1 ring-black/5 hover:ring-primary/20 transition-all">
+                <AccordionTrigger className="hover:no-underline py-10 group">
+                  <div className="flex items-center gap-6 text-left">
+                    <div className="bg-muted p-4 rounded-2xl text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                      <section.icon className="h-8 w-8" />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <div>
+                      <h3 className="text-2xl font-black uppercase tracking-tight">{section.title}</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{section.description}</p>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2 pb-12">
+                  <div className="grid grid-cols-1 gap-8 max-w-3xl ml-4 lg:ml-16">
+                    {section.manual.map((m, idx) => (
+                      <div key={idx} className="space-y-3 relative pl-10 border-l-2 border-muted hover:border-primary/30 transition-colors">
+                        <div className="absolute -left-[11px] top-0 bg-white p-1">
+                          <div className="h-4 w-4 rounded-full bg-primary shadow-lg shadow-primary/20" />
+                        </div>
+                        <h4 className="font-black text-sm uppercase tracking-wider text-primary">{m.step}</h4>
+                        <p className="text-base font-medium leading-relaxed text-muted-foreground">
+                          {m.details}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </section>
 
         <section className="space-y-12">
@@ -313,42 +336,24 @@ export default function HowToGuidePage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y">
-                <tr className="hover:bg-primary/5 transition-colors">
-                  <td className="px-8 py-6 font-black text-xs uppercase">Schedule & RSVP</td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                </tr>
-                <tr className="hover:bg-primary/5 transition-colors">
-                  <td className="px-8 py-6 font-black text-xs uppercase">Tactical Chats & Polls</td>
-                  <td className="px-8 py-6 opacity-20"><Lock className="h-4 w-4" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                </tr>
-                <tr className="hover:bg-primary/5 transition-colors">
-                  <td className="px-8 py-6 font-black text-xs uppercase">Training vault</td>
-                  <td className="px-8 py-6 opacity-20"><Lock className="h-4 w-4" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                </tr>
-                <tr className="hover:bg-primary/5 transition-colors">
-                  <td className="px-8 py-6 font-black text-xs uppercase">Waivers & Compliance</td>
-                  <td className="px-8 py-6 opacity-20"><Lock className="h-4 w-4" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                </tr>
-                <tr className="hover:bg-primary/5 transition-colors">
-                  <td className="px-8 py-6 font-black text-xs uppercase">Cross-Team Leagues</td>
-                  <td className="px-8 py-6 opacity-20"><Lock className="h-4 w-4" /></td>
-                  <td className="px-8 py-6 opacity-20"><Lock className="h-4 w-4" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                </tr>
-                <tr className="hover:bg-primary/5 transition-colors">
-                  <td className="px-8 py-6 font-black text-xs uppercase">Multi-Team Dashboard</td>
-                  <td className="px-8 py-6 opacity-20"><Lock className="h-4 w-4" /></td>
-                  <td className="px-8 py-6 opacity-20"><Lock className="h-4 w-4" /></td>
-                  <td className="px-8 py-6"><CheckCircle2 className="h-5 w-5 text-green-500" /></td>
-                </tr>
+                {[
+                  { name: "Schedule & RSVP", starter: true, pro: true, club: true },
+                  { name: "Live Feed Posting", starter: false, pro: true, club: true },
+                  { name: "Tactical Chats & Polls", starter: false, pro: true, club: true },
+                  { name: "Training Library", starter: false, pro: true, club: true },
+                  { name: "Waivers & Compliance", starter: false, pro: true, club: true },
+                  { name: "Cross-Team Leagues", starter: false, pro: true, club: true },
+                  { name: "Season Trajectory Charts", starter: false, pro: true, club: true },
+                  { name: "Multi-Team Dashboard", starter: false, pro: false, club: true },
+                  { name: "Quota Management", starter: false, pro: false, club: true },
+                ].map((row, i) => (
+                  <tr key={i} className="hover:bg-primary/5 transition-colors">
+                    <td className="px-8 py-6 font-black text-xs uppercase">{row.name}</td>
+                    <td className="px-8 py-6">{row.starter ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Lock className="h-4 w-4 text-muted-foreground/20" />}</td>
+                    <td className="px-8 py-6">{row.pro ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Lock className="h-4 w-4 text-muted-foreground/20" />}</td>
+                    <td className="px-8 py-6">{row.club ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Lock className="h-4 w-4 text-muted-foreground/20" />}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -363,27 +368,27 @@ export default function HowToGuidePage() {
           <Accordion type="single" collapsible className="w-full space-y-4">
             {[
               {
-                q: "How do I invite my players and parents?",
-                a: "Go to your 'Roster' tab and tap 'Invite'. You will see a unique 6-character Team Code. Share this code via text or group chat. When your members sign up for The Squad, they enter this code to automatically join your private hub."
+                q: "How do I invite players and parents to my private hub?",
+                a: "Go to your 'Roster' tab and tap 'Invite'. You will see a unique 6-character Team Code (e.g., AB12CD). Copy and share this code. When your members sign up for The Squad, they will be prompted to enter this code to automatically join your verified squad."
               },
               {
-                q: "What's the difference between a Standard Match and Elite Hub?",
-                a: "A Standard Match tracks RSVPs and scores internally for your squad. An Elite Tournament Hub ($50 credit) creates a public-facing leaderboard and bracket that anyone with the link can follow without logging in. Perfect for scouts and family."
+                q: "What's the difference between a Standard Match and an Elite Hub?",
+                a: "A Standard Match is private to your squad for tracking RSVPs and internal scores. An Elite Tournament Hub (purchased via a $50 credit) creates a public URL that allows external parents, scouts, and fans to view live scores and brackets without requiring a login."
               },
               {
-                q: "How do I manage multiple teams under one organization?",
-                a: "Upgrade to a 'Club' plan (Duo, Crew, League, etc.). This allows you to create several squads under one email. You'll get a 'Club Hub' dashboard to see an overview of every team you manage."
+                q: "What is the '5-Minute Reset' in Demo Environments?",
+                a: "To keep our demo squads pristine for all evaluators, demo environments automatically purge user-added data every 5 minutes. You will see a countdown banner at the top of the screen indicating when the next re-seeding heartbeat will occur."
               },
               {
-                q: "Is the training library private?",
-                a: "Yes. Any YouTube videos or visual plays you add to your Training tab are only visible to verified members of your specific team. Your strategy is safe with us."
+                q: "Can I manage multiple squads under one billing account?",
+                a: "Yes. Upgrade to a 'Club' plan (Duo, Crew, League, etc.). This allows you to create multiple 'Pro' squads under a single email address. You can manage these squads and assign staff roles from your centralized Club Hub."
               },
               {
-                q: "What happens if I use all my Club plan team slots?",
-                a: "You can easily upgrade to the next tier (e.g., from Duo to Crew) in the Pricing dashboard. Your data will seamlessly transfer, and you'll immediately unlock more slots for new squads."
+                q: "Is my tactical strategy and playbooks secure?",
+                a: "Absolutely. All data uploaded to the 'Training' and 'Library' tabs is siloed. Only verified members who have joined using your specific Team Code can view your squad's resources. Even in 'Leagues', your private playbook remains invisible to opponents."
               }
             ].map((item, i) => (
-              <AccordionItem key={i} value={`item-${i}`} className="bg-white border-none shadow-xl rounded-[2rem] px-10 overflow-hidden ring-1 ring-black/5 hover:ring-primary/20 transition-all">
+              <AccordionItem key={i} value={`faq-${i}`} className="bg-white border-none shadow-xl rounded-[2rem] px-10 overflow-hidden ring-1 ring-black/5 hover:ring-primary/20 transition-all">
                 <AccordionTrigger className="font-black text-sm lg:text-lg text-left uppercase tracking-tight hover:no-underline py-8">
                   {item.q}
                 </AccordionTrigger>
