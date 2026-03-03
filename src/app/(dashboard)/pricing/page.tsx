@@ -102,7 +102,6 @@ export default function PricingPage() {
   };
 
   const quotaPercentage = proQuotaStatus.limit > 0 ? (proQuotaStatus.current / proQuotaStatus.limit) * 100 : 0;
-  // User is on a "Club" plan if their current or limit suggests they manage multiple teams
   const hasClubPlan = proQuotaStatus.limit > 1;
 
   return (
@@ -158,7 +157,7 @@ export default function PricingPage() {
           </CardFooter>
         </Card>
 
-        {/* SQUAD PRO - HIGHLIGHTED */}
+        {/* SQUAD PRO */}
         <Card className={cn(
           "rounded-[3rem] border-none shadow-2xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.05] ring-4 ring-primary bg-black text-white relative z-10 animate-in zoom-in-95",
           activeTeam?.planId === 'squad_pro' && "ring-offset-4 ring-offset-background"
@@ -204,7 +203,7 @@ export default function PricingPage() {
           </CardFooter>
         </Card>
 
-        {/* CLUB SUITE - UNIFIED ORGANIZATION COLUMN */}
+        {/* CLUB SUITE - AS SPECIFIED IN IMAGE */}
         <Card className={cn(
           "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
           hasClubPlan && "ring-4 ring-primary/20"
@@ -218,10 +217,10 @@ export default function PricingPage() {
               )}
             </div>
             
-            <CardTitle className="text-4xl font-black uppercase tracking-tight leading-none">CLUB SUITE</CardTitle>
+            <CardTitle className="text-5xl font-black uppercase tracking-tight leading-none">CLUB<br />SUITE</CardTitle>
             
             <div className="space-y-1">
-              <p className="text-[11px] font-black uppercase tracking-widest text-primary leading-tight">
+              <p className="text-[13px] font-black uppercase tracking-tight text-primary leading-tight">
                 INCLUDES ALL SQUAD PRO FEATURES + HUB MANAGEMENT
               </p>
             </div>
@@ -243,7 +242,7 @@ export default function PricingPage() {
               
               {/* Organization Scaling Ledger */}
               <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">ORGANIZATION SCALING</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">ORGANIZATION SCALING</p>
                 <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                   {clubPlans.map(cp => {
                     const isCurrentSub = activeTeam?.planId === cp.id;
@@ -282,14 +281,14 @@ export default function PricingPage() {
           </CardContent>
 
           <CardFooter className="p-10 pt-0">
-            <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl bg-primary text-white active:scale-95 transition-all" onClick={purchasePro}>
+            <Button className="w-full h-16 rounded-2xl text-xl font-black shadow-xl bg-primary text-white active:scale-95 transition-all" onClick={purchasePro}>
               Scale Organization
             </Button>
           </CardFooter>
         </Card>
       </div>
 
-      {/* Elite Add-ons & Modules Section */}
+      {/* Elite Add-ons Section */}
       <section className="space-y-10">
         <div className="text-center space-y-2">
           <Badge className="bg-amber-100 text-amber-700 font-black uppercase tracking-widest text-[9px] h-6 px-3">Elite Add-ons</Badge>
@@ -297,7 +296,7 @@ export default function PricingPage() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Inventory Card (Black) */}
+          {/* Inventory Card */}
           <Card className="rounded-[3rem] border-none shadow-2xl bg-black text-white overflow-hidden relative group">
             <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
               <LayoutGrid className="h-32 w-32" />
@@ -333,7 +332,7 @@ export default function PricingPage() {
             </CardContent>
           </Card>
 
-          {/* Feature Hub Card (White) */}
+          {/* Feature Hub Card */}
           <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden flex flex-col group">
             <div className="p-10 flex items-center justify-between gap-6 border-b-2">
               <div className="flex items-center gap-6">
