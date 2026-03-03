@@ -18,7 +18,9 @@ import {
   updateDoc,
   orderBy,
   increment,
-  collectionGroup
+  collectionGroup,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -159,6 +161,39 @@ export type TeamEvent = {
   lastUpdated?: string;
 };
 
+export type MediaComment = {
+  id: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+};
+
+export type VideoAnnotation = {
+  id: string;
+  timestamp: number;
+  label: string;
+  description?: string;
+};
+
+export type TeamFile = {
+  id: string;
+  name: string;
+  type: string;
+  size: string;
+  sizeBytes: number;
+  url: string;
+  teamId: string;
+  uploadedBy: string;
+  uploaderId: string;
+  date: string;
+  category: 'Game' | 'Practice' | 'Highlight' | 'Compliance' | 'Other';
+  complianceType?: string;
+  tags?: string[];
+  comments?: MediaComment[];
+  annotations?: VideoAnnotation[];
+};
+
 export type TeamAlert = {
   id: string;
   teamId: string;
@@ -223,9 +258,12 @@ interface TeamContextType {
   updateGame: (id: string, game: any) => void;
   addDrill: (drill: any) => void;
   deleteDrill: (id: string) => void;
-  addFile: (name: string, type: string, size: string, url: string, complianceType?: string) => void;
-  addExternalLink: (name: string, url: string, complianceType?: string) => void;
+  addFile: (name: string, type: string, sizeBytes: number, url: string, category?: string, complianceType?: string) => void;
+  addExternalLink: (name: string, url: string, category?: string, complianceType?: string) => void;
   deleteFile: (id: string) => void;
+  addMediaComment: (fileId: string, text: string) => void;
+  addMediaTag: (fileId: string, tag: string) => void;
+  addMediaAnnotation: (fileId: string, timestamp: number, label: string, description?: string) => void;
   createChat: (name: string, memberIds: string[]) => Promise<string>;
   addMessage: (chatId: string, author: string, content: string, type: string, imageUrl?: string, poll?: any, isOpponentCoach?: boolean, opponentTeamName?: string) => void;
   votePoll: (chatId: string, messageId: string, optionIdx: number) => Promise<void>;
@@ -566,6 +604,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, db]);
 
+  const formatSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
   const contextValue = useMemo(() => ({
     user: userProfile, 
     updateUser: (updates: Partial<UserProfile>) => { if (firebaseUser) updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid), updates); },
@@ -665,9 +711,24 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     updateGame: (id: string, g: any) => activeTeam?.id && updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'games', id), g),
     addDrill: (d: any) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'drills'), { ...d, teamId: activeTeam.id, createdBy: firebaseUser?.uid, createdAt: new Date().toISOString() }),
     deleteDrill: (id: string) => activeTeam?.id && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'drills', id)),
-    addFile: (n: string, t: string, s: string, u: string, ct?: string) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), { name: n, type: t, size: s, url: u, teamId: activeTeam.id, uploadedBy: userProfile?.name, uploaderId: firebaseUser?.uid, date: new Date().toISOString(), category: 'file', complianceType: ct || 'none' }),
-    addExternalLink: (n: string, u: string, ct?: string) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), { name: n, type: 'link', size: 'URL', url: u, teamId: activeTeam.id, uploadedBy: userProfile?.name, uploaderId: firebaseUser?.uid, date: new Date().toISOString(), category: 'link', complianceType: ct || 'none' }),
+    addFile: (n: string, t: string, sb: number, u: string, cat?: string, ct?: string) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), { name: n, type: t, size: formatSize(sb), sizeBytes: sb, url: u, teamId: activeTeam.id, uploadedBy: userProfile?.name, uploaderId: firebaseUser?.uid, date: new Date().toISOString(), category: cat || 'Other', complianceType: ct || 'none', tags: [], comments: [], annotations: [] }),
+    addExternalLink: (n: string, u: string, cat?: string, ct?: string) => activeTeam?.id && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'files'), { name: n, type: 'link', size: 'URL', sizeBytes: 0, url: u, teamId: activeTeam.id, uploadedBy: userProfile?.name, uploaderId: firebaseUser?.uid, date: new Date().toISOString(), category: cat || 'Other', complianceType: ct || 'none', tags: [], comments: [], annotations: [] }),
     deleteFile: (id: string) => activeTeam?.id && deleteDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'files', id)),
+    addMediaComment: (fid: string, txt: string) => {
+      if (!activeTeam?.id || !userProfile) return;
+      const ref = doc(db, 'teams', activeTeam.id, 'files', fid);
+      updateDocumentNonBlocking(ref, { comments: arrayUnion({ id: 'c' + Date.now(), authorId: userProfile.id, authorName: userProfile.name, text: txt, createdAt: new Date().toISOString() }) });
+    },
+    addMediaTag: (fid: string, tag: string) => {
+      if (!activeTeam?.id) return;
+      const ref = doc(db, 'teams', activeTeam.id, 'files', fid);
+      updateDocumentNonBlocking(ref, { tags: arrayUnion(tag) });
+    },
+    addMediaAnnotation: (fid: string, ts: number, lbl: string, desc?: string) => {
+      if (!activeTeam?.id) return;
+      const ref = doc(db, 'teams', activeTeam.id, 'files', fid);
+      updateDocumentNonBlocking(ref, { annotations: arrayUnion({ id: 'a' + Date.now(), timestamp: ts, label: lbl, description: desc }) });
+    },
     createChat: async (name: string, memberIds: string[]) => { 
       if (!activeTeam?.id || !firebaseUser) return ''; 
       try { const docRef = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), { teamId: activeTeam.id, name, memberIds: [...memberIds, firebaseUser.uid], createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), lastMessage: '', unread: 0 }); return docRef.id; } catch (e) { return ''; }
