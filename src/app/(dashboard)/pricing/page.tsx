@@ -61,8 +61,10 @@ export default function PricingPage() {
   
   // Multi-team plans for the "Organization Scaling" ledger
   const clubPlans = useMemo(() => {
+    // Explicitly find the specific tiers to ensure they appear in the ledger
+    const targets = ['squad_duo', 'squad_crew', 'squad_league', 'squad_division', 'squad_conference', 'squad_organization'];
     return plans
-      .filter(p => p.id.startsWith('squad_') && p.id !== 'squad_pro' && p.id !== 'starter_squad')
+      .filter(p => targets.includes(p.id))
       .sort((a, b) => (a.proTeamLimit || 0) - (b.proTeamLimit || 0));
   }, [plans]);
 
