@@ -20,16 +20,18 @@ service cloud.firestore {
     function isTeamMember(teamId) {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId))
       );
     }
 
     function isAdmin(teamId) {
       return isSignedIn() && (
-        request.auth.token.get('email', '') == 'thisearlyseason@gmail.com' || 
-        request.auth.token.get('email', '') == 'test@gmail.com' ||
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
-        get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin'
+        (request.auth.token.get('email', '') == 'thisearlyseason@gmail.com') || 
+        (request.auth.token.get('email', '') == 'test@gmail.com') ||
+        (get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid) ||
+        (exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin')
       );
     }
 
