@@ -20,9 +20,9 @@ service cloud.firestore {
     }
 
     // CRITICAL: Top-level Collection Group rule for global tournament discovery & Public Spectator Hub
-    // Allowing read if it's a tournament allows the public Spectator Hub to function
+    // This MUST be at the top level to avoid root-level denials during global searches.
     match /{path=**}/events/{eventId} {
-      allow read: if isSignedIn() || (resource != null && resource.data.isTournament == true);
+      allow read: if request.auth != null || (resource != null && resource.data.isTournament == true);
     }
 
     match /users/{userId} {
