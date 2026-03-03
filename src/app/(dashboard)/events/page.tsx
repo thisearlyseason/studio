@@ -46,7 +46,9 @@ import {
   ShieldAlert,
   Signature,
   Shield,
-  History
+  History,
+  Wand2,
+  Timer
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -69,7 +71,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format, isSameDay, isPast, isFuture } from 'date-fns';
+import { format, isSameDay, isPast, isFuture, addMinutes, addDays } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
 
@@ -508,6 +510,12 @@ export default function EventsPage() {
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | 'none'>('none');
   const [selectedOpponentTeamId, setSelectedOpponentTeamId] = useState<string | 'manual'>('manual');
 
+  // Generator States
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genStartTime, setGenStartTime] = useState('09:00');
+  const [genMatchLength, setGenMatchLength] = useState('60');
+  const [genType, setGenType] = useState('round_robin');
+
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
   const canAccessElite = (user?.tournamentCredits || 0) > 0;
 
@@ -537,6 +545,73 @@ export default function EventsPage() {
     setIsTournamentMode(true);
     setIsEliteTournament(true);
     setIsCreateOpen(true);
+  };
+
+  const handleGenerateSchedule = async () => {
+    if (tournamentTeams.length < 2) {
+      toast({ title: "Insufficient Squads", description: "Add at least 2 teams to generate a schedule.", variant: "destructive" });
+      return;
+    }
+    
+    setIsGenerating(true);
+    
+    // Simulate generation time
+    await new Promise(r => setTimeout(r, 1500));
+
+    try {
+      const games: TournamentGame[] = [];
+      const teams = [...tournamentTeams];
+      if (teams.length % 2 !== 0) teams.push("BYE");
+
+      const numTeams = teams.length;
+      const rounds = numTeams - 1;
+      const half = numTeams / 2;
+
+      let currentDay = new Date(newDate || new Date());
+      let currentTime = genStartTime;
+      const matchDuration = parseInt(genMatchLength);
+      const bufferMinutes = 10;
+
+      for (let round = 0; round < rounds; round++) {
+        for (let i = 0; i < half; i++) {
+          const t1 = teams[i];
+          const t2 = teams[numTeams - 1 - i];
+
+          if (t1 !== "BYE" && t2 !== "BYE") {
+            games.push({
+              id: `gen_${Date.now()}_${round}_${i}`,
+              team1: t1,
+              team2: t2,
+              score1: 0,
+              score2: 0,
+              date: currentDay.toISOString().split('T')[0],
+              time: currentTime,
+              isCompleted: false
+            });
+
+            // Increment time for next match
+            const [hours, minutes] = currentTime.split(':').map(Number);
+            const nextMatchTime = addMinutes(new Date(2000, 0, 1, hours, minutes), matchDuration + bufferMinutes);
+            currentTime = format(nextMatchTime, 'HH:mm');
+            
+            // If time gets late, move to next day
+            if (parseInt(currentTime.split(':')[0]) > 20) {
+              currentDay = addDays(currentDay, 1);
+              currentTime = genStartTime;
+            }
+          }
+        }
+        // Rotate teams for next round (Circle Method)
+        teams.splice(1, 0, teams.pop()!);
+      }
+
+      setTournamentGames(games);
+      toast({ title: "Tactical Schedule Forged", description: `${games.length} matches generated.` });
+    } catch (e) {
+      toast({ title: "Generation Failed", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setTournamentTeams([]); setTournamentGames([]); setIsEliteTournament(false); setSelectedLeagueId('none'); setSelectedOpponentTeamId('manual'); };
@@ -642,6 +717,11 @@ export default function EventsPage() {
                     <TabsList className="bg-muted/50 h-11 p-1 mb-6 shrink-0">
                       <TabsTrigger value="teams" className="font-black text-[10px] uppercase px-6 flex-1">Teams</TabsTrigger>
                       <TabsTrigger value="games" className="font-black text-[10px] uppercase px-6 flex-1">Matchups</TabsTrigger>
+                      {isEliteTournament && (
+                        <TabsTrigger value="generator" className="font-black text-[10px] uppercase px-6 flex-1 bg-primary/10 text-primary">
+                          <Wand2 className="h-3 w-3 mr-1.5" /> Generator
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                     <TabsContent value="teams" className="space-y-6 mt-0 flex-1">
                       <div className="flex gap-2">
@@ -660,11 +740,17 @@ export default function EventsPage() {
                       </div>
                     </TabsContent>
                     <TabsContent value="games" className="space-y-6 mt-0 flex-1">
-                      <Button variant="outline" size="sm" onClick={() => setTournamentGames([...tournamentGames, { id: `game_${Date.now()}`, team1: tournamentTeams[0] || 'Team A', team2: tournamentTeams[1] || 'Team B', score1: 0, score2: 0, date: newDate, time: '10:00 AM', isCompleted: false }])} className="font-black text-[10px] uppercase">+ New Match</Button>
+                      <div className="flex items-center justify-between">
+                        <Button variant="outline" size="sm" onClick={() => setTournamentGames([...tournamentGames, { id: `game_${Date.now()}`, team1: tournamentTeams[0] || 'Team A', team2: tournamentTeams[1] || 'Team B', score1: 0, score2: 0, date: newDate, time: '10:00 AM', isCompleted: false }])} className="font-black text-[10px] uppercase">+ New Match</Button>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground">{tournamentGames.length} Total Matches</p>
+                      </div>
                       <div className="space-y-4">
                         {tournamentGames.map((game) => (
                           <div key={game.id} className="p-4 bg-muted/20 rounded-2xl border-2 space-y-4 relative group">
-                            <input type="date" value={game.date} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, date: e.target.value} : g))} className="w-full h-9 rounded-xl font-bold bg-background px-3 border" />
+                            <div className="flex gap-2">
+                              <input type="date" value={game.date} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, date: e.target.value} : g))} className="flex-1 h-9 rounded-xl font-bold bg-background px-3 border text-xs" />
+                              <input type="time" value={game.time} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, time: e.target.value} : g))} className="w-24 h-9 rounded-xl font-bold bg-background px-3 border text-xs" />
+                            </div>
                             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                               <Select value={game.team1} onValueChange={(v) => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, team1: v} : g))}>
                                 <SelectTrigger className="h-10 rounded-xl font-bold w-full"><SelectValue /></SelectTrigger>
@@ -685,6 +771,61 @@ export default function EventsPage() {
                             </Button>
                           </div>
                         ))}
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="generator" className="space-y-8 mt-0 flex-1">
+                      <div className="bg-primary/5 p-6 rounded-[2rem] border-2 border-dashed border-primary/20 space-y-6">
+                        <div className="flex items-center gap-3">
+                          <Wand2 className="h-5 w-5 text-primary" />
+                          <h3 className="font-black text-sm uppercase tracking-tight">Schedule Architect</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Daily Start Time</Label>
+                            <input type="time" value={genStartTime} onChange={e => setGenStartTime(e.target.value)} className="w-full h-12 rounded-xl border-2 font-bold px-3" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Length per Match (Mins)</Label>
+                            <Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-12 rounded-xl border-2 font-black" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Generation Protocol</Label>
+                          <Select value={genType} onValueChange={setGenType}>
+                            <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="round_robin" className="font-bold">Full Round Robin (Everyone Plays Everyone)</SelectItem>
+                              <SelectItem value="pool_play" disabled className="font-bold">Pool Play (Coming Soon)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="p-4 bg-white/50 rounded-2xl border flex items-start gap-3">
+                          <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">
+                            Generating will overwrite any manually added matchups. You can still refine the generated schedule afterwards.
+                          </p>
+                        </div>
+
+                        <Button 
+                          className="w-full h-14 rounded-2xl text-base font-black shadow-lg shadow-primary/20"
+                          onClick={handleGenerateSchedule}
+                          disabled={isGenerating}
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                              Forging Competitive Bracket...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-5 w-5 mr-2" />
+                              Generate Tactical Schedule
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </TabsContent>
                   </Tabs>

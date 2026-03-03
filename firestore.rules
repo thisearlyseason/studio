@@ -104,6 +104,7 @@ service cloud.firestore {
 
       match /alerts/{alertId} {
         allow read: if isTeamMember(teamId);
+        allow list: if isTeamMember(teamId);
         allow write: if isAdmin(teamId);
       }
     }
