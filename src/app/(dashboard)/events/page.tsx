@@ -44,7 +44,8 @@ import {
   Play,
   X,
   ShieldAlert,
-  Signature
+  Signature,
+  Shield
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -60,7 +61,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useTeam, TeamEvent, CustomFormField, FormFieldType, TournamentGame } from '@/components/providers/team-provider';
+import { useTeam, TeamEvent, CustomFormField, FormFieldType, TournamentGame, League } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, collectionGroup, where, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
@@ -558,7 +559,29 @@ export default function EventsPage() {
   const { data: rawEvents } = useCollection<TeamEvent>(eventsQuery);
   const events = rawEvents || [];
 
+  // Fetch leagues for the team to get potential opponents
+  const leaguesQuery = useMemoFirebase(() => {
+    if (!activeTeam?.leagueIds?.length || !db) return null;
+    return query(collection(db, 'leagues'), where('__name__', 'in', activeTeam.leagueIds));
+  }, [activeTeam?.leagueIds, db]);
+  
+  const { data: teamLeagues } = useCollection<League>(leaguesQuery);
+
+  const leagueOpponents = useMemo(() => {
+    if (!teamLeagues) return [];
+    const all: { teamId: string; teamName: string; leagueId: string; leagueName: string }[] = [];
+    teamLeagues.forEach(l => {
+      Object.entries(l.teams).forEach(([tid, tdata]) => {
+        if (tid !== activeTeam?.id) {
+          all.push({ teamId: tid, teamName: tdata.teamName, leagueId: l.id, leagueName: l.name });
+        }
+      });
+    });
+    return all;
+  }, [teamLeagues, activeTeam?.id]);
+
   const invitedTournamentsQuery = useMemoFirebase(() => {
+    // HARDENED: Block search if team identity is incomplete or demo state
     if (!activeTeam?.id || !activeTeam?.name || !db || !user || activeTeam.isDemo) return null;
     
     const teamName = activeTeam.name.trim();
@@ -588,6 +611,8 @@ export default function EventsPage() {
   const [tournamentTeams, setTournamentTeams] = useState<string[]>([]);
   const [tournamentGames, setTournamentGames] = useState<TournamentGame[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
+  const [selectedLeagueId, setSelectedLeagueId] = useState<string | 'none'>('none');
+  const [selectedOpponentTeamId, setSelectedOpponentTeamId] = useState<string | 'manual'>('manual');
 
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
 
@@ -603,7 +628,23 @@ export default function EventsPage() {
     setNewDescription(event.description);
     setTournamentTeams(event.tournamentTeams || []);
     setTournamentGames(event.tournamentGames || []);
+    setSelectedLeagueId(event.leagueId || 'none');
+    setSelectedOpponentTeamId(event.opponentTeamId || 'manual');
     setIsCreateOpen(true);
+  };
+
+  const handleLeagueOpponentSelect = (val: string) => {
+    if (val === 'manual') {
+      setSelectedOpponentTeamId('manual');
+      setSelectedLeagueId('none');
+    } else {
+      const opt = leagueOpponents.find(o => `${o.leagueId}_${o.teamId}` === val);
+      if (opt) {
+        setSelectedOpponentTeamId(opt.teamId);
+        setSelectedLeagueId(opt.leagueId);
+        setNewTitle(`Vs ${opt.teamName}`);
+      }
+    }
   };
 
   const handleCreateEvent = () => {
@@ -615,6 +656,12 @@ export default function EventsPage() {
       tournamentTeams, tournamentGames, lastUpdated: new Date().toISOString()
     };
     if (isTournamentMode && newEndDate) payload.endDate = new Date(newEndDate).toISOString();
+    
+    if (!isTournamentMode && selectedLeagueId !== 'none') {
+      payload.leagueId = selectedLeagueId;
+      payload.opponentTeamId = selectedOpponentTeamId;
+    }
+
     if (editingEvent) updateEvent(editingEvent.id, payload);
     else addEvent(payload);
     setIsCreateOpen(false); resetForm();
@@ -623,7 +670,7 @@ export default function EventsPage() {
   const resetForm = () => { 
     setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); 
     setNewLocation(''); setNewDescription(''); setTournamentTeams([]); setTournamentGames([]); 
-    setIsEliteTournament(false);
+    setIsEliteTournament(false); setSelectedLeagueId('none'); setSelectedOpponentTeamId('manual');
   };
 
   const isLocked = editingEvent?.isTournamentPaid && editingEvent?.tournamentGames && editingEvent.tournamentGames.length > 0;
@@ -658,9 +705,28 @@ export default function EventsPage() {
                   <p className="font-black text-primary uppercase tracking-widest text-[10px]">Strategic Coordination</p>
                 </DialogHeader>
                 <div className="space-y-4">
+                  {!isTournamentMode && leagueOpponents.length > 0 && (
+                    <div className="space-y-1.5 pb-2">
+                      <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest ml-1 text-primary">League Match? (Optional)</Label>
+                      <Select value={selectedOpponentTeamId === 'manual' ? 'manual' : `${selectedLeagueId}_${selectedOpponentTeamId}`} onValueChange={handleLeagueOpponentSelect}>
+                        <SelectTrigger className="rounded-xl h-11 lg:h-12 border-2 border-primary/20 bg-primary/5 font-black text-xs">
+                          <SelectValue placeholder="Select League Opponent" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="manual" className="font-bold">One-Off Match (Manual Name)</SelectItem>
+                          {leagueOpponents.map(o => (
+                            <SelectItem key={`${o.leagueId}_${o.teamId}`} value={`${o.leagueId}_${o.teamId}`} className="font-bold">
+                              {o.teamName} ({o.leagueName})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase px-1 italic">Selecting a league opponent links the event to league tracking.</p>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Event Title</Label>
-                    <Input placeholder="e.g. Regional Championship" value={newTitle} onChange={e => setNewTitle(e.target.value)} disabled={isLocked} className="h-12 rounded-xl font-black border-2" />
+                    <Input placeholder={isTournamentMode ? "Regional Championship" : "e.g. Vs Tigers"} value={newTitle} onChange={e => setNewTitle(e.target.value)} disabled={isLocked} className="h-12 rounded-xl font-black border-2" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Date</Label><input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} disabled={isLocked} className="w-full h-12 rounded-xl font-black border-2 bg-background px-3" /></div>

@@ -3,6 +3,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // CRITICAL: Top-level Collection Group rule for global tournament discovery & Public Spectator Hub
+    // This MUST be at the top level to avoid root-level denials during global searches.
+    match /{path=**}/events/{eventId} {
+      allow read: if request.auth != null || (resource != null && resource.data.isTournament == true);
+    }
+
     // Helper functions
     function isSignedIn() {
       return request.auth != null;
@@ -17,12 +23,6 @@ service cloud.firestore {
         request.auth.token.get('email', '') == 'thisearlyseason@gmail.com' || 
         request.auth.token.get('email', '') == 'test@gmail.com'
       );
-    }
-
-    // CRITICAL: Top-level Collection Group rule for global tournament discovery & Public Spectator Hub
-    // This MUST be at the top level to avoid root-level denials during global searches.
-    match /{path=**}/events/{eventId} {
-      allow read: if request.auth != null || (resource != null && resource.data.isTournament == true);
     }
 
     match /users/{userId} {
