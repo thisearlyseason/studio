@@ -8,6 +8,8 @@ service cloud.firestore {
       allow read: if request.auth != null || (resource != null && resource.data.isTournament == true);
     }
 
+    // Rule Sync: Ensuring all coordination protocols are active.
+    
     // Helper functions
     function isSignedIn() {
       return request.auth != null;
@@ -49,7 +51,7 @@ service cloud.firestore {
 
       match /events/{eventId} {
         // Read permission handled by the collectionGroup rule above
-        // Allow members to update their own RSVP field
+        // Allow members to update their own RSVP field and staff to manage event state
         allow update: if isTeamMember(teamId) || isAdmin();
         allow create, delete: if isAdmin() || (isSignedIn() && (get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid || get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin'));
         

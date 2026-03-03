@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -142,13 +143,13 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
     batch.set(doc(db, 'teams', teamId, 'members', mid), {
       id: mid, userId: `demo_user_${teamId}_${i}`, teamId, name: names[i] || `Teammate ${i+1}`, 
       role: 'Member', position: i === 0 ? 'Team Lead' : 'Player', jersey: (i + 10).toString(),
-      avatar: `https://picsum.photos/seed/demo_v2_${i}_${teamId}/150/150`, 
+      avatar: `https://picsum.photos/seed/demo_v3_${i}_${teamId}/150/150`, 
       joinedAt: now.toISOString(), amountOwed: i > 8 ? 50 : 0, feesPaid: i <= 8, isDemo: true,
       waiverSigned: isPro, medicalClearance: isPro && i % 2 === 0
     });
   }
 
-  // Unified Tournament (Regional Championship)
+  // Unified Tournament Hub (Regional Championship)
   const tid_tournament = `demo_tournament_${teamId}`;
   const day1Date = now; 
   const day3Date = new Date(now.getTime() + (86400000 * 3)); 
@@ -174,7 +175,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
     userRsvps: { [userId]: 'going' }, isDemo: true, createdAt: now.toISOString(), lastUpdated: now.toISOString()
   });
 
-  // Unified Match (Standard Game)
+  // Unified Standard Match
   const matchId = `demo_match_standard_${teamId}`;
   batch.set(doc(db, 'teams', teamId, 'events', matchId), {
     id: matchId, teamId, title: 'Season Match vs Wildcats',
@@ -206,7 +207,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
       id: did, teamId, title: 'Full Court Coordination Drill',
       description: 'Defensive coordination focusing on zone transitions and communication protocols.',
       videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      thumbnailUrl: 'https://picsum.photos/seed/drill_v2/400/300',
+      thumbnailUrl: 'https://picsum.photos/seed/drill_v3/400/300',
       primaryMedia: 'video', createdAt: now.toISOString(), isDemo: true
     });
   }
@@ -226,7 +227,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
     const pid = `demo_post_${teamId}_1`;
     batch.set(doc(db, 'teams', teamId, 'feedPosts', pid), {
       id: pid, teamId, type: 'user', content: 'Huge win recently squad! Let’s keep this momentum for the Regional Championship.',
-      author: { name: 'Coach Alex', avatar: 'https://picsum.photos/seed/coach/100/100' }, authorId: 'demo_coach', 
+      author: { name: 'Coach Alex', avatar: 'https://picsum.photos/seed/coach_v3/100/100' }, authorId: 'demo_coach', 
       createdAt: now.toISOString(), likes: [userId], isDemo: true
     });
   }

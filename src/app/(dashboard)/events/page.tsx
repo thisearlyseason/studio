@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -121,8 +122,9 @@ function FeaturePaywall({ purchasePro, title, desc, icon: Icon }: { purchasePro:
 }
 
 function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
-  const { members = [], teams = [], user, updateEvent, signTeamTournamentWaiver, activeTeam, isPro } = useTeam();
+  const { members = [], teams = [], user, updateEvent, signTeamTournamentWaiver, isPro } = useTeam();
   const db = useFirestore();
+  const router = useRouter();
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
 
   const regQuery = useMemoFirebase(() => {
@@ -403,7 +405,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                     </div>
                   </div>
                 )}
-              </div>
+              </Tabs>
             </div>
           </div>
         </ScrollArea>
