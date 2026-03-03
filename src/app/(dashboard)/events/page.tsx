@@ -262,7 +262,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                         <p className="text-[10px] font-black uppercase tracking-widest text-primary">Elite Standings Locked</p>
                         <p className="text-[8px] font-bold text-white/60 uppercase leading-relaxed text-center">Standings and public hubs require the Elite Tournament Module Add-on.</p>
                       </div>
-                      <Button variant="secondary" size="sm" className="h-8 rounded-lg text-[8px] font-black uppercase tracking-widest w-full bg-primary text-white" onClick={() => router.push('/pricing')}>Get Elite Module</Button>
+                      {isAdmin && <Button variant="secondary" size="sm" className="h-8 rounded-lg text-[8px] font-black uppercase tracking-widest w-full bg-primary text-white" onClick={() => router.push('/pricing')}>Get Elite Module</Button>}
                     </div>
                   )}
                 </div>
@@ -336,7 +336,10 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                   </TabsContent>
                   <TabsContent value="roster" className="mt-0 h-full">
                     {!isPro ? (
-                      <FeaturePaywall purchasePro={purchasePro} icon={Users} title="Squad Roster Locked" desc="Detailed event rosters and real-time RSVP tracking require a Pro squad subscription." />
+                      <div className="flex flex-col items-center justify-center h-full space-y-4 opacity-40">
+                        <Users className="h-12 w-12" />
+                        <p className="text-xs font-black uppercase tracking-widest">Upgrade to Pro to unlock RSVP tracking</p>
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {goingList.map(person => (
@@ -357,7 +360,10 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                   </TabsContent>
                   <TabsContent value="admin" className="mt-0 space-y-6 h-full">
                     {!isEliteUnlocked ? (
-                      <FeaturePaywall purchasePro={() => router.push('/pricing')} icon={ShieldCheck} title="Audit Ledger Locked" desc="Compliance audits and digital signature tracking require the Elite Tournament Module Add-on." />
+                      <div className="flex flex-col items-center justify-center h-full space-y-4 opacity-40">
+                        <ShieldCheck className="h-12 w-12" />
+                        <p className="text-xs font-black uppercase tracking-widest text-center max-w-[240px]">Audit Ledger requires the Elite Tournament Module</p>
+                      </div>
                     ) : (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-3">
@@ -456,7 +462,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
 }
 
 export default function EventsPage() {
-  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, hasFeature, purchasePro, user } = useTeam();
+  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, hasFeature, purchasePro, user, isStaff } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const [filterMode, setFilterMode] = useState<'live' | 'past'>('live');
@@ -562,7 +568,7 @@ export default function EventsPage() {
     <div className="space-y-10 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] px-3 h-6">Tactical Hub</Badge><h1 className="text-4xl font-black uppercase tracking-tight">Schedule</h1></div>
-        {isAdmin && (
+        {isStaff && (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { setIsTournamentMode(false); setIsEliteTournament(false); setIsCreateOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Match

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -5,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, ChevronRight, Hash, Lock, Sparkles } from 'lucide-react';
+import { Plus, MessageSquare, ChevronRight, Hash, Lock, Sparkles, ShieldAlert } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { 
   Dialog, 
@@ -26,7 +27,7 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 
 export default function ChatsPage() {
-  const { activeTeam, members, createChat, hasFeature, purchasePro } = useTeam();
+  const { activeTeam, members, createChat, isStaff, isParent, isSuperAdmin } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -57,9 +58,25 @@ export default function ChatsPage() {
     );
   }
 
-  // Chat is now available for all plans including Starter
-  const canUseChat = true; 
-  const teamMembers = members;
+  // Governance: Filter member list based on position
+  // Parents can always chat with Coaches/Staff.
+  // Parents can only chat with other Parents if activeTeam.parentChatEnabled is true.
+  const filteredMembers = useMemo(() => {
+    if (isStaff || isSuperAdmin) return members;
+    
+    if (isParent) {
+      return members.filter(m => {
+        // Staff are always available
+        if (['Coach', 'Assistant Coach', 'Team Lead', 'Squad Leader', 'Platform Admin'].includes(m.position)) return true;
+        // Other parents depend on toggle
+        if (m.position === 'Parent') return activeTeam.parentChatEnabled;
+        // Players are generally not startable by parents in this logic unless they are staff
+        return false;
+      });
+    }
+
+    return members; // Players can see everyone for now
+  }, [members, isStaff, isParent, activeTeam.parentChatEnabled, isSuperAdmin]);
 
   const handleCreateChat = async () => {
     if (!newChatName.trim()) return;
@@ -108,10 +125,15 @@ export default function ChatsPage() {
                 />
               </div>
               <div className="space-y-3">
-                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Select Team Members</Label>
+                <div className="flex items-center justify-between ml-1">
+                  <Label className="text-[10px] font-black uppercase tracking-widest">Select Team Members</Label>
+                  {isParent && !activeTeam.parentChatEnabled && (
+                    <Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20 text-primary">Coaches Only</Badge>
+                  )}
+                </div>
                 <ScrollArea className="h-48 border-2 rounded-2xl p-2 bg-muted/30">
                   <div className="space-y-2">
-                    {teamMembers.map((member) => (
+                    {filteredMembers.map((member) => (
                       <div 
                         key={member.id} 
                         className="flex items-center justify-between p-3 hover:bg-background rounded-xl cursor-pointer transition-colors"

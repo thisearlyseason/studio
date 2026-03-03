@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -28,7 +29,8 @@ import {
   Lock,
   Sparkles,
   ShieldCheck,
-  LayoutDashboard
+  LayoutDashboard,
+  ShieldAlert
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -54,7 +56,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
-function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: string, teamId: string, isAdmin: boolean, currentUserId: string }) {
+function CommentList({ postId, teamId, isAdmin, currentUserId, canComment }: { postId: string, teamId: string, isAdmin: boolean, currentUserId: string, canComment: boolean }) {
   const db = useFirestore();
   const q = useMemoFirebase(() => query(collection(db, 'teams', teamId, 'feedPosts', postId, 'comments'), orderBy('createdAt', 'asc'), limit(50)), [db, teamId, postId]);
   const { data: comments, isLoading } = useCollection(q);
@@ -88,7 +90,7 @@ function CommentList({ postId, teamId, isAdmin, currentUserId }: { postId: strin
 }
 
 export default function FeedPage() {
-  const { activeTeam, user, updateTeamHero, isSuperAdmin, purchasePro, hasFeature } = useTeam();
+  const { activeTeam, user, updateTeamHero, isSuperAdmin, purchasePro, hasFeature, isStaff, isParent, isPlayer } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -117,7 +119,8 @@ export default function FeedPage() {
   if (!activeTeam) return null;
   const isAdmin = activeTeam.role === 'Admin' || isSuperAdmin;
   const canReadFeed = hasFeature('live_feed_read');
-  const canPost = hasFeature('live_feed_post');
+  const canPost = isStaff; // Only staff can post broadcasts
+  const canComment = isStaff || isPlayer || (isParent && activeTeam.parentCommentsEnabled);
 
   if (!canReadFeed) {
     return (
@@ -138,22 +141,24 @@ export default function FeedPage() {
           </p>
         </div>
 
-        <Card className="w-full max-w-sm border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white ring-1 ring-black/5">
-          <div className="p-10 space-y-8">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase text-primary tracking-[0.2em]">Elite Strategy</span>
-              <Badge className="bg-primary text-white border-none font-black text-[10px] px-3 h-6">PRO HUB</Badge>
+        {isStaff && (
+          <Card className="w-full max-w-sm border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white ring-1 ring-black/5">
+            <div className="p-10 space-y-8">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase text-primary tracking-[0.2em]">Elite Strategy</span>
+                <Badge className="bg-primary text-white border-none font-black text-[10px] px-3 h-6">PRO HUB</Badge>
+              </div>
+              <ul className="space-y-5">
+                <li className="flex items-center gap-4 text-xs font-black uppercase tracking-tight text-foreground/80"><Sparkles className="h-5 w-5 text-primary" /> Real-time Broadcasts</li>
+                <li className="flex items-center gap-4 text-xs font-black uppercase tracking-tight text-foreground/80"><Sparkles className="h-5 w-5 text-primary" /> Tactical Image Polls</li>
+                <li className="flex items-center gap-4 text-xs font-black uppercase tracking-tight text-foreground/80"><Sparkles className="h-5 w-5 text-primary" /> Historical Content Logs</li>
+              </ul>
+              <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform" onClick={purchasePro}>
+                Unlock Live Feed
+              </Button>
             </div>
-            <ul className="space-y-5">
-              <li className="flex items-center gap-4 text-xs font-black uppercase tracking-tight text-foreground/80"><Sparkles className="h-5 w-5 text-primary" /> Real-time Broadcasts</li>
-              <li className="flex items-center gap-4 text-xs font-black uppercase tracking-tight text-foreground/80"><Sparkles className="h-5 w-5 text-primary" /> Tactical Image Polls</li>
-              <li className="flex items-center gap-4 text-xs font-black uppercase tracking-tight text-foreground/80"><Sparkles className="h-5 w-5 text-primary" /> Historical Content Logs</li>
-            </ul>
-            <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform" onClick={purchasePro}>
-              Unlock Live Feed
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
     );
   }
@@ -278,12 +283,9 @@ export default function FeedPage() {
                 <div className="absolute -top-2 -right-2 bg-black text-white p-1 rounded-full border-2 border-background shadow-md"><Lock className="h-3 w-3" /></div>
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg lg:text-xl font-black tracking-tight">Post to your Squad</h3>
-                <p className="text-muted-foreground font-bold text-[10px] lg:text-sm uppercase tracking-widest max-w-[280px]">Upgrade to Squad Pro to post updates, polls, and photos to the live feed.</p>
+                <h3 className="text-lg lg:text-xl font-black tracking-tight">Staff Broadcasts Only</h3>
+                <p className="text-muted-foreground font-bold text-[10px] lg:text-sm uppercase tracking-widest max-w-[280px]">Only coaching staff and squad leadership can post high-priority broadcasts to the live feed.</p>
               </div>
-              <Button className="rounded-full px-6 lg:px-8 h-10 lg:h-11 font-black uppercase text-[9px] lg:text-[10px] tracking-widest shadow-lg lg:shadow-xl shadow-primary/20" onClick={purchasePro}>
-                <Sparkles className="h-3 w-3 lg:h-4 lg:w-4 mr-2" /> Go Pro
-              </Button>
             </CardContent>
           </Card>
         )}
@@ -344,10 +346,24 @@ export default function FeedPage() {
                   </Button>
                   <div className="flex items-center gap-1.5 lg:gap-2 text-muted-foreground font-black uppercase tracking-widest text-[8px] lg:text-[10px]"><MessageSquare className="h-3.5 w-3.5 lg:h-4 lg:w-4" /> Discussion</div>
                 </div>
-                <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} />
+                <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} canComment={canComment} />
                 <div className="flex gap-2 lg:gap-3 w-full">
-                  <Input placeholder="Write to squad..." className="bg-muted/50 border-none rounded-xl lg:rounded-2xl h-10 lg:h-12 text-xs lg:text-sm font-bold px-4 lg:px-6 shadow-inner" value={commentInputs[post.id] || ''} onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))} />
-                  <Button size="icon" className="rounded-xl lg:rounded-2xl h-10 w-10 lg:h-12 lg:w-12 shrink-0 shadow-lg lg:shadow-xl shadow-primary/20" onClick={() => commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))}><Send className="h-4 w-4 lg:h-5 lg:w-5" /></Button>
+                  <Input 
+                    placeholder={canComment ? "Write to squad..." : "Comments are restricted by staff"} 
+                    disabled={!canComment}
+                    className="bg-muted/50 border-none rounded-xl lg:rounded-2xl h-10 lg:h-12 text-xs lg:text-sm font-bold px-4 lg:px-6 shadow-inner" 
+                    value={commentInputs[post.id] || ''} 
+                    onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))} 
+                    onKeyDown={(e) => e.key === 'Enter' && commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))} 
+                  />
+                  <Button 
+                    size="icon" 
+                    disabled={!canComment}
+                    className="rounded-xl lg:rounded-2xl h-10 w-10 lg:h-12 lg:w-12 shrink-0 shadow-lg lg:shadow-xl shadow-primary/20" 
+                    onClick={() => commentInputs[post.id]?.trim() && addDocumentNonBlocking(collection(db, 'teams', activeTeam.id, 'feedPosts', post.id, 'comments'), { postId: post.id, content: commentInputs[post.id], authorId: user?.id, authorName: user?.name, createdAt: new Date().toISOString() }).then(() => setCommentInputs(p => ({ ...p, [post.id]: '' })))}
+                  >
+                    <Send className="h-4 w-4 lg:h-5 lg:w-5" />
+                  </Button>
                 </div>
               </CardFooter>
             </Card>

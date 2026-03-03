@@ -20,7 +20,10 @@ import {
   ShieldCheck,
   Zap,
   CreditCard,
-  ChevronDown
+  ChevronDown,
+  Lock,
+  MessageSquare,
+  ShieldAlert
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { useTeam, Team } from '@/components/providers/team-provider';
 import { 
   Dialog, 
@@ -49,7 +53,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export default function TeamProfilePage() {
-  const { activeTeam, setActiveTeam, teams, user, members, updateTeamDetails, isSuperAdmin, plans, updateTeamPlan } = useTeam();
+  const { activeTeam, setActiveTeam, teams, user, members, updateTeamDetails, isSuperAdmin, plans, updateTeamPlan, isStaff } = useTeam();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -161,6 +165,15 @@ export default function TeamProfilePage() {
     setIsPlanOpen(false);
   };
 
+  const toggleGovernance = async (key: 'parentCommentsEnabled' | 'parentChatEnabled', value: boolean) => {
+    try {
+      await updateTeamDetails({ [key]: value });
+      toast({ title: "Governance Updated", description: `${key === 'parentCommentsEnabled' ? 'Parent comments' : 'Parent chat'} restricted.` });
+    } catch (e) {
+      toast({ title: "Update Failed", variant: "destructive" });
+    }
+  };
+
   const activePlan = plans.find(p => p.id === activeTeam.planId);
 
   return (
@@ -248,6 +261,52 @@ export default function TeamProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          {/* Governance Section for Staff */}
+          {isStaff && (
+            <Card className="rounded-[2.5rem] border-none shadow-xl ring-4 ring-primary/5 bg-white overflow-hidden">
+              <CardHeader className="bg-primary/5 border-b flex flex-row items-center justify-between p-8">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary p-3 rounded-2xl text-white shadow-lg shadow-primary/20">
+                    <ShieldAlert className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl font-black uppercase tracking-tight">Squad Governance</CardTitle>
+                    <CardDescription className="font-bold text-primary text-[10px] uppercase tracking-widest">Staff Authority & Permissions</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="flex items-center justify-between p-6 bg-muted/20 rounded-3xl border-2 border-dashed">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border"><MessageSquare className="h-5 w-5 text-primary" /></div>
+                    <div>
+                      <p className="text-sm font-black uppercase leading-tight">Parent Feed Comments</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Allow parents to participate in live feed discussions</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={activeTeam.parentCommentsEnabled} 
+                    onCheckedChange={(v) => toggleGovernance('parentCommentsEnabled', v)} 
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-6 bg-muted/20 rounded-3xl border-2 border-dashed">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border"><Users className="h-5 w-5 text-primary" /></div>
+                    <div>
+                      <p className="text-sm font-black uppercase leading-tight">Parent-to-Parent Chat</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Allow parents to start private chats with other parents</p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={activeTeam.parentChatEnabled} 
+                    onCheckedChange={(v) => toggleGovernance('parentChatEnabled', v)} 
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
             <CardHeader className="bg-primary/5 border-b border-primary/5">
               <CardTitle className="text-xl font-black">Official Squad Identity</CardTitle>

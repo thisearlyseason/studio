@@ -43,7 +43,7 @@ import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function DrillsPage() {
-  const { activeTeam, addDrill, deleteDrill, hasFeature, isSuperAdmin, purchasePro } = useTeam();
+  const { activeTeam, addDrill, deleteDrill, hasFeature, isSuperAdmin, purchasePro, isStaff } = useTeam();
   const db = useFirestore();
 
   const drillsQuery = useMemoFirebase(() => {
@@ -104,27 +104,29 @@ export default function DrillsPage() {
         
         <div className="text-center max-sm:px-4 space-y-3">
           <h1 className="text-3xl font-black tracking-tight">Squad Training</h1>
-          <p className="text-muted-foreground font-bold leading-relaxed">
+          <p className="text-muted-foreground font-bold leading-relaxed text-center max-w-md mx-auto">
             Create a custom library of drills, tactics, and video lessons for your squad with a Pro subscription.
           </p>
         </div>
 
-        <Card className="w-full max-w-sm border-none shadow-2xl rounded-[2rem] overflow-hidden bg-white ring-1 ring-black/5">
-          <div className="p-8 space-y-6">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase text-primary tracking-widest">Pro Training Suite</span>
-              <Badge className="bg-primary text-white border-none font-bold">Elite Content</Badge>
+        {isStaff && (
+          <Card className="w-full max-w-sm border-none shadow-2xl rounded-[2rem] overflow-hidden bg-white ring-1 ring-black/5">
+            <div className="p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-primary tracking-widest">Pro Training Suite</span>
+                <Badge className="bg-primary text-white border-none font-bold">Elite Content</Badge>
+              </div>
+              <ul className="space-y-4">
+                <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-primary" /> Custom Drill Directory</li>
+                <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-primary" /> YouTube Video Integration</li>
+                <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-primary" /> Photo Aid Uploads</li>
+              </ul>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 hover:bg-primary/90" onClick={purchasePro}>
+                Unlock Training Library
+              </Button>
             </div>
-            <ul className="space-y-4">
-              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-primary" /> Custom Drill Directory</li>
-              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-primary" /> YouTube Video Integration</li>
-              <li className="flex items-center gap-3 font-bold text-sm text-foreground/80"><Sparkles className="h-4 w-4 text-primary" /> Photo Aid Uploads</li>
-            </ul>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 hover:bg-primary/90" onClick={purchasePro}>
-              Unlock Training Library
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
     );
   }
@@ -203,7 +205,7 @@ export default function DrillsPage() {
           <h1 className="text-3xl font-black tracking-tight">Training Library</h1>
           <p className="text-muted-foreground text-sm font-bold">Master the plays and coordinate perfection.</p>
         </div>
-        {isAdmin && (
+        {isStaff && (
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-full shadow-lg shadow-primary/20 px-6 font-black uppercase text-xs tracking-widest h-11">
@@ -304,7 +306,7 @@ export default function DrillsPage() {
               <p className="font-black text-lg uppercase tracking-tight">No drills found</p>
               <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest opacity-60">Time to build your squad's playbook.</p>
             </div>
-            {isAdmin && <Button variant="outline" className="rounded-full px-8 lg:px-10 font-black uppercase text-[10px] tracking-widest border-2 h-10 lg:h-12" onClick={() => setIsAddOpen(true)}>Create First Drill</Button>}
+            {isStaff && <Button variant="outline" className="rounded-full px-8 lg:px-10 font-black uppercase text-[10px] tracking-widest border-2 h-10 lg:h-12" onClick={() => setIsAddOpen(true)}>Create First Drill</Button>}
           </div>
         )}
       </div>
@@ -370,7 +372,7 @@ export default function DrillsPage() {
                     )}
                   </div>
                   <div className="pt-8 border-t mt-6 flex gap-3">
-                    {isAdmin && <Button variant="ghost" className="rounded-xl h-12 w-12 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { if(confirm("Purge?")) { deleteDrill(selectedDrill.id); setSelectedDrill(null); } }}><Trash2 className="h-5 w-5" /></Button>}
+                    {isStaff && <Button variant="ghost" className="rounded-xl h-12 w-12 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { if(confirm("Purge?")) { deleteDrill(selectedDrill.id); setSelectedDrill(null); } }}><Trash2 className="h-5 w-5" /></Button>}
                     <Button className="flex-1 rounded-xl h-12 font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20" onClick={() => setSelectedDrill(null)}>Close Resource</Button>
                   </div>
                 </div>

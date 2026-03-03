@@ -63,6 +63,8 @@ export type Team = {
   createdBy?: string;
   ownerUserId?: string;
   leagueIds?: string[];
+  parentCommentsEnabled?: boolean;
+  parentChatEnabled?: boolean;
 };
 
 export type League = {
@@ -206,6 +208,10 @@ interface TeamContextType {
   isTeamsLoading: boolean;
   members: Member[];
   isMembersLoading: boolean;
+  currentMember: Member | null;
+  isStaff: boolean;
+  isPlayer: boolean;
+  isParent: boolean;
   createNewTeam: (name: string, organizerPosition: string, description?: string, planId?: string) => Promise<string>;
   joinTeamWithCode: (code: string, position: string) => Promise<boolean>;
   addEvent: (event: any) => void;
@@ -322,7 +328,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         isDemo: m.isDemo || false,
         createdBy: m.createdBy || m.userId,
         ownerUserId: m.ownerUserId || m.createdBy || m.userId,
-        leagueIds: m.leagueIds || []
+        leagueIds: m.leagueIds || [],
+        parentCommentsEnabled: m.parentCommentsEnabled ?? false,
+        parentChatEnabled: m.parentChatEnabled ?? true
       };
     });
   }, [teamsRawData, isSuperAdmin]);
@@ -363,6 +371,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
     return () => unsub();
   }, [activeTeam?.id, db]);
+
+  const currentMember = useMemo(() => {
+    if (!firebaseUser || !members.length) return null;
+    return members.find(m => m.userId === firebaseUser.uid) || null;
+  }, [firebaseUser, members]);
+
+  const isStaff = useMemo(() => {
+    return activeTeam?.role === 'Admin' || isSuperAdmin;
+  }, [activeTeam?.role, isSuperAdmin]);
+
+  const isPlayer = useMemo(() => {
+    return currentMember?.position === 'Player';
+  }, [currentMember?.position]);
+
+  const isParent = useMemo(() => {
+    return currentMember?.position === 'Parent';
+  }, [currentMember?.position]);
 
   const proQuotaStatus = useMemo(() => {
     const limitCount = userProfile?.proTeamLimit ?? 0;
@@ -547,7 +572,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     activeTeam, 
     setActiveTeam: (t: Team) => setActiveTeamId(t.id),
     updateTeamHero: async (url: string) => { if (activeTeam?.id && firebaseUser) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), { heroImageUrl: url }); } },
-    updateTeamDetails: async (updates: Partial<Team>) => { if (activeTeam?.id && firebaseUser) { const f: any = {}; if (updates.name) f.teamName = updates.name; if (updates.sport) f.sport = updates.sport; if (updates.description) f.description = updates.description; if (updates.teamLogoUrl) f.teamLogoUrl = updates.teamLogoUrl; if (Object.keys(f).length > 0) { updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), f); updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), f); } } },
+    updateTeamDetails: async (updates: Partial<Team>) => { if (activeTeam?.id && firebaseUser) { 
+      const f: any = {}; 
+      if (updates.name) f.teamName = updates.name; 
+      if (updates.sport) f.sport = updates.sport; 
+      if (updates.description) f.description = updates.description; 
+      if (updates.teamLogoUrl) f.teamLogoUrl = updates.teamLogoUrl; 
+      if (updates.parentCommentsEnabled !== undefined) f.parentCommentsEnabled = updates.parentCommentsEnabled;
+      if (updates.parentChatEnabled !== undefined) f.parentChatEnabled = updates.parentChatEnabled;
+      
+      if (Object.keys(f).length > 0) { 
+        updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id), f); 
+        updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid, 'teamMemberships', activeTeam.id), f); 
+      } 
+    } },
     updateTeamPlan: async (tid: string, pid: string) => { 
       if (db) { 
         const p = plans.find(p => p.id === pid);
@@ -564,6 +602,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isTeamsLoading,
     members,
     isMembersLoading,
+    currentMember,
+    isStaff,
+    isPlayer,
+    isParent,
     createNewTeam: async (name: string, pos: string, description?: string, planId?: string) => { 
       if (!firebaseUser) return ''; 
       const tid = `team_${Date.now()}`; 
@@ -575,7 +617,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         return await contextValue.createNewTeam(name, pos, description, 'starter_squad');
       }
       const batch = writeBatch(db); 
-      batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId, proAssignedAt: isP ? new Date().toISOString() : null, leagueIds: [], sport: 'General' }); 
+      batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId, proAssignedAt: isP ? new Date().toISOString() : null, leagueIds: [], sport: 'General', parentCommentsEnabled: false, parentChatEnabled: true }); 
       batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); 
       batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, description: description || '', teamCode: code, role: 'Admin', isPro: isP, planId: pId, joinedAt: new Date().toISOString(), createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, leagueIds: [], sport: 'General' }); 
       try { await batch.commit(); setActiveTeamId(tid); return tid; } catch (e) { return ''; }
@@ -758,7 +800,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       });
       toast({ title: "Squad Enrolled", description: `${teamName} added to ledger.` });
     }
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, isMembersLoading, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, isPlansLoading, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, alerts, router]);
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, isMembersLoading, currentMember, isStaff, isPlayer, isParent, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, isPlansLoading, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, alerts, router]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

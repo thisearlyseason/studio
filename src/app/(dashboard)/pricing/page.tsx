@@ -24,7 +24,8 @@ import {
   Activity,
   Layout,
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  ShieldAlert
 } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
@@ -44,7 +45,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 
 export default function PricingPage() {
-  const { activeTeam, purchasePro, submitLead, user, plans, isPlansLoading, proQuotaStatus } = useTeam();
+  const { activeTeam, purchasePro, submitLead, user, plans, isPlansLoading, proQuotaStatus, isStaff } = useTeam();
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
@@ -96,6 +97,24 @@ export default function PricingPage() {
     }
     setIsSubmitting(false);
   };
+
+  if (!isStaff) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in fade-in duration-500">
+        <div className="bg-primary/10 p-10 rounded-[3rem] shadow-2xl relative">
+          <ShieldAlert className="h-20 w-20 text-primary" />
+          <Lock className="absolute -top-3 -right-3 h-8 w-8 bg-black text-white p-1.5 rounded-full border-4 border-background" />
+        </div>
+        <div className="space-y-3 max-w-md">
+          <h1 className="text-4xl font-black tracking-tight uppercase">Staff Access Only</h1>
+          <p className="text-muted-foreground font-bold leading-relaxed uppercase tracking-wider text-sm">
+            Subscription tiers and module upgrades can only be managed by verified Coaching Staff and Admins.
+          </p>
+        </div>
+        <Button variant="outline" className="rounded-full h-14 px-10 font-black uppercase text-xs tracking-[0.2em] border-2" onClick={() => router.push('/feed')}>Return to Feed</Button>
+      </div>
+    );
+  }
 
   if (isPlansLoading && plans.length === 0) {
     return (
