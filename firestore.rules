@@ -17,21 +17,25 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Optimized Membership Check: Uses the 'members' map on the team document for instant verification
     function isTeamMember(teamId) {
+      let team = get(/databases/$(database)/documents/teams/$(teamId)).data;
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)) ||
-        (exists(/databases/$(database)/documents/teams/$(teamId)) && get(/databases/$(database)/documents/teams/$(teamId)).data.get('ownerUserId', '') == request.auth.uid)
+        team.ownerUserId == request.auth.uid ||
+        team.members[request.auth.uid] != null ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId))
       );
     }
 
+    // Optimized Admin Check: Supports super-admins and team-level authority
     function isAdmin(teamId) {
+      let team = get(/databases/$(database)/documents/teams/$(teamId)).data;
+      let userEmail = request.auth.token.get('email', '');
       return isSignedIn() && (
-        (request.auth.token.get('email', '') == 'thisearlyseason@gmail.com') || 
-        (request.auth.token.get('email', '') == 'test@gmail.com') ||
-        (exists(/databases/$(database)/documents/teams/$(teamId)) && get(/databases/$(database)/documents/teams/$(teamId)).data.get('ownerUserId', '') == request.auth.uid) ||
-        (exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.get('role', 'Member') == 'Admin')
+        userEmail == 'thisearlyseason@gmail.com' || 
+        userEmail == 'test@gmail.com' ||
+        team.ownerUserId == request.auth.uid ||
+        team.members[request.auth.uid] == 'Admin'
       );
     }
 
