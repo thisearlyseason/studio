@@ -48,7 +48,8 @@ import {
   Shield,
   History,
   Wand2,
-  Timer
+  Timer,
+  CalendarPlus
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -60,6 +61,14 @@ import {
   DialogFooter,
   DialogClose
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -71,9 +80,10 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format, isSameDay, isPast, isFuture, addMinutes, addDays } from 'date-fns';
+import { format, isSameDay, isPast, isFuture, addMinutes, addDays, parse } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
+import { generateGoogleCalendarLink, downloadICS, CalendarEvent } from '@/lib/calendar-utils';
 
 interface EventDetailDialogProps {
   event: TeamEvent;
@@ -113,18 +123,8 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
   return Object.values(standings).sort((a, b) => b.points - a.points || b.wins - a.wins);
 }
 
-function FeaturePaywall({ purchasePro, title, desc, icon: Icon }: { purchasePro: () => void, title: string, desc: string, icon: any }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6 animate-in fade-in duration-500 h-full">
-      <div className="bg-primary/10 p-6 rounded-[2rem] relative"><Icon className="h-12 w-12 text-primary" /><Lock className="absolute -top-2 -right-2 h-6 w-6 bg-black text-white p-1 rounded-full border-2 border-background shadow-lg" /></div>
-      <div className="space-y-2"><h3 className="text-xl font-black uppercase tracking-tight">{title}</h3><p className="text-sm text-muted-foreground font-bold uppercase tracking-widest max-w-xs mx-auto leading-relaxed">{desc}</p></div>
-      <Button className="rounded-xl h-12 px-8 font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20" onClick={purchasePro}>Upgrade Squad</Button>
-    </div>
-  );
-}
-
 function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
-  const { members = [], teams = [], user, updateEvent, signTeamTournamentWaiver, isPro } = useTeam();
+  const { members = [], teams = [], user, updateEvent, signTeamTournamentWaiver, isPro, activeTeam } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
@@ -139,35 +139,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const isEliteUnlocked = !!event.isTournamentPaid;
   
   const myTeamNames = teams.filter(t => t.role === 'Admin').map(t => t.name);
-  const myParticipatingTeamName = event.tournamentTeams?.find(tn => myTeamNames.includes(tn));
+  const myParticipatingTeamName = event.tournamentTeams?.find(tn => myTeamNames.includes(tn)) || activeTeam?.name;
   const isWaiverSignedForMyTeam = myParticipatingTeamName ? !!event.teamAgreements?.[myParticipatingTeamName]?.agreed : false;
-
-  const copyPublicLink = () => {
-    if (!isEliteUnlocked) { toast({ title: "Elite Feature", description: "This hub requires an Elite Tournament Module." }); return; }
-    const url = `${window.location.origin}/tournaments/public/${event.teamId}/${event.id}`;
-    navigator.clipboard.writeText(url);
-    toast({ title: "Spectator Hub Link Copied" });
-  };
-
-  const downloadAuditCSV = () => {
-    if (!isEliteUnlocked) return;
-    const standings = calculateTournamentStandings(event.tournamentTeams || [], event.tournamentGames || []);
-    const matchRows = (event.tournamentGames || []).map(g => [g.date, g.time, g.team1, g.score1, g.team2, g.score2, g.winnerId || 'TBD', event.location]);
-    const standingsRows = standings.map(s => [s.name, s.wins, s.losses, s.ties, s.points]);
-    
-    let csvContent = "data:text/csv;charset=utf-8,STANDINGS\nName,Wins,Losses,Ties,Points\n";
-    csvContent += standingsRows.map(e => e.join(",")).join("\n");
-    csvContent += "\n\nMATCHES\nDate,Time,Team 1,Score 1,Team 2,Score 2,Winner,Location\n";
-    csvContent += matchRows.map(e => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `audit_${event.title.replace(/\s+/g, '_')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const attendanceData = useMemo(() => {
     const internal = Object.entries(event.userRsvps || {}).map(([uid, status]) => {
@@ -192,6 +165,40 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
 
   const currentStatus = event.userRsvps?.[user?.id || ''];
   const isUserStaff = members.find(m => m.userId === user?.id && ['Coach', 'Team Lead', 'Assistant Coach', 'Squad Leader', 'Manager', 'Platform Admin'].includes(m.position));
+
+  // Calendar Sync Logic
+  const getMatchDate = (dateStr: string, timeStr: string) => {
+    try {
+      // Try to parse time like "10:00 AM" or "14:00"
+      return parse(`${dateStr} ${timeStr}`, 'yyyy-MM-dd h:mm a', new Date());
+    } catch {
+      return new Date(dateStr);
+    }
+  };
+
+  const syncSingleMatch = (game: TournamentGame) => {
+    const calEvent: CalendarEvent = {
+      title: `${game.team1} vs ${game.team2}`,
+      start: getMatchDate(game.date, game.time),
+      location: event.location,
+      description: `Tactical match for ${event.title}. Recorded via The Squad.`
+    };
+    return calEvent;
+  };
+
+  const syncTournamentSchedule = () => {
+    if (!event.tournamentGames || !myParticipatingTeamName) return;
+    const myGames = event.tournamentGames.filter(g => g.team1 === myParticipatingTeamName || g.team2 === myParticipatingTeamName);
+    
+    if (myGames.length === 0) {
+      toast({ title: "No Matches Found", description: "Your team has no matches scheduled in this tournament yet.", variant: "destructive" });
+      return;
+    }
+
+    const events = myGames.map(g => syncSingleMatch(g));
+    downloadICS(events, `${event.title.replace(/\s+/g, '_')}_Schedule.ics`);
+    toast({ title: "Schedule Exported", description: `${events.length} matches added to ICS file.` });
+  };
 
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
@@ -221,11 +228,62 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                     <div className="flex items-center gap-3 font-bold text-sm"><Clock className="h-4 w-4 text-primary" /><span>{event.startTime}</span></div>
                     <div className="flex items-center gap-3 font-bold text-sm"><MapPin className="h-4 w-4 text-primary" /><span className="truncate">{event.location}</span></div>
                   </div>
-                  {event.isTournament && (
-                    <Button onClick={copyPublicLink} variant="outline" className={cn("w-full rounded-xl h-12 font-black text-xs uppercase gap-3 border-white", isEliteUnlocked ? "bg-white text-black hover:bg-white/90" : "bg-white/10 text-white/40 border-dashed")}>
-                      {isEliteUnlocked ? <Share2 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}Share Spectator Hub {isEliteUnlocked ? "" : "(Elite Only)"}
-                    </Button>
-                  )}
+
+                  <div className="grid grid-cols-1 gap-2">
+                    {event.isTournament && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full rounded-xl h-12 font-black text-xs uppercase gap-3 border-white bg-white/10 text-white hover:bg-white/20">
+                            <CalendarPlus className="h-4 w-4" /> Sync Full Schedule
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56 rounded-xl">
+                          <DropdownMenuLabel className="text-[10px] font-black uppercase">Calendar Export</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="font-bold py-3 cursor-pointer" onClick={syncTournamentSchedule}>
+                            Download iCal / Outlook (.ics)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+
+                    {!event.isTournament && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full rounded-xl h-12 font-black text-xs uppercase gap-3 border-white bg-white/10 text-white hover:bg-white/20">
+                            <CalendarPlus className="h-4 w-4" /> Add to Calendar
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56 rounded-xl">
+                          <DropdownMenuLabel className="text-[10px] font-black uppercase">Provider Select</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="font-bold py-3 cursor-pointer" onClick={() => {
+                            const calEvent: CalendarEvent = {
+                              title: event.title,
+                              start: new Date(event.date),
+                              location: event.location,
+                              description: event.description
+                            };
+                            window.open(generateGoogleCalendarLink(calEvent), '_blank');
+                          }}>
+                            Google Calendar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="font-bold py-3 cursor-pointer" onClick={() => {
+                            const calEvent: CalendarEvent = {
+                              title: event.title,
+                              start: new Date(event.date),
+                              location: event.location,
+                              description: event.description
+                            };
+                            downloadICS([calEvent], `${event.title.replace(/\s+/g, '_')}.ics`);
+                          }}>
+                            iCal / Outlook (.ics)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                  
                   {myParticipatingTeamName && !isWaiverSignedForMyTeam && (
                     <Button onClick={() => signTeamTournamentWaiver(event.teamId, event.id, myParticipatingTeamName)} className="w-full rounded-xl h-14 font-black text-sm uppercase gap-3 bg-primary text-white shadow-xl shadow-primary/20">
                       <Signature className="h-5 w-5" /> Sign Team Waiver
@@ -237,7 +295,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                 <div className="space-y-4 pt-4">
                   <div className="flex items-center justify-between px-1">
                     <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Global Standings</h4>
-                    {isEliteUnlocked && isAdmin && <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-primary" onClick={downloadAuditCSV}><Download className="h-3.5 w-3.5" /></Button>}
                   </div>
                   {isEliteUnlocked ? (
                     tournamentStandings.length > 0 ? (
@@ -307,29 +364,46 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {games.map((game) => (
-                              <button key={game.id} onClick={() => isAdmin && setEditingGame(game)} className="p-5 bg-white rounded-3xl border shadow-sm transition-all text-left relative overflow-hidden group ring-1 ring-black/5 active:scale-95">
-                                <div className="flex justify-between items-center mb-4">
-                                  <Badge variant="outline" className="text-[8px] font-black uppercase border-black/10 tracking-widest px-2 h-5">{game.time}</Badge>
-                                  {game.isCompleted && <Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white">Final</Badge>}
-                                </div>
-                                <div className="grid grid-cols-7 items-center gap-4">
-                                  <div className="col-span-3 text-right">
-                                    <div className="flex items-center justify-end gap-2 mb-1">
-                                      <p className="font-black text-xs uppercase truncate">{game.team1}</p>
-                                      {game.winnerId === game.team1 && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
-                                    </div>
-                                    <p className="text-3xl font-black text-primary leading-none">{game.score1}</p>
+                              <div key={game.id} className="relative">
+                                <button onClick={() => isAdmin && setEditingGame(game)} className="w-full p-5 bg-white rounded-3xl border shadow-sm transition-all text-left relative overflow-hidden group ring-1 ring-black/5 active:scale-95">
+                                  <div className="flex justify-between items-center mb-4">
+                                    <Badge variant="outline" className="text-[8px] font-black uppercase border-black/10 tracking-widest px-2 h-5">{game.time}</Badge>
+                                    {game.isCompleted && <Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white">Final</Badge>}
                                   </div>
-                                  <div className="col-span-1 flex items-center justify-center opacity-20 font-black text-[10px]">VS</div>
-                                  <div className="col-span-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      {game.winnerId === game.team2 && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
-                                      <p className="font-black text-xs uppercase truncate">{game.team2}</p>
+                                  <div className="grid grid-cols-7 items-center gap-4">
+                                    <div className="col-span-3 text-right">
+                                      <div className="flex items-center justify-end gap-2 mb-1">
+                                        <p className="font-black text-xs uppercase truncate">{game.team1}</p>
+                                        {game.winnerId === game.team1 && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
+                                      </div>
+                                      <p className="text-3xl font-black text-primary leading-none">{game.score1}</p>
                                     </div>
-                                    <p className="text-3xl font-black text-primary leading-none">{game.score2}</p>
+                                    <div className="col-span-1 flex items-center justify-center opacity-20 font-black text-[10px]">VS</div>
+                                    <div className="col-span-3">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        {game.winnerId === game.team2 && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
+                                        <p className="font-black text-xs uppercase truncate">{game.team2}</p>
+                                      </div>
+                                      <p className="text-3xl font-black text-primary leading-none">{game.score2}</p>
+                                    </div>
                                   </div>
-                                </div>
-                              </button>
+                                </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full bg-muted/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <CalendarPlus className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="rounded-xl">
+                                    <DropdownMenuItem className="font-bold text-xs" onClick={() => window.open(generateGoogleCalendarLink(syncSingleMatch(game)), '_blank')}>
+                                      Sync Game to Google
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="font-bold text-xs" onClick={() => downloadICS([syncSingleMatch(game)], `${game.team1}_vs_${game.team2}.ics`)}>
+                                      Download iCal / ICS
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             ))}
                           </div>
                         </div>
