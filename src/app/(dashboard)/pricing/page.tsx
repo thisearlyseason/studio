@@ -319,7 +319,7 @@ export default function PricingPage() {
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Per Event</p>
               </div>
             </div>
-            <div className="p-10 space-y-10 flex-1 flex flex-col justify-between">
+            <div className="p-10 space-y-10 flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
                 <div className="flex items-center gap-3 text-xs font-black uppercase tracking-tight">
                   <Check className="h-5 w-5 text-red-600 stroke-[4px]" /> 
@@ -337,15 +337,6 @@ export default function PricingPage() {
                   <Check className="h-5 w-5 text-red-600 stroke-[4px]" /> 
                   <span>Waiver Management</span>
                 </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button variant="outline" className="flex-1 h-16 rounded-2xl font-black uppercase text-xs tracking-widest border-2 border-black" onClick={() => window.open('/safety', '_blank')}>
-                  Learn More
-                </Button>
-                <Button className="flex-1 h-16 rounded-2xl font-black uppercase text-xs tracking-widest bg-red-600 text-white hover:bg-red-700 shadow-xl shadow-red-600/20" onClick={purchasePro}>
-                  Get Token
-                </Button>
               </div>
             </div>
           </Card>
