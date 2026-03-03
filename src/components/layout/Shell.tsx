@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, memo } from 'react';
@@ -76,7 +75,7 @@ const tabs = [
   { name: 'Leagues', href: '/leagues', icon: Shield, pro: true },
   { name: 'Games', href: '/games', icon: Trophy, pro: false },
   { name: 'Drills', href: '/drills', icon: Dumbbell, pro: true },
-  { name: 'Chats', href: '/chats', icon: MessageCircle, pro: true },
+  { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
   { name: 'Roster', href: '/roster', icon: Users2, pro: false },
   { name: 'Library', href: '/files', icon: FolderClosed, pro: true },
 ];
@@ -235,7 +234,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               )}
 
               <div className="px-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2">Tactical Switcher</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Tactical Switcher</p>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-14 px-3 border-muted-foreground/10 bg-background/50 hover:bg-white rounded-2xl shadow-sm group">

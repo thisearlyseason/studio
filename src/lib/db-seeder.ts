@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -29,7 +28,7 @@ export async function seedSubscriptionData(db: Firestore) {
         { id: 'attendance_tracking', description: 'Track RSVPs and real-time attendance for events.', defaultEnabled: false },
         { id: 'live_feed_read', description: 'View the squad activity feed.', defaultEnabled: true },
         { id: 'live_feed_post', description: 'Post updates, photos, and polls to the squad.', defaultEnabled: false },
-        { id: 'group_chat', description: 'Real-time messaging channels for coordination.', defaultEnabled: false },
+        { id: 'group_chat', description: 'Real-time messaging channels for coordination.', defaultEnabled: true },
         { id: 'score_tracking', description: 'Record game results and season progress.', defaultEnabled: true },
         { id: 'stats_basic', description: 'Basic performance metrics and trends.', defaultEnabled: false },
         { id: 'media_uploads', description: 'Upload and share playbooks, photos, and files.', defaultEnabled: false },
@@ -58,7 +57,7 @@ export async function seedSubscriptionData(db: Firestore) {
       };
 
       const starterFeatures = {
-        schedule_games_events: true, basic_roster: true, live_feed_read: true, score_tracking: true
+        schedule_games_events: true, basic_roster: true, live_feed_read: true, score_tracking: true, group_chat: true
       };
 
       const plans = [
@@ -191,13 +190,12 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
     });
   });
 
-  if (isPro) {
-    const cid = `demo_chat_${teamId}`;
-    batch.set(doc(db, 'teams', teamId, 'groupChats', cid), {
-      id: cid, teamId, name: 'Tactical Command', memberIds: [userId], createdBy: userId, 
-      createdAt: now.toISOString(), lastMessage: 'Review the plays for the regional finals.', unread: 0, isDemo: true
-    });
-  }
+  // Chat is now available for all plans including Starter
+  const cid = `demo_chat_${teamId}`;
+  batch.set(doc(db, 'teams', teamId, 'groupChats', cid), {
+    id: cid, teamId, name: 'Tactical Command', memberIds: [userId], createdBy: userId, 
+    createdAt: now.toISOString(), lastMessage: 'Review the plays for the regional finals.', unread: 0, isDemo: true
+  });
 
   await batch.commit();
 }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -172,11 +171,11 @@ export default function HowToGuidePage() {
     {
       title: "6. Tactical Chats",
       icon: MessageCircle,
-      description: "Secure, role-based private messaging.",
+      description: "Secure, role-based private messaging available to all squads.",
       manual: [
         {
           step: "Thread Creation",
-          details: "Tap '+ New Chat'. Name it specifically (e.g., 'Offensive Unit' or 'Travel Logistics')."
+          details: "Tap '+ New Chat'. Name it specifically (e.g., 'Offensive Unit' or 'Travel Logistics'). Starter squads have access to core messaging features."
         },
         {
           step: "Member Selection",
@@ -198,8 +197,12 @@ export default function HowToGuidePage() {
           details: "Tap 'Invite'. Copy your unique 6-character 'Squad Code'. Send this to new players or parents. When they sign up and enter the code, they are instantly verified."
         },
         {
-          step: "Authority & Roles",
-          details: "Tap a member's card to change their 'Position' (e.g., Player to Assistant Coach). Positions like 'Coach' or 'Lead' automatically grant Administrative permissions."
+          step: "Basic Roster Management (Starter)",
+          details: "Available for all plans. Manage player names, positions, and jersey numbers. Tap a member's card to view their core profile."
+        },
+        {
+          step: "Advanced Roster Logic (Pro/Club)",
+          details: "Unlock detailed tracking for medical clearances, emergency contact networks, and private coaching notes. This provides institutional-grade protection for your squad."
         },
         {
           step: "Tracking Fees & Dues",
@@ -338,9 +341,12 @@ export default function HowToGuidePage() {
               <tbody className="bg-white divide-y">
                 {[
                   { name: "Schedule & RSVP", starter: true, pro: true, club: true },
+                  { name: "Tactical Chats & Polls", starter: true, pro: true, club: true },
+                  { name: "Basic Roster Management", starter: true, pro: true, club: true },
+                  { name: "Live Feed Reading", starter: true, pro: true, club: true },
                   { name: "Live Feed Posting", starter: false, pro: true, club: true },
-                  { name: "Tactical Chats & Polls", starter: false, pro: true, club: true },
                   { name: "Training Library", starter: false, pro: true, club: true },
+                  { name: "Advanced Roster Details", starter: false, pro: true, club: true },
                   { name: "Waivers & Compliance", starter: false, pro: true, club: true },
                   { name: "Cross-Team Leagues", starter: false, pro: true, club: true },
                   { name: "Season Trajectory Charts", starter: false, pro: true, club: true },
