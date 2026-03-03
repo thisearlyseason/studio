@@ -524,17 +524,29 @@ export default function EventsPage() {
   const events = rawEvents || [];
 
   const invitedTournamentsQuery = useMemoFirebase(() => {
-    // Explicitly check for team name and user to ensure query is valid and authorized
-    // Blocks placeholder names like 'Unnamed Team' or 'Select Squad' to prevent root-level list denials
-    if (!activeTeam?.name || activeTeam.name.trim() === '' || !db || !user) return null;
+    // Explicitly check for team identity and user to ensure query is valid and authorized
+    // Blocks placeholder names to prevent root-level list denials during initial boot
+    if (!activeTeam?.id || !activeTeam?.name || !db || !user) return null;
     
     const teamName = activeTeam.name.trim();
-    const isPlaceholder = teamName === 'Select Squad' || teamName === 'Unnamed Team' || teamName === 'Guest Grassroots Stars' || teamName === 'Guest Pro Elite';
+    
+    // Prevent queries with generic or placeholder names that might trigger broad rule denials
+    const isPlaceholder = 
+      teamName === '' || 
+      teamName === 'Select Squad' || 
+      teamName === 'Unnamed Team' || 
+      teamName.startsWith('Guest ') || 
+      teamName.includes('Demo') ||
+      teamName.length < 3;
     
     if (isPlaceholder) return null;
     
-    return query(collectionGroup(db, 'events'), where('tournamentTeams', 'array-contains', teamName), limit(20));
-  }, [activeTeam?.name, db, user?.uid]);
+    return query(
+      collectionGroup(db, 'events'), 
+      where('tournamentTeams', 'array-contains', teamName), 
+      limit(20)
+    );
+  }, [activeTeam?.id, activeTeam?.name, db, user?.uid]);
 
   const { data: rawInvitedTournaments } = useCollection<TeamEvent>(invitedTournamentsQuery);
   const invitedTournaments = rawInvitedTournaments || [];

@@ -47,9 +47,7 @@ service cloud.firestore {
       }
 
       match /events/{eventId} {
-        // Local read permission for standard collection queries
-        allow read: if isSignedIn();
-        
+        // Local read permission handled by the collectionGroup rule above
         // Write handled by parent/specific roles (Host Admin only)
         allow write: if isAdmin() || (isSignedIn() && (get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid || get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin'));
         
