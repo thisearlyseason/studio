@@ -45,23 +45,11 @@ export default function ChatsPage() {
   const { data: chatsData, isLoading: isChatsLoading } = useCollection(chatsQuery);
   const teamChats = useMemo(() => chatsData || [], [chatsData]);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || !activeTeam || isChatsLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
-        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
-        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Opening discussions...</p>
-      </div>
-    );
-  }
-
   // Governance: Filter member list based on position
   // Parents can always chat with Coaches/Staff.
   // Parents can only chat with other Parents if activeTeam.parentChatEnabled is true.
   const filteredMembers = useMemo(() => {
+    if (!activeTeam) return [];
     if (isStaff || isSuperAdmin) return members;
     
     if (isParent) {
@@ -76,7 +64,20 @@ export default function ChatsPage() {
     }
 
     return members; // Players can see everyone for now
-  }, [members, isStaff, isParent, activeTeam.parentChatEnabled, isSuperAdmin]);
+  }, [members, isStaff, isParent, activeTeam?.parentChatEnabled, isSuperAdmin, activeTeam]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !activeTeam || isChatsLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
+        <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Opening discussions...</p>
+      </div>
+    );
+  }
 
   const handleCreateChat = async () => {
     if (!newChatName.trim()) return;
@@ -201,7 +202,7 @@ export default function ChatsPage() {
             <MessageSquare className="h-12 w-12 text-muted-foreground opacity-20 mx-auto" />
             <div>
               <p className="font-black text-lg uppercase tracking-tight">No discussions found</p>
-              <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest opacity-60">Time to coordinate your next win.</p>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest opacity-60">Time to coordinate your next win.</p>
             </div>
             <Button variant="outline" className="rounded-full px-8 font-black uppercase text-xs tracking-widest border-2" onClick={() => setIsNewChatOpen(true)}>Launch First Chat</Button>
           </div>
