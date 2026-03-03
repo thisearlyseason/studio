@@ -40,6 +40,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function DrillsPage() {
   const { activeTeam, addDrill, deleteDrill, hasFeature, isSuperAdmin, purchasePro } = useTeam();
@@ -210,66 +211,63 @@ export default function DrillsPage() {
                 Add Drill
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
-              <div className="overflow-y-auto flex-1 custom-scrollbar">
-                <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
-                  <div className="p-8 bg-muted/30 lg:border-r space-y-6">
-                    <DialogHeader>
-                      <DialogTitle className="text-2xl font-black">Publish Training Drill</DialogTitle>
-                      <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Define coordination exercises</DialogDescription>
+            <DialogContent className="sm:max-w-4xl overflow-hidden p-0 sm:rounded-[2.5rem] h-full sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
+              <ScrollArea className="flex-1">
+                <div className="flex flex-col lg:flex-row h-full min-h-full">
+                  <div className="lg:w-5/12 p-6 lg:p-10 bg-muted/30 lg:border-r space-y-8">
+                    <DialogHeader className="flex flex-row items-center justify-between">
+                      <div className="space-y-1">
+                        <DialogTitle className="text-2xl lg:text-3xl font-black uppercase tracking-tight">Publish Drill</DialogTitle>
+                        <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Define coordination exercises</DialogDescription>
+                      </div>
+                      <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setIsAddOpen(false)}><X className="h-5 w-5" /></Button>
                     </DialogHeader>
                     <div className="space-y-5">
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Drill Name</Label>
-                        <Input placeholder="e.g. Full Court Press" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="rounded-xl h-12 bg-background shadow-sm border-2 font-bold" />
+                        <Input placeholder="e.g. Full Court Press" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="rounded-xl h-12 bg-background border-2 font-bold" />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">YouTube Integration</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">YouTube URL</Label>
                         <div className="relative">
                           <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="https://youtube.com/..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} className="rounded-xl h-12 pl-11 bg-background shadow-sm border-2 font-bold" />
+                          <Input placeholder="https://youtube.com/..." value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} className="rounded-xl h-12 pl-11 bg-background border-2 font-bold" />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Visual Aid</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Tactical Diagram</Label>
                         <div className="border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-background hover:border-primary/20 transition-all bg-background/50" onClick={() => fileInputRef.current?.click()}>
                           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                           {newPhotoUrl ? (
                             <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg border">
                               <img src={newPhotoUrl} className="w-full h-full object-cover" alt="Preview" />
-                              <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-xl" onClick={(e) => { e.stopPropagation(); setNewPhotoUrl(undefined); }}><X className="h-4 w-4" /></Button>
+                              <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full" onClick={(e) => { e.stopPropagation(); setNewPhotoUrl(undefined); }}><X className="h-4 w-4" /></Button>
                             </div>
                           ) : (
                             <>
                               <div className="bg-white p-3 rounded-2xl shadow-sm mb-3"><Camera className="h-6 w-6 text-primary" /></div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tap to upload diagram</p>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tap to upload aid</p>
                             </>
                           )}
                         </div>
                       </div>
-                      <div className="space-y-3 bg-white/50 p-4 rounded-xl border border-black/5">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Primary Media Focus</Label>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          <Button variant={primaryMedia === 'video' ? 'default' : 'outline'} className="h-10 rounded-lg text-[10px] font-black" onClick={() => setPrimaryMedia('video')}><Video className="h-3 w-3 mr-2" /> Video First</Button>
-                          <Button variant={primaryMedia === 'image' ? 'default' : 'outline'} className="h-10 rounded-lg text-[10px] font-black" onClick={() => setPrimaryMedia('image')}><ImageIcon className="h-3 w-3 mr-2" /> Image First</Button>
-                        </div>
-                      </div>
                     </div>
                   </div>
-                  <div className="p-8 space-y-6 flex flex-col justify-between bg-background">
+                  <div className="lg:w-7/12 p-6 lg:p-10 space-y-8 flex flex-col justify-between bg-background">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Detailed Instructions</Label>
-                      <Textarea placeholder="Explain step-by-step..." value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-[2rem] min-h-[300px] p-6 text-base leading-relaxed bg-muted/10 border-2 font-bold" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Execution Instructions</Label>
+                      <Textarea placeholder="Explain the play step-by-step..." value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-2xl lg:rounded-[2rem] min-h-[250px] lg:min-h-[400px] p-6 text-base leading-relaxed bg-muted/10 border-2 font-bold resize-none" />
                     </div>
-                    <DialogFooter>
-                      <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all mt-6" onClick={handleAddDrill} disabled={!newTitle || !newDescription || isUploading}>
+                    <div className="pt-8 mt-auto flex flex-col gap-3">
+                      <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleAddDrill} disabled={!newTitle || !newDescription || isUploading}>
                         {isUploading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
-                        Publish to Squad Library
+                        Publish to Squad Playbook
                       </Button>
-                    </DialogFooter>
+                      <Button variant="ghost" className="sm:hidden text-[10px] font-black uppercase tracking-widest" onClick={() => setIsAddOpen(false)}>Discard</Button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </ScrollArea>
             </DialogContent>
           </Dialog>
         )}
@@ -312,57 +310,54 @@ export default function DrillsPage() {
       </div>
 
       <Dialog open={!!selectedDrill} onOpenChange={(open) => !open && setSelectedDrill(null)}>
-        <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 overflow-hidden flex flex-col lg:flex-row max-h-[95vh] border-none shadow-2xl">
+        <DialogContent className="sm:max-w-5xl overflow-hidden p-0 sm:rounded-[3rem] h-full sm:h-auto sm:max-h-[95vh] flex flex-col border-none shadow-2xl">
           {selectedDrill && (
-            <>
-              <div className="flex-1 bg-black relative flex items-center justify-center min-h-[300px] lg:min-h-0">
-                <div className="sr-only">
-                  <DialogTitle>{selectedDrill.title}</DialogTitle>
-                  <DialogDescription>{selectedDrill.description}</DialogDescription>
+            <ScrollArea className="flex-1">
+              <div className="flex flex-col lg:flex-row h-full min-h-full">
+                <div className="lg:flex-1 bg-black relative flex items-center justify-center min-h-[300px] lg:min-h-0">
+                  <div className="sr-only">
+                    <DialogTitle>{selectedDrill.title}</DialogTitle>
+                    <DialogDescription>{selectedDrill.description}</DialogDescription>
+                  </div>
+                  
+                  {selectedDrill.viewerPrimary === 'video' && getYouTubeEmbedUrl(selectedDrill.videoUrl) ? (
+                    <div className="w-full h-full aspect-video">
+                      <iframe src={getYouTubeEmbedUrl(selectedDrill.videoUrl)} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                    </div>
+                  ) : (
+                    <img src={selectedDrill.photoUrl || selectedDrill.thumbnailUrl} className="w-full h-full object-contain p-2" alt={selectedDrill.title} />
+                  )}
+
+                  {(selectedDrill.videoUrl && selectedDrill.photoUrl) && (
+                    <div className="absolute bottom-6 right-6 z-20 flex gap-2">
+                      <button 
+                        onClick={() => setSelectedDrill({...selectedDrill, viewerPrimary: 'video'})}
+                        className={cn("h-16 w-24 rounded-xl border-2 overflow-hidden shadow-2xl transition-all", selectedDrill.viewerPrimary === 'video' ? "border-primary ring-2 ring-primary/30" : "border-white/20 opacity-60")}
+                      >
+                        <div className="w-full h-full bg-black/50 flex items-center justify-center relative">
+                          <img src={selectedDrill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="Video thumb" />
+                          <Play className="h-4 w-4 text-white relative z-10" />
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setSelectedDrill({...selectedDrill, viewerPrimary: 'image'})}
+                        className={cn("h-16 w-24 rounded-xl border-2 overflow-hidden shadow-2xl transition-all", selectedDrill.viewerPrimary === 'image' ? "border-primary ring-2 ring-primary/30" : "border-white/20 opacity-60")}
+                      >
+                        <img src={selectedDrill.photoUrl} className="w-full h-full object-cover" alt="Photo thumb" />
+                      </button>
+                    </div>
+                  )}
+
+                  <Button variant="secondary" size="icon" className="absolute top-6 left-6 rounded-full bg-black/50 text-white border-none lg:hidden" onClick={() => setSelectedDrill(null)}><X className="h-4 w-4" /></Button>
                 </div>
-                
-                {selectedDrill.viewerPrimary === 'video' && getYouTubeEmbedUrl(selectedDrill.videoUrl) ? (
-                  <div className="w-full h-full aspect-video">
-                    <iframe src={getYouTubeEmbedUrl(selectedDrill.videoUrl)} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-                  </div>
-                ) : (
-                  <img src={selectedDrill.photoUrl || selectedDrill.thumbnailUrl} className="w-full h-full object-contain p-2" alt={selectedDrill.title} />
-                )}
-
-                {/* Tactical Mini-Toggle / Thumbnail */}
-                {(selectedDrill.videoUrl && selectedDrill.photoUrl) && (
-                  <div className="absolute bottom-6 right-6 z-20 flex gap-2">
-                    <button 
-                      onClick={() => setSelectedDrill({...selectedDrill, viewerPrimary: 'video'})}
-                      className={cn("h-16 w-24 rounded-xl border-2 overflow-hidden shadow-2xl transition-all hover:scale-105", selectedDrill.viewerPrimary === 'video' ? "border-primary ring-2 ring-primary/30" : "border-white/20 opacity-60")}
-                    >
-                      <div className="w-full h-full bg-black/50 flex items-center justify-center relative">
-                        <img src={selectedDrill.thumbnailUrl} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="Video thumb" />
-                        <Play className="h-4 w-4 text-white relative z-10" />
-                      </div>
-                    </button>
-                    <button 
-                      onClick={() => setSelectedDrill({...selectedDrill, viewerPrimary: 'image'})}
-                      className={cn("h-16 w-24 rounded-xl border-2 overflow-hidden shadow-2xl transition-all hover:scale-105", selectedDrill.viewerPrimary === 'image' ? "border-primary ring-2 ring-primary/30" : "border-white/20 opacity-60")}
-                    >
-                      <img src={selectedDrill.photoUrl} className="w-full h-full object-cover" alt="Photo thumb" />
-                    </button>
-                  </div>
-                )}
-
-                <Button variant="secondary" size="icon" className="absolute top-6 left-6 rounded-full bg-black/50 text-white border-none hover:bg-black/70 lg:hidden" onClick={() => setSelectedDrill(null)}><X className="h-4 w-4" /></Button>
-              </div>
-              <div className="w-full lg:w-[400px] flex flex-col bg-background p-8 lg:h-full overflow-y-auto custom-scrollbar">
-                <div className="flex-1">
-                  <div className="space-y-6">
+                <div className="w-full lg:w-[400px] flex flex-col bg-background p-8 lg:h-full">
+                  <div className="flex-1 space-y-6">
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <Badge className="bg-primary text-white border-none font-black uppercase tracking-widest text-[10px]">Training Resource</Badge>
                         <h3 className="text-3xl font-black tracking-tight leading-tight">{selectedDrill.title}</h3>
                       </div>
-                      <div className="hidden lg:block">
-                        <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setSelectedDrill(null)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>
-                      </div>
+                      <Button variant="ghost" size="icon" className="hidden lg:flex rounded-full h-8 w-8" onClick={() => setSelectedDrill(null)}><XCircle className="h-5 w-5 text-muted-foreground" /></Button>
                     </div>
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expert Instructions</h4>
@@ -374,13 +369,13 @@ export default function DrillsPage() {
                       </Button>
                     )}
                   </div>
-                </div>
-                <div className="pt-8 border-t mt-6 flex gap-3">
-                  {isAdmin && <Button variant="ghost" className="rounded-xl h-12 w-12 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { if(confirm("Purge?")) { deleteDrill(selectedDrill.id); setSelectedDrill(null); } }}><Trash2 className="h-5 w-5" /></Button>}
-                  <Button className="flex-1 rounded-xl h-12 font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20" onClick={() => setSelectedDrill(null)}>Close Resource</Button>
+                  <div className="pt-8 border-t mt-6 flex gap-3">
+                    {isAdmin && <Button variant="ghost" className="rounded-xl h-12 w-12 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => { if(confirm("Purge?")) { deleteDrill(selectedDrill.id); setSelectedDrill(null); } }}><Trash2 className="h-5 w-5" /></Button>}
+                    <Button className="flex-1 rounded-xl h-12 font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20" onClick={() => setSelectedDrill(null)}>Close Resource</Button>
+                  </div>
                 </div>
               </div>
-            </>
+            </ScrollArea>
           )}
         </DialogContent>
       </Dialog>
