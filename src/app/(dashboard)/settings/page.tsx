@@ -218,8 +218,8 @@ export default function SettingsPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter className="mt-6">
                       <AlertDialogCancel className="rounded-xl font-bold border-2">Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={resetSeasonData} className="rounded-xl font-black bg-red-600 hover:bg-red-700 shadow-xl shadow-red-600/20">Purge & Reset</AccordionAction>
-                    </AccordionFooter>
+                      <AlertDialogAction onClick={resetSeasonData} className="rounded-xl font-black bg-red-600 hover:bg-red-700 shadow-xl shadow-red-600/20">Purge & Reset</AlertDialogAction>
+                    </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               )}
