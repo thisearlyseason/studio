@@ -118,7 +118,7 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
 
 function TournamentPaywall({ purchasePro }: { purchasePro: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4">
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-6 animate-in fade-in duration-500">
       <div className="bg-primary/10 p-6 rounded-[2rem] relative">
         <Trophy className="h-12 w-12 text-primary" />
         <Lock className="absolute -top-2 -right-2 h-6 w-6 bg-black text-white p-1 rounded-full border-2 border-background shadow-lg" />
@@ -524,20 +524,16 @@ export default function EventsPage() {
   const events = rawEvents || [];
 
   const invitedTournamentsQuery = useMemoFirebase(() => {
-    // CRITICAL: Block unauthorized or placeholder searches to prevent root-level list denials
-    // This query uses collectionGroup which requires top-level wildcard authorization in firestore.rules
-    if (!db || !user?.uid || !activeTeam?.name) return null;
+    // Explicitly check for team name and user to ensure query is valid and authorized
+    // Blocks placeholder names like 'Unnamed Team' or 'Select Squad' to prevent root-level list denials
+    if (!activeTeam?.name || activeTeam.name.trim() === '' || !db || !user) return null;
     
     const teamName = activeTeam.name.trim();
-    const isPlaceholder = teamName === '' || teamName === 'Select Squad' || teamName === 'Unnamed Team' || teamName === 'Select a team to manage';
+    const isPlaceholder = teamName === 'Select Squad' || teamName === 'Unnamed Team' || teamName === 'Guest Grassroots Stars' || teamName === 'Guest Pro Elite';
     
     if (isPlaceholder) return null;
     
-    return query(
-      collectionGroup(db, 'events'), 
-      where('tournamentTeams', 'array-contains', teamName), 
-      limit(20)
-    );
+    return query(collectionGroup(db, 'events'), where('tournamentTeams', 'array-contains', teamName), limit(20));
   }, [activeTeam?.name, db, user?.uid]);
 
   const { data: rawInvitedTournaments } = useCollection<TeamEvent>(invitedTournamentsQuery);
@@ -665,7 +661,7 @@ export default function EventsPage() {
                               <input type="date" value={game.date} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, date: e.target.value} : g))} className="w-full h-9 rounded-xl font-bold bg-background px-3 border" />
                               <div className="flex justify-between items-center gap-4">
                                 <Select value={game.team1} onValueChange={(v) => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, team1: v} : g))}><SelectTrigger className="h-10 rounded-xl font-bold"><SelectValue /></SelectTrigger><SelectContent>{tournamentTeams.map((t, idx) => <SelectItem key={`${t}-${idx}-1`} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-                                <div className="flex items-center gap-2"><Input type="number" value={game.score1} onChange={setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, score1: parseInt(e.target.value) || 0} : g))} className="w-16 h-10 text-center font-black" /><span className="opacity-20 font-black">VS</span><Input type="number" value={game.score2} onChange={setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, score2: parseInt(e.target.value) || 0} : g))} className="w-16 h-10 text-center font-black" /></div>
+                                <div className="flex items-center gap-2"><Input type="number" value={game.score1} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, score1: parseInt(e.target.value) || 0} : g))} className="w-16 h-10 text-center font-black" /><span className="opacity-20 font-black">VS</span><Input type="number" value={game.score2} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, score2: parseInt(e.target.value) || 0} : g))} className="w-16 h-10 text-center font-black" /></div>
                                 <Select value={game.team2} onValueChange={(v) => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, team2: v} : g))}><SelectTrigger className="h-10 rounded-xl font-bold"><SelectValue /></SelectTrigger><SelectContent>{tournamentTeams.map((t, idx) => <SelectItem key={`${t}-${idx}-2`} value={t}>{t}</SelectItem>)}</SelectContent></Select>
                               </div>
                               <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 bg-white shadow-sm border rounded-full text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setTournamentGames(tournamentGames.filter(g => g.id !== game.id))}><Trash2 className="h-3 w-3" /></Button>
