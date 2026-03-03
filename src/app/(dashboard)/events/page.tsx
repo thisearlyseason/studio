@@ -270,20 +270,39 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                 </div>
               </div>
 
-              {event.isTournament && isEliteUnlocked && tournamentStandings.length > 0 && (
+              {event.isTournament && (
                 <div className="space-y-4 flex-1">
                   <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] px-1">Global Standings</h4>
-                  <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
-                    {tournamentStandings.map((team, i) => (
-                      <div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="text-[10px] font-black text-primary w-4">{i + 1}</span>
-                          <span className="text-xs font-black uppercase truncate pr-2">{team.name}</span>
-                        </div>
-                        <Badge className="bg-primary text-white border-none font-black text-[9px] px-2 h-5 shrink-0">{team.points} PTS</Badge>
+                  {isEliteUnlocked ? (
+                    tournamentStandings.length > 0 ? (
+                      <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
+                        {tournamentStandings.map((team, i) => (
+                          <div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-[10px] font-black text-primary w-4">{i + 1}</span>
+                              <span className="text-xs font-black uppercase truncate pr-2">{team.name}</span>
+                            </div>
+                            <Badge className="bg-primary text-white border-none font-black text-[9px] px-2 h-5 shrink-0">{team.points} PTS</Badge>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <div className="p-8 text-center bg-white/5 rounded-3xl border border-dashed border-white/10">
+                        <p className="text-[10px] font-black uppercase text-white/40">No match data synced</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="p-8 text-center bg-primary/10 rounded-3xl border border-dashed border-primary/40 space-y-4">
+                      <Lock className="h-8 w-8 text-primary mx-auto opacity-40" />
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Standings Locked</p>
+                        <p className="text-[8px] font-bold text-white/60 uppercase leading-relaxed">Unlock the Elite Module to automatically track points, wins, and regional rankings.</p>
+                      </div>
+                      <Button variant="secondary" size="sm" className="h-8 rounded-lg text-[8px] font-black uppercase tracking-widest w-full bg-primary text-white hover:bg-primary/90" onClick={purchasePro}>
+                        Get Elite Standings
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
