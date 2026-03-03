@@ -110,10 +110,16 @@ export default function PricingPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
         {/* STARTER SQUAD */}
-        <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white">
+        <Card className={cn(
+          "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
+          activeTeam?.planId === 'starter_squad' && "ring-4 ring-muted-foreground/20"
+        )}>
           <div className="h-2 w-full bg-muted-foreground/20" />
           <CardHeader className="p-10 pb-6 space-y-4">
-            <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center border-primary/20 text-primary w-fit">GRASSROOTS</Badge>
+            <div className="flex justify-between items-start">
+              <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center border-primary/20 text-primary w-fit">GRASSROOTS</Badge>
+              {activeTeam?.planId === 'starter_squad' && <Badge className="bg-muted text-muted-foreground font-black text-[8px] px-2 h-5 border-none uppercase">Current Tier</Badge>}
+            </div>
             <div className="space-y-1">
               <CardTitle className="text-3xl font-black uppercase tracking-tight">Starter</CardTitle>
               <span className="text-5xl font-black tracking-tighter">$0</span>
@@ -131,16 +137,24 @@ export default function PricingPage() {
             </div>
           </CardContent>
           <CardFooter className="p-10 pt-0">
-            <Button variant="outline" disabled className="w-full h-14 rounded-2xl font-black uppercase opacity-50">Free Tier</Button>
+            <Button variant="outline" disabled className="w-full h-14 rounded-2xl font-black uppercase opacity-50">
+              {activeTeam?.planId === 'starter_squad' ? "Current Plan" : "Free Tier"}
+            </Button>
           </CardFooter>
         </Card>
 
         {/* SQUAD PRO - HIGHLIGHTED */}
-        <Card className="rounded-[3rem] border-none shadow-2xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.05] ring-4 ring-primary bg-black text-white relative z-10 animate-in zoom-in-95">
+        <Card className={cn(
+          "rounded-[3rem] border-none shadow-2xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.05] ring-4 ring-primary bg-black text-white relative z-10 animate-in zoom-in-95",
+          activeTeam?.planId === 'squad_pro' && "ring-offset-4 ring-offset-background"
+        )}>
           <div className="absolute inset-0 bg-primary/5 pointer-events-none animate-pulse" />
           <div className="h-2 w-full bg-primary" />
           <CardHeader className="p-10 pb-6 space-y-4 relative z-10">
-            <Badge className="bg-primary text-white border-none font-black text-[8px] px-3 h-5 uppercase w-fit">ELITE PRO</Badge>
+            <div className="flex justify-between items-start">
+              <Badge className="bg-primary text-white border-none font-black text-[8px] px-3 h-5 uppercase w-fit">ELITE PRO</Badge>
+              {activeTeam?.planId === 'squad_pro' && <Badge className="bg-white text-black font-black text-[8px] px-2 h-5 border-none uppercase">Current Tier</Badge>}
+            </div>
             <div className="space-y-1">
               <CardTitle className="text-3xl font-black uppercase tracking-tight text-white">Squad Pro</CardTitle>
               <div className="flex items-baseline gap-1">
@@ -162,15 +176,32 @@ export default function PricingPage() {
             </div>
           </CardContent>
           <CardFooter className="p-10 pt-0 relative z-10">
-            <Button className="w-full h-14 rounded-2xl font-black bg-white text-black hover:bg-white/90 shadow-xl" onClick={purchasePro}>Upgrade to Elite</Button>
+            <Button 
+              className={cn(
+                "w-full h-14 rounded-2xl font-black shadow-xl",
+                activeTeam?.planId === 'squad_pro' ? "bg-muted text-muted-foreground opacity-50" : "bg-white text-black hover:bg-white/90"
+              )} 
+              onClick={purchasePro}
+              disabled={activeTeam?.planId === 'squad_pro'}
+            >
+              {activeTeam?.planId === 'squad_pro' ? "Current Plan" : "Upgrade to Elite"}
+            </Button>
           </CardFooter>
         </Card>
 
         {/* CLUB SUITE */}
-        <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white">
+        <Card className={cn(
+          "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
+          activeTeam?.planId?.startsWith('squad_') && activeTeam?.planId !== 'squad_pro' && "ring-4 ring-primary/20"
+        )}>
           <div className="h-2 w-full bg-primary" />
           <CardHeader className="p-10 pb-6 space-y-4">
-            <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center border-primary/20 text-primary w-fit">CLUB MANAGER</Badge>
+            <div className="flex justify-between items-start">
+              <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center border-primary/20 text-primary w-fit">CLUB MANAGER</Badge>
+              {activeTeam?.planId?.startsWith('squad_') && activeTeam?.planId !== 'squad_pro' && activeTeam?.planId !== 'starter_squad' && (
+                <Badge className="bg-primary/10 text-primary font-black text-[8px] px-2 h-5 border-none uppercase">Current Tier</Badge>
+              )}
+            </div>
             <CardTitle className="text-3xl font-black uppercase tracking-tight">Club Suite</CardTitle>
             <p className="text-[10px] font-black uppercase tracking-widest text-primary leading-tight">Includes ALL Squad Pro Features + Hub Management</p>
           </CardHeader>
@@ -178,23 +209,31 @@ export default function PricingPage() {
             <div className="pt-6 border-t border-muted space-y-4">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Organization Scaling</p>
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {clubPlans.map(cp => (
-                  <div key={cp.id} className="flex justify-between items-center p-3 rounded-xl border-2 transition-all bg-muted/30">
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-black uppercase truncate">{cp.name.replace('Club ', '')}</span>
-                      <span className="text-[8px] font-bold text-muted-foreground uppercase">{cp.proTeamLimit} Teams</span>
+                {clubPlans.map(cp => {
+                  const isCurrentSub = activeTeam?.planId === cp.id;
+                  return (
+                    <div key={cp.id} className={cn(
+                      "flex justify-between items-center p-3 rounded-xl border-2 transition-all",
+                      isCurrentSub ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent"
+                    )}>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] font-black uppercase truncate">{cp.name.replace('Club ', '')}</span>
+                        <span className="text-[8px] font-bold text-muted-foreground uppercase">{cp.proTeamLimit} Teams</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] font-black text-primary">{getDisplayPrice(cp)}</span>
+                        <p className="text-[7px] font-bold uppercase opacity-50">{getCycleLabel(cp)}</p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-[10px] font-black text-primary">{getDisplayPrice(cp)}</span>
-                      <p className="text-[7px] font-bold uppercase opacity-50">{getCycleLabel(cp)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </CardContent>
           <CardFooter className="p-10 pt-0">
-            <Button className="w-full h-14 rounded-2xl font-black shadow-xl bg-primary text-white" onClick={purchasePro}>Scale Organization</Button>
+            <Button className="w-full h-14 rounded-2xl font-black shadow-xl bg-primary text-white" onClick={purchasePro}>
+              {activeTeam?.planId?.startsWith('squad_') && activeTeam?.planId !== 'squad_pro' && activeTeam?.planId !== 'starter_squad' ? "Scale Seats" : "Scale Organization"}
+            </Button>
           </CardFooter>
         </Card>
       </div>
@@ -248,7 +287,9 @@ export default function PricingPage() {
         </div>
         <Dialog open={isContactOpen} onOpenChange={setIsContactOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="rounded-full px-10 h-12 border-white/20 text-white hover:bg-white/10 font-black uppercase text-[10px] tracking-[0.2em]">Contact Enterprise</Button>
+            <Button variant="secondary" className="rounded-full px-10 h-14 bg-white text-black hover:bg-white/90 font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl relative z-20">
+              Contact Enterprise
+            </Button>
           </DialogTrigger>
           <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
             <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black uppercase tracking-tight">Enterprise Infrastructure</DialogTitle></DialogHeader>
