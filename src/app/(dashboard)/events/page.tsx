@@ -516,7 +516,7 @@ export default function EventsPage() {
   const db = useFirestore();
 
   const eventsQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db) return null;
+    if (!activeTeam?.id || !db) return null;
     return query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc'));
   }, [activeTeam?.id, db]);
   
@@ -525,12 +525,13 @@ export default function EventsPage() {
 
   const invitedTournamentsQuery = useMemoFirebase(() => {
     // CRITICAL: Block unauthorized or placeholder searches to prevent root-level list denials
-    const teamName = activeTeam?.name;
-    const isPlaceholder = !teamName || teamName === 'Select Squad' || teamName === 'Unnamed Team' || teamName.trim() === '';
+    // This query uses collectionGroup which requires top-level wildcard authorization in firestore.rules
+    if (!db || !user?.uid || !activeTeam?.name) return null;
     
-    if (isPlaceholder || !db || !user) {
-      return null;
-    }
+    const teamName = activeTeam.name.trim();
+    const isPlaceholder = teamName === '' || teamName === 'Select Squad' || teamName === 'Unnamed Team' || teamName === 'Select a team to manage';
+    
+    if (isPlaceholder) return null;
     
     return query(
       collectionGroup(db, 'events'), 

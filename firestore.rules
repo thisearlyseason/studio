@@ -21,10 +21,9 @@ service cloud.firestore {
     }
 
     // CRITICAL: Top-level Collection Group rule for global tournament discovery
-    // This MUST be outside standard team paths to authorize cross-team searches
+    // This MUST be outside standard paths to authorize queries across any team path.
     match /{path=**}/events/{eventId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
+      allow read: if isSignedIn();
     }
 
     match /users/{userId} {
@@ -47,7 +46,7 @@ service cloud.firestore {
       }
 
       match /events/{eventId} {
-        // Explicit read for scoped team queries
+        // Redundant with top-level match but added for absolute path clarity
         allow read: if isSignedIn();
         
         // Write handled by parent/specific roles (Host Admin only)
