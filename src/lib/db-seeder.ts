@@ -14,6 +14,9 @@ import {
   addDoc
 } from 'firebase/firestore';
 
+/**
+ * Centrally defines the subscription plans and features.
+ */
 export async function seedSubscriptionData(db: Firestore) {
   try {
     const featuresSnapshot = await getDocs(collection(db, 'features'));
@@ -115,107 +118,115 @@ export async function seedSubscriptionData(db: Firestore) {
   }
 }
 
-export async function seedDemoData(db: Firestore, teamId: string, planId: string, userId: string, extraOptions?: any) {
+/**
+ * UNIFIED SEEDER: Reuses the same dataset for all demos, only changing dates and Elite status.
+ */
+export async function seedDemoData(db: Firestore, teamId: string, demoTier: string, userId: string) {
   const batch = writeBatch(db);
   const now = new Date();
-  const isStarter = planId === 'starter_squad';
-  const isEliteTournamentDemo = planId === 'tournament_pro' || extraOptions?.isEliteTournament;
+  
+  // Tier flags
+  const isStarter = demoTier === 'starter_squad';
+  const isEliteTournamentDemo = demoTier === 'tournament_pro';
   const isPro = !isStarter;
 
+  // Unified Roster
   const names = [
     'Jordan Smith', 'Alex Rivera', 'Sam Taylor', 'Casey Morgan', 'Riley Jones', 
     'Morgan Lee', 'Taylor Quinn', 'Chris Brooks', 'Jamie Day', 'Robin Hood',
     'Sidney Vane', 'Blake Bell', 'Charlie Reed', 'Avery Hill', 'Parker Pen'
   ];
   
-  // 1. ROSTER SEEDING
-  for (let i = 0; i < (isStarter ? 8 : 12); i++) {
+  for (let i = 0; i < 12; i++) {
     const mid = `demo_mem_${teamId}_${i}`;
     batch.set(doc(db, 'teams', teamId, 'members', mid), {
       id: mid, userId: `demo_user_${teamId}_${i}`, teamId, name: names[i] || `Teammate ${i+1}`, 
-      role: 'Member', position: 'Player', jersey: (i + 10).toString(),
-      avatar: `https://picsum.photos/seed/demo_${i}_${teamId}/150/150`, 
-      joinedAt: now.toISOString(), amountOwed: 0, feesPaid: true, isDemo: true,
+      role: 'Member', position: i === 0 ? 'Team Lead' : 'Player', jersey: (i + 10).toString(),
+      avatar: `https://picsum.photos/seed/demo_v2_${i}_${teamId}/150/150`, 
+      joinedAt: now.toISOString(), amountOwed: i > 8 ? 50 : 0, feesPaid: i <= 8, isDemo: true,
       waiverSigned: isPro, medicalClearance: isPro && i % 2 === 0
     });
   }
 
-  // 2. TOURNAMENT SEEDING (Basic for most, Elite for Tournament Demo)
+  // Unified Tournament (Regional Championship)
+  // Always set to start today and end in 3 days so it is live/upcoming
   const tid_tournament = `demo_tournament_${teamId}`;
-  const day1Date = new Date(now.getTime() - 86400000); // Yesterday
-  const day2Date = now; // Today
-  const day3Date = new Date(now.getTime() + 86400000); // Tomorrow
+  const day1Date = now; // Today
+  const day3Date = new Date(now.getTime() + (86400000 * 3)); // 3 days from now
 
   const day1Str = day1Date.toISOString().split('T')[0];
-  const day2Str = day2Date.toISOString().split('T')[0];
-  const day3Str = day3Date.toISOString().split('T')[0];
+  const day2Str = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
   batch.set(doc(db, 'teams', teamId, 'events', tid_tournament), {
     id: tid_tournament, teamId, 
-    title: isEliteTournamentDemo ? 'Summer Regional Championships' : 'Community Kick-Off Cup', 
+    title: 'Regional Season Championship', 
     date: day1Date.toISOString(),
     endDate: day3Date.toISOString(),
     startTime: '09:00 AM', location: 'Metropolitan Stadium', 
-    description: isEliteTournamentDemo ? 'Elite championship series with live regional broadcasting.' : 'Annual community preseason tournament.',
+    description: 'The premier regional coordination event of the season.',
     isTournament: true,
     isTournamentPaid: isEliteTournamentDemo, // ONLY TRUE FOR TOURNAMENT DEMO
     tournamentTeams: ['Westside Warriors', 'Eastside Elite', 'Northside Knights', 'Southside Strikers', 'Metro Stars', 'City Rangers'],
     tournamentGames: [
       { id: 'g1', team1: 'Westside Warriors', team2: 'Eastside Elite', score1: 4, score2: 2, date: day1Str, time: '10:00 AM', isCompleted: true, winnerId: 'Westside Warriors' },
       { id: 'g2', team1: 'Northside Knights', team2: 'Southside Strikers', score1: 1, score2: 1, date: day1Str, time: '12:00 PM', isCompleted: true },
-      { id: 'g3', team1: 'Metro Stars', team2: 'City Rangers', score1: 0, score2: 3, date: day2Str, time: '09:00 AM', isCompleted: true, winnerId: 'City Rangers' },
-      { id: 'g4', team1: 'Westside Warriors', team2: 'Northside Knights', score1: 0, score2: 0, date: day2Str, time: '02:00 PM', isCompleted: false },
-      { id: 'g5', team1: 'City Rangers', team2: 'Eastside Elite', score1: 0, score2: 0, date: day3Str, time: '11:00 AM', isCompleted: false }
+      { id: 'g3', team1: 'Metro Stars', team2: 'City Rangers', score1: 0, score2: 0, date: day2Str, time: '09:00 AM', isCompleted: false }
     ],
     userRsvps: { [userId]: 'going' }, isDemo: true, createdAt: now.toISOString(), lastUpdated: now.toISOString()
   });
 
-  // 3. MATCH LEDGER SEEDING
-  const gamesList = [
-    { opponent: 'Wildcats', result: 'Win', myScore: 4, opponentScore: 2 },
-    { opponent: 'Storm', result: 'Loss', myScore: 1, opponentScore: 3 }
+  // Unified Match Ledger (Recent results)
+  const matches = [
+    { opponent: 'Wildcats', result: 'Win', myScore: 4, opponentScore: 2, offsetDays: 2 },
+    { opponent: 'Storm', result: 'Loss', myScore: 1, opponentScore: 3, offsetDays: 5 }
   ];
-  gamesList.forEach((g, i) => {
+  matches.forEach((m, i) => {
     const gid = `demo_game_${teamId}_${i}`;
     batch.set(doc(db, 'teams', teamId, 'games', gid), {
-      ...g, id: gid, teamId, date: new Date(now.getTime() - 86400000 * (i + 5)).toISOString(),
-      location: 'Arena Central', notes: isPro ? 'Exceptional execution of the full court press.' : '', isDemo: true, createdAt: now.toISOString()
+      id: gid, teamId, opponent: m.opponent, result: m.result, myScore: m.myScore, opponentScore: m.opponentScore,
+      date: new Date(now.getTime() - 86400000 * m.offsetDays).toISOString(),
+      location: 'City Arena Central', notes: isPro ? 'Exceptional execution of the primary tactical play.' : '', isDemo: true, createdAt: now.toISOString()
     });
   });
 
-  // 4. TRAINING VAULT (DRILLS)
+  // Unified Drills (only for Pro/Club)
   if (isPro) {
-    batch.set(doc(db, 'teams', teamId, 'drills', `demo_drill_${teamId}_1`), {
-      id: `demo_drill_${teamId}_1`, teamId, title: 'Full Court Press Strategy',
-      description: 'Defensive coordination drill focusing on zone transitions and communication.',
+    const did = `demo_drill_${teamId}_1`;
+    batch.set(doc(db, 'teams', teamId, 'drills', did), {
+      id: did, teamId, title: 'Full Court Coordination Drill',
+      description: 'Defensive coordination focusing on zone transitions and communication protocols.',
       videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      thumbnailUrl: 'https://picsum.photos/seed/drill_v2/400/300',
       primaryMedia: 'video', createdAt: now.toISOString(), isDemo: true
     });
   }
 
-  // 5. LIBRARY SEEDING
+  // Unified Files (only for Pro/Club)
   if (isPro) {
-    batch.set(doc(db, 'teams', teamId, 'files', `demo_file_${teamId}_1`), {
-      id: `demo_file_${teamId}_1`, teamId, name: 'Season Playbook V1.pdf', type: 'pdf', size: '2.4 MB',
+    const fid = `demo_file_${teamId}_1`;
+    batch.set(doc(db, 'teams', teamId, 'files', fid), {
+      id: fid, teamId, name: 'Season Playbook Master.pdf', type: 'pdf', size: '2.4 MB',
       url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      uploadedBy: 'Coach Sam', date: now.toISOString(), category: 'file', isDemo: true
+      uploadedBy: 'Coach Sam', uploaderId: 'system', date: now.toISOString(), category: 'file', isDemo: true
     });
   }
 
-  // 6. CHAT SEEDING
+  // Unified Broadcast Post (only for Pro/Club)
+  if (isPro) {
+    const pid = `demo_post_${teamId}_1`;
+    batch.set(doc(db, 'teams', teamId, 'feedPosts', pid), {
+      id: pid, teamId, type: 'user', content: 'Huge win recently squad! Let’s keep this momentum for the Regional Championship.',
+      author: { name: 'Coach Alex', avatar: 'https://picsum.photos/seed/coach/100/100' }, authorId: 'demo_coach', 
+      createdAt: now.toISOString(), likes: [userId], isDemo: true
+    });
+  }
+
+  // Unified Chat
   const cid = `demo_chat_${teamId}`;
   batch.set(doc(db, 'teams', teamId, 'groupChats', cid), {
-    id: cid, teamId, name: 'Tactical Command', memberIds: [userId], createdBy: userId, 
-    createdAt: now.toISOString(), lastMessage: 'Review the finals playbook before tomorrow.', unread: 0, isDemo: true
+    id: cid, teamId, name: 'Tactical Command Hub', memberIds: [userId], createdBy: userId, 
+    createdAt: now.toISOString(), lastMessage: 'Review the Regional Championship bracket before tomorrow.', unread: 0, isDemo: true
   });
-
-  // 7. FEED POSTS
-  if (isPro) {
-    batch.set(doc(db, 'teams', teamId, 'feedPosts', `demo_post_${teamId}_1`), {
-      id: `demo_post_${teamId}_1`, teamId, type: 'user', content: 'Huge win today squad! Let’s keep this momentum for the regionals.',
-      author: { name: 'Coach Alex', avatar: '' }, authorId: 'demo_coach', createdAt: now.toISOString(), likes: [userId], isDemo: true
-    });
-  }
 
   await batch.commit();
 }
@@ -223,17 +234,20 @@ export async function seedDemoData(db: Firestore, teamId: string, planId: string
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
   const timestamp = Date.now();
   const teamId = `demo_guest_${userId.slice(-4)}_${timestamp}`;
+  
+  // Define actual plan IDs for the backend logic
+  const actualPlanId = planId === 'tournament_pro' ? 'squad_pro' : planId;
+  const isPro = actualPlanId !== 'starter_squad';
+  
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
                    planId === 'squad_pro' ? 'Guest Pro Elite' : 
                    planId === 'tournament_pro' ? 'Regional Tournament Hub' : 'Metro Academy Hub';
   
   const code = teamId.slice(-6).toUpperCase();
-  const actualPlanId = planId === 'tournament_pro' ? 'squad_pro' : planId;
-  const isPro = actualPlanId !== 'starter_squad';
   const batch = writeBatch(db);
   const nowStr = new Date().toISOString();
   
-  // CRITICAL: FORCE TIMER RESET BY UPDATING createdAt TO NOW
+  // RESET USER SESSION TIMER AND CREDITS
   batch.set(doc(db, 'users', userId), {
     id: userId, fullName: 'Guest Coordinator', email: 'guest@thesquad.io',
     notificationsEnabled: true, createdAt: nowStr, // RESET THE 5 MINUTE CLOCK
@@ -241,7 +255,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     activePlanId: actualPlanId, 
     proTeamLimit: planId === 'squad_organization' ? 15 : 1,
     planSource: 'free', 
-    tournamentCredits: planId === 'tournament_pro' ? 1 : 0 // GIVES ONE TOKEN TO TEST ELITE HUB
+    tournamentCredits: planId === 'tournament_pro' ? 1 : 0 // GIVES ONE TOKEN ONLY TO TOURNAMENT DEMO
   }, { merge: true });
 
   batch.set(doc(db, 'teams', teamId), {
@@ -254,7 +268,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
     userId, teamId, teamName, teamCode: code, role: 'Admin', 
     isPro, planId: actualPlanId, isDemo: true, 
-    joinedAt: nowStr, createdBy: userId, ownerUserId: userId
+    joinedAt: nowStr, createdBy: userId, ownerUserId: userId,
+    sport: 'Multi-Sport'
   });
 
   batch.set(doc(db, 'teams', teamId, 'members', userId), {
@@ -266,7 +281,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   await batch.commit();
   
-  await seedDemoData(db, teamId, planId, userId, { isEliteTournament: planId === 'tournament_pro' });
+  // Use UNIFIED SEEDER
+  await seedDemoData(db, teamId, planId, userId);
 
   return teamId;
 }
@@ -295,8 +311,12 @@ export async function resetDemoEnvironment(db: Firestore, teamId: string, planId
         if (snap.size > 0) await batch.commit();
       }
     }
+    
+    // RESET TIMER FOR USER
     const nowStr = new Date().toISOString();
     await updateDoc(doc(db, 'users', userId), { createdAt: nowStr });
+    
+    // RE-SEED DATA
     for (const tid of teamIds) {
       await seedDemoData(db, tid, planId, userId);
     }
@@ -307,8 +327,8 @@ export async function launchDemoEnvironments(db: Firestore, superAdminId: string
   const demoTeams = [
     { id: 'demo_starter_team', name: 'U10 Grassroots Stars', planId: 'starter_squad', sport: 'Soccer' },
     { id: 'demo_pro_team', name: 'Elite Pro Squad', planId: 'squad_pro', sport: 'Basketball' },
-    { id: 'demo_tournament_team', name: 'Regionals Tournament', planId: 'tournament_pro', sport: 'Baseball' },
-    { id: 'demo_club_team_1', name: 'City Central United', planId: 'squad_organization', sport: 'Academy' }
+    { id: 'demo_tournament_team', name: 'Regionals Tournament Hub', planId: 'tournament_pro', sport: 'Baseball' },
+    { id: 'demo_club_team_1', name: 'City Central Academy Hub', planId: 'squad_organization', sport: 'Academy' }
   ];
 
   for (const dt of demoTeams) {
@@ -327,7 +347,7 @@ export async function launchDemoEnvironments(db: Firestore, superAdminId: string
       batch.set(doc(db, 'users', superAdminId, 'teamMemberships', dt.id), {
         userId: superAdminId, teamId: dt.id, teamName: dt.name, teamCode: code,
         role: 'Admin', isPro: actualPid !== 'starter_squad', planId: actualPid, isDemo: true, joinedAt: nowStr,
-        createdBy: superAdminId, ownerUserId: superAdminId
+        createdBy: superAdminId, ownerUserId: superAdminId, sport: dt.sport
       });
       batch.set(doc(db, 'teams', dt.id, 'members', superAdminId), {
         id: superAdminId, userId: superAdminId, teamId: dt.id, name: 'Platform Admin', role: 'Admin',
@@ -335,7 +355,9 @@ export async function launchDemoEnvironments(db: Firestore, superAdminId: string
         joinedAt: nowStr, phone: '(555) 000-0000', amountOwed: 0, feesPaid: true, isDemo: true
       });
       await batch.commit();
-      await seedDemoData(db, dt.id, dt.planId, superAdminId, { isEliteTournament: dt.planId === 'tournament_pro' });
+      
+      // Seed unified data
+      await seedDemoData(db, dt.id, dt.planId, superAdminId);
     }
   }
 }
