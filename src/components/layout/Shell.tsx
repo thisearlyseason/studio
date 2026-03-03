@@ -397,9 +397,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               {children}
             </main>
 
-            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md glass rounded-2xl shadow-2xl border-white/40 p-1">
-              <div className="flex items-center justify-around h-14 overflow-x-auto no-scrollbar">
-                {tabs.map((tab) => {
+            {/* HIGH-END APP-NATIVE MOBILE NAVIGATION */}
+            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/40 p-1.5 ring-1 ring-black/5">
+              <div className="flex items-center justify-around h-16">
+                {tabs.slice(0, 5).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = pathname.startsWith(tab.href);
                   const isLocked = tab.pro && !isPro;
@@ -408,16 +409,42 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       key={tab.name} 
                       href={tab.href} 
                       className={cn(
-                        "flex flex-col items-center justify-center gap-1 px-1 py-1 rounded-xl transition-all relative min-w-[42px]", 
-                        isActive ? "text-primary bg-primary/5" : "text-muted-foreground"
+                        "flex flex-col items-center justify-center gap-1.5 px-3 py-2 rounded-2xl transition-all relative min-w-[64px]", 
+                        isActive ? "text-primary bg-primary/10 shadow-inner" : "text-muted-foreground active:scale-90"
                       )}
                     >
-                      <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", isActive && "scale-110", isLocked && "opacity-50")} strokeWidth={isActive ? 3 : 2} />
-                      <span className="text-[7px] sm:text-[8px] font-black tracking-tight uppercase truncate max-w-[40px]">{tab.mobileName || tab.name}</span>
-                      {isLocked && <Lock className="absolute top-0.5 right-0.5 h-1.5 w-1.5 opacity-40" />}
+                      <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110 stroke-[3px]", isLocked && "opacity-50")} strokeWidth={isActive ? 3 : 2} />
+                      <span className="text-[8px] font-black tracking-[0.05em] uppercase truncate">{tab.mobileName || tab.name}</span>
+                      {isLocked && <Lock className="absolute top-1.5 right-2 h-2 w-2 opacity-40" />}
+                      {isActive && <div className="absolute -bottom-1 h-1 w-4 bg-primary rounded-full" />}
                     </Link>
                   );
                 })}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex flex-col items-center justify-center gap-1.5 px-3 py-2 rounded-2xl text-muted-foreground active:scale-90 transition-all min-w-[64px]">
+                      <Settings className="h-5 w-5" strokeWidth={2} />
+                      <span className="text-[8px] font-black tracking-[0.05em] uppercase">More</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-2xl p-2 mb-4">
+                    {tabs.slice(5).map((tab) => (
+                      <DropdownMenuItem key={tab.name} asChild className="rounded-xl p-3">
+                        <Link href={tab.href} className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
+                          <tab.icon className="h-4 w-4" />
+                          {tab.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="rounded-xl p-3 text-primary">
+                      <Link href="/settings" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </nav>
           </div>

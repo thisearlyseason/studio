@@ -57,7 +57,7 @@ service cloud.firestore {
       match /files/{fileId} {
         allow read: if isTeamMember(teamId);
         allow create: if isAdmin(teamId);
-        allow update: if isTeamMember(teamId); 
+        allow update: if isTeamMember(teamId); // For comments/views
         allow delete: if isAdmin(teamId);
       }
 
@@ -79,7 +79,7 @@ service cloud.firestore {
 
       match /drills/{drillId} {
         allow read: if isTeamMember(teamId);
-        allow write: if isAdmin(teamId);
+        allow create, update, delete: if isAdmin(teamId);
       }
 
       match /feedPosts/{postId} {

@@ -33,7 +33,9 @@ import {
   CheckCircle2,
   Upload,
   Link as LinkIcon,
-  Globe
+  Globe,
+  Edit3,
+  Save
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -47,17 +49,17 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useTeam, TeamFile } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export default function DrillsAndGamePlayPage() {
-  const { activeTeam, addDrill, deleteDrill, hasFeature, isSuperAdmin, purchasePro, isStaff, addFile, addExternalLink, deleteFile, user, isPro, markMediaAsViewed, addMediaComment, addMediaAnnotation } = useTeam();
+  const { activeTeam, addDrill, deleteDrill, hasFeature, isSuperAdmin, purchasePro, isStaff, addFile, addExternalLink, deleteFile, user, isPro, markMediaAsViewed, addMediaComment } = useTeam();
   const db = useFirestore();
 
   const [viewMode, setViewMode] = useState<'drills' | 'gameplay'>('drills');
@@ -73,6 +75,7 @@ export default function DrillsAndGamePlayPage() {
   const drills = useMemo(() => rawDrills || [], [rawDrills]);
   const [isAddDrillOpen, setIsAddDrillOpen] = useState(false);
   const [selectedDrill, setSelectedDrill] = useState<any>(null);
+  const [editingDrillId, setEditingDrillId] = useState<string | null>(null);
 
   // Game Play State
   const filesQuery = useMemoFirebase(() => {
@@ -86,9 +89,9 @@ export default function DrillsAndGamePlayPage() {
   const [selectedFile, setSelectedFile] = useState<TeamFile | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isLinkOpen, setIsLinkOpen] = useState(false);
+  const [isEditFilmOpen, setIsEditFilmOpen] = useState(false);
+  const [editingFilmId, setEditingFilmId] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
-  const [annoTime, setAnnoTime] = useState('');
-  const [annoLabel, setAnnoLabel] = useState('');
 
   // Form states
   const [newTitle, setNewTitle] = useState('');
@@ -129,7 +132,6 @@ export default function DrillsAndGamePlayPage() {
   if (!mounted || !activeTeam) return null;
 
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
-  const canAccessPro = hasFeature('media_uploads');
 
   const handleVideoProgress = () => {
     if (!videoRef.current || !selectedFile || !user) return;
@@ -142,9 +144,59 @@ export default function DrillsAndGamePlayPage() {
 
   const handleAddDrill = async () => {
     if (!newTitle || !newDesc) return;
-    addDrill({ title: newTitle, description: newDesc, videoUrl: newUrl, photoUrl: newPhoto, createdAt: new Date().toISOString() });
+    if (editingDrillId) {
+      updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'drills', editingDrillId), {
+        title: newTitle,
+        description: newDesc,
+        videoUrl: newUrl
+      });
+      toast({ title: "Drill Updated" });
+    } else {
+      addDrill({ title: newTitle, description: newDesc, videoUrl: newUrl, photoUrl: newPhoto, createdAt: new Date().toISOString() });
+      toast({ title: "Drill Published" });
+    }
     setIsAddDrillOpen(false);
-    setNewTitle(''); setNewDesc(''); setNewUrl(''); setNewPhoto(undefined);
+    resetForm();
+  };
+
+  const handleEditDrill = (e: React.MouseEvent, drill: any) => {
+    e.stopPropagation();
+    setEditingDrillId(drill.id);
+    setNewTitle(drill.title);
+    setNewDesc(drill.description);
+    setNewUrl(drill.videoUrl || '');
+    setIsAddDrillOpen(true);
+  };
+
+  const handleEditFilm = (e: React.MouseEvent, file: TeamFile) => {
+    e.stopPropagation();
+    setEditingFilmId(file.id);
+    setNewTitle(file.name);
+    setNewDesc(file.description || '');
+    setUploadCat(file.category);
+    setIsEditFilmOpen(true);
+  };
+
+  const handleSaveFilmEdits = () => {
+    if (!editingFilmId || !activeTeam?.id) return;
+    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'files', editingFilmId), {
+      name: newTitle,
+      description: newDesc,
+      category: uploadCat
+    });
+    toast({ title: "Film Metadata Updated" });
+    setIsEditFilmOpen(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setEditingDrillId(null);
+    setEditingFilmId(null);
+    setNewTitle('');
+    setNewDesc('');
+    setNewUrl('');
+    setNewPhoto(undefined);
+    setUploadCat('Game Tape');
   };
 
   const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,13 +226,13 @@ export default function DrillsAndGamePlayPage() {
         
         <div className="bg-muted/50 p-1.5 rounded-2xl border-2 flex items-center shadow-inner shrink-0">
           <button 
-            onClick={() => setViewMode('drills')}
+            onClick={() => { setViewMode('drills'); resetForm(); }}
             className={cn("px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all", viewMode === 'drills' ? "bg-white text-primary shadow-md" : "text-muted-foreground hover:text-foreground")}
           >
             Drills
           </button>
           <button 
-            onClick={() => setViewMode('gameplay')}
+            onClick={() => { setViewMode('gameplay'); resetForm(); }}
             className={cn("px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all", viewMode === 'gameplay' ? "bg-white text-primary shadow-md" : "text-muted-foreground hover:text-foreground")}
           >
             Game Play
@@ -206,7 +258,7 @@ export default function DrillsAndGamePlayPage() {
                   </div>
                   <Progress value={storagePercentage} className="h-2 rounded-full" />
                 </div>
-                {!isPro && <Button size="sm" className="w-full h-8 rounded-lg text-[8px] font-black uppercase" onClick={purchasePro}>Upgrade to 10GB</Button>}
+                {!isPro && isAdmin && <Button size="sm" className="w-full h-8 rounded-lg text-[8px] font-black uppercase" onClick={purchasePro}>Upgrade to 10GB</Button>}
               </CardContent>
             </Card>
           )}
@@ -242,11 +294,11 @@ export default function DrillsAndGamePlayPage() {
             {isAdmin && (
               <div className="flex gap-2 shrink-0">
                 {viewMode === 'drills' ? (
-                  <Button onClick={() => setIsAddDrillOpen(true)} className="rounded-full h-12 px-8 font-black uppercase text-xs shadow-lg shadow-primary/20"><Plus className="h-4 w-4 mr-2" /> Add Drill</Button>
+                  <Button onClick={() => { resetForm(); setIsAddDrillOpen(true); }} className="rounded-full h-12 px-8 font-black uppercase text-xs shadow-lg shadow-primary/20"><Plus className="h-4 w-4 mr-2" /> Add Drill</Button>
                 ) : (
                   <>
-                    <Button variant="outline" onClick={() => setIsLinkOpen(true)} className="rounded-full h-12 px-6 font-black uppercase text-xs border-2"><LinkIcon className="h-4 w-4 mr-2" /> Add Link</Button>
-                    <Button onClick={() => setIsUploadOpen(true)} className="rounded-full h-12 px-8 font-black uppercase text-xs shadow-lg shadow-primary/20"><Upload className="h-4 w-4 mr-2" /> Upload Film</Button>
+                    <Button variant="outline" onClick={() => { resetForm(); setIsLinkOpen(true); }} className="rounded-full h-12 px-6 font-black uppercase text-xs border-2"><LinkIcon className="h-4 w-4 mr-2" /> Add Link</Button>
+                    <Button onClick={() => { resetForm(); setIsUploadOpen(true); }} className="rounded-full h-12 px-8 font-black uppercase text-xs shadow-lg shadow-primary/20"><Upload className="h-4 w-4 mr-2" /> Upload Film</Button>
                   </>
                 )}
               </div>
@@ -258,7 +310,7 @@ export default function DrillsAndGamePlayPage() {
               <div className="bg-white w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl relative"><Video className="h-10 w-10 text-primary" /><Lock className="absolute -top-2 -right-2 h-6 w-6 bg-black text-white p-1 rounded-full border-2 border-background" /></div>
               <h3 className="text-2xl font-black uppercase tracking-tight">Game Film Locked</h3>
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-w-sm mx-auto">Film analysis and storage require a Pro subscription.</p>
-              <Button onClick={purchasePro} className="h-12 px-10 rounded-xl font-black uppercase">Upgrade to Elite</Button>
+              {isAdmin && <Button onClick={purchasePro} className="h-12 px-10 rounded-xl font-black uppercase">Upgrade to Elite</Button>}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -270,6 +322,11 @@ export default function DrillsAndGamePlayPage() {
                       <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 flex items-center justify-center transition-colors">
                         <Play className="h-10 w-10 text-white fill-current opacity-0 group-hover:opacity-100 transition-opacity scale-50 group-hover:scale-100 transition-transform" />
                       </div>
+                      {isAdmin && (
+                        <Button variant="secondary" size="icon" className="absolute top-4 right-4 h-8 w-8 rounded-full bg-white/90 text-primary shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleEditDrill(e, drill)}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                     <CardContent className="p-6 space-y-2">
                       <h3 className="font-black text-sm uppercase tracking-tight truncate">{drill.title}</h3>
@@ -289,6 +346,11 @@ export default function DrillsAndGamePlayPage() {
                         </div>
                         <Badge className="absolute top-4 left-4 bg-black/50 text-white border-none font-black text-[8px] uppercase tracking-widest">{file.category}</Badge>
                         {viewed && <div className="absolute top-4 right-4 bg-green-500 text-white rounded-full p-1 shadow-lg"><CheckCircle2 className="h-3 w-3" /></div>}
+                        {isAdmin && (
+                          <Button variant="secondary" size="icon" className="absolute bottom-4 right-4 h-8 w-8 rounded-full bg-white/90 text-primary shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleEditFilm(e, file)}>
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                       <CardContent className="p-6 space-y-2">
                         <h3 className="font-black text-sm uppercase tracking-tight truncate">{file.name}</h3>
@@ -305,6 +367,51 @@ export default function DrillsAndGamePlayPage() {
           )}
         </div>
       </div>
+
+      {/* Drill Builder/Editor */}
+      <Dialog open={isAddDrillOpen} onOpenChange={(o) => { setIsAddDrillOpen(o); if(!o) resetForm(); }}>
+        <DialogContent className="sm:max-w-4xl overflow-hidden p-0 sm:rounded-[2.5rem] h-full sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
+          <ScrollArea className="flex-1">
+            <div className="flex flex-col lg:flex-row h-full min-h-full">
+              <div className="lg:w-5/12 p-6 lg:p-10 bg-muted/30 lg:border-r space-y-8">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl lg:text-3xl font-black uppercase tracking-tight">
+                    {editingDrillId ? "Refine Drill" : "Publish Drill"}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-5">
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Drill Name</Label><Input placeholder="e.g. Transition Flow" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="rounded-xl h-12 border-2 font-bold" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Video URL (Opt)</Label><Input placeholder="https://youtube.com/..." value={newUrl} onChange={e => setNewUrl(e.target.value)} className="rounded-xl h-12 border-2 font-bold" /></div>
+                </div>
+              </div>
+              <div className="lg:w-7/12 p-6 lg:p-10 space-y-8 flex flex-col justify-between bg-background">
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Execution Instructions</Label><Textarea placeholder="Define the play protocol..." value={newDesc} onChange={e => setNewDesc(e.target.value)} className="rounded-2xl lg:rounded-[2rem] min-h-[300px] p-6 text-base font-bold bg-muted/10 border-2 resize-none" /></div>
+                <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleAddDrill} disabled={!newTitle || !newDesc}>
+                  {editingDrillId ? "Commit Updates" : "Publish to Squad Playbook"}
+                </Button>
+              </div>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Film Metadata Editor */}
+      <Dialog open={isEditFilmOpen} onOpenChange={(o) => { setIsEditFilmOpen(o); if(!o) resetForm(); }}>
+        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
+          <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Update Film Data</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Film Title</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl border-2 font-bold" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Category</Label>
+              <Select value={uploadCat} onValueChange={setUploadCat}>
+                <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-xl"><SelectItem value="Game Tape">Game Tape</SelectItem><SelectItem value="Practice Session">Practice Session</SelectItem><SelectItem value="Highlights">Highlights</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Study Notes</Label><Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} className="rounded-xl min-h-[100px] border-2 resize-none font-medium" /></div>
+          </div>
+          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleSaveFilmEdits}>Commit Strategic Updates</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Drill Detail */}
       <Dialog open={!!selectedDrill} onOpenChange={o => !o && setSelectedDrill(null)}>
@@ -332,7 +439,7 @@ export default function DrillsAndGamePlayPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Media Detail */}
+      {/* Media Detail (Theater Mode) */}
       <Dialog open={!!selectedFile} onOpenChange={o => !o && setSelectedFile(null)}>
         <DialogContent className="sm:max-w-7xl h-full sm:h-[90vh] p-0 overflow-hidden rounded-none sm:rounded-[3rem] border-none shadow-2xl flex flex-col">
           {selectedFile && (
@@ -393,7 +500,7 @@ export default function DrillsAndGamePlayPage() {
       </Dialog>
 
       {/* Upload/Link Dialogs */}
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+      <Dialog open={isUploadOpen} onOpenChange={(o) => { setIsUploadOpen(o); if(!o) resetForm(); }}>
         <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
           <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Enroll Game Tape</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
@@ -403,7 +510,7 @@ export default function DrillsAndGamePlayPage() {
                 <SelectContent className="rounded-xl"><SelectItem value="Game Tape">Game Tape</SelectItem><SelectItem value="Practice Session">Practice Session</SelectItem><SelectItem value="Highlights">Highlights</SelectItem></SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Study Notes</Label><Textarea placeholder="Explain the focus of this film..." value={newDesc} onChange={e => setNewDesc(e.target.value)} className="rounded-xl min-h-[100px] border-2 resize-none" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Study Notes</Label><Textarea placeholder="Explain the focus of this film..." value={newDesc} onChange={e => setNewDesc(e.target.value)} className="rounded-xl min-h-[100px] border-2 resize-none font-medium" /></div>
             <div className="p-10 border-2 border-dashed rounded-[2rem] bg-muted/20 text-center space-y-4 cursor-pointer hover:border-primary/20 transition-all" onClick={() => fileInputRef.current?.click()}>
               <input type="file" ref={fileInputRef} className="hidden" accept="video/*,image/*,application/pdf" onChange={handleUploadFile} />
               <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto shadow-sm"><Upload className="h-8 w-8 text-primary" /></div>
@@ -413,7 +520,7 @@ export default function DrillsAndGamePlayPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isLinkOpen} onOpenChange={setIsLinkOpen}>
+      <Dialog open={isLinkOpen} onOpenChange={(o) => { setIsLinkOpen(o); if(!o) resetForm(); }}>
         <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
           <DialogHeader><DialogTitle className="text-2xl font-black uppercase">External Strategy Link</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
@@ -426,28 +533,7 @@ export default function DrillsAndGamePlayPage() {
               </Select>
             </div>
           </div>
-          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black" onClick={() => (addExternalLink(newTitle, newUrl, uploadCat, newDesc), setIsLinkOpen(false))}>Save Strategic Link</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Drill Dialog */}
-      <Dialog open={isAddDrillOpen} onOpenChange={setIsAddDrillOpen}>
-        <DialogContent className="sm:max-w-4xl overflow-hidden p-0 sm:rounded-[2.5rem] h-full sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
-          <ScrollArea className="flex-1">
-            <div className="flex flex-col lg:flex-row h-full min-h-full">
-              <div className="lg:w-5/12 p-6 lg:p-10 bg-muted/30 lg:border-r space-y-8">
-                <DialogHeader><DialogTitle className="text-2xl lg:text-3xl font-black uppercase tracking-tight">Publish Drill</DialogTitle></DialogHeader>
-                <div className="space-y-5">
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Drill Name</Label><Input placeholder="e.g. Transition Flow" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="rounded-xl h-12 border-2 font-bold" /></div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Video URL (Opt)</Label><Input placeholder="https://youtube.com/..." value={newUrl} onChange={e => setNewUrl(e.target.value)} className="rounded-xl h-12 border-2 font-bold" /></div>
-                </div>
-              </div>
-              <div className="lg:w-7/12 p-6 lg:p-10 space-y-8 flex flex-col justify-between bg-background">
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Execution Instructions</Label><Textarea placeholder="Define the play protocol..." value={newDesc} onChange={e => setNewDesc(e.target.value)} className="rounded-2xl lg:rounded-[2rem] min-h-[300px] p-6 text-base font-bold bg-muted/10 border-2 resize-none" /></div>
-                <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleAddDrill} disabled={!newTitle || !newDesc}>Publish to Squad Playbook</Button>
-              </div>
-            </div>
-          </ScrollArea>
+          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black" onClick={() => (addExternalLink(newTitle, newUrl, uploadCat, newDesc), setIsLinkOpen(false), resetForm())}>Save Strategic Link</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
