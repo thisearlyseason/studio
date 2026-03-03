@@ -23,7 +23,8 @@ import {
   LayoutGrid,
   Activity,
   Layout,
-  ChevronRight
+  ChevronRight,
+  CheckCircle2
 } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
@@ -59,13 +60,35 @@ export default function PricingPage() {
   const starterPlan = useMemo(() => plans.find(p => p.id === 'starter_squad'), [plans]);
   const proPlan = useMemo(() => plans.find(p => p.id === 'squad_pro'), [plans]);
   
-  // Multi-team plans for the "Organization Scaling" ledger
+  // High-fidelity fallback data for the scaling ledger
+  const CLUB_TIERS = [
+    { id: 'squad_duo', name: 'Club Duo', limit: 2, monthly: '$23.99', annual: '$180' },
+    { id: 'squad_crew', name: 'Club Crew', limit: 4, monthly: '$44.99', annual: '$340' },
+    { id: 'squad_league', name: 'Club League', limit: 9, monthly: '$89.99', annual: '$680' },
+    { id: 'squad_division', name: 'Club Division', limit: 12, monthly: '$119.99', annual: '$900' },
+    { id: 'squad_conference', name: 'Club Conference', limit: 15, monthly: '$149.99', annual: '$1,120' },
+    { id: 'squad_organization', name: 'Club Custom', limit: 100, monthly: 'Custom', annual: 'Custom' }
+  ];
+
   const clubPlans = useMemo(() => {
-    // Explicitly find the specific tiers to ensure they appear in the ledger
+    // Merge database plans with our static targets to ensure visibility
     const targets = ['squad_duo', 'squad_crew', 'squad_league', 'squad_division', 'squad_conference', 'squad_organization'];
-    return plans
-      .filter(p => targets.includes(p.id))
-      .sort((a, b) => (a.proTeamLimit || 0) - (b.proTeamLimit || 0));
+    const dbPlans = plans.filter(p => targets.includes(p.id));
+    
+    // Map our UI targets to either DB data or fallbacks
+    return targets.map(targetId => {
+      const dbPlan = dbPlans.find(p => p.id === targetId);
+      const fallback = CLUB_TIERS.find(t => t.id === targetId);
+      
+      return {
+        id: targetId,
+        name: dbPlan?.name || fallback?.name || 'Club Tier',
+        proTeamLimit: dbPlan?.proTeamLimit || fallback?.limit || 0,
+        monthlyPrice: dbPlan?.priceDisplay || fallback?.monthly || '$0',
+        annualPrice: dbPlan?.annualPriceDisplay || fallback?.annual || '$0',
+        isContactOnly: dbPlan?.isContactOnly || (targetId === 'squad_organization')
+      };
+    }).sort((a, b) => (a.proTeamLimit || 0) - (b.proTeamLimit || 0));
   }, [plans]);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
@@ -246,8 +269,11 @@ export default function PricingPage() {
               <div className="space-y-4">
                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">ORGANIZATION SCALING</p>
                 <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  {clubPlans.length > 0 ? clubPlans.map(cp => {
+                  {clubPlans.map(cp => {
                     const isCurrentSub = activeTeam?.planId === cp.id;
+                    const priceLabel = billingCycle === 'annual' ? cp.annualPrice : cp.monthlyPrice;
+                    const cycleLabel = (priceLabel === 'Custom' || priceLabel === '$0') ? '' : (billingCycle === 'annual' ? '/yr' : '/mo');
+
                     return (
                       <div key={cp.id} className={cn(
                         "flex items-center justify-between p-4 rounded-2xl border-2 transition-all group",
@@ -259,8 +285,8 @@ export default function PricingPage() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right shrink-0">
-                            <span className="text-xs font-black text-primary">{getDisplayPrice(cp)}</span>
-                            <p className="text-[7px] font-bold uppercase opacity-50 leading-none">{getCycleLabel(cp)}</p>
+                            <span className="text-xs font-black text-primary">{priceLabel}</span>
+                            <p className="text-[7px] font-bold uppercase opacity-50 leading-none">{cycleLabel}</p>
                           </div>
                           <Button 
                             size="sm" 
@@ -268,19 +294,15 @@ export default function PricingPage() {
                               "h-8 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm",
                               isCurrentSub ? "bg-muted text-muted-foreground" : "bg-black text-white hover:bg-black/80"
                             )}
-                            onClick={purchasePro}
+                            onClick={cp.isContactOnly ? () => setIsContactOpen(true) : purchasePro}
                             disabled={isCurrentSub}
                           >
-                            {isCurrentSub ? "Active" : "Select"}
+                            {isCurrentSub ? "Active" : cp.isContactOnly ? "Quote" : "Select"}
                           </Button>
                         </div>
                       </div>
                     );
-                  }) : (
-                    <div className="text-center py-10 opacity-40">
-                      <p className="text-[10px] font-black uppercase tracking-widest">No tiers found.</p>
-                    </div>
-                  )}
+                  })}
                 </div>
               </div>
             </div>
