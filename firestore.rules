@@ -4,7 +4,6 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // CRITICAL: Top-level Collection Group rule for global tournament discovery & Public Spectator Hub
-    // This MUST be at the top level to avoid root-level denials during global searches.
     match /{path=**}/events/{eventId} {
       allow read: if request.auth != null || (resource != null && resource.data.isTournament == true);
     }
@@ -16,6 +15,10 @@ service cloud.firestore {
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isTeamMember(teamId) {
+      return isSignedIn() && get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] != null;
     }
 
     function isAdmin() {
@@ -46,7 +49,9 @@ service cloud.firestore {
 
       match /events/{eventId} {
         // Read permission handled by the collectionGroup rule above
-        allow write: if isAdmin() || (isSignedIn() && (get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid || get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin'));
+        // Allow members to update their own RSVP field
+        allow update: if isTeamMember(teamId) || isAdmin();
+        allow create, delete: if isAdmin() || (isSignedIn() && (get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid || get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin'));
         
         match /registrations/{regId} {
           allow create: if true; 

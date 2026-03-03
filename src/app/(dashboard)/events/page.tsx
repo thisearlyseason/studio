@@ -133,7 +133,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const { data: rawRegistrations } = useCollection<any>(regQuery);
   const registrations = rawRegistrations || [];
 
-  // Elite Unlocked if event hub specifically has the tournament paid flag
   const isEliteUnlocked = !!event.isTournamentPaid;
   
   const myTeamNames = teams.filter(t => t.role === 'Admin').map(t => t.name);
@@ -289,8 +288,6 @@ export default function EventsPage() {
   const [selectedOpponentTeamId, setSelectedOpponentTeamId] = useState<string | 'manual'>('manual');
 
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
-  
-  // STRICT Elite Gating: Hub creation is ONLY unlocked if the user has available credits.
   const canAccessElite = (user?.tournamentCredits || 0) > 0;
 
   const handleEdit = (event: TeamEvent) => { 
@@ -326,7 +323,6 @@ export default function EventsPage() {
   const handleCreateEvent = () => { 
     if (!newTitle || !newDate) return; 
     
-    // Check elite access if trying to publish an elite tournament
     if (isEliteTournament && !canAccessElite && !editingEvent) {
       toast({ title: "Elite Module Required", description: "You need 1 Tournament Credit to publish an Elite event hub.", variant: "destructive" });
       router.push('/pricing');

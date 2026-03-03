@@ -60,7 +60,6 @@ export default function PricingPage() {
   const starterPlan = useMemo(() => plans.find(p => p.id === 'starter_squad'), [plans]);
   const proPlan = useMemo(() => plans.find(p => p.id === 'squad_pro'), [plans]);
   
-  // Authoritative Tiers for the Scaling Ledger
   const CLUB_TIERS = [
     { id: 'squad_duo', name: 'Club Duo', limit: 2, monthly: '$23.99', annual: '$180' },
     { id: 'squad_crew', name: 'Club Crew', limit: 4, monthly: '$44.99', annual: '$340' },
@@ -141,7 +140,6 @@ export default function PricingPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-        {/* Starter Plan */}
         <Card className={cn(
           "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
           activeTeam?.planId === 'starter_squad' && "ring-4 ring-muted-foreground/20"
@@ -175,7 +173,6 @@ export default function PricingPage() {
           </CardFooter>
         </Card>
 
-        {/* Squad Pro Plan */}
         <Card className={cn(
           "rounded-[3rem] border-none shadow-2xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.05] ring-4 ring-primary bg-black text-white relative z-10 animate-in zoom-in-95",
           activeTeam?.planId === 'squad_pro' && "ring-offset-4 ring-offset-background"
@@ -221,25 +218,24 @@ export default function PricingPage() {
           </CardFooter>
         </Card>
 
-        {/* Club Suite Plan */}
         <Card className={cn(
           "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
           hasClubPlan && "ring-4 ring-primary/20"
         )}>
           <div className="h-2 w-full bg-primary" />
-          <CardHeader className="p-10 pb-6 space-y-6">
-            <div className="flex justify-between items-start">
-              <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-4 h-6 flex items-center border-primary/20 text-primary w-fit rounded-full">CLUB MANAGER</Badge>
+          <CardHeader className="p-10 pb-6 space-y-6 text-center md:text-left">
+            <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-4">
+              <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-4 h-6 flex items-center border-primary/20 text-primary w-fit rounded-full mx-auto md:mx-0">CLUB MANAGER</Badge>
               {hasClubPlan && (
                 <Badge className="bg-primary/10 text-primary font-black text-[8px] px-2 h-5 border-none uppercase">Current Plan</Badge>
               )}
             </div>
             
-            <CardTitle className="text-5xl font-black uppercase tracking-tight leading-none">CLUB<br />SUITE</CardTitle>
+            <CardTitle className="text-5xl font-black uppercase tracking-tight leading-none">CLUB<br className="hidden md:block" /> SUITE</CardTitle>
             
             <div className="space-y-1">
               <p className="text-[13px] font-black uppercase tracking-tight text-primary leading-tight">
-                INCLUDES ALL SQUAD PRO FEATURES + CLUB HUB MANAGEMENT
+                INCLUDES ALL SQUAD PRO FEATURES + HUB MANAGEMENT
               </p>
             </div>
           </CardHeader>
@@ -257,9 +253,9 @@ export default function PricingPage() {
                 </div>
               )}
               
-              <div className="space-y-4">
-                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black">ORGANIZATION SCALING</p>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-6">
+                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black border-b pb-2">ORGANIZATION SCALING</p>
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {clubPlans.map(cp => {
                     const isCurrentSub = activeTeam?.planId === cp.id;
                     const priceLabel = billingCycle === 'annual' ? cp.annualPriceDisplay : cp.priceDisplay;
@@ -267,23 +263,26 @@ export default function PricingPage() {
 
                     return (
                       <div key={cp.id} className={cn(
-                        "flex items-center justify-between p-4 rounded-2xl border-2 transition-all group",
+                        "flex flex-col p-6 rounded-[2rem] border-2 transition-all group gap-4",
                         isCurrentSub ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/20 border-transparent hover:border-muted/40"
                       )}>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[11px] font-black uppercase truncate tracking-tight">{cp.name}</span>
-                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{cp.proTeamLimit} Teams</span>
+                        <div className="space-y-1">
+                          <h4 className="text-base font-black uppercase tracking-tight leading-none">{cp.name}</h4>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{cp.proTeamLimit} Teams</p>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right shrink-0">
-                            <span className="text-xs font-black text-primary">{priceLabel}</span>
-                            <p className="text-[7px] font-bold uppercase opacity-50 leading-none">{cycleLabel}</p>
+                        
+                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-muted/50">
+                          <div className="flex flex-col">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-2xl font-black text-primary leading-none">{priceLabel}</span>
+                              <span className="text-[9px] font-bold uppercase text-muted-foreground">{cycleLabel}</span>
+                            </div>
                           </div>
                           <Button 
                             size="sm" 
                             className={cn(
-                              "h-8 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm",
-                              isCurrentSub ? "bg-muted text-muted-foreground" : "bg-black text-white hover:bg-black/80"
+                              "h-10 px-8 rounded-full font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all",
+                              isCurrentSub ? "bg-muted text-muted-foreground" : "bg-black text-white hover:bg-black/80 shadow-black/20"
                             )}
                             onClick={cp.isContactOnly ? () => setIsContactOpen(true) : purchasePro}
                             disabled={isCurrentSub}
@@ -307,7 +306,6 @@ export default function PricingPage() {
         </Card>
       </div>
 
-      {/* Functional Modules Section */}
       <section className="space-y-10">
         <div className="text-center space-y-2">
           <Badge className="bg-amber-100 text-amber-700 font-black uppercase tracking-widest text-[9px] h-6 px-3">Elite Add-ons</Badge>
@@ -315,7 +313,6 @@ export default function PricingPage() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Inventory Ledger Card */}
           <Card className="rounded-[3rem] border-none shadow-2xl bg-black text-white overflow-hidden relative group">
             <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
               <LayoutGrid className="h-32 w-32" />
@@ -351,7 +348,6 @@ export default function PricingPage() {
             </CardContent>
           </Card>
 
-          {/* Feature Hub Card */}
           <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden flex flex-col group">
             <div className="p-10 flex items-center justify-between gap-6 border-b-2">
               <div className="flex items-center gap-6">
@@ -392,7 +388,6 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Club Solutions Banner */}
       <div className="bg-black text-white rounded-[3rem] p-12 flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl relative overflow-hidden mt-20">
         <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none -rotate-12"><Building className="h-64 w-64" /></div>
         <div className="flex items-center gap-8 relative z-10">
