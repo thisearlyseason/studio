@@ -673,6 +673,15 @@ export default function EventsPage() {
     setIsEliteTournament(false); setSelectedLeagueId('none'); setSelectedOpponentTeamId('manual');
   };
 
+  const formatBadgeDate = (start: string | Date, end?: string | Date) => {
+    const startDate = new Date(start);
+    const startDay = format(startDate, 'dd');
+    if (!end) return startDay;
+    const endDate = new Date(end);
+    if (isSameDay(startDate, endDate)) return startDay;
+    return `${startDay}-${format(endDate, 'dd')}`;
+  };
+
   const isLocked = editingEvent?.isTournamentPaid && editingEvent?.tournamentGames && editingEvent.tournamentGames.length > 0;
 
   return (
@@ -791,34 +800,39 @@ export default function EventsPage() {
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">My Squad Itinerary</h2>
           </div>
           <div className="grid gap-4">
-            {events.length > 0 ? events.map((event) => (
-              <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} onEdit={handleEdit} onDelete={(id) => { if(confirm("Delete?")) deleteEvent(id); }} hasAttendance={true} purchasePro={purchasePro}>
-                <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
-                  <div className="flex items-stretch h-32">
-                    <div className={cn("w-24 flex flex-col items-center justify-center border-r-2 shrink-0", event.isTournament ? "bg-black text-white" : "bg-primary/5 text-primary")}>
-                      <span className="text-[10px] font-black uppercase mb-1 opacity-60">{format(new Date(event.date), 'MMM')}</span>
-                      <span className="text-4xl font-black tracking-tighter">{format(new Date(event.date), 'dd')}</span>
-                    </div>
-                    <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex gap-2 mb-1.5">
-                            {event.isTournament && <Badge className={cn("text-[8px] font-black uppercase h-4 px-2", event.isTournamentPaid ? "bg-amber-500 text-white" : "bg-black text-white")}>{event.isTournamentPaid ? "Elite Tournament" : "Basic Tournament"}</Badge>}
-                            <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-2">{event.startTime}</Badge>
+            {events.length > 0 ? events.map((event) => {
+              const hasRange = event.endDate && !isSameDay(new Date(event.date), new Date(event.endDate));
+              return (
+                <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} onEdit={handleEdit} onDelete={(id) => { if(confirm("Delete?")) deleteEvent(id); }} hasAttendance={true} purchasePro={purchasePro}>
+                  <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
+                    <div className="flex items-stretch h-32">
+                      <div className={cn("w-24 flex flex-col items-center justify-center border-r-2 shrink-0", event.isTournament ? "bg-black text-white" : "bg-primary/5 text-primary")}>
+                        <span className="text-[10px] font-black uppercase mb-1 opacity-60">{format(new Date(event.date), 'MMM')}</span>
+                        <span className={cn("font-black tracking-tighter text-center leading-none", hasRange ? "text-xl px-1" : "text-4xl")}>
+                          {formatBadgeDate(event.date, event.endDate)}
+                        </span>
+                      </div>
+                      <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex gap-2 mb-1.5">
+                              {event.isTournament && <Badge className={cn("text-[8px] font-black uppercase h-4 px-2", event.isTournamentPaid ? "bg-amber-500 text-white" : "bg-black text-white")}>{event.isTournamentPaid ? "Elite Tournament" : "Basic Tournament"}</Badge>}
+                              <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-2">{event.startTime}</Badge>
+                            </div>
+                            <h3 className="text-xl font-black tracking-tight leading-none truncate">{event.title}</h3>
+                            <div className="flex flex-col gap-1 mt-1">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
+                              <p className="text-[9px] font-black text-primary uppercase tracking-widest">{formatDateRange(event.date, event.endDate)}</p>
+                            </div>
                           </div>
-                          <h3 className="text-xl font-black tracking-tight leading-none truncate">{event.title}</h3>
-                          <div className="flex flex-col gap-1 mt-1">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
-                            <p className="text-[9px] font-black text-primary uppercase tracking-widest">{formatDateRange(event.date, event.endDate)}</p>
-                          </div>
+                          <ChevronRight className="h-5 w-5 text-primary opacity-20 group-hover:opacity-100 transition-all group-hover:translate-x-1 mt-2" />
                         </div>
-                        <ChevronRight className="h-5 w-5 text-primary opacity-20 group-hover:opacity-100 transition-all group-hover:translate-x-1 mt-2" />
                       </div>
                     </div>
-                  </div>
-                </Card>
-              </EventDetailDialog>
-            )) : (
+                  </Card>
+                </EventDetailDialog>
+              );
+            }) : (
               <div className="text-center py-12 bg-muted/10 rounded-[2rem] border-2 border-dashed opacity-40">
                 <CalendarX className="h-8 w-8 mx-auto mb-2" />
                 <p className="text-xs font-black uppercase tracking-widest">No local matches scheduled.</p>
@@ -834,38 +848,43 @@ export default function EventsPage() {
               <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">External Tournament Invitations</h2>
             </div>
             <div className="grid gap-4">
-              {invitedTournaments.map((event) => (
-                <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={false} onEdit={() => {}} onDelete={() => {}} hasAttendance={false} purchasePro={purchasePro}>
-                  <Card className="hover:border-amber-500/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-2 ring-amber-500/10 overflow-hidden bg-amber-50/30">
-                    <div className="flex items-stretch h-32">
-                      <div className="w-24 bg-amber-500/5 flex flex-col items-center justify-center border-r-2 shrink-0">
-                        <span className="text-[10px] font-black uppercase text-amber-600 mb-1">{format(new Date(event.date), 'MMM')}</span>
-                        <span className="text-4xl font-black text-amber-600 tracking-tighter">{format(new Date(event.date), 'dd')}</span>
-                      </div>
-                      <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex gap-2 mb-1.5"><Badge className="bg-amber-600 text-white text-[8px] font-black uppercase h-4 px-2">Invited Participant</Badge></div>
-                            <h3 className="text-xl font-black tracking-tight leading-none truncate">{event.title}</h3>
-                            <div className="flex flex-col gap-1 mt-1">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-amber-600" /> {event.location}</p>
-                              <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">{formatDateRange(event.date, event.endDate)}</p>
+              {invitedTournaments.map((event) => {
+                const hasRange = event.endDate && !isSameDay(new Date(event.date), new Date(event.endDate));
+                return (
+                  <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={false} onEdit={() => {}} onDelete={() => {}} hasAttendance={false} purchasePro={purchasePro}>
+                    <Card className="hover:border-amber-500/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-2 ring-amber-500/10 overflow-hidden bg-amber-50/30">
+                      <div className="flex items-stretch h-32">
+                        <div className="w-24 bg-amber-500/5 flex flex-col items-center justify-center border-r-2 shrink-0">
+                          <span className="text-[10px] font-black uppercase text-amber-600 mb-1">{format(new Date(event.date), 'MMM')}</span>
+                          <span className={cn("font-black text-amber-600 tracking-tighter text-center leading-none", hasRange ? "text-xl px-1" : "text-4xl")}>
+                            {formatBadgeDate(event.date, event.endDate)}
+                          </span>
+                        </div>
+                        <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex gap-2 mb-1.5"><Badge className="bg-amber-600 text-white text-[8px] font-black uppercase h-4 px-2">Invited Participant</Badge></div>
+                              <h3 className="text-xl font-black tracking-tight leading-none truncate">{event.title}</h3>
+                              <div className="flex flex-col gap-1 mt-1">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-amber-600" /> {event.location}</p>
+                                <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">{formatDateRange(event.date, event.endDate)}</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <ChevronRight className="h-5 w-5 text-amber-600 opacity-20 group-hover:opacity-100 transition-all group-hover:translate-x-1 mt-2" />
-                            {event.teamAgreements?.[activeTeam?.name || '']?.agreed ? (
-                              <Badge className="bg-green-600 text-white font-black text-[7px] uppercase h-4">Verified</Badge>
-                            ) : (
-                              <Badge className="bg-amber-600 text-white font-black text-[7px] uppercase h-4 animate-pulse">Action Req.</Badge>
-                            )}
+                            <div className="flex flex-col items-end gap-2">
+                              <ChevronRight className="h-5 w-5 text-amber-600 opacity-20 group-hover:opacity-100 transition-all group-hover:translate-x-1 mt-2" />
+                              {event.teamAgreements?.[activeTeam?.name || '']?.agreed ? (
+                                <Badge className="bg-green-600 text-white font-black text-[7px] uppercase h-4">Verified</Badge>
+                              ) : (
+                                <Badge className="bg-amber-600 text-white font-black text-[7px] uppercase h-4 animate-pulse">Action Req.</Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                </EventDetailDialog>
-              ))}
+                    </Card>
+                  </EventDetailDialog>
+                );
+              })}
             </div>
           </section>
         )}
