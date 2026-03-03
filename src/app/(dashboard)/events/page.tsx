@@ -512,7 +512,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
 
 export default function EventsPage() {
   const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, hasFeature, purchasePro } = useTeam();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
   const eventsQuery = useMemoFirebase(() => {
@@ -524,10 +524,18 @@ export default function EventsPage() {
   const events = rawEvents || [];
 
   const invitedTournamentsQuery = useMemoFirebase(() => {
-    // Explicitly check for team name and user to ensure query is valid and authorized
-    if (!activeTeam?.name || activeTeam.name.trim() === '' || !db || !user) return null;
-    return query(collectionGroup(db, 'events'), where('tournamentTeams', 'array-contains', activeTeam.name), limit(20));
-  }, [activeTeam?.name, db, user?.uid]);
+    // CRITICAL: Explicitly check for team name and authenticated user
+    // This prevents unauthorized root-level collection group searches during initial load.
+    const teamName = activeTeam?.name;
+    if (!teamName || teamName === 'Select Squad' || teamName.trim() === '' || !db || !user) {
+      return null;
+    }
+    return query(
+      collectionGroup(db, 'events'), 
+      where('tournamentTeams', 'array-contains', teamName), 
+      limit(20)
+    );
+  }, [activeTeam?.name, db, user?.id]);
 
   const { data: rawInvitedTournaments } = useCollection<TeamEvent>(invitedTournamentsQuery);
   const invitedTournaments = rawInvitedTournaments || [];

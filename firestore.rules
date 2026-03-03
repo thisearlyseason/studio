@@ -13,17 +13,18 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      // Use get() with a default to safely handle anonymous or incomplete auth tokens
       return isSignedIn() && (
         request.auth.token.get('email', '') == 'thisearlyseason@gmail.com' || 
         request.auth.token.get('email', '') == 'test@gmail.com'
       );
     }
 
-    // Support for collectionGroup queries on events (External Invitations)
-    // This must match the collection ID exactly across the database.
-    // It is defined at the top level to authorize global discovery.
+    // CRITICAL: Support for collectionGroup queries on events (External Invitations)
+    // This MUST be defined at the top level with the recursive wildcard {path=**}
+    // to authorize global discovery across all team documents.
     match /{path=**}/events/{eventId} {
-      allow list: if isSignedIn();
+      allow list: if request.auth != null;
       allow get: if true;
     }
 
@@ -47,8 +48,7 @@ service cloud.firestore {
       }
 
       match /events/{eventId} {
-        // Direct reads handled by global rule above or this specific path
-        allow read: if true;
+        // write handled by parent/specific rules
         allow write: if isAdmin() || (isSignedIn() && (get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid || get(/databases/$(database)/documents/teams/$(teamId)).data.members[request.auth.uid] == 'Admin'));
         
         match /registrations/{regId} {
