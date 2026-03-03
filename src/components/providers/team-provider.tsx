@@ -244,6 +244,7 @@ interface TeamContextType {
   simulationPlanId: string | null;
   setSimulationPlanId: (pid: string | null) => void;
   resetDemo: () => Promise<void>;
+  resetSeasonData: () => Promise<void>;
   isSeedingDemo: boolean;
   isClubManager: boolean;
   secondsUntilReset: number | null;
@@ -678,6 +679,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isPlansLoading,
     simulationPlanId, setSimulationPlanId,
     resetDemo: async () => { if (userProfile?.isDemo && db && firebaseUser) { await resetDemoEnvironment(db, activeTeamId || '', userProfile.activePlanId || 'starter_squad', firebaseUser.uid); toast({ title: "Environment Re-seeded" }); } },
+    resetSeasonData: async () => {
+      if (!activeTeam?.id || !db) return;
+      try {
+        const batch = writeBatch(db);
+        const gamesSnap = await getDocs(collection(db, 'teams', activeTeam.id, 'games'));
+        const eventsSnap = await getDocs(collection(db, 'teams', activeTeam.id, 'events'));
+        gamesSnap.forEach(d => batch.delete(d.ref));
+        eventsSnap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        toast({ title: "Season Reset", description: "Games and schedule data has been cleared." });
+      } catch (e) {
+        toast({ title: "Reset Failed", variant: "destructive" });
+      }
+    },
     isSeedingDemo,
     isClubManager,
     secondsUntilReset,
