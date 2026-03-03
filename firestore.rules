@@ -17,25 +17,24 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Optimized Membership Check: Uses the 'members' map on the team document for instant verification
+    // Optimized Membership Check: Prioritizes local membership registry for instant verification
     function isTeamMember(teamId) {
-      let team = get(/databases/$(database)/documents/teams/$(teamId)).data;
       return isSignedIn() && (
-        team.ownerUserId == request.auth.uid ||
-        team.members[request.auth.uid] != null ||
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId))
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)) ||
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.get('members', {})
       );
     }
 
-    // Optimized Admin Check: Supports super-admins and team-level authority
+    // Optimized Admin Check: Supports super-admins and team-level authority with safe token lookups
     function isAdmin(teamId) {
-      let team = get(/databases/$(database)/documents/teams/$(teamId)).data;
       let userEmail = request.auth.token.get('email', '');
+      let isPlatformAdmin = userEmail == 'thisearlyseason@gmail.com' || userEmail == 'test@gmail.com';
+      
       return isSignedIn() && (
-        userEmail == 'thisearlyseason@gmail.com' || 
-        userEmail == 'test@gmail.com' ||
-        team.ownerUserId == request.auth.uid ||
-        team.members[request.auth.uid] == 'Admin'
+        isPlatformAdmin ||
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+        get(/databases/$(database)/documents/teams/$(teamId)).data.get('members', {}).get(request.auth.uid) == 'Admin'
       );
     }
 
@@ -61,7 +60,7 @@ service cloud.firestore {
       match /files/{fileId} {
         allow read: if isTeamMember(teamId);
         allow create: if isAdmin(teamId);
-        allow update: if isTeamMember(teamId); 
+        allow update: if isAdmin(teamId); 
         allow delete: if isAdmin(teamId);
         
         match /comments/{commentId} {
