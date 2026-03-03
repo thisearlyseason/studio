@@ -22,7 +22,8 @@ import {
   Table as TableIcon,
   LayoutGrid,
   Activity,
-  Layout
+  Layout,
+  ChevronRight
 } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
@@ -197,22 +198,29 @@ export default function PricingPage() {
           </CardFooter>
         </Card>
 
-        {/* CLUB SUITE */}
+        {/* CLUB SUITE - REDESIGNED PER SCREENSHOT */}
         <Card className={cn(
           "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
           activeTeam?.planId?.startsWith('squad_') && activeTeam?.planId !== 'squad_pro' && "ring-4 ring-primary/20"
         )}>
           <div className="h-2 w-full bg-primary" />
-          <CardHeader className="p-10 pb-6 space-y-4">
+          <CardHeader className="p-10 pb-6 space-y-6">
             <div className="flex justify-between items-start">
-              <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center border-primary/20 text-primary w-fit">CLUB MANAGER</Badge>
+              <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-4 h-6 flex items-center border-primary/20 text-primary w-fit rounded-full">CLUB MANAGER</Badge>
               {activeTeam?.planId?.startsWith('squad_') && activeTeam?.planId !== 'squad_pro' && activeTeam?.planId !== 'starter_squad' && (
                 <Badge className="bg-primary/10 text-primary font-black text-[8px] px-2 h-5 border-none uppercase">Current Tier</Badge>
               )}
             </div>
-            <CardTitle className="text-3xl font-black uppercase tracking-tight">Club Suite</CardTitle>
-            <p className="text-[10px] font-black uppercase tracking-widest text-primary leading-tight">Includes ALL Squad Pro Features + Hub Management</p>
+            
+            <CardTitle className="text-4xl font-black uppercase tracking-tight leading-none">CLUB SUITE</CardTitle>
+            
+            <div className="space-y-1">
+              <p className="text-[11px] font-black uppercase tracking-widest text-primary leading-tight">
+                INCLUDES ALL SQUAD PRO FEATURES + HUB MANAGEMENT
+              </p>
+            </div>
           </CardHeader>
+
           <CardContent className="p-10 pt-0 flex-1 space-y-8">
             <div className="pt-6 border-t border-muted space-y-6">
               {/* Only show seat utilization if the user has a multi-team plan */}
@@ -227,43 +235,48 @@ export default function PricingPage() {
                 </div>
               )}
               
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Organization Scaling</p>
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {clubPlans.map(cp => {
-                  const isCurrentSub = activeTeam?.planId === cp.id;
-                  return (
-                    <div key={cp.id} className={cn(
-                      "flex flex-col gap-3 p-4 rounded-xl border-2 transition-all",
-                      isCurrentSub ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent"
-                    )}>
-                      <div className="flex justify-between items-start">
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">ORGANIZATION SCALING</p>
+                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                  {clubPlans.map(cp => {
+                    const isCurrentSub = activeTeam?.planId === cp.id;
+                    return (
+                      <div key={cp.id} className={cn(
+                        "flex items-center justify-between p-4 rounded-2xl border-2 transition-all group",
+                        isCurrentSub ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/20 border-transparent hover:bg-muted/40"
+                      )}>
                         <div className="flex flex-col min-w-0">
-                          <span className="text-[10px] font-black uppercase truncate">{cp.name.replace('Club ', '')}</span>
-                          <span className="text-[8px] font-bold text-muted-foreground uppercase">{cp.proTeamLimit} Teams</span>
+                          <span className="text-[11px] font-black uppercase truncate tracking-tight">{cp.name.replace('Club ', '')}</span>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{cp.proTeamLimit} Teams</span>
                         </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-xs font-black text-primary">{getDisplayPrice(cp)}</span>
-                          <p className="text-[7px] font-bold uppercase opacity-50">{getCycleLabel(cp)}</p>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-black text-primary">{getDisplayPrice(cp)}</span>
+                            <p className="text-[7px] font-bold uppercase opacity-50 leading-none">{getCycleLabel(cp)}</p>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className={cn(
+                              "h-8 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm",
+                              isCurrentSub ? "bg-muted text-muted-foreground" : "bg-black text-white hover:bg-black/80"
+                            )}
+                            onClick={purchasePro}
+                            disabled={isCurrentSub}
+                          >
+                            {isCurrentSub ? "Active" : "Select"}
+                          </Button>
                         </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant={isCurrentSub ? "secondary" : "default"} 
-                        className="h-8 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm"
-                        onClick={purchasePro}
-                        disabled={isCurrentSub}
-                      >
-                        {isCurrentSub ? "Active Tier" : "Choose " + cp.name.replace('Club ', '')}
-                      </Button>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </CardContent>
+
           <CardFooter className="p-10 pt-0">
-            <Button className="w-full h-14 rounded-2xl font-black shadow-xl bg-primary text-white" onClick={purchasePro}>
-              {activeTeam?.planId?.startsWith('squad_') && activeTeam?.planId !== 'squad_pro' && activeTeam?.planId !== 'starter_squad' ? "Scale Seats" : "Scale Organization"}
+            <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl bg-primary text-white active:scale-95 transition-all" onClick={purchasePro}>
+              Scale Organization
             </Button>
           </CardFooter>
         </Card>
