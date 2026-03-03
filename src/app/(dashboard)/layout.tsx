@@ -1,4 +1,3 @@
-
 "use client";
 
 import Shell from '@/components/layout/Shell';
@@ -28,6 +27,14 @@ export default function DashboardLayout({
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
+    // Force demo users to land on the feed first, regardless of access
+    // This allows the Paywall UI to be the primary demo experience for Starter plans
+    if (user?.isDemo && pathname === '/') {
+      router.push('/feed');
+      return;
+    }
+
+    // Standard redirect to setup if no teams exist, BUT skip if seeding a demo
     if (user && !isTeamsLoading && !isSeedingDemo && teams.length === 0 && pathname !== '/teams/new') {
       router.push('/teams/new');
     }

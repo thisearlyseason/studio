@@ -175,6 +175,17 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
     userRsvps: { [userId]: 'going' }, isDemo: true, createdAt: now.toISOString(), lastUpdated: now.toISOString()
   });
 
+  // Unified Match (Standard Game) - Always set to today or tomorrow
+  const matchId = `demo_match_standard_${teamId}`;
+  batch.set(doc(db, 'teams', teamId, 'events', matchId), {
+    id: matchId, teamId, title: 'Season Match vs Wildcats',
+    date: new Date(now.getTime() + 86400000).toISOString(), // Tomorrow
+    startTime: '06:00 PM', location: 'Westside Community Field',
+    description: 'Standard season match. Arrive 30 minutes early for warmups.',
+    isTournament: false, isTournamentPaid: false, userRsvps: { [userId]: 'going' },
+    isDemo: true, createdAt: now.toISOString(), lastUpdated: now.toISOString()
+  });
+
   // Unified Match Ledger (Recent results)
   const matches = [
     { opponent: 'Wildcats', result: 'Win', myScore: 4, opponentScore: 2, offsetDays: 2 },
