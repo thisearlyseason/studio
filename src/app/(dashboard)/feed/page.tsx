@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -275,7 +274,7 @@ export default function FeedPage() {
           <Card className="rounded-3xl lg:rounded-[3rem] border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-primary/5 border-2 border-dashed border-primary/20">
             <CardContent className="p-8 lg:p-10 flex flex-col items-center text-center space-y-4">
               <div className="bg-white w-14 h-14 lg:w-16 lg:h-16 rounded-2xl lg:rounded-[1.5rem] flex items-center justify-center shadow-lg relative">
-                <MessageSquare className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
+                <LayoutDashboard className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
                 <div className="absolute -top-2 -right-2 bg-black text-white p-1 rounded-full border-2 border-background shadow-md"><Lock className="h-3 w-3" /></div>
               </div>
               <div className="space-y-1">
