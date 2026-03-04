@@ -585,14 +585,6 @@ export default function EventsPage() {
   const [tournamentTeams, setTournamentTeams] = useState<string[]>([]);
   const [tournamentTeamsMetadata, setTournamentTeamsMetadata] = useState<Record<string, { coach: string; email: string }>>({});
   const [tournamentGames, setTournamentGames] = useState<TournamentGame[]>([]);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [newTeamCoach, setNewTeamCoach] = useState('');
-  const [newTeamEmail, setNewTeamEmail] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [genStartTime, setGenStartTime] = useState('09:00');
-  const [genMatchLength, setGenMatchLength] = useState('60');
-  const [genType, setGenType] = useState('round_robin');
-  const [genPoolCount, setGenPoolCount] = useState('2');
 
   const eventsQuery = useMemoFirebase(() => { if (!activeTeam?.id || !db) return null; return query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc')); }, [activeTeam?.id, db]);
   const { data: rawEvents } = useCollection<TeamEvent>(eventsQuery);
@@ -601,10 +593,8 @@ export default function EventsPage() {
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
 
   const handleEdit = (event: TeamEvent) => { setEditingEvent(event); setIsTournamentMode(!!event.isTournament); setIsEliteTournament(!!event.isTournamentPaid); setNewTitle(event.title); setNewDate(new Date(event.date).toISOString().split('T')[0]); if (event.endDate) setNewEndDate(new Date(event.endDate).toISOString().split('T')[0]); setNewTime(event.startTime); setNewLocation(event.location); setNewDescription(event.description); setRequiresWaiver(!!event.requiresSpecialWaiver); setWaiverText(event.specialWaiverText || ''); setTeamWaiverText(event.teamWaiverText || ''); setTournamentTeams(event.tournamentTeams || []); setTournamentTeamsMetadata(event.tournamentTeamsMetadata || {}); setTournamentGames(event.tournamentGames || []); setIsCreateOpen(true); };
-  const handleGenerateSchedule = async () => { if (tournamentTeams.length < 2) return; setIsGenerating(true); await new Promise(r => setTimeout(r, 1000)); try { const games: TournamentGame[] = []; const teams = [...tournamentTeams]; if (genType === 'round_robin') { if (teams.length % 2 !== 0) teams.push("BYE"); const numTeams = teams.length; const rounds = numTeams - 1; const half = numTeams / 2; let currentDay = new Date(newDate || new Date()); let currentTime = genStartTime; for (let round = 0; round < rounds; round++) { for (let i = 0; i < half; i++) { const t1 = teams[i]; const t2 = teams[numTeams - 1 - i]; if (t1 !== "BYE" && t2 !== "BYE") { const displayTime = format(parse(currentTime, 'HH:mm', new Date()), 'h:mm a'); games.push({ id: `gen_${Date.now()}_${round}_${i}`, team1: t1, team2: t2, score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: displayTime, isCompleted: false, round: round + 1, location: newLocation }); const [h, m] = currentTime.split(':').map(Number); const next = addMinutes(new Date(2000, 0, 1, h, m), parseInt(genMatchLength) + 15); currentTime = format(next, 'HH:mm'); if (parseInt(currentTime.split(':')[0]) > 20) { currentDay = addDays(currentDay, 1); currentTime = genStartTime; } } } teams.splice(1, 0, teams.pop()!); } } else if (genType === 'pool_play') { const numPools = parseInt(genPoolCount); let currentDay = new Date(newDate || new Date()); for (let p = 0; p < numPools; p++) { const poolTeams = teams.filter((_, idx) => idx % numPools === p); const poolChar = String.fromCharCode(65 + p); let poolTime = genStartTime; for (let i = 0; i < poolTeams.length; i++) { for (let j = i + 1; j < poolTeams.length; j++) { const displayTime = format(parse(poolTime, 'HH:mm', new Date()), 'h:mm a'); games.push({ id: `gen_p${poolChar}_${Date.now()}_${i}_${j}`, team1: poolTeams[i], team2: poolTeams[j], score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: displayTime, isCompleted: false, pool: poolChar, location: newLocation }); const [h, m] = poolTime.split(':').map(Number); const next = addMinutes(new Date(2000, 0, 1, h, m), parseInt(genMatchLength) + 10); poolTime = format(next, 'HH:mm'); } } } } setTournamentGames(games); toast({ title: "Tactical Schedule Forged" }); } finally { setIsGenerating(false); } };
   const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setRequiresWaiver(false); setWaiverText(''); setTeamWaiverText(''); setTournamentTeams([]); setTournamentTeamsMetadata({}); setTournamentGames([]); };
   const handleCreateEvent = () => { if (!newTitle || !newDate) return; const payload: any = { title: newTitle, date: new Date(newDate).toISOString(), startTime: newTime || 'TBD', location: newLocation, description: newDescription, isTournament: isTournamentMode, isTournamentPaid: isEliteTournament, requiresSpecialWaiver: requiresWaiver, specialWaiverText: waiverText, teamWaiverText, tournamentTeams, tournamentTeamsMetadata, tournamentGames, lastUpdated: new Date().toISOString() }; if (isTournamentMode && newEndDate) payload.endDate = new Date(newEndDate).toISOString(); if (editingEvent) updateEvent(editingEvent.id, payload); else addEvent(payload); setIsCreateOpen(false); resetForm(); };
-  const handleAddTournamentTeam = () => { const tName = newTeamName.trim(); if (!tName || tournamentTeams.includes(tName)) return; setTournamentTeams([...tournamentTeams, tName]); if (newTeamCoach.trim() || newTeamEmail.trim()) { setTournamentTeamsMetadata({ ...tournamentTeamsMetadata, [tName]: { coach: newTeamCoach.trim(), email: newTeamEmail.trim() } }); } setNewTeamName(''); setNewTeamCoach(''); setNewTeamEmail(''); };
 
   return (
     <div className="space-y-10 pb-20">
@@ -631,59 +621,49 @@ export default function EventsPage() {
               </div>
             </div>
             <div className="flex-1 flex flex-col bg-background min-h-0">
-              {isTournamentMode ? (
-                <Tabs defaultValue="teams" className="flex-1 flex flex-col">
-                  <div className="px-6 lg:px-8 pt-6 lg:pt-8 border-b bg-muted/10">
-                    <TabsList className="bg-muted/50 h-11 p-1 mb-4 w-full">
-                      <TabsTrigger value="teams" className="font-black text-[10px] uppercase px-6 flex-1">Squads</TabsTrigger>
-                      <TabsTrigger value="games" className="font-black text-[10px] uppercase px-6 flex-1">Brackets</TabsTrigger>
-                      <TabsTrigger value="generator" className="font-black text-[10px] uppercase px-6 flex-1">Generator</TabsTrigger>
-                    </TabsList>
+              <div className="p-6 lg:p-10 space-y-8">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-xl text-primary"><FileText className="h-5 w-5" /></div>
+                    <h3 className="text-xl font-black uppercase tracking-tight">Compliance Setup</h3>
                   </div>
-                  <div className="space-y-6 p-6 lg:p-8">
-                    <TabsContent value="teams" className="space-y-6 mt-0">
-                      <div className="bg-muted/30 p-6 rounded-2xl border-2 border-dashed space-y-4">
-                        <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">New Guest Squad</Label><Input placeholder="Squad Name..." value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-11 rounded-xl bg-white" /></div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase opacity-60">Coach Name</Label><Input placeholder="John Doe" value={newTeamCoach} onChange={e => setNewTeamCoach(e.target.value)} className="h-10 rounded-xl bg-white" /></div>
-                          <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase opacity-60">Coach Email</Label><Input type="email" placeholder="john@team.com" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} className="h-10 rounded-xl bg-white" /></div>
-                        </div>
-                        <Button onClick={handleAddTournamentTeam} className="w-full h-11 rounded-xl font-black uppercase text-xs">Add to Roster</Button>
+                  
+                  <div className="space-y-6 bg-muted/20 p-6 rounded-[2rem] border-2 border-dashed">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-black uppercase">Individual Waiver</Label>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Require signatures from all squad members</p>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {tournamentTeams.map((t, i) => {
-                          const meta = tournamentTeamsMetadata[t];
-                          return (<div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border group hover:border-primary transition-all"><div className="min-w-0"><span className="font-black text-xs uppercase truncate block">{t}</span>{meta?.coach && <span className="text-[8px] font-bold text-muted-foreground uppercase block">{meta.coach}</span>}</div><Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100" onClick={() => { setTournamentTeams(tournamentTeams.filter((_, idx) => idx !== i)); const newMeta = { ...tournamentTeamsMetadata }; delete newMeta[t]; setTournamentTeamsMetadata(newMeta); }}><X className="h-3.5 w-3.5" /></Button></div>);
-                        })}
+                      <Switch checked={requiresWaiver} onCheckedChange={setRequiresWaiver} />
+                    </div>
+                    {requiresWaiver && (
+                      <div className="space-y-2 animate-in fade-in duration-300">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Individual Waiver Terms</Label>
+                        <Textarea placeholder="Paste your liability terms here..." value={waiverText} onChange={e => setWaiverText(e.target.value)} className="min-h-[120px] rounded-xl border-2 bg-white font-medium" />
                       </div>
-                    </TabsContent>
-                    <TabsContent value="games" className="space-y-6 mt-0">
-                      <div className="flex items-center justify-between"><h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Match Schedule</h3><Button variant="outline" size="sm" onClick={() => setTournamentGames([...tournamentGames, { id: `game_${Date.now()}`, team1: tournamentTeams[0] || 'Team A', team2: tournamentTeams[1] || 'Team B', score1: 0, score2: 0, date: newDate, time: '10:00 AM', isCompleted: false, location: newLocation }])} className="font-black text-[10px] uppercase border-2">+ New Match</Button></div>
-                      <div className="grid grid-cols-1 gap-4">
-                        {tournamentGames.length > 0 ? tournamentGames.map((game) => (
-                          <div key={game.id} className="p-5 bg-white rounded-2xl border-2 border-muted/50 space-y-4 relative shadow-sm">
-                            <div className="flex flex-col gap-3">
-                              <div className="flex gap-2"><input type="date" value={game.date} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, date: e.target.value} : g))} className="flex-1 h-10 rounded-xl font-bold bg-muted/20 px-3 border text-xs" /><input type="time" value={game.time} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, time: e.target.value} : g))} className="w-28 h-10 rounded-xl font-bold bg-muted/20 px-3 border text-xs" /></div>
-                              <div className="flex items-center gap-2"><MapPin className="h-3 w-3 text-primary" /><Input placeholder="Specific Match Location..." value={game.location || ''} onChange={e => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, location: e.target.value} : g))} className="h-10 rounded-xl font-bold bg-muted/20 px-3 border text-xs" /></div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <Select value={game.team1} onValueChange={(v) => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, team1: v} : g))}><SelectTrigger className="h-11 rounded-xl font-black text-xs uppercase"><SelectValue placeholder="Team 1" /></SelectTrigger><SelectContent className="rounded-xl">{tournamentTeams.map((t, idx) => <SelectItem key={idx} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-                              <span className="font-black text-[10px] opacity-20">VS</span>
-                              <Select value={game.team2} onValueChange={(v) => setTournamentGames(tournamentGames.map(g => g.id === game.id ? {...g, team2: v} : g))}><SelectTrigger className="h-11 rounded-xl font-black text-xs uppercase"><SelectValue placeholder="Team 2" /></SelectTrigger><SelectContent className="rounded-xl">{tournamentTeams.map((t, idx) => <SelectItem key={idx} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-                            </div>
-                            <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 bg-white shadow-md rounded-full text-destructive border" onClick={() => setTournamentGames(tournamentGames.filter(g => g.id !== game.id))}><X className="h-3.5 w-3.5" /></Button>
-                          </div>
-                        )) : (<div className="text-center py-12 border-2 border-dashed rounded-2xl opacity-30"><p className="text-xs font-black uppercase">No matches scheduled yet</p></div>)}
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="generator" className="space-y-6 mt-0">
-                      {isPro ? (
-                        <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 space-y-6"><div className="grid grid-cols-2 gap-4"><div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Format</Label><Select value={genType} onValueChange={setGenType}><SelectTrigger className="h-11 rounded-xl border-2"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl"><SelectItem value="round_robin">Round Robin</SelectItem><SelectItem value="pool_play">Pool Play</SelectItem></SelectContent></Select></div><div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Match Duration (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-11 rounded-xl border-2 font-bold" /></div></div><div className="grid grid-cols-2 gap-4"><div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Day Start Time</Label><Input type="time" value={genStartTime} onChange={e => setGenStartTime(e.target.value)} className="h-11 rounded-xl border-2 font-bold" /></div>{genType === 'pool_play' && (<div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Number of Pools</Label><Input type="number" value={genPoolCount} onChange={e => setGenPoolCount(e.target.value)} className="h-11 rounded-xl border-2 font-bold" /></div>)}</div><Button className="w-full h-14 rounded-xl font-black uppercase shadow-xl" onClick={handleGenerateSchedule} disabled={isGenerating || tournamentTeams.length < 2}>{isGenerating ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Forging...</> : "Generate Tactical Schedule"}</Button>{tournamentTeams.length < 2 && <p className="text-[9px] font-bold text-center text-red-600 uppercase">Minimum 2 teams required to generate</p>}</div>
-                      ) : (<div className="py-16 text-center space-y-6 bg-primary/5 rounded-[2rem] border-2 border-dashed border-primary/20"><div className="bg-white w-16 h-16 rounded-2xl flex items-center justify-center mx-auto shadow-xl relative"><Zap className="h-8 w-8 text-primary" /><Lock className="absolute -top-2 -right-2 h-5 w-5 bg-black text-white p-1 rounded-full border-2 border-background" /></div><div className="space-y-2"><h3 className="text-xl font-black uppercase tracking-tight">Generator Locked</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest max-w-[200px] mx-auto">Automated bracket creation is an Elite Pro module.</p></div><Button onClick={purchasePro} className="h-10 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest">Upgrade to Elite</Button></div>)}
-                    </TabsContent>
+                    )}
                   </div>
-                </Tabs>
-              ) : (<div className="flex-1 flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-[2rem] text-center opacity-60 m-6"><Zap className="h-10 w-10 text-primary mx-auto mb-2" /><p className="font-bold uppercase tracking-widest text-xs">Standard Match Protocol</p><p className="text-[10px] mt-2 font-medium max-w-xs">Use Tournaments for multi-team coordination, scheduling, and live standings.</p></div>)}
+
+                  {isTournamentMode && (
+                    <div className="space-y-4 bg-primary/5 p-6 rounded-[2rem] border-2 border-dashed border-primary/20">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Signature className="h-5 w-5 text-primary" />
+                        <h4 className="text-sm font-black uppercase">Guest Squad Agreement</h4>
+                      </div>
+                      <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest leading-relaxed">This text appears on the public signature portal for participating teams.</p>
+                      <Textarea placeholder="Terms for participating squads (Liability, sportsmanship, etc)..." value={teamWaiverText} onChange={e => setTeamWaiverText(e.target.value)} className="min-h-[150px] rounded-xl border-2 bg-white font-medium" />
+                    </div>
+                  )}
+                </div>
+                
+                {!isTournamentMode && (
+                  <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-[2rem] text-center opacity-60">
+                    <Zap className="h-10 w-10 text-primary mx-auto mb-2" />
+                    <p className="font-bold uppercase tracking-widest text-xs">Standard Match Protocol</p>
+                    <p className="text-[10px] mt-2 font-medium max-w-xs">Use Tournaments for multi-team coordination, scheduling, and live standings.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="p-6 lg:p-8 bg-background/80 backdrop-blur-md border-t fixed bottom-0 left-0 right-0 z-50 flex justify-center"><Button className="w-full max-w-4xl h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95" onClick={handleCreateEvent}>{editingEvent ? "Update" : "Publish"} Event Hub</Button></div>

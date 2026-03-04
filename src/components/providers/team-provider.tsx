@@ -485,7 +485,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [firebaseUser?.uid, db]);
 
-  // Section 1: Demo Heartbeat logic
+  // Section 1: Demo Heartbeat logic - Updated to 15 minutes
   useEffect(() => {
     if (!userProfile?.isDemo || !userProfile?.createdAt) {
       setSecondsUntilReset(null);
@@ -494,7 +494,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(() => {
       const created = new Date(userProfile.createdAt!).getTime();
-      const expires = created + (30 * 60 * 1000); // 30 mins reset cycle
+      const expires = created + (15 * 60 * 1000); // Changed from 30 to 15 mins reset cycle
       const remaining = Math.max(0, Math.floor((expires - Date.now()) / 1000));
       
       setSecondsUntilReset(remaining);
@@ -762,7 +762,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     saveLeagueRegistrationConfig: async (lid: string, up: any) => { await setDoc(doc(db, 'leagues', lid, 'registration', 'config'), { ...up, league_id: lid, created_by: firebaseUser?.uid, updated_at: new Date().toISOString() }, { merge: true }); toast({ title: "Config Saved" }); },
     submitRegistrationEntry: async (lid: string, ans: any, v: number) => { await addDoc(collection(db, 'leagues', lid, 'registrationEntries'), { league_id: lid, form_version: v, answers: ans, status: 'pending', assigned_team_id: null, created_at: new Date().toISOString(), payment_received: false }); toast({ title: "Registration Dispatched" }); },
     assignEntryToTeam: async (lid: string, eid: string, tid: string | null) => { await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), { assigned_team_id: tid, status: tid ? 'assigned' : 'pending' }); toast({ title: tid ? "Tactical Assignment" : "Assignment Cleared" }); },
-    respondToAssignment: async (lid: string, eid: string, s: 'accepted' | 'declined') => { await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), { status: s }); if (s === 'accepted' && activeTeam) { const snap = await getDocs(query(collection(db, 'leagues', lid, 'registrationEntries'), where('__name__', '==', eid))); if (!snap.empty) { const name = snap.docs[0].data().answers['name'] || snap.docs[0].data().answers['fullName'] || 'New Player'; const mid = `member_reg_${Date.now()}`; await setDoc(doc(db, 'teams', activeTeam.id, 'members', mid), { id: mid, userId: `unlinked_${Date.now()}`, teamId: activeTeam.id, name, role: 'Member', position: 'Player', jersey: 'TBD', avatar: '', joinedAt: new Date().toISOString(), feesPaid: false, amountOwed: 0 }); toast({ title: "Roster Enrolled" }); } } },
+    respondToAssignment: async (leagueId: string, entryId: string, status: 'accepted' | 'declined') => { await updateDoc(doc(db, 'leagues', leagueId, 'registrationEntries', entryId), { status: status }); if (status === 'accepted' && activeTeam) { const snap = await getDocs(query(collection(db, 'leagues', leagueId, 'registrationEntries'), where('__name__', '==', entryId))); if (!snap.empty) { const name = snap.docs[0].data().answers['name'] || snap.docs[0].data().answers['fullName'] || 'New Player'; const mid = `member_reg_${Date.now()}`; await setDoc(doc(db, 'teams', activeTeam.id, 'members', mid), { id: mid, userId: `unlinked_${Date.now()}`, teamId: activeTeam.id, name, role: 'Member', position: 'Player', jersey: 'TBD', avatar: '', joinedAt: new Date().toISOString(), feesPaid: false, amountOwed: 0 }); toast({ title: "Roster Enrolled" }); } } },
     toggleRegistrationPaymentStatus: async (lid: string, eid: string, s: boolean) => { await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), { payment_received: s }); toast({ title: s ? "Payment Logged" : "Payment Pending" }); },
     addCoOrganizerByEmail: async (eventId: string, email: string) => {
       if (!activeTeam?.id || !db) return;

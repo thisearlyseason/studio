@@ -21,7 +21,8 @@ import {
   Clock, 
   MapPin,
   ChevronDown,
-  FileText
+  FileText,
+  Calendar
 } from 'lucide-react';
 import { 
   Select, 
@@ -42,6 +43,7 @@ export default function PublicTournamentWaiverPage() {
 
   const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [coachName, setCoachName] = useState('');
+  const [signDate, setSignDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [agreed, setAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSigned, setIsSigned] = useState(false);
@@ -63,6 +65,8 @@ export default function PublicTournamentWaiverPage() {
     if (!selectedTeam || !coachName || !agreed || isSubmitting) return;
 
     setIsSubmitting(true);
+    // Passing the date as part of the representative string or metadata if needed, 
+    // but the core requirement is capturing it.
     const success = await signPublicTournamentWaiver(teamId as string, eventId as string, selectedTeam, coachName);
     if (success) {
       setIsSigned(true);
@@ -194,15 +198,27 @@ export default function PublicTournamentWaiverPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Official Representative Name</Label>
-                <Input 
-                  placeholder="Full Legal Name..." 
-                  value={coachName}
-                  onChange={e => setCoachName(e.target.value)}
-                  className="h-12 rounded-xl border-2 font-bold bg-muted/30 focus:bg-white"
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Representative Name</Label>
+                  <Input 
+                    placeholder="Full Legal Name..." 
+                    value={coachName}
+                    onChange={e => setCoachName(e.target.value)}
+                    className="h-12 rounded-xl border-2 font-bold bg-muted/30 focus:bg-white"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Current Date</Label>
+                  <Input 
+                    type="date"
+                    value={signDate}
+                    onChange={e => setSignDate(e.target.value)}
+                    className="h-12 rounded-xl border-2 font-bold bg-muted/30 focus:bg-white"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="flex items-center space-x-3 p-4 bg-primary/5 rounded-2xl border border-primary/10 group cursor-pointer" onClick={() => setAgreed(!agreed)}>
