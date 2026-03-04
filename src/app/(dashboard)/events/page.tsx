@@ -198,6 +198,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-7xl p-0 overflow-hidden sm:rounded-[2.5rem] h-full sm:h-[90vh] flex flex-col border-none shadow-2xl">
+        <DialogTitle className="sr-only">{event.title} Detail Hub</DialogTitle>
         <div className="flex flex-col lg:flex-row h-full min-h-0">
           {/* Left Strategic Pane */}
           <div className="lg:w-1/3 bg-black text-white p-6 lg:p-8 lg:border-r space-y-8 flex flex-col shrink-0">
@@ -390,7 +391,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                                   <div className="flex items-center gap-3">
                                     <Avatar className="h-8 w-8 rounded-lg">
                                       <AvatarImage src={member?.avatar} />
-                                      <AvatarFallback className="text-[10px] font-black">{member?.name?.[0]}</AvatarFallback>
+                                      <AvatarFallback className="text-[10px] font-black">{member?.name?.[0] || '?'}</AvatarFallback>
                                     </Avatar>
                                     <div>
                                       <p className="text-xs font-black uppercase">{member?.name}</p>
@@ -670,10 +671,11 @@ export default function EventsPage() {
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="sm:max-w-5xl overflow-hidden p-0 sm:rounded-[2.5rem] h-full sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
+          <DialogTitle className="sr-only">{editingEvent ? "Update" : "Launch"} Event Hub</DialogTitle>
           <div className="flex flex-col lg:flex-row h-full min-h-0">
             <div className="lg:w-5/12 p-6 lg:p-8 lg:border-r bg-primary/5 space-y-6 overflow-y-auto custom-scrollbar">
               <DialogHeader>
-                <h2 className="text-2xl lg:text-3xl font-black tracking-tight">{editingEvent ? "Update" : "Launch"} {isTournamentMode ? "Tournament" : "Match"}</h2>
+                <DialogTitle className="text-2xl lg:text-3xl font-black tracking-tight">{editingEvent ? "Update" : "Launch"} {isTournamentMode ? "Tournament" : "Match"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Event Title</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-black border-2" /></div>

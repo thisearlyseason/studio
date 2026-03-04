@@ -371,6 +371,7 @@ export default function DrillsAndGamePlayPage() {
       {/* Drill Builder/Editor */}
       <Dialog open={isAddDrillOpen} onOpenChange={(o) => { setIsAddDrillOpen(o); if(!o) resetForm(); }}>
         <DialogContent className="sm:max-w-4xl overflow-hidden p-0 sm:rounded-[2.5rem] h-full sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
+          <DialogTitle className="sr-only">{editingDrillId ? "Refine Drill" : "Publish Drill"}</DialogTitle>
           <ScrollArea className="flex-1">
             <div className="flex flex-col lg:flex-row h-full min-h-full">
               <div className="lg:w-5/12 p-6 lg:p-10 bg-muted/30 lg:border-r space-y-8">
@@ -418,8 +419,8 @@ export default function DrillsAndGamePlayPage() {
         <DialogContent className="sm:max-w-5xl h-full sm:h-auto overflow-hidden p-0 rounded-none sm:rounded-[3rem] border-none shadow-2xl">
           {selectedDrill && (
             <div className="flex flex-col lg:flex-row h-full">
+              <DialogTitle className="sr-only">{selectedDrill.title}</DialogTitle>
               <div className="flex-1 bg-black relative aspect-video lg:aspect-auto flex items-center justify-center">
-                <DialogTitle className="sr-only">{selectedDrill.title}</DialogTitle>
                 <img src={selectedDrill.thumbnailUrl} className="w-full h-full object-contain" />
                 <Button variant="ghost" size="icon" className="absolute top-6 left-6 text-white bg-black/20 hover:bg-black/40 rounded-full" onClick={() => setSelectedDrill(null)}><X className="h-5 w-5" /></Button>
               </div>
@@ -444,8 +445,8 @@ export default function DrillsAndGamePlayPage() {
         <DialogContent className="sm:max-w-7xl h-full sm:h-[90vh] p-0 overflow-hidden rounded-none sm:rounded-[3rem] border-none shadow-2xl flex flex-col">
           {selectedFile && (
             <div className="flex flex-col lg:flex-row h-full">
+              <DialogTitle className="sr-only">Viewing {selectedFile.name}</DialogTitle>
               <div className="flex-1 bg-black flex flex-col relative">
-                <DialogTitle className="sr-only">Viewing {selectedFile.name}</DialogTitle>
                 <div className="flex-1 flex items-center justify-center p-4">
                   {selectedFile.type === 'link' ? (
                     <div className="text-center space-y-8 bg-white/5 p-12 rounded-[3rem] border-2 border-dashed border-white/10 max-w-lg">
