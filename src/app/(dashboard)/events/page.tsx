@@ -310,7 +310,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
             <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0">
               <div className="p-6 lg:p-8 flex justify-between items-start">
                 <Badge className={cn("uppercase font-black tracking-widest text-[9px] h-6 px-3", event.isTournamentPaid ? "bg-primary text-white border-none" : "bg-white text-black border-none")}>
-                  {event.isTournament ? (event.isTournamentPaid ? "Elite Hub" : "Tournament Hub") : event.eventType.toUpperCase()}
+                  {event.isTournament ? (event.isTournamentPaid ? "Elite Hub" : "Tournament Hub") : (event.eventType || 'other').toUpperCase()}
                 </Badge>
                 <DialogClose asChild><X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" /></DialogClose>
               </div>
