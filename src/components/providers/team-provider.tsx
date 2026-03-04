@@ -222,6 +222,12 @@ export type Message = {
   poll?: any;
 };
 
+export type Feature = {
+  id: string;
+  description: string;
+  defaultEnabled: boolean;
+};
+
 export type Plan = {
   id: string;
   name: string;
@@ -619,6 +625,33 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  // Standalone logic function to prevent recursive useMemo capture issues
+  const performCreateNewTeam = async (name: string, pos: string, description?: string, planId?: string): Promise<string> => {
+    if (!firebaseUser) return ''; 
+    const tid = `team_${Date.now()}`; 
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase(); 
+    const pId = planId || 'starter_squad';
+    const isP = pId !== 'starter_squad';
+    
+    if (isP && !canAddProTeam) {
+      toast({ title: "Pro Quota Reached", description: "Team created as Starter Squad.", variant: "destructive" });
+      return performCreateNewTeam(name, pos, description, 'starter_squad');
+    }
+
+    const batch = writeBatch(db); 
+    batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId, proAssignedAt: isP ? new Date().toISOString() : null, leagueIds: [], sport: 'General', parentCommentsEnabled: false, parentChatEnabled: true }); 
+    batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); 
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, description: description || '', teamCode: code, role: 'Admin', isPro: isP, planId: pId, joinedAt: new Date().toISOString(), createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, leagueIds: [], sport: 'General' }); 
+    
+    try { 
+      await batch.commit(); 
+      setActiveTeamId(tid); 
+      return tid; 
+    } catch (e) { 
+      return ''; 
+    }
+  };
+
   const contextValue = useMemo(() => ({
     user: userProfile, 
     updateUser: (updates: Partial<UserProfile>) => { if (firebaseUser) updateDocumentNonBlocking(doc(db, 'users', firebaseUser.uid), updates); },
@@ -659,22 +692,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isStaff,
     isPlayer,
     isParent,
-    createNewTeam: async (name: string, pos: string, description?: string, planId?: string) => { 
-      if (!firebaseUser) return ''; 
-      const tid = `team_${Date.now()}`; 
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase(); 
-      const pId = planId || 'starter_squad';
-      const isP = pId !== 'starter_squad';
-      if (isP && !canAddProTeam) {
-        toast({ title: "Pro Quota Reached", description: "Team created as Starter Squad.", variant: "destructive" });
-        return await contextValue.createNewTeam(name, pos, description, 'starter_squad');
-      }
-      const batch = writeBatch(db); 
-      batch.set(doc(db, 'teams', tid), { id: tid, teamName: name, description: description || '', teamCode: code, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), members: { [firebaseUser.uid]: 'Admin' }, isPro: isP, planId: pId, proAssignedAt: isP ? new Date().toISOString() : null, leagueIds: [], sport: 'General', parentCommentsEnabled: false, parentChatEnabled: true }); 
-      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos || 'Coach', name: userProfile?.name || 'Organizer', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString() }); 
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { userId: firebaseUser.uid, teamId: tid, teamName: name, description: description || '', teamCode: code, role: 'Admin', isPro: isP, planId: pId, joinedAt: new Date().toISOString(), createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, leagueIds: [], sport: 'General' }); 
-      try { await batch.commit(); setActiveTeamId(tid); return tid; } catch (e) { return ''; }
-    },
+    createNewTeam: performCreateNewTeam,
     joinTeamWithCode: async (code: string, pos: string) => { 
       if (!firebaseUser || !userProfile) return false; 
       try {
@@ -889,7 +907,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       });
       toast({ title: "Squad Enrolled", description: `${teamName} added to ledger.` });
     }
-  }), [userProfile, activeTeam, teams, isTeamsLoading, members, isMembersLoading, currentMember, isStaff, isPlayer, isParent, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, isPlansLoading, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, alerts, router]);
+  }), [userProfile, activeTeam, teams, isTeamsLoading, members, isMembersLoading, currentMember, isStaff, isPlayer, isParent, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, isPlansLoading, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, alerts, router, performCreateNewTeam]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

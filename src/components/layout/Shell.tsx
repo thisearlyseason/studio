@@ -34,7 +34,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useTeam } from '@/components/providers/team-provider';
+import { useTeam, Team } from '@/components/providers/team-provider';
 import { CreateAlertButton, AlertsHistoryDialog } from '@/components/layout/AlertOverlay';
 import {
   DropdownMenu,
@@ -82,6 +82,11 @@ const tabs = [
   { name: 'Library', href: '/files', icon: FolderClosed, pro: false, mobileName: 'Docs' },
 ];
 
+/**
+ * Stabilized sub-components defined outside of the Shell component to prevent
+ * "Rendered more hooks than during previous render" errors in React 19.
+ */
+
 const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boolean, isLocked: boolean }) => {
   const Icon = tab.icon;
   return (
@@ -109,48 +114,20 @@ const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boo
 });
 SidebarItem.displayName = "SidebarItem";
 
-function DemoResetBanner({ seconds }: { seconds: number | null }) {
-  if (seconds === null) return null;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  
+function TeamSwitcherContent({ 
+  teams, 
+  activeTeam, 
+  setActiveTeam, 
+  router, 
+  resetDemo 
+}: { 
+  teams: Team[], 
+  activeTeam: Team | null, 
+  setActiveTeam: (t: Team) => void,
+  router: any,
+  resetDemo: () => Promise<void>
+}) {
   return (
-    <div className="bg-black text-white px-4 py-2 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] relative z-[60] overflow-hidden shrink-0">
-      <div className="absolute inset-0 bg-primary/20 animate-pulse pointer-events-none" />
-      <div className="flex items-center gap-2 relative z-10">
-        <Timer className="h-3 w-3 text-primary animate-spin duration-[5000ms]" />
-        <span className="text-center">Demo Reset in {minutes}:{remainingSeconds.toString().padStart(2, '0')}</span>
-      </div>
-      <div className="hidden lg:block h-3 w-[1px] bg-white/20 relative z-10" />
-      <span className="hidden lg:inline relative z-10 text-white/60">Modifications will be purged soon.</span>
-    </div>
-  );
-}
-
-export default function Shell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { 
-    activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin, 
-    simulationPlanId, setSimulationPlanId, resetDemo, isClubManager, secondsUntilReset 
-  } = useTeam();
-  const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('squad_seen_alerts_ids');
-    if (!stored) {
-      setHasUnreadAlerts(alerts.length > 0);
-      return;
-    }
-    try {
-      const seenIds = JSON.parse(stored);
-      setHasUnreadAlerts(alerts.some(a => !seenIds.includes(a.id)));
-    } catch (e) {
-      setHasUnreadAlerts(alerts.length > 0);
-    }
-  }, [alerts]);
-
-  const TeamSwitcherContent = () => (
     <>
       <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-50 px-3 py-2">Switch Squad</DropdownMenuLabel>
       <DropdownMenuSeparator className="my-1" />
@@ -201,6 +178,48 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </DropdownMenuItem>
     </>
   );
+}
+
+function DemoResetBanner({ seconds }: { seconds: number | null }) {
+  if (seconds === null) return null;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  
+  return (
+    <div className="bg-black text-white px-4 py-2 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] relative z-[60] overflow-hidden shrink-0">
+      <div className="absolute inset-0 bg-primary/20 animate-pulse pointer-events-none" />
+      <div className="flex items-center gap-2 relative z-10">
+        <Timer className="h-3 w-3 text-primary animate-spin duration-[5000ms]" />
+        <span className="text-center">Demo Reset in {minutes}:{remainingSeconds.toString().padStart(2, '0')}</span>
+      </div>
+      <div className="hidden lg:block h-3 w-[1px] bg-white/20 relative z-10" />
+      <span className="hidden lg:inline relative z-10 text-white/60">Modifications will be purged soon.</span>
+    </div>
+  );
+}
+
+export default function Shell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { 
+    activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin, 
+    simulationPlanId, setSimulationPlanId, resetDemo, isClubManager, secondsUntilReset 
+  } = useTeam();
+  const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('squad_seen_alerts_ids');
+    if (!stored) {
+      setHasUnreadAlerts(alerts.length > 0);
+      return;
+    }
+    try {
+      const seenIds = JSON.parse(stored);
+      setHasUnreadAlerts(alerts.some(a => !seenIds.includes(a.id)));
+    } catch (e) {
+      setHasUnreadAlerts(alerts.length > 0);
+    }
+  }, [alerts]);
 
   return (
     <SidebarProvider>
@@ -260,7 +279,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-64 rounded-xl shadow-2xl border-muted p-2">
-                    <TeamSwitcherContent />
+                    <TeamSwitcherContent 
+                      teams={teams} 
+                      activeTeam={activeTeam} 
+                      setActiveTeam={setActiveTeam} 
+                      router={router} 
+                      resetDemo={resetDemo} 
+                    />
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -366,7 +391,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64 rounded-xl shadow-2xl p-2">
-                      <TeamSwitcherContent />
+                      <TeamSwitcherContent 
+                        teams={teams} 
+                        activeTeam={activeTeam} 
+                        setActiveTeam={setActiveTeam} 
+                        router={router} 
+                        resetDemo={resetDemo} 
+                      />
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
