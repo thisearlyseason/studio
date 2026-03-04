@@ -51,7 +51,8 @@ import {
   Timer,
   CalendarPlus,
   Scale,
-  Signature as SignIcon
+  Signature as SignIcon,
+  FileText
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -131,6 +132,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const router = useRouter();
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
+  const [isTeamAgreementOpen, setIsTeamAgreementOpen] = useState(false);
 
   const regQuery = useMemoFirebase(() => {
     if (!db || !event?.id || !event?.teamId) return null;
@@ -251,7 +253,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                 )}
 
                 {myParticipatingTeamName && !isWaiverSignedForMyTeam && (
-                  <Button onClick={() => signTeamTournamentWaiver(event.teamId, event.id, myParticipatingTeamName)} className="w-full rounded-xl h-14 font-black text-sm uppercase gap-3 bg-primary text-white shadow-xl shadow-primary/20">
+                  <Button onClick={() => setIsTeamAgreementOpen(true)} className="w-full rounded-xl h-14 font-black text-sm uppercase gap-3 bg-primary text-white shadow-xl shadow-primary/20">
                     <Signature className="h-5 w-5" /> Sign Team Waiver
                   </Button>
                 )}
@@ -376,7 +378,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                       )}
                     </TabsContent>
 
-                    <TabsContent value="compliance" className="mt-0 space-y-8">
+                    <TabsContent value="compliance" className="mt-0 space-y-12">
                       {event.requiresSpecialWaiver && (
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 px-1">
@@ -426,9 +428,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                                   </div>
                                   <div className="flex items-center gap-4">
                                     {res?.agreed ? (
-                                      <Badge className="bg-green-100 text-green-700 h-7 px-4 border-none font-black text-[9px] uppercase tracking-widest rounded-full"><Check className="h-3 w-3 mr-2" /> Verified</Badge>
+                                      <Badge className="bg-green-100 text-green-700 h-8 px-5 border-none font-black text-[10px] uppercase tracking-widest rounded-full"><Check className="h-3.5 w-3.5 mr-2" /> Verified</Badge>
                                     ) : (
-                                      <Badge variant="outline" className="h-7 px-4 font-black text-[9px] uppercase tracking-widest opacity-40 rounded-full border-dashed">Pending</Badge>
+                                      <Badge variant="outline" className="h-8 px-5 font-black text-[10px] uppercase tracking-widest opacity-40 rounded-full border-dashed">Pending</Badge>
                                     )}
                                     {isAdmin && (
                                       <Checkbox checked={res?.agreed || false} onCheckedChange={() => { updateEvent(event.id, { [`teamAgreements.${teamName}`]: { agreed: !res?.agreed, captainName: user?.name || 'Verified by Host', timestamp: new Date().toISOString() } }); }} className="h-6 w-6 rounded-lg" />
@@ -468,7 +470,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
         <Dialog open={isWaiverDialogOpen} onOpenChange={setIsWaiverDialogOpen}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Required Waiver</DialogTitle>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Required Participant Waiver</DialogTitle>
               <DialogDescription className="font-bold text-red-600 uppercase text-[10px] tracking-widest">Action Required for Participation</DialogDescription>
             </DialogHeader>
             <ScrollArea className="max-h-[300px] border-2 rounded-2xl p-6 bg-muted/30">
@@ -480,6 +482,40 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
             </div>
             <DialogFooter>
               <Button className="w-full h-14 rounded-2xl text-lg font-black bg-red-600 shadow-xl shadow-red-600/20" onClick={() => { submitEventWaiver(event.id, true); setIsWaiverDialogOpen(false); toast({ title: "Waiver Signed" }); }}>Verify & Sign Legally</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Team Agreement Dialog */}
+        <Dialog open={isTeamAgreementOpen} onOpenChange={setIsTeamAgreementOpen}>
+          <DialogContent className="sm:max-w-xl rounded-3xl border-none shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Squad Participation Agreement</DialogTitle>
+              <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Formal Enrollment Certification</DialogDescription>
+            </DialogHeader>
+            <div className="p-1 bg-muted rounded-2xl border-2">
+              <ScrollArea className="max-h-[350px] p-6 bg-white rounded-xl">
+                {event.teamWaiverText ? (
+                  <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap text-foreground/80">{event.teamWaiverText}</p>
+                ) : (
+                  <div className="text-center py-10 opacity-40 space-y-2">
+                    <FileText className="h-8 w-8 mx-auto" />
+                    <p className="text-xs font-black uppercase">Standard Participation Terms Apply</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+            <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Authority Verification</p>
+              </div>
+              <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
+                As a representative of <strong>{myParticipatingTeamName}</strong>, clicking below verifies that your squad understands and accepts all tournament coordination protocols.
+              </p>
+            </div>
+            <DialogFooter className="pt-2">
+              <Button className="w-full h-16 rounded-2xl text-lg font-black bg-primary shadow-xl shadow-primary/20" onClick={() => { if(myParticipatingTeamName) { signTeamTournamentWaiver(event.teamId, event.id, myParticipatingTeamName); setIsTeamAgreementOpen(false); } }}>Verify & Sign for Squad</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -560,6 +596,7 @@ export default function EventsPage() {
   const [newDescription, setNewDescription] = useState('');
   const [requiresWaiver, setRequiresWaiver] = useState(false);
   const [waiverText, setWaiverText] = useState('');
+  const [teamWaiverText, setTeamWaiverText] = useState('');
   const [tournamentTeams, setTournamentTeams] = useState<string[]>([]);
   const [tournamentGames, setTournamentGames] = useState<TournamentGame[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
@@ -583,6 +620,7 @@ export default function EventsPage() {
     setNewDescription(event.description); 
     setRequiresWaiver(!!event.requiresSpecialWaiver);
     setWaiverText(event.specialWaiverText || '');
+    setTeamWaiverText(event.teamWaiverText || '');
     setTournamentTeams(event.tournamentTeams || []); 
     setTournamentGames(event.tournamentGames || []); 
     setIsCreateOpen(true); 
@@ -646,11 +684,11 @@ export default function EventsPage() {
     }
   };
 
-  const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setRequiresWaiver(false); setWaiverText(''); setTournamentTeams([]); setTournamentGames([]); };
+  const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setRequiresWaiver(false); setWaiverText(''); setTeamWaiverText(''); setTournamentTeams([]); setTournamentGames([]); };
   
   const handleCreateEvent = () => { 
     if (!newTitle || !newDate) return; 
-    const payload: any = { title: newTitle, date: new Date(newDate).toISOString(), startTime: newTime || 'TBD', location: newLocation, description: newDescription, isTournament: isTournamentMode, isTournamentPaid: isEliteTournament, requiresSpecialWaiver: requiresWaiver, specialWaiverText: waiverText, tournamentTeams, tournamentGames, lastUpdated: new Date().toISOString() }; 
+    const payload: any = { title: newTitle, date: new Date(newDate).toISOString(), startTime: newTime || 'TBD', location: newLocation, description: newDescription, isTournament: isTournamentMode, isTournamentPaid: isEliteTournament, requiresSpecialWaiver: requiresWaiver, specialWaiverText: waiverText, teamWaiverText, tournamentTeams, tournamentGames, lastUpdated: new Date().toISOString() }; 
     if (isTournamentMode && newEndDate) payload.endDate = new Date(newEndDate).toISOString(); 
     if (editingEvent) updateEvent(editingEvent.id, payload); else addEvent(payload); 
     setIsCreateOpen(false); resetForm(); 
@@ -685,9 +723,18 @@ export default function EventsPage() {
                 </div>
                 <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Location</Label><Input value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 rounded-xl font-bold border-2" /></div>
                 
-                <div className="space-y-4 pt-4 border-t">
-                  <div className="flex items-center justify-between"><Label className="text-[10px] font-black uppercase">Require Signed Waiver?</Label><Switch checked={requiresWaiver} onCheckedChange={setRequiresWaiver} /></div>
-                  {requiresWaiver && <Textarea placeholder="Enter waiver text here..." value={waiverText} onChange={e => setWaiverText(e.target.value)} className="rounded-xl min-h-[100px] border-2 text-xs font-bold" />}
+                <div className="space-y-6 pt-4 border-t">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between"><Label className="text-[10px] font-black uppercase">Individual participant Waiver?</Label><Switch checked={requiresWaiver} onCheckedChange={setRequiresWaiver} /></div>
+                    {requiresWaiver && <Textarea placeholder="Define terms for players/parents..." value={waiverText} onChange={e => setWaiverText(e.target.value)} className="rounded-xl min-h-[80px] border-2 text-xs font-bold" />}
+                  </div>
+                  
+                  {isTournamentMode && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Squad Participation Agreement</Label>
+                      <Textarea placeholder="Define terms for guest team leads to sign..." value={teamWaiverText} onChange={e => setTeamWaiverText(e.target.value)} className="rounded-xl min-h-[100px] border-2 text-xs font-bold" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
