@@ -13,31 +13,23 @@ service cloud.firestore {
     }
 
     // Support for collectionGroup query on registrationEntries
-    // This is required for coaches to see assignments across multiple leagues
+    // Simplified for query-ability (avoiding get() in group rules)
     match /{path=**}/registrationEntries/{entryId} {
       allow read: if isSignedIn() && (
-        isSuperAdmin() ||
-        (resource != null && resource.data.status == 'assigned' && isAdmin(resource.data.assigned_team_id)) ||
-        (resource != null && resource.data.get('league_id', null) != null && 
-         get(/databases/$(database)/documents/leagues/$(resource.data.league_id)).data.creatorId == request.auth.uid)
+        isSuperAdmin() || 
+        (resource != null && resource.data.status == 'assigned' && (
+          // Demo guest check (Stateless/Queryable)
+          (resource.data.assigned_team_id.size() >= 15 && 
+           resource.data.assigned_team_id[0:11] == 'demo_guest_' && 
+           resource.data.assigned_team_id[11:15].lower() == request.auth.uid[request.auth.uid.size() - 4 : request.auth.uid.size()].lower()) ||
+          // Direct ownership/admin check via token or standard rules
+          isAdmin(resource.data.assigned_team_id)
+        )) ||
+        (resource != null && resource.data.get('created_by', '') == request.auth.uid)
       );
       
-      // Allow creation for public signup portal
       allow create: if true;
-      
-      // Allow updates for staff members managing their team assignments
-      allow update: if isSignedIn() && (
-        isSuperAdmin() ||
-        (resource != null && resource.data.get('league_id', null) != null && 
-         get(/databases/$(database)/documents/leagues/$(resource.data.league_id)).data.creatorId == request.auth.uid) ||
-        (resource != null && isAdmin(resource.data.assigned_team_id))
-      );
-      
-      allow delete: if isSignedIn() && (
-        isSuperAdmin() ||
-        (resource != null && resource.data.get('league_id', null) != null && 
-         get(/databases/$(database)/documents/leagues/$(resource.data.league_id)).data.creatorId == request.auth.uid)
-      );
+      allow update, delete: if isSignedIn() && (isSuperAdmin() || isAdmin(resource.data.assigned_team_id));
     }
 
     // Helper functions
@@ -55,17 +47,13 @@ service cloud.firestore {
          request.auth.token.get('email', '').lower() == 'test@gmail.com');
     }
 
-    // Robust membership check with short-circuiting logic
     function isTeamMember(teamId) {
       return isSignedIn() && (
         isSuperAdmin() ||
-        // 1. Cheap stateless check for demo guests (Priority for rapid coordination)
         (teamId.size() >= 15 && 
          teamId[0:11] == 'demo_guest_' && 
          teamId[11:15].lower() == request.auth.uid[request.auth.uid.size() - 4 : request.auth.uid.size()].lower()) ||
-        // 2. Check local membership registry
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)) ||
-        // 3. Server-side fallback to team document
         (exists(/databases/$(database)/documents/teams/$(teamId)) && (
           get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
           get(/databases/$(database)/documents/teams/$(teamId)).data.get('members', {}).get(request.auth.uid, null) != null
@@ -73,18 +61,14 @@ service cloud.firestore {
       );
     }
 
-    // Robust admin check
     function isAdmin(teamId) {
       return isSignedIn() && (
         isSuperAdmin() ||
-        // 1. Demo guest bypass
         (teamId.size() >= 15 && 
          teamId[0:11] == 'demo_guest_' && 
          teamId[11:15].lower() == request.auth.uid[request.auth.uid.size() - 4 : request.auth.uid.size()].lower()) ||
-        // 2. Local membership check for role
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)).data.get('role', 'Member') == 'Admin') ||
-        // 3. Server-side check
         (exists(/databases/$(database)/documents/teams/$(teamId)) && (
           get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
           get(/databases/$(database)/documents/teams/$(teamId)).data.get('members', {}).get(request.auth.uid, null) == 'Admin'
@@ -178,7 +162,13 @@ service cloud.firestore {
 
       // LEAGUE REGISTRATION RULES
       match /registration/{regId} {
-        allow read: if true; // Publicly readable for the signup page
+        allow read: if true; 
+        allow write: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isSuperAdmin());
+      }
+      
+      // Explicit registration entries subcollection rule
+      match /registrationEntries/{entryId} {
+        allow read: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isSuperAdmin());
         allow write: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isSuperAdmin());
       }
     }

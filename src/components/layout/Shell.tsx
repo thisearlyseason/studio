@@ -77,7 +77,7 @@ const tabs = [
   { name: 'Schedule', href: '/events', icon: CalendarDays, pro: false },
   { name: 'Leagues', href: '/leagues', icon: Shield, pro: false },
   { name: 'Scorekeeping', href: '/games', icon: Trophy, pro: false },
-  { name: 'Playbook', href: '/drills', icon: Dumbbell, pro: false, mobileName: 'Playbook' },
+  { name: 'Playbook', icon: Dumbbell, href: '/drills', pro: false, mobileName: 'Playbook' },
   { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
   { name: 'Roster', href: '/roster', icon: Users2, pro: false },
   { name: 'Library', href: '/files', icon: FolderClosed, pro: false, mobileName: 'Docs' },
@@ -229,21 +229,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const filteredTabs = tabs.filter(tab => {
     // Hide Feed if user role doesn't have read access
     if (tab.name === 'Feed') {
-      // Basic feature check
       if (!hasFeature('live_feed_read')) return false;
-      
-      // Hide for parents by default unless coach explicitly enabled parent feed participation
       if (isParent && !activeTeam?.parentCommentsEnabled) return false;
-
-      // Also hide if non-staff and it's a "lock" tier (Player/Parent streamlined)
       if ((isParent || isPlayer) && !isPro) return false;
     }
     
     // Parent-to-Parent Chat toggle
     if (tab.name === 'Chats' && isParent && activeTeam && !activeTeam.parentChatEnabled) return false;
-    
-    // Staff restricted tabs (removed Leagues from here)
-    if (tab.name === 'Management' && !isStaff) return false;
     
     return true;
   });
@@ -330,46 +322,48 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   />
                 ))}
                 
-                <SidebarSeparator className="my-4 opacity-10" />
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Resources</p>
-                
                 {isStaff && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      asChild 
-                      isActive={pathname === '/how-to'}
-                      className={cn(
-                        "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                        pathname === '/how-to' 
-                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                          : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
-                      )}
-                    >
-                      <Link href="/how-to" className="flex items-center gap-4">
-                        <BookOpen className="h-5 w-5" />
-                        <span>Tactical Manual</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                  <>
+                    <SidebarSeparator className="my-4 opacity-10" />
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Resources</p>
+                    
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={pathname === '/how-to'}
+                        className={cn(
+                          "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+                          pathname === '/how-to' 
+                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                            : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
+                        )}
+                      >
+                        <Link href="/how-to" className="flex items-center gap-4">
+                          <BookOpen className="h-5 w-5" />
+                          <span>Tactical Manual</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
 
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={pathname === '/pricing'}
-                    className={cn(
-                      "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                      pathname === '/pricing' 
-                        ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600" 
-                        : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-600"
-                    )}
-                  >
-                    <Link href="/pricing" className="flex items-center gap-4">
-                      <CreditCard className="h-5 w-5" />
-                      <span>Pricing & Plans</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={pathname === '/pricing'}
+                        className={cn(
+                          "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+                          pathname === '/pricing' 
+                            ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600" 
+                            : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-600"
+                        )}
+                      >
+                        <Link href="/pricing" className="flex items-center gap-4">
+                          <CreditCard className="h-5 w-5" />
+                          <span>Pricing & Plans</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
+                )}
               </SidebarMenu>
             </SidebarContent>
 

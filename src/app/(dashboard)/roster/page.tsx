@@ -308,7 +308,7 @@ export default function RosterPage() {
                     <AvatarImage src={member.avatar} />
                     <AvatarFallback className="rounded-xl lg:rounded-2xl font-black bg-muted text-[10px] lg:text-xs">{member.name[0]}</AvatarFallback>
                   </Avatar>
-                  {member.role === 'Admin' && (
+                  {isStaff && member.role === 'Admin' && (
                     <div className="absolute -top-1 -right-1 bg-primary text-white p-1 rounded-full shadow-lg border-2 border-background">
                       <ShieldCheck className="h-2.5 w-2.5 lg:h-3 lg:w-3" />
                     </div>
@@ -354,7 +354,7 @@ export default function RosterPage() {
         ))}
       </div>
 
-      {/* Member Details Dialog */}
+      {/* Member Details Dialog - ONLY FOR STAFF */}
       <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
         <DialogContent className="rounded-3xl lg:rounded-[3rem] sm:max-w-5xl overflow-hidden max-h-[95vh] border-none shadow-2xl p-0 flex flex-col">
           <DialogTitle className="sr-only">Member Profile</DialogTitle>
@@ -463,7 +463,7 @@ export default function RosterPage() {
                           <div className="space-y-1.5 lg:space-y-2">
                             <Label className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest ml-1">Position</Label>
                             <Select value={editForm.position} onValueChange={v => setEditForm(p => ({ ...p, position: v }))}>
-                              <SelectTrigger className="h-11 lg:h-12 rounded-xl font-bold bg-muted/20 border-2"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="h-11 lg:h-12 rounded-xl font-bold bg-muted/20 border-2"><SelectValue placeholder="Select position..." /></SelectTrigger>
                               <SelectContent className="rounded-xl">
                                 <SelectItem value="Coach">Coach</SelectItem>
                                 <SelectItem value="Team Lead">Team Lead</SelectItem>
