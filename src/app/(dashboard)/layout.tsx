@@ -16,7 +16,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isUserLoading } = useUser();
-  const { teams, isTeamsLoading, isSeedingDemo } = useTeam();
+  const { teams, isTeamsLoading, isSeedingDemo, user: userProfile } = useTeam();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -28,17 +28,22 @@ export default function DashboardLayout({
 
   useEffect(() => {
     // Force demo users to land on the feed first, regardless of access
-    // This allows the Paywall UI to be the primary demo experience for Starter plans
     if (user?.isDemo && pathname === '/') {
       router.push('/feed');
       return;
     }
 
     // Standard redirect to setup if no teams exist, BUT skip if seeding a demo
-    if (user && !isTeamsLoading && !isSeedingDemo && teams.length === 0 && pathname !== '/teams/new') {
-      router.push('/teams/new');
+    const isSetupPage = pathname === '/teams/new' || pathname === '/teams/join' || pathname === '/family';
+    
+    if (user && userProfile && !isTeamsLoading && !isSeedingDemo && teams.length === 0 && !isSetupPage) {
+      if (userProfile.role === 'coach') {
+        router.push('/teams/new');
+      } else {
+        router.push('/teams/join');
+      }
     }
-  }, [user, teams, isTeamsLoading, isSeedingDemo, pathname, router]);
+  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router]);
 
   if (isUserLoading || !user || isSeedingDemo) {
     return (

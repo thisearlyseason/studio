@@ -11,13 +11,13 @@ import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { User, Baby, ArrowRight, Check, ShieldCheck } from 'lucide-react';
+import { User, Baby, ArrowRight, Check, ShieldCheck, Trophy } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 
 export default function SignupPage() {
   const [step, setStep] = useState<'target' | 'account'>('target');
-  const [regTarget, setRegTarget] = useState<'self' | 'child' | null>(null);
+  const [regTarget, setRegTarget] = useState<'self' | 'child' | 'coach' | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +35,9 @@ export default function SignupPage() {
       const user = userCredential.user;
       await updateProfile(user, { displayName: name });
 
-      const role = regTarget === 'child' ? 'parent' : 'adult_player';
+      let role = 'adult_player';
+      if (regTarget === 'child') role = 'parent';
+      if (regTarget === 'coach') role = 'coach';
       
       await setDoc(doc(db, 'users', user.uid), {
         id: user.uid,
@@ -44,7 +46,9 @@ export default function SignupPage() {
         role: role,
         notificationsEnabled: true,
         createdAt: new Date().toISOString(),
-        avatarUrl: `https://picsum.photos/seed/${user.uid}/150/150`
+        avatarUrl: `https://picsum.photos/seed/${user.uid}/150/150`,
+        activePlanId: 'starter_squad',
+        proTeamLimit: 0
       });
 
       if (regTarget === 'self') {
@@ -60,7 +64,14 @@ export default function SignupPage() {
       }
 
       toast({ title: "Account Created", description: "Welcome to The Squad Hub." });
-      router.push(regTarget === 'child' ? '/family' : '/feed');
+      
+      if (role === 'coach') {
+        router.push('/teams/new');
+      } else if (role === 'parent' && regTarget === 'child') {
+        router.push('/family');
+      } else {
+        router.push('/teams/join');
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -120,6 +131,25 @@ export default function SignupPage() {
                 </div>
                 {regTarget === 'child' && <Check className="h-5 w-5 text-primary" />}
               </button>
+
+              <button 
+                onClick={() => setRegTarget('coach')}
+                className={cn(
+                  "w-full p-6 rounded-3xl border-2 transition-all text-left flex items-center justify-between group",
+                  regTarget === 'coach' ? "border-primary bg-primary/5 ring-4 ring-primary/10" : "border-muted bg-white hover:border-primary/20"
+                )}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-3 rounded-2xl transition-colors", regTarget === 'coach' ? "bg-primary text-white" : "bg-muted text-muted-foreground")}>
+                    <Trophy className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="font-black text-sm uppercase tracking-tight">Coach / Manager</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">I am launching a new squad</p>
+                  </div>
+                </div>
+                {regTarget === 'coach' && <Check className="h-5 w-5 text-primary" />}
+              </button>
             </div>
 
             <Button 
@@ -135,7 +165,7 @@ export default function SignupPage() {
             <div className="text-center space-y-2">
               <CardTitle className="text-3xl font-black uppercase tracking-tight">Create Account</CardTitle>
               <p className="text-[10px] font-black uppercase text-primary tracking-widest bg-primary/5 py-1 px-3 rounded-full w-fit mx-auto border border-primary/10">
-                {regTarget === 'child' ? 'Parent/Guardian Hub' : 'Adult Player Hub'}
+                {regTarget === 'child' ? 'Parent Hub' : regTarget === 'coach' ? 'Coach Hub' : 'Athlete Hub'}
               </p>
             </div>
 
