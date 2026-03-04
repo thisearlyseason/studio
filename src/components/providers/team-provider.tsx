@@ -577,6 +577,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const proQuotaStatus = useMemo(() => {
     const limitCount = userProfile?.proTeamLimit ?? 0;
+    // CRITICAL: Filter for teams OWNED by the user, not just memberships
     const ownedProTeams = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro);
     const current = ownedProTeams.length;
     return {

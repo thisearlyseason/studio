@@ -266,6 +266,10 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const role = (isPlayerDemo || isParentDemo) ? 'Member' : 'Admin';
   const position = isPlayerDemo ? 'Player' : (isParentDemo ? 'Parent' : (planId === 'squad_organization' ? 'Club Manager' : 'Coach'));
   
+  // CRITICAL QUOTA LOGIC: For non-admin demos, the owner should be a virtual admin
+  // so the guest user's 1-seat personal quota remains empty.
+  const ownerId = (isPlayerDemo || isParentDemo) ? 'system_demo_admin' : userId;
+
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
                    planId === 'squad_pro' ? 'Guest Pro Elite' : 
                    planId === 'player_demo' ? 'Metro Elite Teammate Hub' :
@@ -281,14 +285,14 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     email: isPlayerDemo ? 'teammate@thesquad.io' : (isParentDemo ? 'parent@thesquad.io' : 'guest@thesquad.io'),
     notificationsEnabled: true, createdAt: nowStr, 
     isDemo: true, avatarUrl: `https://picsum.photos/seed/${userId}/150/150`,
-    activePlanId: actualPlanId, 
+    activePlanId: (isPlayerDemo || isParentDemo) ? 'starter_squad' : actualPlanId, 
     proTeamLimit: planId === 'squad_organization' ? 15 : 1,
     planSource: 'free', 
     tournamentCredits: planId === 'tournament_pro' ? 1 : 0 
   }, { merge: true });
 
   batch.set(doc(db, 'teams', teamId), {
-    id: teamId, teamName, teamCode: code, createdBy: userId, ownerUserId: userId,
+    id: teamId, teamName, teamCode: code, createdBy: ownerId, ownerUserId: ownerId,
     createdAt: nowStr, members: { [userId]: role },
     isPro, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
     description: planId === 'squad_organization' ? 'Enterprise organization management demo.' : 'Professional coordination suite demo.'
@@ -297,7 +301,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
     userId, teamId, teamName, teamCode: code, role, 
     isPro, planId: actualPlanId, isDemo: true, 
-    joinedAt: nowStr, createdBy: userId, ownerUserId: userId,
+    joinedAt: nowStr, createdBy: ownerId, ownerUserId: ownerId,
     sport: 'Multi-Sport'
   });
 

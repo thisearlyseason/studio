@@ -102,24 +102,6 @@ export default function PricingPage() {
     setIsSubmitting(false);
   };
 
-  if (!isStaff) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in fade-in duration-500">
-        <div className="bg-primary/10 p-10 rounded-[3rem] shadow-2xl relative">
-          <ShieldAlert className="h-20 w-20 text-primary" />
-          <Lock className="absolute -top-3 -right-3 h-8 w-8 bg-black text-white p-1.5 rounded-full border-4 border-background" />
-        </div>
-        <div className="space-y-3 max-w-md">
-          <h1 className="text-4xl font-black tracking-tight uppercase">Staff Access Only</h1>
-          <p className="text-muted-foreground font-bold leading-relaxed uppercase tracking-wider text-sm">
-            Subscription tiers and module upgrades can only be managed by verified Coaching Staff and Admins.
-          </p>
-        </div>
-        <Button variant="outline" className="rounded-full h-14 px-10 font-black uppercase text-xs tracking-[0.2em] border-2" onClick={() => router.push('/feed')}>Return to Feed</Button>
-      </div>
-    );
-  }
-
   if (isPlansLoading && plans.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -171,13 +153,13 @@ export default function PricingPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
         <Card className={cn(
           "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
-          activeTeam?.planId === 'starter_squad' && "ring-4 ring-muted-foreground/20"
+          user?.activePlanId === 'starter_squad' && "ring-4 ring-muted-foreground/20"
         )}>
           <div className="h-2 w-full bg-muted-foreground/20" />
           <CardHeader className="p-10 pb-6 space-y-4">
             <div className="flex justify-between items-start">
               <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 flex items-center border-primary/20 text-primary w-fit">GRASSROOTS</Badge>
-              {activeTeam?.planId === 'starter_squad' && <Badge className="bg-muted text-muted-foreground font-black text-[8px] px-2 h-5 border-none uppercase">Current Plan</Badge>}
+              {user?.activePlanId === 'starter_squad' && <Badge className="bg-muted text-muted-foreground font-black text-[8px] px-2 h-5 border-none uppercase">Current Plan</Badge>}
             </div>
             <div className="space-y-1">
               <CardTitle className="text-3xl font-black uppercase tracking-tight">Starter</CardTitle>
@@ -198,21 +180,21 @@ export default function PricingPage() {
           </CardContent>
           <CardFooter className="p-10 pt-0">
             <Button variant="outline" disabled className="w-full h-14 rounded-2xl font-black uppercase opacity-50">
-              {activeTeam?.planId === 'starter_squad' ? "Current Plan" : "Free Tier"}
+              {user?.activePlanId === 'starter_squad' ? "Current Plan" : "Free Tier"}
             </Button>
           </CardFooter>
         </Card>
 
         <Card className={cn(
           "rounded-[3rem] border-none shadow-2xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.05] ring-4 ring-primary bg-black text-white relative z-10 animate-in zoom-in-95",
-          activeTeam?.planId === 'squad_pro' && "ring-offset-4 ring-offset-background"
+          user?.activePlanId === 'squad_pro' && "ring-offset-4 ring-offset-background"
         )}>
           <div className="absolute inset-0 bg-primary/5 pointer-events-none animate-pulse" />
           <div className="h-2 w-full bg-primary" />
           <CardHeader className="p-10 pb-6 space-y-4 relative z-10">
             <div className="flex justify-between items-start">
               <Badge className="bg-primary text-white border-none font-black text-[8px] px-3 h-5 uppercase w-fit">ELITE PRO</Badge>
-              {activeTeam?.planId === 'squad_pro' && <Badge className="bg-white text-black font-black text-[8px] px-2 h-5 border-none uppercase">Current Plan</Badge>}
+              {user?.activePlanId === 'squad_pro' && <Badge className="bg-white text-black font-black text-[8px] px-2 h-5 border-none uppercase">Current Plan</Badge>}
             </div>
             <div className="space-y-1">
               <CardTitle className="text-3xl font-black uppercase tracking-tight text-white">Squad Pro</CardTitle>
@@ -238,12 +220,12 @@ export default function PricingPage() {
             <Button 
               className={cn(
                 "w-full h-14 rounded-2xl font-black shadow-xl",
-                activeTeam?.planId === 'squad_pro' ? "bg-muted text-muted-foreground opacity-50" : "bg-white text-black hover:bg-white/90"
+                user?.activePlanId === 'squad_pro' ? "bg-muted text-muted-foreground opacity-50" : "bg-white text-black hover:bg-white/90"
               )} 
               onClick={purchasePro}
-              disabled={activeTeam?.planId === 'squad_pro'}
+              disabled={user?.activePlanId === 'squad_pro'}
             >
-              {activeTeam?.planId === 'squad_pro' ? "Current Plan" : "Upgrade to Elite"}
+              {user?.activePlanId === 'squad_pro' ? "Current Plan" : "Upgrade to Elite"}
             </Button>
           </CardFooter>
         </Card>

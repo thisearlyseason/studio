@@ -330,47 +330,46 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   />
                 ))}
                 
+                <SidebarSeparator className="my-4 opacity-10" />
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Resources</p>
+                
                 {isStaff && (
-                  <>
-                    <SidebarSeparator className="my-4 opacity-10" />
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Resources</p>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={pathname === '/how-to'}
-                        className={cn(
-                          "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                          pathname === '/how-to' 
-                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                            : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
-                        )}
-                      >
-                        <Link href="/how-to" className="flex items-center gap-4">
-                          <BookOpen className="h-5 w-5" />
-                          <span>Tactical Manual</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={pathname === '/pricing'}
-                        className={cn(
-                          "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                          pathname === '/pricing' 
-                            ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600" 
-                            : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-600"
-                        )}
-                      >
-                        <Link href="/pricing" className="flex items-center gap-4">
-                          <CreditCard className="h-5 w-5" />
-                          <span>Pricing & Plans</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={pathname === '/how-to'}
+                      className={cn(
+                        "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+                        pathname === '/how-to' 
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                          : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
+                      )}
+                    >
+                      <Link href="/how-to" className="flex items-center gap-4">
+                        <BookOpen className="h-5 w-5" />
+                        <span>Tactical Manual</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 )}
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === '/pricing'}
+                    className={cn(
+                      "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+                      pathname === '/pricing' 
+                        ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600" 
+                        : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-600"
+                    )}
+                  >
+                    <Link href="/pricing" className="flex items-center gap-4">
+                      <CreditCard className="h-5 w-5" />
+                      <span>Pricing & Plans</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarContent>
 
