@@ -141,8 +141,8 @@ export default function PricingPage() {
     return billingCycle === 'annual' ? '/yr' : '/mo';
   };
 
+  const isSubscriber = proQuotaStatus.limit > 0;
   const quotaPercentage = proQuotaStatus.limit > 0 ? (proQuotaStatus.current / proQuotaStatus.limit) * 100 : 0;
-  const hasClubPlan = proQuotaStatus.limit > 1;
 
   return (
     <div className="space-y-12 pb-20 max-w-7xl mx-auto px-4 md:px-6">
@@ -250,13 +250,13 @@ export default function PricingPage() {
 
         <Card className={cn(
           "rounded-[3rem] border-none shadow-xl overflow-hidden flex flex-col transition-all duration-500 hover:scale-[1.02] ring-1 ring-black/5 bg-white",
-          hasClubPlan && "ring-4 ring-primary/20"
+          isSubscriber && "ring-4 ring-primary/20"
         )}>
           <div className="h-2 w-full bg-primary" />
           <CardHeader className="p-10 pb-6 space-y-6 text-center md:text-left">
             <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-4">
               <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-4 h-6 flex items-center border-primary/20 text-primary w-fit rounded-full mx-auto md:mx-0">CLUB MANAGER</Badge>
-              {hasClubPlan && (
+              {isSubscriber && (
                 <Badge className="bg-primary/10 text-primary font-black text-[8px] px-2 h-5 border-none uppercase">Current Plan</Badge>
               )}
             </div>
@@ -272,7 +272,7 @@ export default function PricingPage() {
 
           <CardContent className="p-10 pt-0 flex-1 space-y-8">
             <div className="pt-6 border-t border-muted space-y-6">
-              {hasClubPlan && (
+              {isSubscriber && (
                 <div className="space-y-2">
                   <div className="flex justify-between items-end mb-1">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Active Seats</p>
@@ -287,7 +287,7 @@ export default function PricingPage() {
                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black border-b pb-2">ORGANIZATION SCALING</p>
                 <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {clubPlans.map(cp => {
-                    const isCurrentSub = activeTeam?.planId === cp.id;
+                    const isCurrentSub = user?.activePlanId === cp.id;
                     const priceLabel = billingCycle === 'annual' ? cp.annualPriceDisplay : cp.priceDisplay;
                     const cycleLabel = (priceLabel === 'Custom' || priceLabel === '$0') ? '' : (billingCycle === 'annual' ? '/yr' : '/mo');
 

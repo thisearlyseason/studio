@@ -381,7 +381,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isProEntitlementActive, setIsProEntitlementActive] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isRCInitialized, setIsRCInitialized] = useState(false);
   const [simulationPlanId, setSimulationPlanId] = useState<string | null>(null);
@@ -485,7 +484,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [firebaseUser?.uid, db]);
 
-  // Section 1: Demo Heartbeat logic - Updated to 15 minutes
   useEffect(() => {
     if (!userProfile?.isDemo || !userProfile?.createdAt) {
       setSecondsUntilReset(null);
@@ -494,7 +492,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(() => {
       const created = new Date(userProfile.createdAt!).getTime();
-      const expires = created + (15 * 60 * 1000); // Changed from 30 to 15 mins reset cycle
+      const expires = created + (15 * 60 * 1000); 
       const remaining = Math.max(0, Math.floor((expires - Date.now()) / 1000));
       
       setSecondsUntilReset(remaining);
@@ -507,7 +505,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [userProfile?.isDemo, userProfile?.createdAt]);
 
-  // Section 2: Demo Seeding logic
   useEffect(() => {
     const demoPlanId = searchParams.get('seed_demo');
     if (demoPlanId && firebaseUser && !seedingRef.current && !isTeamsLoading) {
@@ -618,18 +615,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (simulationPlanId === 'starter_squad') return false;
     if (simulationPlanId === 'squad_pro' || simulationPlanId === 'squad_organization' || simulationPlanId === 'tournament_pro') return true;
     if (isSuperAdmin && !activeTeam?.isDemo) return true;
-    if (isProEntitlementActive) return true;
+    
+    // Feature access is tied to the TEAM'S plan, regardless of the individual user's sub
     const pid = activeTeam?.planId;
-    if (!pid || pid === 'starter_squad') return false;
-    return true;
-  }, [activeTeam, isProEntitlementActive, isSuperAdmin, simulationPlanId]);
+    return !!(pid && pid !== 'starter_squad');
+  }, [activeTeam, isSuperAdmin, simulationPlanId]);
 
   const isClubManager = useMemo(() => {
     if (simulationPlanId === 'squad_organization') return true;
     if (simulationPlanId === 'starter_squad' || simulationPlanId === 'squad_pro') return false;
-    if (!activeTeam) return false;
-    return activeTeam.planId === 'squad_organization' && activeTeam.role === 'Admin';
-  }, [simulationPlanId, activeTeam]);
+    if (isSuperAdmin) return true;
+    
+    // User-level capability: Do they have a plan that allows managing multiple Pro teams?
+    return (userProfile?.proTeamLimit ?? 0) > 1;
+  }, [simulationPlanId, isSuperAdmin, userProfile]);
 
   const compressImage = (dataUrl: string): Promise<string> => {
     return new Promise((resolve) => {
@@ -801,7 +800,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           g.score2Draft = score; g.score2Submitted = true;
         }
         if (g.score1Submitted && g.score2Submitted) {
-          if (g.score1Draft === g.score1Draft) { // Verification logic (auto-match for now or strict equality)
+          if (g.score1Draft === g.score1Draft) { 
             g.score1 = g.score1Draft!;
             g.score2 = g.score2Draft!;
             g.isCompleted = true;
