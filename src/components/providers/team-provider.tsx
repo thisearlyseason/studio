@@ -133,6 +133,8 @@ export type TournamentGame = {
   time: string;
   winnerId?: string;
   isCompleted: boolean;
+  pool?: string;
+  round?: number;
 };
 
 export type TeamEvent = {
@@ -151,6 +153,7 @@ export type TeamEvent = {
   tournamentSchedule?: any[];
   tournamentGames?: TournamentGame[];
   tournamentTeams?: string[];
+  tournamentTeamsMetadata?: Record<string, { coach: string; email: string }>;
   teamAgreements?: Record<string, { agreed: boolean; captainName: string; timestamp: string }>;
   allowExternalRegistration?: boolean;
   isRegistrationRequired?: boolean;
@@ -158,6 +161,7 @@ export type TeamEvent = {
   requiresSpecialWaiver?: boolean;
   specialWaiverText?: string;
   specialWaiverResponses?: Record<string, { agreed: boolean; timestamp: string }>;
+  teamWaiverText?: string;
   lastUpdated?: string;
 };
 
@@ -256,6 +260,7 @@ interface TeamContextType {
   deleteEvent: (id: string) => void;
   submitEventWaiver: (eventId: string, agreed: boolean) => Promise<void>;
   signTeamTournamentWaiver: (hostTeamId: string, eventId: string, teamName: string) => Promise<void>;
+  signPublicTournamentWaiver: (hostTeamId: string, eventId: string, teamName: string, coachName: string) => Promise<boolean>;
   addGame: (game: any) => void;
   updateGame: (id: string, game: any) => void;
   addDrill: (drill: any) => void;
@@ -390,7 +395,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const unsub = onSnapshot(q, (snap) => {
       setAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeamAlert)));
     }, (error) => {
-      // Correctly emit permission error for alerts listener failure
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `teams/${activeTeam.id}/alerts`, operation: 'list' }));
     });
     return () => unsub();
@@ -464,7 +468,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const plan = plans.find(p => p.id === pid);
     const features = { ...(plan?.features || {}) };
     
-    // Explicit overrides for Starter vs Pro logic
     if (pid === 'starter_squad') {
       features.group_chat = true;
       features.live_feed_read = false;
@@ -707,6 +710,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         }
       });
       toast({ title: "Waiver Verified", description: `You have officially signed for ${teamName}.` });
+    },
+    signPublicTournamentWaiver: async (hostTeamId: string, eventId: string, teamName: string, coachName: string) => {
+      try {
+        const ref = doc(db, 'teams', hostTeamId, 'events', eventId);
+        await updateDoc(ref, {
+          [`teamAgreements.${teamName}`]: {
+            agreed: true,
+            captainName: coachName,
+            timestamp: new Date().toISOString()
+          }
+        });
+        return true;
+      } catch (error) {
+        console.error("Public waiver sign failed:", error);
+        return false;
+      }
     },
     addGame: (g: any) => {
       if (!activeTeam?.id) return;

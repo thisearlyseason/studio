@@ -52,7 +52,8 @@ import {
   CalendarPlus,
   Scale,
   Signature as SignIcon,
-  FileText
+  FileText,
+  ExternalLink
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -87,6 +88,7 @@ import { format, isSameDay, isPast, isFuture, addMinutes, addDays, parse } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
 import { generateGoogleCalendarLink, downloadICS, CalendarEvent } from '@/lib/calendar-utils';
+import { Switch } from '@/components/ui/switch';
 
 interface EventDetailDialogProps {
   event: TeamEvent;
@@ -143,7 +145,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
 
   const isEliteUnlocked = !!event.isTournamentPaid;
   
-  // ROBUST MATCHING LOGIC: Find exactly which team in the tournament list belongs to the current user
   const myParticipatingTeamName = useMemo(() => {
     if (!event.tournamentTeams) return null;
     const myAdminTeamNamesLower = teams.filter(t => t.role === 'Admin').map(t => t.name.toLowerCase());
@@ -196,13 +197,14 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
     toast({ title: "Schedule Exported" });
   };
 
+  const publicWaiverLink = `${window.location.origin}/tournaments/${event.teamId}/waiver/${event.id}`;
+
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-7xl p-0 overflow-hidden sm:rounded-[2.5rem] h-full sm:h-[90vh] flex flex-col border-none shadow-2xl">
         <DialogTitle className="sr-only">{event.title} Detail Hub</DialogTitle>
         <div className="flex flex-col lg:flex-row h-full min-h-0">
-          {/* Left Strategic Pane */}
           <div className="lg:w-1/3 bg-black text-white p-6 lg:p-8 lg:border-r space-y-8 flex flex-col shrink-0">
             <div className="space-y-6">
               <div className="flex justify-between items-start">
@@ -305,7 +307,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
             )}
           </div>
 
-          {/* Right Interactive Pane */}
           <div className="flex-1 flex flex-col bg-background min-h-0">
             <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col min-h-0">
               <div className="px-6 lg:px-10 py-6 border-b bg-muted/30 shrink-0">
@@ -379,6 +380,74 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                     </TabsContent>
 
                     <TabsContent value="compliance" className="mt-0 space-y-12">
+                      {event.isTournament && (
+                        <div className="space-y-6">
+                          <Card className="border-2 border-dashed border-primary/20 bg-primary/5 rounded-[2.5rem] overflow-hidden">
+                            <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                              <div className="flex items-center gap-4">
+                                <div className="bg-white p-4 rounded-2xl shadow-sm">
+                                  <Globe className="h-8 w-8 text-primary" />
+                                </div>
+                                <div className="space-y-1">
+                                  <h4 className="text-xl font-black uppercase tracking-tight">Public Signature Portal</h4>
+                                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Share this link with participating squads</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 w-full md:w-auto">
+                                <Button className="flex-1 md:flex-none h-12 rounded-xl font-black uppercase text-xs" onClick={() => { navigator.clipboard.writeText(publicWaiverLink); toast({ title: "Link Copied" }); }}>
+                                  <Copy className="h-4 w-4 mr-2" /> Copy Waiver URL
+                                </Button>
+                                <Button variant="outline" className="h-12 rounded-xl border-2 font-black uppercase text-xs" onClick={() => window.open(publicWaiverLink, '_blank')}>
+                                  <ExternalLink className="h-4 w-4 mr-2" /> Open
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 px-1">
+                              <ShieldCheck className="h-4 w-4 text-primary" />
+                              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Official Squad Agreements</h4>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3">
+                              {event.tournamentTeams?.map(teamName => { 
+                                const res = event.teamAgreements?.[teamName]; 
+                                const metadata = event.tournamentTeamsMetadata?.[teamName];
+                                return (
+                                  <div key={teamName} className="flex items-center justify-between p-5 rounded-2xl border bg-white shadow-sm">
+                                    <div className="flex items-center gap-4">
+                                      <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center border text-primary"><ShieldAlert className="h-5 w-5" /></div>
+                                      <div>
+                                        <p className="font-black text-sm uppercase tracking-tight">{teamName}</p>
+                                        <p className="text-[8px] font-bold text-muted-foreground uppercase">
+                                          {res?.captainName ? `Verified by ${res.captainName}` : metadata?.coach ? `Target Coach: ${metadata.coach}` : 'Participating Squad'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                      {res?.agreed ? (
+                                        <Badge className="bg-green-100 text-green-700 h-8 px-5 border-none font-black text-[10px] uppercase tracking-widest rounded-full"><Check className="h-3.5 w-3.5 mr-2" /> Verified</Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="h-8 px-5 font-black text-[10px] uppercase tracking-widest opacity-40 rounded-full border-dashed">Pending Signature</Badge>
+                                      )}
+                                      {isAdmin && (
+                                        <Checkbox 
+                                          checked={res?.agreed || false} 
+                                          onCheckedChange={(v) => { 
+                                            updateEvent(event.id, { [`teamAgreements.${teamName}`]: { agreed: !!v, captainName: user?.name || 'Verified by Host', timestamp: new Date().toISOString() } }); 
+                                          }} 
+                                          className="h-6 w-6 rounded-lg" 
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
+                                ); 
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {event.requiresSpecialWaiver && (
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 px-1">
@@ -407,47 +476,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                           </div>
                         </div>
                       )}
-
-                      {event.isTournament && (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 px-1">
-                            <ShieldCheck className="h-4 w-4 text-primary" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Official Squad Agreements</h4>
-                          </div>
-                          <div className="grid grid-cols-1 gap-3">
-                            {event.tournamentTeams?.map(teamName => { 
-                              const res = event.teamAgreements?.[teamName]; 
-                              return (
-                                <div key={teamName} className="flex items-center justify-between p-5 rounded-2xl border bg-white shadow-sm">
-                                  <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center border text-primary"><ShieldAlert className="h-5 w-5" /></div>
-                                    <div>
-                                      <p className="font-black text-sm uppercase tracking-tight">{teamName}</p>
-                                      <p className="text-[8px] font-bold text-muted-foreground uppercase">{res?.captainName ? `Verified by ${res.captainName}` : 'Participating Squad'}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    {res?.agreed ? (
-                                      <Badge className="bg-green-100 text-green-700 h-8 px-5 border-none font-black text-[10px] uppercase tracking-widest rounded-full"><Check className="h-3.5 w-3.5 mr-2" /> Verified</Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="h-8 px-5 font-black text-[10px] uppercase tracking-widest opacity-40 rounded-full border-dashed">Pending</Badge>
-                                    )}
-                                    {isAdmin && (
-                                      <Checkbox 
-                                        checked={res?.agreed || false} 
-                                        onCheckedChange={(v) => { 
-                                          updateEvent(event.id, { [`teamAgreements.${teamName}`]: { agreed: !!v, captainName: user?.name || 'Verified by Host', timestamp: new Date().toISOString() } }); 
-                                        }} 
-                                        className="h-6 w-6 rounded-lg" 
-                                      />
-                                    )}
-                                  </div>
-                                </div>
-                              ); 
-                            })}
-                          </div>
-                        </div>
-                      )}
                     </TabsContent>
                   </div>
                 </ScrollArea>
@@ -472,7 +500,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           </div>
         </div>
 
-        {/* Individual Waiver Dialog */}
         <Dialog open={isWaiverDialogOpen} onOpenChange={setIsWaiverDialogOpen}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl">
             <DialogHeader>
@@ -492,7 +519,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           </DialogContent>
         </Dialog>
 
-        {/* Team Agreement Dialog */}
         <Dialog open={isTeamAgreementOpen} onOpenChange={setIsTeamAgreementOpen}>
           <DialogContent className="sm:max-w-xl rounded-3xl border-none shadow-2xl">
             <DialogHeader>
@@ -526,7 +552,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           </DialogContent>
         </Dialog>
 
-        {/* Global Game Editor Modal */}
         <Dialog open={!!editingGame} onOpenChange={(o) => !o && setEditingGame(null)}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-primary w-full" />
@@ -604,8 +629,11 @@ export default function EventsPage() {
   const [waiverText, setWaiverText] = useState('');
   const [teamWaiverText, setTeamWaiverText] = useState('');
   const [tournamentTeams, setTournamentTeams] = useState<string[]>([]);
+  const [tournamentTeamsMetadata, setTournamentTeamsMetadata] = useState<Record<string, { coach: string; email: string }>>({});
   const [tournamentGames, setTournamentGames] = useState<TournamentGame[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamCoach, setNewTeamCoach] = useState('');
+  const [newTeamEmail, setNewTeamEmail] = useState('');
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [genStartTime, setGenStartTime] = useState('09:00');
@@ -628,6 +656,7 @@ export default function EventsPage() {
     setWaiverText(event.specialWaiverText || '');
     setTeamWaiverText(event.teamWaiverText || '');
     setTournamentTeams(event.tournamentTeams || []); 
+    setTournamentTeamsMetadata(event.tournamentTeamsMetadata || {});
     setTournamentGames(event.tournamentGames || []); 
     setIsCreateOpen(true); 
   };
@@ -690,14 +719,30 @@ export default function EventsPage() {
     }
   };
 
-  const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setRequiresWaiver(false); setWaiverText(''); setTeamWaiverText(''); setTournamentTeams([]); setTournamentGames([]); };
+  const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setRequiresWaiver(false); setWaiverText(''); setTeamWaiverText(''); setTournamentTeams([]); setTournamentTeamsMetadata({}); setTournamentGames([]); };
   
   const handleCreateEvent = () => { 
     if (!newTitle || !newDate) return; 
-    const payload: any = { title: newTitle, date: new Date(newDate).toISOString(), startTime: newTime || 'TBD', location: newLocation, description: newDescription, isTournament: isTournamentMode, isTournamentPaid: isEliteTournament, requiresSpecialWaiver: requiresWaiver, specialWaiverText: waiverText, teamWaiverText, tournamentTeams, tournamentGames, lastUpdated: new Date().toISOString() }; 
+    const payload: any = { title: newTitle, date: new Date(newDate).toISOString(), startTime: newTime || 'TBD', location: newLocation, description: newDescription, isTournament: isTournamentMode, isTournamentPaid: isEliteTournament, requiresSpecialWaiver: requiresWaiver, specialWaiverText: waiverText, teamWaiverText, tournamentTeams, tournamentTeamsMetadata, tournamentGames, lastUpdated: new Date().toISOString() }; 
     if (isTournamentMode && newEndDate) payload.endDate = new Date(newEndDate).toISOString(); 
     if (editingEvent) updateEvent(editingEvent.id, payload); else addEvent(payload); 
     setIsCreateOpen(false); resetForm(); 
+  };
+
+  const handleAddTournamentTeam = () => {
+    const tName = newTeamName.trim();
+    if (!tName || tournamentTeams.includes(tName)) return;
+    
+    setTournamentTeams([...tournamentTeams, tName]);
+    if (newTeamCoach.trim() || newTeamEmail.trim()) {
+      setTournamentTeamsMetadata({
+        ...tournamentTeamsMetadata,
+        [tName]: { coach: newTeamCoach.trim(), email: newTeamEmail.trim() }
+      });
+    }
+    setNewTeamName('');
+    setNewTeamCoach('');
+    setNewTeamEmail('');
   };
 
   return (
@@ -706,9 +751,9 @@ export default function EventsPage() {
         <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Tactical Hub</Badge><h1 className="text-4xl font-black uppercase tracking-tight">Schedule</h1></div>
         {isStaff && (
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { setIsTournamentMode(false); setIsEliteTournament(false); setIsCreateOpen(true); }}>+ Match</Button>
-            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-black text-white" onClick={() => { setIsTournamentMode(true); setIsEliteTournament(false); setIsCreateOpen(true); }}><Trophy className="h-4 w-4 mr-2 text-primary" /> Tournament</Button>
-            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-primary text-white border-none" onClick={() => { setIsTournamentMode(true); setIsEliteTournament(true); setIsCreateOpen(true); }}><Sparkles className="h-4 w-4 mr-2" /> Elite Hub</Button>
+            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { resetForm(); setIsTournamentMode(false); setIsEliteTournament(false); setIsCreateOpen(true); }}>+ Match</Button>
+            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-black text-white" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(false); setIsCreateOpen(true); }}><Trophy className="h-4 w-4 mr-2 text-primary" /> Tournament</Button>
+            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-primary text-white border-none" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(true); setIsCreateOpen(true); }}><Sparkles className="h-4 w-4 mr-2" /> Elite Hub</Button>
           </div>
         )}
       </div>
@@ -767,8 +812,45 @@ export default function EventsPage() {
                     <ScrollArea className="h-full">
                       <div className="space-y-6">
                         <TabsContent value="teams" className="space-y-6 mt-0">
-                          <div className="flex gap-2"><Input placeholder="Squad Name..." value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-12 rounded-xl" /><Button onClick={() => { if(newTeamName.trim() && !tournamentTeams.includes(newTeamName.trim())) { setTournamentTeams([...tournamentTeams, newTeamName.trim()]); setNewTeamName(''); } }} className="h-12 px-6 rounded-xl">Add</Button></div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{tournamentTeams.map((t, i) => (<div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border"><span className="font-black text-xs uppercase truncate">{t}</span><Button variant="ghost" size="icon" className="text-destructive" onClick={() => setTournamentTeams(tournamentTeams.filter((_, idx) => idx !== i))}><X className="h-3.5 w-3.5" /></Button></div>))}</div>
+                          <div className="bg-muted/30 p-6 rounded-2xl border-2 border-dashed space-y-4">
+                            <div className="space-y-2">
+                              <Label className="text-[10px] font-black uppercase tracking-widest">New Guest Squad</Label>
+                              <Input placeholder="Squad Name..." value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-11 rounded-xl bg-white" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-[8px] font-black uppercase opacity-60">Coach Name</Label>
+                                <Input placeholder="John Doe" value={newTeamCoach} onChange={e => setNewTeamCoach(e.target.value)} className="h-10 rounded-xl bg-white" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-[8px] font-black uppercase opacity-60">Coach Email</Label>
+                                <Input type="email" placeholder="john@team.com" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} className="h-10 rounded-xl bg-white" />
+                              </div>
+                            </div>
+                            <Button onClick={handleAddTournamentTeam} className="w-full h-11 rounded-xl font-black uppercase text-xs">Add to Roster</Button>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {tournamentTeams.map((t, i) => {
+                              const meta = tournamentTeamsMetadata[t];
+                              return (
+                                <div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border group hover:border-primary transition-all">
+                                  <div className="min-w-0">
+                                    <span className="font-black text-xs uppercase truncate block">{t}</span>
+                                    {meta?.coach && <span className="text-[8px] font-bold text-muted-foreground uppercase block">{meta.coach}</span>}
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100" onClick={() => {
+                                    setTournamentTeams(tournamentTeams.filter((_, idx) => idx !== i));
+                                    const newMeta = { ...tournamentTeamsMetadata };
+                                    delete newMeta[t];
+                                    setTournamentTeamsMetadata(newMeta);
+                                  }}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </TabsContent>
                         <TabsContent value="games" className="space-y-6 mt-0">
                           <div className="flex items-center justify-between"><Button variant="outline" size="sm" onClick={() => setTournamentGames([...tournamentGames, { id: `game_${Date.now()}`, team1: tournamentTeams[0] || 'Team A', team2: tournamentTeams[1] || 'Team B', score1: 0, score2: 0, date: newDate, time: '10:00 AM', isCompleted: false }])} className="font-black text-[10px] uppercase">+ New Match</Button></div>
@@ -833,13 +915,5 @@ export default function EventsPage() {
         </section>
       </div>
     </div>
-  );
-}
-
-function Switch({ checked, onCheckedChange }: { checked: boolean, onCheckedChange: (v: boolean) => void }) {
-  return (
-    <button onClick={() => onCheckedChange(!checked)} className={cn("w-10 h-6 rounded-full transition-colors relative", checked ? "bg-primary" : "bg-muted")}>
-      <div className={cn("absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform", checked ? "translate-x-4" : "translate-x-0")} />
-    </button>
   );
 }
