@@ -1,8 +1,7 @@
-
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
+import Link from 'link';
 import { 
   ChevronLeft, 
   LayoutDashboard, 
@@ -41,7 +40,8 @@ import {
   Play,
   HardDrive,
   ClipboardList,
-  UserPlus
+  UserPlus,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -175,6 +175,8 @@ export default function HowToGuidePage() {
               <tbody className="divide-y">
                 {[
                   { name: "Tactical Chats", s: true, p: true, c: true },
+                  { name: "Game Scheduling", s: true, p: true, c: true },
+                  { name: "Live Score Tracking", s: true, p: true, c: true },
                   { name: "League Registration", s: false, p: true, c: true },
                   { name: "Coach Approval Logic", s: false, p: true, c: true },
                   { name: "Media Vault (10GB)", s: false, p: true, c: true },

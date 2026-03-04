@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -186,13 +185,13 @@ export default function LandingPage() {
                 hint: "basketball player"
               },
               { 
-                title: "PRO SCHEDULE", 
+                title: "GAME SCHEDULING", 
                 desc: "Real-time RSVP tracking and match day logistics for the entire squad.", 
                 img: "https://images.unsplash.com/photo-1508088062105-17d61307629d?auto=format&fit=crop&q=80&w=800",
                 hint: "soccer match"
               },
               { 
-                title: "GAME STATS", 
+                title: "SCORE TRACKING", 
                 desc: "Visualize your trajectory with automated win/loss and performance tracking.", 
                 img: "https://images.unsplash.com/photo-1711045676217-c3d73143071c?auto=format&fit=crop&q=80&w=800",
                 hint: "baseball game"
@@ -270,9 +269,9 @@ export default function LandingPage() {
                 </div>
               </div>
               <ul className="space-y-4 font-bold text-sm text-foreground/80">
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Game Scheduling & Scores</li>
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Unlimited Starter Teams</li>
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Tactical Chats</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Basic Schedule</li>
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Global Roster Access</li>
               </ul>
               <Link href="/signup">

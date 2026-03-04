@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -189,7 +188,8 @@ export default function PricingPage() {
             <div className="pt-6 border-t border-muted space-y-4">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Included</p>
               <ul className="space-y-3">
-                <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Basic Schedule</li>
+                <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Game Scheduling</li>
+                <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Live Score Tracking</li>
                 <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Basic Roster</li>
                 <li className="flex items-center gap-3 text-[11px] font-bold uppercase"><Check className="h-4 w-4 text-primary" /> Tactical Chats</li>
               </ul>
@@ -220,7 +220,7 @@ export default function PricingPage() {
                 <span className="text-xs font-black uppercase opacity-60 text-white/60">{getCycleLabel(proPlan)}</span>
               </div>
             </div>
-            <CardDescription className="text-xs font-bold text-white/60">Full-scale coordination, analytics & training for pro squads.</CardDescription>
+            <CardDescription className="text-xs font-bold text-white/60">Full-scale coordination, analytics & playbooks for pro squads.</CardDescription>
           </CardHeader>
           <CardContent className="p-10 pt-0 flex-1 space-y-8 relative z-10">
             <div className="pt-6 border-t border-white/10 space-y-4">
