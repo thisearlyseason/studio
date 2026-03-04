@@ -206,7 +206,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
       <DialogContent className="sm:max-w-7xl p-0 overflow-hidden sm:rounded-[2.5rem] h-full sm:h-[90vh] flex flex-col border-none shadow-2xl">
         <DialogTitle className="sr-only">{event.title} Detail Hub</DialogTitle>
         <div className="flex flex-col lg:flex-row h-full min-h-0">
-          <div className="lg:w-1/3 bg-black text-white p-6 lg:p-8 lg:border-r space-y-8 flex flex-col shrink-0">
+          <div className="lg:w-1/3 bg-black text-white p-6 lg:p-8 lg:border-r space-y-8 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               <div className="flex justify-between items-start">
                 <Badge className={cn("uppercase font-black tracking-widest text-[9px] px-3 h-6", event.isTournament ? "bg-primary text-white" : "bg-white/20 text-white")}>
@@ -266,7 +266,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
             {event.isTournament && (
               <div className="space-y-4 pt-4 min-h-0 flex-1 flex flex-col">
                 <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] px-1 shrink-0">Leaderboard</h4>
-                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="flex-1">
                   {isEliteUnlocked ? (
                     tournamentStandings.length > 0 ? (
                       <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">

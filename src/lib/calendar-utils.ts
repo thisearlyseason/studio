@@ -14,7 +14,8 @@ export interface CalendarEvent {
 }
 
 /**
- * Generates a Google Calendar link for a specific event.
+ * Generates a Google Calendar link for a specific single event.
+ * Note: Google URLs do not officially support multiple events in a single template.
  */
 export function generateGoogleCalendarLink(event: CalendarEvent): string {
   const startStr = format(event.start, "yyyyMMdd'T'HHmmss'Z'");
@@ -34,41 +35,57 @@ export function generateGoogleCalendarLink(event: CalendarEvent): string {
 
 /**
  * Generates and downloads an ICS file for one or more events.
+ * Follows RFC 5545 specifications for maximum compatibility with Outlook, Google, and Apple.
  */
 export function downloadICS(events: CalendarEvent[], fileName: string = 'squad_schedule.ics') {
-  let icsContent = [
+  const escapeText = (str: string = '') => str.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n');
+  const formatDate = (date: Date) => format(date, "yyyyMMdd'T'HHmmss'Z'");
+
+  let icsLines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//The Squad//Tactical Coordination Hub//EN',
     'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH'
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Squad Schedule'
   ];
 
   events.forEach(event => {
-    const startStr = format(event.start, "yyyyMMdd'T'HHmmss'Z'");
+    const startStr = formatDate(event.start);
     const end = event.end || addHours(event.start, 1);
-    const endStr = format(end, "yyyyMMdd'T'HHmmss'Z'");
+    const endStr = formatDate(end);
     
-    icsContent.push(
+    icsLines.push(
       'BEGIN:VEVENT',
       `UID:${Date.now()}-${Math.random().toString(36).substring(7)}@thesquad.io`,
-      `DTSTAMP:${format(new Date(), "yyyyMMdd'T'HHmmss'Z'")}`,
+      `DTSTAMP:${formatDate(new Date())}`,
       `DTSTART:${startStr}`,
       `DTEND:${endStr}`,
-      `SUMMARY:${event.title}`,
-      `LOCATION:${event.location || ''}`,
-      `DESCRIPTION:${(event.description || '').replace(/\n/g, '\\n')}`,
+      `SUMMARY:${escapeText(event.title)}`,
+      `LOCATION:${escapeText(event.location)}`,
+      `DESCRIPTION:${escapeText(event.description)}`,
+      'STATUS:CONFIRMED',
+      'SEQUENCE:0',
+      'TRANSP:OPAQUE',
       'END:VEVENT'
     );
   });
 
-  icsContent.push('END:VCALENDAR');
+  icsLines.push('END:VCALENDAR');
 
-  const blob = new Blob([icsContent.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const icsString = icsLines.join('\r\n');
+  const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
+  
+  // Standard download handler
   const link = document.createElement('a');
-  link.href = window.URL.createObjectURL(blob);
-  link.setAttribute('download', fileName);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 }

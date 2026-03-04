@@ -26,7 +26,8 @@ import {
   ChevronRight,
   CheckCircle2,
   ShieldAlert,
-  Infinity
+  Infinity,
+  AlertCircle
 } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
@@ -148,7 +149,13 @@ export default function PricingPage() {
       <div className="text-center space-y-6">
         <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black px-4 py-1.5 uppercase tracking-widest text-[10px] h-auto whitespace-nowrap">Institutional Infrastructure</Badge>
         <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none uppercase">Elite <span className="text-primary italic">Strategy.</span></h1>
-        <p className="text-muted-foreground font-medium text-lg pt-2 max-w-2xl mx-auto leading-relaxed">Choose the tier that scales with your ambition. Professional coordination for professional squads.</p>
+        <div className="space-y-4 pt-2">
+          <p className="text-muted-foreground font-medium text-lg max-w-2xl mx-auto leading-relaxed">Choose the tier that scales with your ambition. Professional coordination for professional squads.</p>
+          <div className="flex items-center justify-center gap-2 text-primary font-black uppercase tracking-widest text-[10px] bg-primary/5 w-fit mx-auto px-4 py-2 rounded-full border border-primary/10">
+            <AlertCircle className="h-3 w-3" />
+            <span>Limited Time Promotional Rates • Subject to change</span>
+          </div>
+        </div>
 
         <div className="flex flex-col items-center gap-4 pt-4">
           <Tabs defaultValue="monthly" className="w-[300px]" onValueChange={(v) => setBillingCycle(v as any)}>
@@ -447,7 +454,10 @@ export default function PricingPage() {
         </Dialog>
       </div>
       
-      <p className="text-center text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-40">The Squad Coordination Engine v1.0.0</p>
+      <div className="text-center pt-4 space-y-2">
+        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-40">The Squad Coordination Engine v1.0.0</p>
+        <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-[0.1em] opacity-30 italic">All prices listed are current promotional rates and are subject to change without notice.</p>
+      </div>
     </div>
   );
 }

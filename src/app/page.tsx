@@ -20,7 +20,8 @@ import {
   Video,
   ClipboardList,
   ShieldCheck,
-  Infinity
+  Infinity,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -247,7 +248,13 @@ export default function LandingPage() {
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Simple, transparent pricing</h2>
             <h3 className="text-4xl md:text-5xl font-black tracking-tight">One Price. Infinite Success.</h3>
-            <p className="text-sm font-bold text-muted-foreground">Prices listed in USD</p>
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Prices listed in USD</p>
+              <div className="flex items-center gap-2 text-primary font-black uppercase tracking-widest text-[10px] bg-white px-4 py-2 rounded-full border border-primary/10 shadow-sm">
+                <AlertCircle className="h-3 w-3" />
+                <span>Limited Promotional Pricing • Subject to Change</span>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
