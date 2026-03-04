@@ -256,11 +256,20 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const timestamp = Date.now();
   const teamId = `demo_guest_${userId.slice(-4)}_${timestamp}`;
   
-  const actualPlanId = planId === 'tournament_pro' ? 'squad_pro' : planId;
+  const isPlayerDemo = planId === 'player_demo';
+  const isParentDemo = planId === 'parent_demo';
+  
+  const actualPlanId = (isPlayerDemo || isParentDemo) ? 'squad_pro' : 
+                       (planId === 'tournament_pro' ? 'squad_pro' : planId);
+  
   const isPro = actualPlanId !== 'starter_squad';
+  const role = (isPlayerDemo || isParentDemo) ? 'Member' : 'Admin';
+  const position = isPlayerDemo ? 'Player' : (isParentDemo ? 'Parent' : (planId === 'squad_organization' ? 'Club Manager' : 'Coach'));
   
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
                    planId === 'squad_pro' ? 'Guest Pro Elite' : 
+                   planId === 'player_demo' ? 'Metro Elite Teammate Hub' :
+                   planId === 'parent_demo' ? 'Academy Guardian Portal' :
                    planId === 'tournament_pro' ? 'Regional Tournament Hub' : 'Metro Academy Hub';
   
   const code = teamId.slice(-6).toUpperCase();
@@ -268,7 +277,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const nowStr = new Date().toISOString();
   
   batch.set(doc(db, 'users', userId), {
-    id: userId, fullName: 'Guest Coordinator', email: 'guest@thesquad.io',
+    id: userId, fullName: isPlayerDemo ? 'Guest Teammate' : (isParentDemo ? 'Guest Guardian' : 'Guest Coordinator'), 
+    email: isPlayerDemo ? 'teammate@thesquad.io' : (isParentDemo ? 'parent@thesquad.io' : 'guest@thesquad.io'),
     notificationsEnabled: true, createdAt: nowStr, 
     isDemo: true, avatarUrl: `https://picsum.photos/seed/${userId}/150/150`,
     activePlanId: actualPlanId, 
@@ -279,21 +289,21 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   batch.set(doc(db, 'teams', teamId), {
     id: teamId, teamName, teamCode: code, createdBy: userId, ownerUserId: userId,
-    createdAt: nowStr, members: { [userId]: 'Admin' },
+    createdAt: nowStr, members: { [userId]: role },
     isPro, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
     description: planId === 'squad_organization' ? 'Enterprise organization management demo.' : 'Professional coordination suite demo.'
   });
   
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
-    userId, teamId, teamName, teamCode: code, role: 'Admin', 
+    userId, teamId, teamName, teamCode: code, role, 
     isPro, planId: actualPlanId, isDemo: true, 
     joinedAt: nowStr, createdBy: userId, ownerUserId: userId,
     sport: 'Multi-Sport'
   });
 
   batch.set(doc(db, 'teams', teamId, 'members', userId), {
-    id: userId, userId, teamId, name: 'Guest Coordinator', role: 'Admin',
-    position: planId === 'squad_organization' ? 'Club Manager' : 'Coach', jersey: 'HQ',
+    id: userId, userId, teamId, name: isPlayerDemo ? 'Guest Teammate' : (isParentDemo ? 'Guest Guardian' : 'Guest Coordinator'), 
+    role, position, jersey: isPlayerDemo ? '22' : 'HQ',
     avatar: `https://picsum.photos/seed/${userId}/150/150`, joinedAt: nowStr,
     phone: '(555) 000-9999', amountOwed: 0, feesPaid: true, isDemo: true
   });

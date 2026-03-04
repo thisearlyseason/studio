@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import BrandLogo from '@/components/BrandLogo';
 import Image from 'next/image';
-import { Sparkles, Trophy, Users, Zap, Loader2, Table as TableIcon } from 'lucide-react';
+import { Sparkles, Trophy, Users, Zap, Loader2, Table as TableIcon, User, Baby } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -138,7 +138,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Interactive Demo Section */}
-        <div id="demos" className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-1000 scroll-mt-10">
+        <div id="demos" className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-1000 scroll-mt-10 overflow-y-auto max-h-[80vh] custom-scrollbar pr-2">
           <div className="bg-primary text-white p-8 rounded-[3rem] shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
               <Trophy className="h-48 w-48" />
@@ -156,7 +156,9 @@ export default function LoginPage() {
             {[
               { id: 'starter_squad', name: 'Starter Demo', icon: Users, desc: 'Grassroots essentials' },
               { id: 'squad_pro', name: 'Elite Squad Demo', icon: Zap, desc: 'Advanced analytics & strategy' },
-              { id: 'tournament_pro', name: 'Tournament Demo', icon: TableIcon, desc: 'Brackets & Live Scores ($50)' },
+              { id: 'player_demo', name: 'Player Demo', icon: User, desc: 'Individual teammate view' },
+              { id: 'parent_demo', name: 'Parent Demo', icon: Baby, desc: 'Guardian safety view' },
+              { id: 'tournament_pro', name: 'Tournament Demo', icon: TableIcon, desc: 'Brackets & Live Scores' },
               { id: 'squad_organization', name: 'Club Demo', icon: Trophy, desc: 'Multi-team organization' }
             ].map((demo) => (
               <Button 

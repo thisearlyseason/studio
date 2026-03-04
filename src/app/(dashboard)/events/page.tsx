@@ -294,9 +294,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto custom-scrollbar flex flex-col">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1">
           <div className="flex flex-col lg:flex-row min-h-full">
             <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0">
               <div className="p-6 lg:p-8 flex justify-between items-start">
@@ -354,7 +354,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
               </div>
               {isAdmin && (<div className="p-6 border-t border-white/10 flex gap-3 mt-auto"><Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px] bg-white/10 text-white hover:bg-white/20" onClick={() => onEdit(event)}><Edit3 className="h-4 w-4 mr-2" /> Edit Hub</Button><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl text-white hover:bg-red-500/20" onClick={() => onDelete(event.id)}><Trash2 className="h-4 w-4" /></Button></div>)}
             </div>
-            <div className="flex-1 flex flex-col bg-background min-h-0">
+            <div className="flex-1 flex flex-col bg-background">
               <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1">
                 <div className="px-6 lg:px-10 py-6 border-b bg-muted/30 sticky top-0 z-20 backdrop-blur-md">
                   <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit">
@@ -633,12 +633,75 @@ export default function EventsPage() {
   const eventsQuery = useMemoFirebase(() => { if (!activeTeam?.id || !db) return null; return query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc')); }, [activeTeam?.id, db]);
   const { data: rawEvents } = useCollection<TeamEvent>(eventsQuery);
   const allEvents = rawEvents || [];
-  const filteredEvents = useMemo(() => { if (filterMode === 'live') return allEvents.filter(e => !isPast(new Date(e.date)) || isSameDay(new Date(e.date), new Date())); return allEvents.filter(e => isPast(new Date(e.date)) && !isSameDay(new Date(e.date), new Date())).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); }, [allEvents, filterMode]);
+  
+  const filteredEvents = useMemo(() => {
+    const now = new Date();
+    if (filterMode === 'live') {
+      return allEvents.filter(e => {
+        const d = new Date(e.date);
+        return !isPast(d) || isSameDay(d, now);
+      });
+    }
+    return allEvents.filter(e => {
+      const d = new Date(e.date);
+      return isPast(d) && !isSameDay(d, now);
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [allEvents, filterMode]);
+
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
 
-  const handleEdit = (event: TeamEvent) => { setEditingEvent(event); setIsTournamentMode(!!event.isTournament); setIsEliteTournament(!!event.isTournamentPaid); setNewTitle(event.title); setNewDate(new Date(event.date).toISOString().split('T')[0]); if (event.endDate) setNewEndDate(new Date(event.endDate).toISOString().split('T')[0]); setNewTime(event.startTime); setNewLocation(event.location); setNewDescription(event.description); setRequiresWaiver(!!event.requiresSpecialWaiver); setWaiverText(event.specialWaiverText || ''); setTeamWaiverText(event.teamWaiverText || ''); setTournamentTeams(event.tournamentTeams || []); setTournamentTeamsMetadata(event.tournamentTeamsMetadata || {}); setTournamentGames(event.tournamentGames || []); setIsCreateOpen(true); };
+  const handleEdit = (event: TeamEvent) => { 
+    setEditingEvent(event); 
+    setIsTournamentMode(!!event.isTournament); 
+    setIsEliteTournament(!!event.isTournamentPaid); 
+    setNewTitle(event.title); 
+    const d = new Date(event.date);
+    setNewDate(format(d, 'yyyy-MM-dd')); 
+    if (event.endDate) setNewEndDate(format(new Date(event.endDate), 'yyyy-MM-dd')); 
+    setNewTime(event.startTime); 
+    setNewLocation(event.location); 
+    setNewDescription(event.description); 
+    setRequiresWaiver(!!event.requiresSpecialWaiver); 
+    setWaiverText(event.specialWaiverText || ''); 
+    setTeamWaiverText(event.teamWaiverText || ''); 
+    setTournamentTeams(event.tournamentTeams || []); 
+    setTournamentTeamsMetadata(event.tournamentTeamsMetadata || {}); 
+    setTournamentGames(event.tournamentGames || []); 
+    setIsCreateOpen(true); 
+  };
+
   const resetForm = () => { setEditingEvent(null); setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setRequiresWaiver(false); setWaiverText(''); setTeamWaiverText(''); setTournamentTeams([]); setTournamentTeamsMetadata({}); setTournamentGames([]); };
-  const handleCreateEvent = () => { if (!newTitle || !newDate) return; const payload: any = { title: newTitle, date: new Date(newDate).toISOString(), startTime: newTime || 'TBD', location: newLocation, description: newDescription, isTournament: isTournamentMode, isTournamentPaid: isEliteTournament, requiresSpecialWaiver: requiresWaiver, specialWaiverText: waiverText, teamWaiverText, tournamentTeams, tournamentTeamsMetadata, tournamentGames, lastUpdated: new Date().toISOString() }; if (isTournamentMode && newEndDate) payload.endDate = new Date(newEndDate).toISOString(); if (editingEvent) updateEvent(editingEvent.id, payload); else addEvent(payload); setIsCreateOpen(false); resetForm(); };
+  
+  const handleCreateEvent = () => { 
+    if (!newTitle || !newDate) return; 
+    
+    // Maintain local time to prevent history day-shifting
+    const dateObj = new Date(`${newDate}T${newTime || '12:00'}`);
+    const payload: any = { 
+      title: newTitle, 
+      date: dateObj.toISOString(), 
+      startTime: newTime || 'TBD', 
+      location: newLocation, 
+      description: newDescription, 
+      isTournament: isTournamentMode, 
+      isTournamentPaid: isEliteTournament, 
+      requiresSpecialWaiver: requiresWaiver, 
+      specialWaiverText: waiverText, 
+      teamWaiverText, 
+      tournamentTeams, 
+      tournamentTeamsMetadata, 
+      tournamentGames, 
+      lastUpdated: new Date().toISOString() 
+    }; 
+    
+    if (isTournamentMode && newEndDate) {
+      payload.endDate = new Date(`${newEndDate}T12:00:00`).toISOString();
+    }
+    
+    if (editingEvent) updateEvent(editingEvent.id, payload); else addEvent(payload); 
+    setIsCreateOpen(false); 
+    resetForm(); 
+  };
 
   return (
     <div className="space-y-10 pb-20">
@@ -647,9 +710,9 @@ export default function EventsPage() {
         {isStaff && (<div className="flex flex-wrap gap-2"><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { resetForm(); setIsTournamentMode(false); setIsEliteTournament(false); setIsCreateOpen(true); }}>+ Match</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-black text-white" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(false); setIsCreateOpen(true); }}><Trophy className="h-4 w-4 mr-2 text-primary" /> Tournament</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-primary text-white border-none" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(true); setIsCreateOpen(true); }}><Sparkles className="h-4 w-4 mr-2" /> Elite Hub</Button></div>)}
       </div>
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto custom-scrollbar flex flex-col">
           <DialogTitle className="sr-only">{editingEvent ? "Update" : "Launch"} Event Hub</DialogTitle>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1">
             <div className="flex flex-col lg:flex-row min-h-full">
               <div className={cn("w-full lg:w-5/12 flex flex-col shrink-0 lg:border-r", isEliteTournament ? "bg-primary/5" : "bg-muted/30")}>
                 <div className="space-y-6 p-6 lg:p-10">
@@ -712,7 +775,7 @@ export default function EventsPage() {
               </div>
             </div>
           </div>
-          <div className="p-6 lg:p-8 bg-background/80 backdrop-blur-md border-t shrink-0 flex justify-center">
+          <div className="p-6 lg:p-8 bg-background/80 backdrop-blur-md border-t sticky bottom-0 shrink-0 flex justify-center z-30">
             <Button className="w-full max-w-4xl h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95" onClick={handleCreateEvent}>
               {editingEvent ? "Update" : "Publish"} Event Hub
             </Button>
@@ -748,6 +811,9 @@ export default function EventsPage() {
             {filteredEvents.length === 0 && (<div className="text-center py-20 bg-muted/10 border-2 border-dashed rounded-[2rem] opacity-40"><CalendarDays className="h-10 w-10 mx-auto mb-4" /><p className="text-xs font-black uppercase tracking-widest">No scheduled activities</p></div>)}
           </div>
         </section>
+      </div>
+      <div className="text-center pt-8 opacity-30">
+        <p className="text-[8px] font-black uppercase tracking-widest leading-relaxed">Prices listed are current promotional rates and are subject to change without notice.</p>
       </div>
     </div>
   );

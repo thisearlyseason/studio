@@ -65,8 +65,6 @@ export default function PublicTournamentWaiverPage() {
     if (!selectedTeam || !coachName || !agreed || isSubmitting) return;
 
     setIsSubmitting(true);
-    // Passing the date as part of the representative string or metadata if needed, 
-    // but the core requirement is capturing it.
     const success = await signPublicTournamentWaiver(teamId as string, eventId as string, selectedTeam, coachName);
     if (success) {
       setIsSigned(true);
