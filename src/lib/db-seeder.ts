@@ -162,6 +162,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
   batch.set(doc(db, 'teams', teamId, 'events', tid_tournament), {
     id: tid_tournament, teamId, 
     title: 'Regional Season Championship', 
+    eventType: 'tournament',
     date: day1Date.toISOString(),
     endDate: day3Date.toISOString(),
     startTime: '09:00 AM', location: 'Metropolitan Stadium', 
@@ -181,6 +182,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
   const matchId = `demo_match_standard_${teamId}`;
   batch.set(doc(db, 'teams', teamId, 'events', matchId), {
     id: matchId, teamId, title: 'Season Match vs Wildcats',
+    eventType: 'game',
     date: new Date(now.getTime() + 86400000).toISOString(), 
     startTime: '06:00 PM', location: 'Westside Community Field',
     description: 'Standard season match. Arrive 30 minutes early for warmups.',

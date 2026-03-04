@@ -133,7 +133,7 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
 }
 
 function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
-  const { members = [], teams = [], user, updateEvent, signTeamTournamentWaiver, submitEventWaiver, isPro, addCoOrganizerByEmail, removeCoOrganizer, isStaff, isPlayer, isParent, activeTeam } = useTeam();
+  const { members = [], user, updateEvent, signTeamTournamentWaiver, submitEventWaiver, isPro, addCoOrganizerByEmail, removeCoOrganizer, isStaff, isPlayer, isParent, activeTeam } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
@@ -712,7 +712,7 @@ export default function EventsPage() {
     setIsTournamentMode(!!event.isTournament); 
     setIsEliteTournament(!!event.isTournamentPaid); 
     setNewTitle(event.title); 
-    setEventType(event.eventType || 'game');
+    setEventType(event.eventType || (event.isTournament ? 'tournament' : 'game'));
     const d = new Date(event.date);
     setNewDate(format(d, 'yyyy-MM-dd')); 
     if (event.endDate) setNewEndDate(format(new Date(event.endDate), 'yyyy-MM-dd')); 
@@ -854,7 +854,7 @@ export default function EventsPage() {
           <div className="grid gap-6">
             {filteredEvents.map((event) => {
               const myGames = event.isTournament ? (event.tournamentGames || []).filter(g => activeTeam && (g.team1.toLowerCase() === activeTeam.name.toLowerCase() || g.team2.toLowerCase() === activeTeam.name.toLowerCase())) : [];
-              const typeColor = EVENT_TYPE_COLORS[event.eventType || 'game'];
+              const typeColor = event.isTournament ? EVENT_TYPE_COLORS.tournament : EVENT_TYPE_COLORS[event.eventType || 'game'];
 
               return (
                 <div key={event.id} className="space-y-4">
