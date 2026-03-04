@@ -28,7 +28,7 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)) ||
         // 2. Check team members subcollection
         exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
-        // 3. Fallback to parent document check
+        // 3. Fallback to parent document check (trusting the members map)
         (exists(/databases/$(database)/documents/teams/$(teamId)) && (
           get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
           get(/databases/$(database)/documents/teams/$(teamId)).data.get('members', {})[request.auth.uid] != null
@@ -116,7 +116,12 @@ service cloud.firestore {
       }
 
       match /alerts/{alertId} {
-        allow read, list: if isTeamMember(teamId);
+        allow read: if isTeamMember(teamId);
+        allow write: if isAdmin(teamId);
+      }
+
+      match /files/{fileId} {
+        allow read: if isTeamMember(teamId);
         allow write: if isAdmin(teamId);
       }
     }
@@ -140,6 +145,14 @@ service cloud.firestore {
     match /subscriptions/{subId} {
       allow read: if isOwner(subId);
       allow write: if false;
+    }
+
+    match /features/{featureId} {
+      allow get, list: if true;
+    }
+
+    match /leads/{leadId} {
+      allow create: if true;
     }
   }
 }
