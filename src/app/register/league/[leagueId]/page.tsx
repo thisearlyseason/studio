@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -23,7 +22,8 @@ import {
   CreditCard,
   Info,
   Clock,
-  ArrowRight
+  ArrowRight,
+  XCircle
 } from 'lucide-react';
 import { 
   Select, 
@@ -35,6 +35,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 export default function PublicLeagueRegistrationPage() {
   const { leagueId } = useParams();
