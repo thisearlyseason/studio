@@ -217,13 +217,19 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
         <DialogTitle className="sr-only">{event.title} Detail Hub</DialogTitle>
         <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
           {/* Left Column - Info */}
-          <div className="lg:w-1/3 bg-black text-white p-6 lg:p-8 lg:border-r flex flex-col shrink-0">
+          <div className={cn(
+            "lg:w-1/3 p-6 lg:p-8 lg:border-r flex flex-col shrink-0 text-white transition-colors duration-500",
+            event.isTournamentPaid ? "bg-primary" : "bg-black"
+          )}>
             <ScrollArea className="flex-1 -mx-2 px-2">
               <div className="space-y-8 pb-10">
                 <div className="space-y-6">
                   <div className="flex justify-between items-start">
-                    <Badge className={cn("uppercase font-black tracking-widest text-[9px] px-3 h-6", event.isTournament ? "bg-primary text-white" : "bg-white/20 text-white")}>
-                      {event.isTournament ? (event.isTournamentPaid ? "Elite Tournament" : "Basic Tournament") : "Team Match"}
+                    <Badge className={cn(
+                      "uppercase font-black tracking-widest text-[9px] px-3 h-6", 
+                      event.isTournamentPaid ? "bg-black text-white" : "bg-primary text-white"
+                    )}>
+                      {event.isTournament ? (event.isTournamentPaid ? "Elite Hub" : "Tournament Hub") : "Team Match"}
                     </Badge>
                     <DialogClose asChild>
                       <X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" />
@@ -231,19 +237,19 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                   </div>
                   <div className="space-y-2">
                     <h2 className="text-3xl lg:text-4xl font-black tracking-tighter leading-none uppercase">{event.title}</h2>
-                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Strategic Deployment</p>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Official Sanctioned Hub</p>
                   </div>
                   <div className="space-y-4 pt-4">
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-3">
-                      <div className="flex items-center gap-3 font-bold text-sm"><CalendarDays className="h-4 w-4 text-primary" /><span>{formatDateRange(event.date, event.endDate)}</span></div>
-                      <div className="flex items-center gap-3 font-bold text-sm"><Clock className="h-4 w-4 text-primary" /><span>{event.startTime}</span></div>
-                      <div className="flex items-center gap-3 font-bold text-sm"><MapPin className="h-4 w-4 text-primary" /><span className="truncate">{event.location}</span></div>
+                    <div className="bg-white/10 p-4 rounded-2xl border border-white/10 space-y-3">
+                      <div className="flex items-center gap-3 font-bold text-sm"><CalendarDays className={cn("h-4 w-4", event.isTournamentPaid ? "text-black" : "text-primary")} /><span>{formatDateRange(event.date, event.endDate)}</span></div>
+                      <div className="flex items-center gap-3 font-bold text-sm"><Clock className={cn("h-4 w-4", event.isTournamentPaid ? "text-black" : "text-primary")} /><span>{event.startTime}</span></div>
+                      <div className="flex items-center gap-3 font-bold text-sm"><MapPin className={cn("h-4 w-4", event.isTournamentPaid ? "text-black" : "text-primary")} /><span className="truncate">{event.location}</span></div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-full rounded-xl h-12 font-black text-xs uppercase gap-3 border-white bg-white/10 text-white hover:bg-white/20">
+                          <Button variant="outline" className="w-full rounded-xl h-12 font-black text-xs uppercase gap-3 border-white/20 bg-white/10 text-white hover:bg-white/20">
                             <CalendarPlus className="h-4 w-4" /> {event.isTournament ? 'Sync Full Schedule' : 'Add to Calendar'}
                           </Button>
                         </DropdownMenuTrigger>
@@ -269,7 +275,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                     )}
 
                     {myParticipatingTeamName && !isWaiverSignedForMyTeam && (
-                      <Button onClick={() => setIsTeamAgreementOpen(true)} className="w-full rounded-xl h-14 font-black text-sm uppercase gap-3 bg-primary text-white shadow-xl shadow-primary/20">
+                      <Button onClick={() => setIsTeamAgreementOpen(true)} className={cn("w-full rounded-xl h-14 font-black text-sm uppercase gap-3 text-white shadow-xl", event.isTournamentPaid ? "bg-black shadow-black/20" : "bg-primary shadow-primary/20")}>
                         <Signature className="h-5 w-5" /> Sign for {myParticipatingTeamName}
                       </Button>
                     )}
@@ -285,10 +291,10 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                           {tournamentStandings.map((team, i) => (
                             <div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0">
                               <div className="flex items-center gap-3 min-w-0">
-                                <span className="text-[10px] font-black text-primary w-4">{i + 1}</span>
+                                <span className="text-[10px] font-black text-white/60 w-4">{i + 1}</span>
                                 <span className="text-xs font-black uppercase truncate pr-2">{team.name}</span>
                               </div>
-                              <Badge className="bg-primary text-white border-none font-black text-[9px] px-2 h-5 shrink-0">{team.points} PTS</Badge>
+                              <Badge className={cn("border-none font-black text-[9px] px-2 h-5 shrink-0", event.isTournamentPaid ? "bg-black text-white" : "bg-primary text-white")}>{team.points} PTS</Badge>
                             </div>
                           ))}
                         </div>
@@ -314,7 +320,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                 <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px] bg-white/10 text-white hover:bg-white/20" onClick={() => onEdit(event)}>
                   <Edit3 className="h-4 w-4 mr-2" /> Edit Hub
                 </Button>
-                <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl text-red-500 hover:bg-red-500/10" onClick={() => onDelete(event.id)}>
+                <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl text-white hover:bg-red-500/20" onClick={() => onDelete(event.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -354,12 +360,12 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                                 <div className="grid grid-cols-7 items-center gap-4">
                                   <div className="col-span-3 text-right">
                                     <p className="font-black text-xs uppercase truncate mb-1">{game.team1}</p>
-                                    <p className="text-3xl font-black text-primary leading-none">{game.score1}</p>
+                                    <p className={cn("text-3xl font-black leading-none", event.isTournamentPaid ? "text-primary" : "text-foreground")}>{game.score1}</p>
                                   </div>
                                   <div className="col-span-1 flex items-center justify-center opacity-20 font-black text-[10px]">VS</div>
                                   <div className="col-span-3">
                                     <p className="font-black text-xs uppercase truncate mb-1">{game.team2}</p>
-                                    <p className="text-3xl font-black text-primary leading-none">{game.score2}</p>
+                                    <p className={cn("text-3xl font-black leading-none", event.isTournamentPaid ? "text-primary" : "text-foreground")}>{game.score2}</p>
                                   </div>
                                 </div>
                               </button>
@@ -774,11 +780,16 @@ export default function EventsPage() {
           <DialogTitle className="sr-only">{editingEvent ? "Update" : "Launch"} Event Hub</DialogTitle>
           <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
             {/* Left Section - Basic Info */}
-            <div className="lg:w-5/12 p-6 lg:p-8 lg:border-r bg-primary/5 space-y-6 flex flex-col">
+            <div className={cn(
+              "lg:w-5/12 p-6 lg:p-8 lg:border-r space-y-6 flex flex-col",
+              isEliteTournament ? "bg-primary/5" : "bg-muted/30"
+            )}>
               <ScrollArea className="flex-1 -mx-2 px-2">
                 <div className="space-y-6 pb-6">
                   <DialogHeader>
-                    <DialogTitle className="text-2xl lg:text-3xl font-black tracking-tight">{editingEvent ? "Update" : "Launch"} {isTournamentMode ? "Tournament" : "Match"}</DialogTitle>
+                    <DialogTitle className="text-2xl lg:text-3xl font-black tracking-tight">
+                      {editingEvent ? "Update" : "Launch"} {isTournamentMode ? (isEliteTournament ? "Elite Hub" : "Tournament") : "Match"}
+                    </DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Event Title</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-black border-2" /></div>
@@ -999,14 +1010,25 @@ export default function EventsPage() {
               <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} onEdit={handleEdit} onDelete={deleteEvent} hasAttendance={true} purchasePro={purchasePro}>
                 <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
                   <div className="flex items-stretch h-32">
-                    <div className={cn("w-20 lg:w-24 flex flex-col items-center justify-center border-r-2 shrink-0", event.isTournament ? "bg-black text-white" : "bg-primary/5 text-primary")}>
+                    <div className={cn(
+                      "w-20 lg:w-24 flex flex-col items-center justify-center border-r-2 shrink-0 transition-colors duration-500",
+                      event.isTournamentPaid ? "bg-primary text-white" : 
+                      event.isTournament ? "bg-black text-white" : "bg-muted text-muted-foreground"
+                    )}>
                       <span className="text-[8px] font-black uppercase opacity-60">{format(new Date(event.date), 'MMM')}</span>
                       <span className="text-3xl lg:text-4xl font-black">{format(new Date(event.date), 'dd')}</span>
                     </div>
                     <div className="flex-1 p-4 lg:p-6 flex flex-col justify-center min-w-0">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="flex gap-2 mb-1.5">{event.isTournament && <Badge className="bg-black text-white text-[7px] uppercase">Tournament</Badge>}<Badge variant="outline" className="text-[7px] uppercase">{event.startTime}</Badge></div>
+                          <div className="flex gap-2 mb-1.5">
+                            {event.isTournament && (
+                              <Badge className={cn("text-[7px] uppercase border-none", event.isTournamentPaid ? "bg-black text-white" : "bg-primary text-white")}>
+                                {event.isTournamentPaid ? 'Elite Hub' : 'Tournament'}
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-[7px] uppercase">{event.startTime}</Badge>
+                          </div>
                           <h3 className="text-lg lg:text-xl font-black tracking-tight leading-none truncate">{event.title}</h3>
                           <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1 mt-1"><MapPin className="h-3 w-3" /> {event.location}</p>
                         </div>
