@@ -20,7 +20,8 @@ import {
   Signature, 
   Clock, 
   MapPin,
-  ChevronDown
+  ChevronDown,
+  FileText
 } from 'lucide-react';
 import { 
   Select, 
@@ -30,6 +31,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import BrandLogo from '@/components/BrandLogo';
 import { format } from 'date-fns';
 
