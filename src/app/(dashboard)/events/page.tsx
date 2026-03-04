@@ -152,6 +152,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const [isTeamAgreementOpen, setIsTeamAgreementOpen] = useState(false);
   const [isGenConfirmOpen, setIsGenConfirmOpen] = useState(false);
   const [coOrganizerEmail, setCoOrganizerEmail] = useState('');
+  const [origin, setOrigin] = useState('');
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
@@ -161,6 +162,12 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const [genMatchLength, setGenMatchLength] = useState('60');
   const [genType, setGenType] = useState('round_robin');
   const [genPoolCount, setGenPoolCount] = useState('2');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
+  }, []);
 
   const regQuery = useMemoFirebase(() => {
     if (!db || !event?.id || !event?.teamId) return null;
@@ -189,7 +196,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
       return { id: uid, name: member?.name || 'Unknown Member', avatar: member?.avatar, role: member?.position || 'Member', status };
     });
 
-    // Coaches/Staff who haven't RSVP'd - automatic "going"
     const staffIdsToAutoInclude = members
       .filter(m => ['Coach', 'Assistant Coach', 'Team Lead', 'Squad Leader', 'Platform Admin'].includes(m.position))
       .filter(m => !rsvpIds.includes(m.userId))
@@ -304,7 +310,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
     }
   };
 
-  const publicWaiverLink = `${window.location.origin}/tournaments/${event.teamId}/waiver/${event.id}`;
+  const publicWaiverLink = origin ? `${origin}/tournaments/${event.teamId}/waiver/${event.id}` : '';
 
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
@@ -447,7 +453,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                               <div className="space-y-4">
                                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Enroll via Email</Label>
                                 <div className="flex gap-2">
-                                  <Input placeholder="organizer@squad.io" value={coOrganizerEmail} onChange={e => setCoOrganizerEmail(e.target.value)} className="rounded-xl h-12 border-2 bg-white" />
+                                  <Input placeholder="organizer@thesquad.pro" value={coOrganizerEmail} onChange={e => setCoOrganizerEmail(e.target.value)} className="rounded-xl h-12 border-2 bg-white" />
                                   <Button onClick={() => { addCoOrganizerByEmail(event.id, coOrganizerEmail); setCoOrganizerEmail(''); }} className="h-12 px-6 font-black uppercase text-xs">Enroll</Button>
                                 </div>
                                 <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic ml-1">Enter email of an existing squad member to grant admin access to this specific hub.</p>
@@ -560,7 +566,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                             <Card className="border-2 border-dashed border-primary/20 bg-primary/5 rounded-[2.5rem] overflow-hidden">
                               <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-6">
                                 <div className="flex items-center gap-4"><div className="bg-white p-4 rounded-2xl shadow-sm"><Globe className="h-8 w-8 text-primary" /></div><div className="space-y-1"><h4 className="text-xl font-black uppercase tracking-tight">Public Signature Portal</h4><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Share this link with participating squads</p></div></div>
-                                <div className="flex gap-2 w-full md:w-auto"><Button className="flex-1 md:flex-none h-12 rounded-xl font-black uppercase text-xs" onClick={() => { navigator.clipboard.writeText(publicWaiverLink); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4 mr-2" /> Copy Waiver URL</Button><Button variant="outline" className="h-12 rounded-xl border-2 font-black uppercase text-xs" onClick={() => window.open(publicWaiverLink, '_blank')}><ExternalLink className="h-4 w-4 mr-2" /> Open</Button></div>
+                                <div className="flex gap-2 w-full md:w-auto"><Button className="flex-1 md:flex-none h-12 rounded-xl font-black uppercase text-xs" onClick={() => { if(publicWaiverLink) { navigator.clipboard.writeText(publicWaiverLink); toast({ title: "Link Copied" }); } }}><Copy className="h-4 w-4 mr-2" /> Copy Waiver URL</Button><Button variant="outline" className="h-12 rounded-xl border-2 font-black uppercase text-xs" onClick={() => { if(publicWaiverLink) window.open(publicWaiverLink, '_blank'); }}><ExternalLink className="h-4 w-4 mr-2" /> Open</Button></div>
                               </CardContent>
                             </Card>
                             <div className="space-y-4">
@@ -626,7 +632,15 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
               <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Game Ledger Entry</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update Match Results</DialogDescription></DialogHeader>
               {editingGame && (
                 <div className="space-y-6 py-2">
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Scorekeeper URL</Label><div className="flex gap-2"><Input readOnly value={`${window.location.origin}/tournaments/scorekeeper/${event.teamId}/${event.id}/${editingGame.id}`} className="rounded-xl h-10 text-[10px] font-mono bg-muted/30" /><Button size="icon" variant="ghost" className="rounded-xl h-10 w-10 border" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/tournaments/scorekeeper/${event.teamId}/${event.id}/${editingGame.id}`); toast({ title: "Score Link Copied" }); }}><Copy className="h-4 w-4" /></Button></div></div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Scorekeeper URL</Label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={origin ? `${origin}/tournaments/scorekeeper/${event.teamId}/${event.id}/${editingGame.id}` : ''} className="rounded-xl h-10 text-[10px] font-mono bg-muted/30" />
+                      <Button size="icon" variant="ghost" className="rounded-xl h-10 w-10 border" onClick={() => { if(origin) { navigator.clipboard.writeText(`${origin}/tournaments/scorekeeper/${event.teamId}/${event.id}/${editingGame.id}`); toast({ title: "Score Link Copied" }); } }}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Game Date</Label><input type="date" value={editingGame.date} onChange={e => setEditingGame({...editingGame, date: e.target.value})} className="w-full h-12 rounded-xl font-bold border-2 bg-background px-3" /></div>
                   <div className="grid grid-cols-2 gap-6 items-end">
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase truncate">{editingGame.team1}</Label><Input type="number" value={editingGame.score1} onChange={e => setEditingGame({...editingGame, score1: parseInt(e.target.value) || 0})} className="h-12 rounded-xl font-black text-xl text-center" /></div>
@@ -711,7 +725,6 @@ export default function EventsPage() {
   const handleCreateEvent = () => { 
     if (!newTitle || !newDate) return; 
     
-    // Maintain local time to prevent history day-shifting
     const dateObj = new Date(`${newDate}T${newTime || '12:00'}`);
     const payload: any = { 
       title: newTitle, 
