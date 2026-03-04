@@ -39,7 +39,9 @@ import {
   Check,
   Video,
   Play,
-  HardDrive
+  HardDrive,
+  ClipboardList,
+  UserPlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -65,7 +67,29 @@ export default function HowToGuidePage() {
       ]
     },
     {
-      title: "2. Schedule & Match Day",
+      title: "2. League Registration & Recruitment",
+      icon: ClipboardList,
+      description: "Automated player enrollment and squad assignments. (Pro/Club Only)",
+      manual: [
+        { step: "Configuration Hub", details: "Navigate to Leagues -> Registration Hub. Define your season title, description, and custom form schema (Versioned)." },
+        { step: "Public Enrollment", details: "Copy the Portal URL and share it with parents or players. They can submit enrollment data without requiring a platform account." },
+        { step: "Offline Payments", details: "Clearly define payment instructions in the hub. Financial settlement is handled offline; organizers log payment status manually in the ledger." },
+        { step: "Tactical Assignment", details: "Organizers assign applicants to specific teams within the league. Coaches then receive an approval request on their dashboard." },
+        { step: "Coach Approval", details: "Coaches review assignments and tap 'Accept' to instantly enroll the player into their squad roster and financial ledger." }
+      ]
+    },
+    {
+      title: "3. Multi-Team Coordination",
+      icon: UserPlus,
+      description: "Managing unlimited squads and institutional quotas.",
+      manual: [
+        { step: "Starter Squads (Free)", details: "Every email can create unlimited Starter Squads. These provide basic coordination, chats, and schedules for free forever." },
+        { step: "Elite Pro Seats", details: "Professional features are enabled per-team through a central 'Pro Quota'. Upgrade your plan to unlock more seats for your organization." },
+        { step: "Quota Resolution", details: "If your subscription expires, the Quota Resolution Overlay will prompt you to select which teams retain Pro access." }
+      ]
+    },
+    {
+      title: "4. Schedule & Match Day",
       icon: CalendarDays,
       description: "Itinerary and real-time attendance management.",
       manual: [
@@ -76,7 +100,7 @@ export default function HowToGuidePage() {
       ]
     },
     {
-      title: "3. Playbook Hub (Game Film)",
+      title: "5. Playbook Hub (Game Film)",
       icon: Dumbbell,
       description: "High-performance video study and training repository.",
       manual: [
@@ -88,16 +112,7 @@ export default function HowToGuidePage() {
       ]
     },
     {
-      title: "4. Tactical Chats",
-      icon: MessageCircle,
-      description: "Secure role-based messaging for all tiers.",
-      manual: [
-        { step: "Private Unit Threads", details: "Create chats for specific units (e.g., 'Defensive Line'). Add only relevant members to keep coordination noise low." },
-        { step: "Global Availability", details: "Tactical Chats are unlocked for all plans, including Starter Squads, to ensure fundamental team communication." }
-      ]
-    },
-    {
-      title: "5. Roster & Compliance",
+      title: "6. Roster & Compliance",
       icon: Users2,
       description: "Identity, financials, and medical tracking.",
       manual: [
@@ -160,7 +175,8 @@ export default function HowToGuidePage() {
               <tbody className="divide-y">
                 {[
                   { name: "Tactical Chats", s: true, p: true, c: true },
-                  { name: "Media Vault (500MB)", s: true, p: true, c: true },
+                  { name: "League Registration", s: false, p: true, c: true },
+                  { name: "Coach Approval Logic", s: false, p: true, c: true },
                   { name: "Media Vault (10GB)", s: false, p: true, c: true },
                   { name: "Video Compliance (75%)", s: true, p: true, c: true },
                   { name: "Live Feed Read", s: false, p: true, c: true },

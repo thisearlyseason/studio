@@ -17,7 +17,10 @@ import {
   Globe,
   ArrowRight,
   Play,
-  Video
+  Video,
+  ClipboardList,
+  ShieldCheck,
+  Infinity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -170,10 +173,10 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {[
               { 
-                title: "PRO SCHEDULE", 
-                desc: "Real-time RSVP tracking and match day logistics for the entire squad.", 
-                img: "https://images.unsplash.com/photo-1508088062105-17d61307629d?auto=format&fit=crop&q=80&w=800",
-                hint: "soccer match"
+                title: "RECRUITMENT HUB", 
+                desc: "Automated player enrollment with custom forms and coach assignment logic.", 
+                img: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&q=80&w=800",
+                hint: "team meeting"
               },
               { 
                 title: "TACTICAL CHATS", 
@@ -182,10 +185,10 @@ export default function LandingPage() {
                 hint: "basketball player"
               },
               { 
-                title: "ROSTER LOGIC", 
-                desc: "Professional member management with jersey tracking and role authority.", 
-                img: "https://images.unsplash.com/photo-1508863702330-2eece3ea08cb?auto=format&fit=crop&q=80&w=800",
-                hint: "american football"
+                title: "PRO SCHEDULE", 
+                desc: "Real-time RSVP tracking and match day logistics for the entire squad.", 
+                img: "https://images.unsplash.com/photo-1508088062105-17d61307629d?auto=format&fit=crop&q=80&w=800",
+                hint: "soccer match"
               },
               { 
                 title: "GAME STATS", 
@@ -253,21 +256,23 @@ export default function LandingPage() {
                 <Trophy className="h-40 w-40 -rotate-12" />
               </div>
               <div className="space-y-2">
-                <p className="text-xs font-black uppercase tracking-widest text-primary">Monthly Play</p>
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Starter Squads</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black">$9.99</span>
-                  <span className="text-muted-foreground font-bold">USD/team/mo</span>
+                  <span className="text-5xl font-black">$0</span>
+                  <span className="text-muted-foreground font-bold">Free Forever</span>
                 </div>
               </div>
               <ul className="space-y-4 font-bold text-sm text-foreground/80">
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Unlimited Members</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Full Admin Suite</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Real-time Coordination</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> 10GB Team Storage</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Unlimited Starter Teams</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Tactical Chats</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Basic Schedule</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Global Roster Access</li>
               </ul>
-              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
-                Select Monthly
-              </Button>
+              <Link href="/signup">
+                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
+                  Launch Free Hub
+                </Button>
+              </Link>
             </Card>
 
             <Card className="border-2 border-primary shadow-2xl rounded-[3rem] p-10 space-y-8 relative overflow-hidden bg-primary text-primary-foreground group">
@@ -275,22 +280,24 @@ export default function LandingPage() {
                 BEST VALUE
               </div>
               <div className="space-y-2">
-                <p className="text-xs font-black uppercase tracking-widest text-white/60">Annual Dominance</p>
+                <p className="text-xs font-black uppercase tracking-widest text-white/60">Annual Elite</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black">$100</span>
+                  <span className="text-5xl font-black">$99</span>
                   <span className="text-white/60 font-bold">USD/team/yr</span>
                 </div>
-                <p className="text-[10px] font-black uppercase text-white/40">Saves $20 per year</p>
+                <p className="text-[10px] font-black uppercase text-white/40">Includes all recruitment modules</p>
               </div>
               <ul className="space-y-4 font-bold text-sm">
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Unlimited Members</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Priority Support</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Advanced Analytics</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> 50GB Team Storage</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> League Registration Hub</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Coach Assignment Logic</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Advanced Performance Stats</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> 10GB Pro Media Vault</li>
               </ul>
-              <Button variant="secondary" className="w-full h-14 rounded-2xl text-lg font-black shadow-xl bg-white text-primary hover:bg-white/90 active:scale-95 transition-all">
-                Select Annual
-              </Button>
+              <Link href="/signup">
+                <Button variant="secondary" className="w-full h-14 rounded-2xl text-lg font-black shadow-xl bg-white text-primary hover:bg-white/90 active:scale-95 transition-all">
+                  Get Elite Pro
+                </Button>
+              </Link>
             </Card>
           </div>
         </div>
@@ -323,9 +330,9 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                    <Phone className="h-5 w-5" />
+                    <Infinity className="h-5 w-5" />
                   </div>
-                  <span className="font-bold">Coming Soon</span>
+                  <span className="font-bold">Unlimited Starter Support</span>
                 </div>
               </div>
             </div>
