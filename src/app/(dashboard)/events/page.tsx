@@ -139,7 +139,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
   const [isTeamAgreementOpen, setIsTeamAgreementOpen] = useState(false);
 
-  // Management State
   const [isGenerating, setIsGenerating] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamCoach, setNewTeamCoach] = useState('');
@@ -308,7 +307,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
       <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto custom-scrollbar">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
         <div className="flex flex-col lg:flex-row min-h-full">
-          {/* Left Column - Info (Non-scrollable relative to the right) */}
           <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0">
             <div className="p-6 lg:p-8 flex justify-between items-start">
               <Badge className={cn(
@@ -415,7 +413,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
             )}
           </div>
 
-          {/* Right Column - Scrollable Content */}
           <div className="flex-1 flex flex-col bg-background min-h-0">
             <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1">
               <div className="px-6 lg:px-10 py-6 border-b bg-muted/30 sticky top-0 z-20 backdrop-blur-md">
@@ -709,7 +706,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           </div>
         </div>
 
-        {/* Individual Waiver Dialog */}
         <Dialog open={isWaiverDialogOpen} onOpenChange={setIsWaiverDialogOpen}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-red-600 w-full" />
@@ -732,7 +728,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           </DialogContent>
         </Dialog>
 
-        {/* Team Agreement Dialog */}
         <Dialog open={isTeamAgreementOpen} onOpenChange={setIsTeamAgreementOpen}>
           <DialogContent className="sm:max-w-xl rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-primary w-full" />
@@ -769,7 +764,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           </DialogContent>
         </Dialog>
 
-        {/* Game Score Editor Dialog */}
         <Dialog open={!!editingGame} onOpenChange={(o) => !o && setEditingGame(null)}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-primary w-full" />
@@ -978,12 +972,10 @@ export default function EventsPage() {
         )}
       </div>
 
-      {/* CREATE EVENT DIALOG */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto custom-scrollbar">
           <DialogTitle className="sr-only">{editingEvent ? "Update" : "Launch"} Event Hub</DialogTitle>
-          <div className="flex flex-col lg:flex-row min-h-full">
-            {/* Left Section - Basic Info */}
+          <div className="flex flex-col lg:flex-row min-h-full pb-24">
             <div className={cn(
               "w-full lg:w-5/12 flex flex-col shrink-0 lg:border-r",
               isEliteTournament ? "bg-primary/5" : "bg-muted/30"
@@ -1033,12 +1025,11 @@ export default function EventsPage() {
               </div>
             </div>
 
-            {/* Right Section - Tournament Management */}
             <div className="flex-1 flex flex-col bg-background min-h-0">
               <div className="flex-1 flex flex-col min-h-0">
                 {isTournamentMode ? (
                   <Tabs defaultValue="teams" className="flex-1 flex flex-col">
-                    <div className="px-6 lg:px-8 pt-6 lg:pt-8 border-b bg-muted/10 overflow-x-auto no-scrollbar">
+                    <div className="px-6 lg:px-8 pt-6 lg:pt-8 border-b bg-muted/10">
                       <TabsList className="bg-muted/50 h-11 p-1 mb-4 w-full">
                         <TabsTrigger value="teams" className="font-black text-[10px] uppercase px-6 flex-1">Squads</TabsTrigger>
                         <TabsTrigger value="games" className="font-black text-[10px] uppercase px-6 flex-1">Brackets</TabsTrigger>
@@ -1046,8 +1037,7 @@ export default function EventsPage() {
                       </TabsList>
                     </div>
                     
-                    <div className="space-y-6 p-6 lg:p-8 pb-20">
-                      {/* TEAMS MANAGEMENT */}
+                    <div className="space-y-6 p-6 lg:p-8">
                       <TabsContent value="teams" className="space-y-6 mt-0">
                         <div className="bg-muted/30 p-6 rounded-2xl border-2 border-dashed space-y-4">
                           <div className="space-y-2">
@@ -1090,7 +1080,6 @@ export default function EventsPage() {
                         </div>
                       </TabsContent>
 
-                      {/* MATCH SCHEDULING */}
                       <TabsContent value="games" className="space-y-6 mt-0">
                         <div className="flex items-center justify-between">
                           <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Match Schedule</h3>
@@ -1129,7 +1118,6 @@ export default function EventsPage() {
                         </div>
                       </TabsContent>
 
-                      {/* GENERATOR */}
                       <TabsContent value="generator" className="space-y-6 mt-0">
                         {isPro ? (
                           <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 space-y-6">
@@ -1190,14 +1178,12 @@ export default function EventsPage() {
                   </div>
                 )}
               </div>
-              
-              {/* STICKY FOOTER ACTION */}
-              <div className="p-6 lg:p-8 bg-muted/10 border-t sticky bottom-0 z-30 backdrop-blur-md">
-                <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreateEvent}>
-                  {editingEvent ? "Update" : "Publish"} Event Hub
-                </Button>
-              </div>
             </div>
+          </div>
+          <div className="p-6 lg:p-8 bg-background/80 backdrop-blur-md border-t fixed bottom-0 left-0 right-0 z-50 flex justify-center">
+            <Button className="w-full max-w-4xl h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleCreateEvent}>
+              {editingEvent ? "Update" : "Publish"} Event Hub
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

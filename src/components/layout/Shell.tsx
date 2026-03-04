@@ -83,11 +83,6 @@ const tabs = [
   { name: 'Library', href: '/files', icon: FolderClosed, pro: false, mobileName: 'Docs' },
 ];
 
-/**
- * Stabilized sub-components defined outside of the Shell component to prevent
- * "Rendered more hooks than during previous render" errors in React 19.
- */
-
 const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boolean, isLocked: boolean }) => {
   const Icon = tab.icon;
   return (
@@ -198,7 +193,7 @@ function DemoResetBanner({ seconds }: { seconds: number | null }) {
     <div className="bg-black text-white px-4 py-2 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] relative z-[60] overflow-hidden shrink-0">
       <div className="absolute inset-0 bg-primary/20 animate-pulse pointer-events-none" />
       <div className="flex items-center gap-2 relative z-10">
-        <Timer className="h-3 w-3 text-primary animate-spin duration-[5000ms]" />
+        <Timer className="h-3 w-3 text-primary animate-spin [animation-duration:5000ms]" />
         <span className="text-center">Demo Reset in {minutes}:{remainingSeconds.toString().padStart(2, '0')}</span>
       </div>
       <div className="hidden lg:block h-3 w-[1px] bg-white/20 relative z-10" />
@@ -371,7 +366,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
           <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden bg-background">
             <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between shrink-0">
-              {/* Desktop Content (Title) */}
               <div className="hidden md:flex items-center gap-4 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-xl lg:text-2xl font-black tracking-tighter uppercase truncate">
@@ -381,16 +375,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
 
-              {/* Mobile Content (Logo) */}
               <div className="flex md:hidden items-center shrink-0">
                 <Link href="/feed">
                   <BrandLogo variant="light-background" className="h-6 w-28" />
                 </Link>
               </div>
 
-              {/* Right Actions / Switcher */}
               <div className="flex items-center gap-3 lg:gap-6 shrink-0">
-                {/* Mobile Team Switcher */}
                 <div className="md:hidden">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -422,7 +413,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     </Button>
                   </AlertsHistoryDialog>
                   
-                  {/* Avatar -> Settings (Shared) */}
                   <Link href="/settings">
                     <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-background shadow-md">
                       <AvatarImage src={user?.avatar} alt={user?.name} className="object-cover" />
@@ -433,11 +423,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </header>
 
-            <main className="flex-1 pb-36 md:pb-12 pt-4 md:pt-6 px-4 md:px-10 max-w-7xl mx-auto w-full overflow-y-auto">
+            <main className="flex-1 pb-36 md:pb-12 pt-4 md:pt-6 px-4 md:px-10 max-w-7xl mx-auto w-full overflow-y-auto custom-scrollbar">
               {children}
             </main>
 
-            {/* HIGH-END APP-NATIVE MOBILE NAVIGATION */}
             <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/40 p-1.5 ring-1 ring-black/5">
               <div className="flex items-center justify-around h-16">
                 {tabs.slice(0, 5).map((tab) => {
