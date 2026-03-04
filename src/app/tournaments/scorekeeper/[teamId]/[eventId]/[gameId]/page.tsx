@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, CheckCircle2, ShieldCheck, Loader2, Info, ArrowRight, ShieldAlert, Zap, Lock, AlertCircle, Clock, MapPin } from 'lucide-react';
+import { Trophy, CheckCircle2, ShieldCheck, Loader2, Info, ArrowRight, ShieldAlert, Zap, Lock, AlertCircle, Clock, MapPin, X } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 
@@ -31,7 +31,8 @@ export default function PublicScorekeeperPage() {
     return event?.tournamentGames?.find(g => g.id === gameId);
   }, [event, gameId]);
 
-  const [score, setScore] = useState<string>('');
+  const [score1, setScore1] = useState<string>('');
+  const [score2, setScore2] = useState<string>('');
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -58,10 +59,10 @@ export default function PublicScorekeeperPage() {
   }
 
   const handleSubmit = async () => {
-    if (!selectedTeam || !score || isSubmitting) return;
+    if (!selectedTeam || !score1 || !score2 || isSubmitting) return;
     setIsSubmitting(true);
     const isTeam1 = selectedTeam === game.team1;
-    await submitMatchScore(teamId as string, eventId as string, gameId as string, isTeam1, parseInt(score));
+    await submitMatchScore(teamId as string, eventId as string, gameId as string, isTeam1, parseInt(score1), parseInt(score2));
     setIsSubmitting(false);
     setIsSubmitted(true);
   };
@@ -136,36 +137,51 @@ export default function PublicScorekeeperPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Submit Your Final Score</Label>
-            <Input 
-              type="number" 
-              placeholder="0" 
-              value={score} 
-              onChange={e => setScore(e.target.value)} 
-              className="h-20 text-center font-black text-5xl rounded-3xl border-4 border-muted focus:border-primary transition-all bg-muted/10" 
-            />
-          </div>
-
-          <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-            <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
-              Dual-Verification Protocol: Final standings only update when both squads have submitted matching score data. Intentional misreporting may result in disqualification.
-            </p>
-          </div>
+          {selectedTeam && (
+            <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">{game.team1} Score</Label>
+                  <Input 
+                    type="number" 
+                    placeholder="0" 
+                    value={score1} 
+                    onChange={e => setScore1(e.target.value)} 
+                    className="h-16 text-center font-black text-3xl rounded-2xl border-2 focus:border-primary transition-all bg-muted/10" 
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">{game.team2} Score</Label>
+                  <Input 
+                    type="number" 
+                    placeholder="0" 
+                    value={score2} 
+                    onChange={e => setScore2(e.target.value)} 
+                    className="h-16 text-center font-black text-3xl rounded-2xl border-2 focus:border-primary transition-all bg-muted/10" 
+                  />
+                </div>
+              </div>
+              <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
+                  Dual-Verification Protocol: Submit the scores for both teams. Standings only update when both squads have submitted matching data.
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
 
         <CardFooter className="p-8 lg:p-10 pt-0">
           <Button 
             className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all"
-            disabled={!selectedTeam || !score || isSubmitting}
+            disabled={!selectedTeam || !score1 || !score2 || isSubmitting}
             onClick={handleSubmit}
           >
             {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : "Dispatch Final Result"}
           </Button>
         </CardFooter>
       </Card>
-      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] mt-12 opacity-40">The Squad Coordination Engine v1.0</p>
+      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] mt-12 opacity-40">The Squad Coordination Engine v1.0 • thesquad.pro</p>
     </div>
   );
 }

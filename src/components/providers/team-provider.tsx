@@ -20,13 +20,12 @@ import {
   increment,
   collectionGroup,
   arrayUnion,
-  arrayRemove,
   getDoc
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { updateDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Purchases } from '@revenuecat/purchases-js';
-import { seedSubscriptionData, seedGuestDemoTeam, resetDemoEnvironment } from '@/lib/db-seeder';
+import { seedGuestDemoTeam, resetDemoEnvironment } from '@/lib/db-seeder';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -366,7 +365,7 @@ interface TeamContextType {
   toggleRegistrationPaymentStatus: (leagueId: string, entryId: string, status: boolean) => Promise<void>;
   addCoOrganizerByEmail: (eventId: string, email: string) => Promise<void>;
   removeCoOrganizer: (eventId: string, userId: string) => Promise<void>;
-  submitMatchScore: (teamId: string, eventId: string, gameId: string, isTeam1: boolean, score: number) => Promise<void>;
+  submitMatchScore: (teamId: string, eventId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -395,6 +394,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   // Aggressive Caching for Plans/Features
   const [cachedPlans, setCachedPlans] = useState<Plan[]>([]);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const cached = localStorage.getItem('squad_plans_cache');
     if (cached) {
       try {
@@ -408,7 +408,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
   const plans = useMemo(() => {
     if (plansData?.length) {
-      localStorage.setItem('squad_plans_cache', JSON.stringify({ data: plansData, expiry: Date.now() + 3600000 }));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('squad_plans_cache', JSON.stringify({ data: plansData, expiry: Date.now() + 3600000 }));
+      }
       return plansData as Plan[];
     }
     return cachedPlans;
@@ -506,7 +508,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [userProfile?.isDemo, userProfile?.createdAt]);
 
   useEffect(() => {
-    const demoPlanId = searchParams.get('seed_demo');
+    const demoPlanId = searchParams?.get('seed_demo');
     if (demoPlanId && firebaseUser && !seedingRef.current && !isTeamsLoading) {
       seedingRef.current = true;
       setIsSeedingDemo(true);
@@ -519,9 +521,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         .catch(() => toast({ title: "Seeding Failed", variant: "destructive" }))
         .finally(() => {
           setIsSeedingDemo(false);
-          const url = new URL(window.location.href);
-          url.searchParams.delete('seed_demo');
-          router.replace(url.pathname + url.search);
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('seed_demo');
+            router.replace(url.pathname + url.search);
+          }
         });
     }
   }, [searchParams, firebaseUser, isTeamsLoading]);
@@ -577,7 +581,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const proQuotaStatus = useMemo(() => {
     const limitCount = userProfile?.proTeamLimit ?? 0;
-    // CRITICAL: Filter for teams OWNED by the user, not just memberships
     const ownedProTeams = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro);
     const current = ownedProTeams.length;
     return {
@@ -616,8 +619,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (simulationPlanId === 'starter_squad') return false;
     if (simulationPlanId === 'squad_pro' || simulationPlanId === 'squad_organization' || simulationPlanId === 'tournament_pro') return true;
     if (isSuperAdmin && !activeTeam?.isDemo) return true;
-    
-    // Feature access is tied to the TEAM'S plan, regardless of the individual user's sub
     const pid = activeTeam?.planId;
     return !!(pid && pid !== 'starter_squad');
   }, [activeTeam, isSuperAdmin, simulationPlanId]);
@@ -626,13 +627,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (simulationPlanId === 'squad_organization') return true;
     if (simulationPlanId === 'starter_squad' || simulationPlanId === 'squad_pro') return false;
     if (isSuperAdmin) return true;
-    
-    // User-level capability: Do they have a plan that allows managing multiple Pro teams?
     return (userProfile?.proTeamLimit ?? 0) > 1;
   }, [simulationPlanId, isSuperAdmin, userProfile]);
 
   const compressImage = (dataUrl: string): Promise<string> => {
     return new Promise((resolve) => {
+      if (typeof window === 'undefined') { resolve(dataUrl); return; }
       const img = new Image();
       img.src = dataUrl;
       img.onload = () => {
@@ -787,7 +787,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       updateDocumentNonBlocking(eventRef, { coOrganizers: updated });
       toast({ title: "Organizer Removed" });
     },
-    submitMatchScore: async (teamId: string, eventId: string, gameId: string, isTeam1: boolean, score: number) => {
+    submitMatchScore: async (teamId: string, eventId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => {
       if (!db) return;
       const ref = doc(db, 'teams', teamId, 'events', eventId);
       const snap = await getDoc(ref);
@@ -796,22 +796,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const updatedGames = games.map((g: TournamentGame) => {
         if (g.id !== gameId) return g;
         if (isTeam1) {
-          g.score1Draft = score; g.score1Submitted = true;
+          g.score1Draft = score1; 
+          g.score2Draft = score2;
+          g.score1Submitted = true;
         } else {
-          g.score2Draft = score; g.score2Submitted = true;
+          // Flip logic for team 2 submission
+          g.score1Draft = score2;
+          g.score2Draft = score1;
+          g.score2Submitted = true;
         }
+        
+        // Finalize if both match
         if (g.score1Submitted && g.score2Submitted) {
-          if (g.score1Draft === g.score1Draft) { 
-            g.score1 = g.score1Draft!;
-            g.score2 = g.score2Draft!;
-            g.isCompleted = true;
-            g.isVerified = true;
-          }
+          g.score1 = score1;
+          g.score2 = score2;
+          g.isCompleted = true;
+          g.isVerified = true;
         }
         return g;
       });
       updateDocumentNonBlocking(ref, { tournamentGames: updatedGames });
-      toast({ title: "Score Dispatched", description: "Waiting for secondary verification." });
+      toast({ title: "Score Dispatched", description: "Waiting for consensus." });
     }
   }), [userProfile, activeTeam, teams, isTeamsLoading, members, isMembersLoading, currentMember, isStaff, isPlayer, isParent, isUserLoading, isSuperAdmin, isPaywallOpen, isRCInitialized, db, firebaseUser, activePlanFeatures, plans, isPlansLoading, simulationPlanId, isSeedingDemo, isClubManager, secondsUntilReset, isPro, proQuotaStatus, canAddProTeam, alerts, router, cachedPlans, searchParams]);
 

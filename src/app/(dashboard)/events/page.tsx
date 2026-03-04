@@ -4,8 +4,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
   MapPin, 
@@ -16,49 +14,30 @@ import {
   CheckCircle2, 
   Users, 
   Link as LinkIcon, 
-  UserPlus, 
   Trash2, 
-  HelpCircle, 
-  XCircle, 
   Edit3, 
   Copy,
   Trophy,
   CalendarDays,
-  ArrowRight,
   Lock,
   Sparkles,
-  Download,
-  ListPlus,
-  Table as TableIcon,
   ChevronLeft,
   Loader2,
-  CalendarCheck,
-  CalendarX,
-  CircleHelp,
+  CalendarPlus,
   ShieldCheck,
-  FileCheck,
   Share2,
   Check,
   Zap,
-  MoreVertical,
-  Play,
   X,
   ShieldAlert,
   Signature,
-  Shield,
-  History,
   Wand2,
   Timer,
-  CalendarPlus,
-  Scale,
-  Signature as SignIcon,
   FileText,
   ExternalLink,
   Globe,
   Settings,
-  LayoutGrid,
-  Mail,
-  UserCheck
+  LayoutGrid
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -92,7 +71,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useTeam, TeamEvent, TournamentGame, League } from '@/components/providers/team-provider';
+import { useTeam, TeamEvent, TournamentGame } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
@@ -144,7 +123,7 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
 }
 
 function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
-  const { members = [], teams = [], user, updateEvent, signTeamTournamentWaiver, submitEventWaiver, activeTeam, isPro, addCoOrganizerByEmail, removeCoOrganizer, isStaff, isPlayer, isParent } = useTeam();
+  const { members = [], teams = [], user, updateEvent, signTeamTournamentWaiver, submitEventWaiver, isPro, addCoOrganizerByEmail, removeCoOrganizer, isStaff, isPlayer, isParent } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
@@ -315,9 +294,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto custom-scrollbar flex flex-col">
+      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
-        <div className="flex-1">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="flex flex-col lg:flex-row min-h-full">
             <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0">
               <div className="p-6 lg:p-8 flex justify-between items-start">
@@ -587,7 +566,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                         )}
                         {event.requiresSpecialWaiver && (
                           <div className="space-y-4">
-                            <div className="flex items-center gap-2 px-1"><SignIcon className="h-4 w-4 text-red-600" /><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-red-600">Individual Participant Signatures</h4></div>
+                            <div className="flex items-center gap-2 px-1"><Signature className="h-4 w-4 text-red-600" /><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-red-600">Individual Participant Signatures</h4></div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               {Object.entries(event.specialWaiverResponses || {}).map(([uid, sig]: [string, any]) => {
                                 const member = members.find(m => m.userId === uid);
@@ -659,7 +638,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
 }
 
 export default function EventsPage() {
-  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, purchasePro, user, isStaff, isPro } = useTeam();
+  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, purchasePro, isStaff } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const [filterMode, setFilterMode] = useState<'live' | 'past'>('live');
@@ -759,9 +738,9 @@ export default function EventsPage() {
         {isStaff && (<div className="flex flex-wrap gap-2"><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { resetForm(); setIsTournamentMode(false); setIsEliteTournament(false); setIsCreateOpen(true); }}>+ Match</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-black text-white" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(false); setIsCreateOpen(true); }}><Trophy className="h-4 w-4 mr-2 text-primary" /> Tournament</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-primary text-white border-none" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(true); setIsCreateOpen(true); }}><Sparkles className="h-4 w-4 mr-2" /> Elite Hub</Button></div>)}
       </div>
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto custom-scrollbar flex flex-col">
+        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
           <DialogTitle className="sr-only">{editingEvent ? "Update" : "Launch"} Event Hub</DialogTitle>
-          <div className="flex-1">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="flex flex-col lg:flex-row min-h-full">
               <div className={cn("w-full lg:w-5/12 flex flex-col shrink-0 lg:border-r", isEliteTournament ? "bg-primary/5" : "bg-muted/30")}>
                 <div className="space-y-6 p-6 lg:p-10">
@@ -804,7 +783,7 @@ export default function EventsPage() {
                     {isTournamentMode && (
                       <div className="space-y-4 bg-primary/5 p-6 rounded-[2rem] border-2 border-dashed border-primary/20">
                         <div className="flex items-center gap-3 mb-2">
-                          <Signature className="h-5 w-5 text-primary" />
+                          <ShieldCheck className="h-5 w-5 text-primary" />
                           <h4 className="text-sm font-black uppercase">Guest Squad Agreement</h4>
                         </div>
                         <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest leading-relaxed">This text appears on the public signature portal for participating teams.</p>
@@ -824,7 +803,7 @@ export default function EventsPage() {
               </div>
             </div>
           </div>
-          <div className="p-6 lg:p-8 bg-background/80 backdrop-blur-md border-t sticky bottom-0 shrink-0 flex justify-center z-30">
+          <div className="p-6 lg:p-8 bg-background border-t shrink-0 flex justify-center z-30">
             <Button className="w-full max-w-4xl h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95" onClick={handleCreateEvent}>
               {editingEvent ? "Update" : "Publish"} Event Hub
             </Button>

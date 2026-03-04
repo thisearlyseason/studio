@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css';
+import { Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { TeamProvider } from '@/components/providers/team-provider';
@@ -23,10 +24,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased min-h-screen bg-background text-foreground selection:bg-primary/20">
         <FirebaseClientProvider>
-          <TeamProvider>
-            {children}
-            <Toaster />
-          </TeamProvider>
+          <Suspense fallback={null}>
+            <TeamProvider>
+              {children}
+              <Toaster />
+            </TeamProvider>
+          </Suspense>
         </FirebaseClientProvider>
       </body>
     </html>
