@@ -30,7 +30,9 @@ import {
   BookOpen,
   Video,
   Zap,
-  Baby
+  Baby,
+  UserPlus,
+  Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -114,45 +116,80 @@ function TeamSwitcherContent({
   teams, 
   activeTeam, 
   setActiveTeam, 
-  router
+  router,
+  isStaff
 }: { 
   teams: Team[], 
   activeTeam: Team | null, 
   setActiveTeam: (t: Team) => void,
-  router: any
+  router: any,
+  isStaff: boolean
 }) {
   return (
-    <>
+    <div className="p-2 w-72">
       <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-50 px-3 py-2">Switch Squad</DropdownMenuLabel>
       <DropdownMenuSeparator className="my-1" />
-      {teams.map((team) => (
-        <DropdownMenuItem 
-          key={team.id} 
-          onClick={() => setActiveTeam(team)}
-          className="flex items-center justify-between p-3 cursor-pointer rounded-xl hover:bg-primary/5 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8 rounded-lg shrink-0 border">
-              <AvatarImage src={team.teamLogoUrl} className="object-cover" />
-              <AvatarFallback className="bg-muted font-black text-xs">{team.name[0]}</AvatarFallback>
-            </Avatar>
-            <span className="font-bold text-sm truncate">{team.name}</span>
-          </div>
-          {team.isPro && <Badge className="bg-amber-500 text-[8px] h-3 px-1">PRO</Badge>}
+      
+      <ScrollArea className="max-h-[300px]">
+        {teams.map((team) => (
+          <DropdownMenuItem 
+            key={team.id} 
+            onClick={() => setActiveTeam(team)}
+            className={cn(
+              "flex items-center justify-between p-3 cursor-pointer rounded-xl transition-all mb-1",
+              activeTeam?.id === team.id ? "bg-primary/5 ring-1 ring-primary/20" : "hover:bg-muted"
+            )}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar className="h-9 w-9 rounded-xl shrink-0 border shadow-sm">
+                <AvatarImage src={team.teamLogoUrl} className="object-cover" />
+                <AvatarFallback className="bg-muted font-black text-[10px]">{team.name[0]}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0">
+                <span className="font-black text-sm truncate leading-tight">{team.name}</span>
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">{team.sport}</span>
+              </div>
+            </div>
+            {team.isPro && <Badge className="bg-amber-500 text-white border-none font-black text-[7px] h-4 px-1 shadow-sm">PRO</Badge>}
+          </DropdownMenuItem>
+        ))}
+      </ScrollArea>
+
+      <DropdownMenuSeparator className="my-2" />
+      <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 px-3 py-1">Management Hub</DropdownMenuLabel>
+      
+      {activeTeam && (
+        <DropdownMenuItem onClick={() => router.push('/team')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-3 hover:bg-muted group">
+          <div className="bg-primary/5 p-2 rounded-lg group-hover:bg-primary/10"><Info className="h-4 w-4 text-primary" /></div>
+          <span>Active Squad Profile</span>
         </DropdownMenuItem>
-      ))}
-      <DropdownMenuSeparator className="my-1" />
-      <DropdownMenuItem onClick={() => router.push('/team')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-2">
-        <Info className="h-4 w-4 text-muted-foreground" /> Squad Profile
+      )}
+
+      <DropdownMenuItem onClick={() => router.push('/teams/join')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-3 hover:bg-muted group">
+        <div className="bg-muted p-2 rounded-lg group-hover:bg-muted-foreground/10"><UserPlus className="h-4 w-4 text-muted-foreground" /></div>
+        <span>Join Squad via Code</span>
       </DropdownMenuItem>
-      
-      <DropdownMenuSeparator className="my-1" />
-      <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 px-3 py-1">Management</DropdownMenuLabel>
-      
-      <DropdownMenuItem onClick={() => router.push('/teams/new')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-2 hover:bg-muted">
-        <PlusCircle className="h-4 w-4 text-muted-foreground" /> Launch New Squad
-      </DropdownMenuItem>
-    </>
+
+      {isStaff && (
+        <>
+          <DropdownMenuSeparator className="my-2" />
+          <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 px-3 py-1">Deployment</DropdownMenuLabel>
+          
+          <DropdownMenuItem onClick={() => router.push('/teams/new')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-3 hover:bg-muted group">
+            <div className="bg-muted p-2 rounded-lg group-hover:bg-muted-foreground/10"><PlusCircle className="h-4 w-4 text-muted-foreground" /></div>
+            <span>Launch Free Starter Squad</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => router.push('/teams/new')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-3 hover:bg-muted group">
+            <div className="bg-amber-100 p-2 rounded-lg group-hover:bg-amber-200"><Star className="h-4 w-4 text-amber-600" /></div>
+            <div className="flex flex-col">
+              <span>Deploy Elite Pro Squad</span>
+              <span className="text-[8px] opacity-60">UNLIMITED COORDINATION</span>
+            </div>
+          </DropdownMenuItem>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -265,12 +302,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       <ChevronDown className="h-4 w-4 opacity-40 group-data-[state=open]:rotate-180 transition-transform" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-64 rounded-xl shadow-2xl border-muted p-2">
+                  <DropdownMenuContent align="start" className="p-0 rounded-2xl shadow-2xl border-muted overflow-hidden">
                     <TeamSwitcherContent 
                       teams={teams} 
                       activeTeam={activeTeam} 
                       setActiveTeam={setActiveTeam} 
                       router={router}
+                      isStaff={isStaff}
                     />
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -376,12 +414,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64 rounded-xl shadow-2xl p-2">
+                    <DropdownMenuContent align="end" className="p-0 rounded-2xl shadow-2xl border-muted overflow-hidden">
                       <TeamSwitcherContent 
                         teams={teams} 
                         activeTeam={activeTeam} 
                         setActiveTeam={setActiveTeam} 
                         router={router}
+                        isStaff={isStaff}
                       />
                     </DropdownMenuContent>
                   </DropdownMenu>

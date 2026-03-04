@@ -34,7 +34,12 @@ export default function DashboardLayout({
     }
 
     // Standard redirect to setup if no teams exist, BUT skip if seeding a demo
-    const isSetupPage = pathname === '/teams/new' || pathname === '/teams/join' || pathname === '/family';
+    // CRITICAL: We MUST exclude settings and pricing to allow logout and account management
+    const isSetupPage = pathname === '/teams/new' || 
+                        pathname === '/teams/join' || 
+                        pathname === '/family' || 
+                        pathname === '/settings' || 
+                        pathname === '/pricing';
     
     if (user && userProfile && !isTeamsLoading && !isSeedingDemo && teams.length === 0 && !isSetupPage) {
       if (userProfile.role === 'coach') {
