@@ -8,7 +8,6 @@ service cloud.firestore {
       allow read: if request.auth != null || (resource != null && resource.data.get('isTournament', false) == true);
       
       // Allow public signatures for tournament team agreements
-      // Only allow updating specific keys in the teamAgreements map
       allow update: if (resource != null && resource.data.get('isTournament', false) == true) && 
                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teamAgreements']);
     }
@@ -22,17 +21,24 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Robust membership check
+    // Prioritizes checking the team document's internal members map and ownerUserId for speed during seeding
     function isTeamMember(teamId) {
+      let teamDoc = get(/databases/$(database)/documents/teams/$(teamId));
       return isSignedIn() && (
+        teamDoc.data.ownerUserId == request.auth.uid ||
+        teamDoc.data.members[request.auth.uid] != null ||
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)) ||
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid
+        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
       );
     }
 
+    // Robust admin check using the members map
     function isAdmin(teamId) {
+      let teamDoc = get(/databases/$(database)/documents/teams/$(teamId));
       return isSignedIn() && (
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+        teamDoc.data.ownerUserId == request.auth.uid ||
+        teamDoc.data.members[request.auth.uid] == 'Admin' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)) && get(/databases/$(database)/documents/users/$(request.auth.uid)/teamMemberships/$(teamId)).data.get('role', 'Member') == 'Admin') ||
         (exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) && get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.get('role', 'Member') == 'Admin')
       );
@@ -58,9 +64,9 @@ service cloud.firestore {
       }
 
       match /events/{eventId} {
-        allow read: if isTeamMember(teamId) || isAdmin(teamId) || (resource != null && resource.data.get('isTournament', false) == true);
+        allow read: if isTeamMember(teamId) || (resource != null && resource.data.get('isTournament', false) == true);
         allow create, delete: if isAdmin(teamId);
-        allow update: if isTeamMember(teamId) || isAdmin(teamId) || (resource != null && resource.data.get('isTournament', false) == true); 
+        allow update: if isTeamMember(teamId) || (resource != null && resource.data.get('isTournament', false) == true); 
         
         match /registrations/{regId} {
           allow create: if true; 
@@ -69,39 +75,39 @@ service cloud.firestore {
       }
 
       match /games/{gameId} {
-        allow read: if isTeamMember(teamId) || isAdmin(teamId);
+        allow read: if isTeamMember(teamId);
         allow write: if isAdmin(teamId);
       }
 
       match /drills/{drillId} {
-        allow read: if isTeamMember(teamId) || isAdmin(teamId);
+        allow read: if isTeamMember(teamId);
         allow create, update, delete: if isAdmin(teamId);
       }
 
       match /feedPosts/{postId} {
-        allow read: if isTeamMember(teamId) || isAdmin(teamId);
-        allow create: if isAdmin(teamId);
+        allow read: if isTeamMember(teamId);
+        allow create: if isTeamMember(teamId);
         allow delete: if isAdmin(teamId) || (resource != null && resource.data.get('authorId', '') == request.auth.uid);
-        allow update: if isTeamMember(teamId) || isAdmin(teamId); 
+        allow update: if isTeamMember(teamId); 
         
         match /comments/{commentId} {
-          allow read: if isTeamMember(teamId) || isAdmin(teamId);
-          allow write: if isTeamMember(teamId) || isAdmin(teamId);
+          allow read: if isTeamMember(teamId);
+          allow write: if isTeamMember(teamId);
         }
       }
 
       match /groupChats/{chatId} {
-        allow read: if isTeamMember(teamId) || isAdmin(teamId);
-        allow create: if isTeamMember(teamId) || isAdmin(teamId);
-        allow update, delete: if isTeamMember(teamId) || isAdmin(teamId);
+        allow read: if isTeamMember(teamId);
+        allow create: if isTeamMember(teamId);
+        allow update, delete: if isTeamMember(teamId);
         
         match /messages/{messageId} {
-          allow read, write: if isTeamMember(teamId) || isAdmin(teamId);
+          allow read, write: if isTeamMember(teamId);
         }
       }
 
       match /alerts/{alertId} {
-        allow read, list: if isTeamMember(teamId) || isAdmin(teamId);
+        allow read, list: if isTeamMember(teamId);
         allow write: if isAdmin(teamId);
       }
     }
