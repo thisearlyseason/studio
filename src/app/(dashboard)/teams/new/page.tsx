@@ -16,7 +16,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useTeam } from '@/components/providers/team-provider';
-import { ChevronLeft, Sparkles, CreditCard, ShieldCheck, Check, Zap, Trophy, Lock, AlertTriangle, Infinity, Loader2 } from 'lucide-react';
+import { ChevronLeft, Sparkles, CreditCard, ShieldCheck, Check, Zap, Trophy, Lock, AlertTriangle, Infinity, Loader2, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -42,6 +42,11 @@ function NewTeamForm() {
   }, [searchParams]);
 
   const handleCreate = async () => {
+    if (overQuota) {
+      router.push('/pricing');
+      return;
+    }
+    
     if (!teamName.trim()) return;
 
     setIsProcessing(true);
@@ -165,22 +170,25 @@ function NewTeamForm() {
           </div>
 
           {overQuota && (
-            <Card className="border-none shadow-xl rounded-[1.5rem] bg-red-50 overflow-hidden ring-2 ring-red-100 animate-in zoom-in-95">
-              <CardContent className="p-5 flex gap-4">
-                <div className="bg-white p-2 rounded-xl shadow-sm self-start">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                </div>
-                <div className="space-y-3">
+            <Card className="border-none shadow-2xl rounded-[2.5rem] bg-red-50 overflow-hidden ring-4 ring-red-100 animate-in zoom-in-95">
+              <CardContent className="p-8 space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white p-3 rounded-2xl shadow-sm text-red-600">
+                    <AlertTriangle className="h-6 w-6" />
+                  </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest leading-none">Pro Quota Depleted</p>
-                    <p className="text-[10px] font-bold text-red-900/70 leading-relaxed">
-                      You have used all {proQuotaStatus.limit} Pro seats. Upgrade your organization tier to unlock more Elite Squads.
+                    <h4 className="text-sm font-black text-red-600 uppercase tracking-widest leading-none">Pro Quota Depleted</h4>
+                    <p className="text-[10px] font-bold text-red-900/60 uppercase tracking-widest">
+                      Used all {proQuotaStatus.limit} seats
                     </p>
                   </div>
-                  <Button asChild size="sm" variant="outline" className="h-8 text-[9px] font-black uppercase tracking-widest rounded-lg border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-all w-full">
-                    <Link href="/pricing">Expand Organization</Link>
-                  </Button>
                 </div>
+                <p className="text-xs font-bold text-red-900/70 leading-relaxed uppercase tracking-wide">
+                  Upgrade your organization tier to unlock more Elite Squads and professional modules.
+                </p>
+                <Button asChild className="w-full h-14 rounded-2xl bg-white border-2 border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 text-sm font-black shadow-xl shadow-red-200/50 transition-all uppercase tracking-[0.1em]">
+                  <Link href="/pricing">Expand Organization</Link>
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -203,11 +211,20 @@ function NewTeamForm() {
           </div>
 
           <Button 
-            className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" 
-            disabled={!teamName.trim() || isProcessing || overQuota} 
+            className={cn(
+              "w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all",
+              overQuota && "bg-black hover:bg-black/90 shadow-black/20"
+            )}
+            disabled={!teamName.trim() && !overQuota || isProcessing} 
             onClick={handleCreate}
           >
-            {isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : selectedPlan === 'squad_pro' ? "Deploy Pro Squad" : "Deploy Starter Squad"}
+            {isProcessing ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : overQuota ? (
+              <span className="flex items-center gap-2">Unlock Pro Seats <ArrowRight className="h-5 w-5" /></span>
+            ) : (
+              selectedPlan === 'squad_pro' ? "Deploy Pro Squad" : "Deploy Starter Squad"
+            )}
           </Button>
           
           <div className="flex items-center justify-center gap-2 text-muted-foreground opacity-40">
