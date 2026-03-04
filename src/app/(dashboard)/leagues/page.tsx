@@ -115,7 +115,7 @@ function TeamRosterDialog({ teamId, teamName, isOpen, onOpenChange }: { teamId: 
 }
 
 export default function LeaguesPage() {
-  const { activeTeam, user, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, acceptLeagueInvite, hasFeature, purchasePro, createChat } = useTeam();
+  const { activeTeam, user, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, acceptLeagueInvite, hasFeature, purchasePro, createChat, isStaff } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -130,7 +130,6 @@ export default function LeaguesPage() {
   const [scoutTeamId, setScoutTeamId] = useState<string | null>(null);
   const [scoutTeamName, setScoutTeamName] = useState<string | null>(null);
 
-  const canUseLeagues = hasFeature('leagues');
   const canRegister = hasFeature('league_registration');
 
   const leaguesQuery = useMemoFirebase(() => {
@@ -204,30 +203,6 @@ export default function LeaguesPage() {
     }
   };
 
-  if (!canUseLeagues) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
-        <div className="relative">
-          <div className="bg-primary/10 p-8 rounded-[3rem] shadow-2xl">
-            <Shield className="h-20 w-20 text-primary" />
-          </div>
-          <div className="absolute -top-3 -right-3 bg-black text-white p-2.5 rounded-full shadow-lg border-4 border-background">
-            <Lock className="h-5 w-5" />
-          </div>
-        </div>
-        <div className="text-center max-w-md space-y-4">
-          <h1 className="text-4xl font-black tracking-tight">Competitive Leagues</h1>
-          <p className="text-muted-foreground font-bold leading-relaxed text-lg">
-            Create or join high-stakes leagues, track global standings, and message opposing coaches. Reserved for Elite Pro squads.
-          </p>
-        </div>
-        <Button className="h-14 px-10 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>
-          Unlock Competitive Tiers
-        </Button>
-      </div>
-    );
-  }
-
   if (isLeaguesLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -245,7 +220,7 @@ export default function LeaguesPage() {
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Leagues</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Official Leaderboards & Coordination</p>
         </div>
-        {!activeLeague && (
+        {!activeLeague && isStaff && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20">
@@ -292,7 +267,7 @@ export default function LeaguesPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  {activeLeague.creatorId === user?.id && (
+                  {isStaff && activeLeague.creatorId === user?.id && (
                     canRegister ? (
                       <Button asChild variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest border-white/20 bg-white/10 text-white hover:bg-white/20">
                         <Link href={`/leagues/registration/${activeLeague.id}`}>
@@ -307,7 +282,7 @@ export default function LeaguesPage() {
                       </Button>
                     )
                   )}
-                  {activeLeague.creatorId === user?.id && (
+                  {isStaff && activeLeague.creatorId === user?.id && (
                     <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                       <DialogTrigger asChild>
                         <Button variant="secondary" className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg">
@@ -472,16 +447,18 @@ export default function LeaguesPage() {
               Your squad hasn't joined a league yet. Start your own or accept a challenge to enter the standings.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button className="h-12 px-8 rounded-xl font-black uppercase text-xs tracking-widest" onClick={() => setIsCreateOpen(true)}>Create Hub League</Button>
-            <div className="relative group">
-              <Button variant="outline" className="h-12 px-8 rounded-xl font-black uppercase text-xs tracking-widest border-2 opacity-50 cursor-not-allowed">Browse Public Leagues</Button>
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white font-black text-[8px] uppercase px-2 h-5 shadow-lg whitespace-nowrap">Coming Soon</Badge>
+          {isStaff && (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+              <Button className="h-12 px-8 rounded-xl font-black uppercase text-xs tracking-widest" onClick={() => setIsCreateOpen(true)}>Create Hub League</Button>
+              <div className="relative group">
+                <Button variant="outline" className="h-12 px-8 rounded-xl font-black uppercase text-xs tracking-widest border-2 opacity-50 cursor-not-allowed">Browse Public Leagues</Button>
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white font-black text-[8px] uppercase px-2 h-5 shadow-lg whitespace-nowrap">Coming Soon</Badge>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
-      {invites.length > 0 && (
+      {invites.length > 0 && isStaff && (
         <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
           <div className="flex items-center gap-2 px-2">
             <Zap className="h-4 w-4 text-amber-500" />

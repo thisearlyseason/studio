@@ -61,7 +61,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 export default function SettingsPage() {
-  const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro, isClubManager, resetSeasonData } = useTeam();
+  const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro, isClubManager, resetSeasonData, isStaff } = useTeam();
   const auth = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
@@ -154,7 +154,15 @@ export default function SettingsPage() {
                 {isUpdatingAvatar ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Camera className="h-4 w-4 text-primary" />}
               </Button>
             </div>
-            <div className="text-center"><h2 className="text-xl font-bold">{user.name}</h2><p className="text-sm text-muted-foreground font-medium">{currentMember?.position || 'Team Member'}</p><p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">{user.email}</p></div>
+            <div className="text-center">
+              <h2 className="text-xl font-bold">{user.name}</h2>
+              <div className="flex flex-col items-center gap-1 mt-1">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+                  Access Type: {activeTeam?.role} • {currentMember?.position || 'Teammate'}
+                </p>
+                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">{user.email}</p>
+              </div>
+            </div>
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
               <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-full px-6 border-primary/20 text-primary hover:bg-primary/5">Edit Profile</Button></DialogTrigger>
               <DialogContent className="sm:max-w-md rounded-3xl">
@@ -184,18 +192,31 @@ export default function SettingsPage() {
             <div className="divide-y divide-muted/50">
               <div className="p-4 flex items-center justify-between"><div className="flex items-center gap-3"><div className="bg-primary/10 p-2.5 rounded-2xl text-primary"><Bell className="h-5 w-5" /></div><div><p className="text-sm font-bold">Push Notifications</p><p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Alerts for posts, events & chats</p></div></div><Switch checked={notifications} onCheckedChange={setNotifications} /></div>
               
-              <Link href="/how-to" className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2.5 rounded-2xl text-primary"><BookOpen className="h-5 w-5" /></div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold">How To Guide</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Tactical step-by-step manual</p>
+              {isStaff && (
+                <Link href="/how-to" className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2.5 rounded-2xl text-primary"><BookOpen className="h-5 w-5" /></div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold">How To Guide</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Tactical step-by-step manual</p>
+                    </div>
                   </div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-              </Link>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </Link>
+              )}
 
-              {isPro && (<button onClick={manageSubscription} className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group"><div className="flex items-center gap-3"><div className="bg-amber-100 p-2.5 rounded-2xl text-amber-600"><CreditCard className="h-5 w-5" /></div><div className="text-left"><p className="text-sm font-bold">Manage Subscription</p><p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Billing & plan management</p></div></div><ExternalLink className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 transition-all" /></button>)}
+              {isPro && isStaff && (
+                <button onClick={manageSubscription} className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-amber-100 p-2.5 rounded-2xl text-amber-600"><CreditCard className="h-5 w-5" /></div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold">Manage Subscription</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Billing & plan management</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100 transition-all" />
+                </button>
+              )}
               {isAdmin && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

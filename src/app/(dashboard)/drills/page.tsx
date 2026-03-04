@@ -255,7 +255,7 @@ export default function DrillsAndGamePlayPage() {
                   </div>
                   <Progress value={storagePercentage} className="h-2 rounded-full" />
                 </div>
-                {!isPro && isAdmin && <Button size="sm" className="w-full h-8 rounded-lg text-[8px] font-black uppercase" onClick={purchasePro}>Upgrade to 10GB</Button>}
+                {!isPro && isStaff && <Button size="sm" className="w-full h-8 rounded-lg text-[8px] font-black uppercase" onClick={purchasePro}>Upgrade to 10GB</Button>}
               </CardContent>
             </Card>
           )}
@@ -302,12 +302,18 @@ export default function DrillsAndGamePlayPage() {
             )}
           </div>
 
-          {!isPro && viewMode === 'gameplay' ? (
+          {!isPro && viewMode === 'gameplay' && isStaff ? (
             <div className="py-24 text-center space-y-6 bg-primary/5 rounded-[3rem] border-2 border-dashed border-primary/20">
               <div className="bg-white w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl relative"><Video className="h-10 w-10 text-primary" /><Lock className="absolute -top-2 -right-2 h-6 w-6 bg-black text-white p-1 rounded-full border-2 border-background" /></div>
               <h3 className="text-2xl font-black uppercase tracking-tight">Game Film Locked</h3>
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-sm:px-4 max-w-sm mx-auto">Film analysis and storage require a Pro subscription.</p>
               {isAdmin && <Button onClick={purchasePro} className="h-12 px-10 rounded-xl font-black uppercase">Upgrade to Elite</Button>}
+            </div>
+          ) : !isPro && viewMode === 'gameplay' && !isStaff ? (
+            <div className="py-24 text-center space-y-6 bg-muted/10 rounded-[3rem] border-2 border-dashed">
+              <div className="bg-white w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl relative opacity-30"><Video className="h-10 w-10 text-primary" /></div>
+              <h3 className="text-2xl font-black uppercase tracking-tight opacity-40">Game Film Unavailable</h3>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-sm:px-4 max-w-sm mx-auto opacity-40">Film analysis is a Pro feature managed by coaching staff.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">

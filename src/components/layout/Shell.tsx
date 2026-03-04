@@ -75,9 +75,9 @@ import {
 const tabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: true },
   { name: 'Schedule', href: '/events', icon: CalendarDays, pro: false },
-  { name: 'Leagues', href: '/leagues', icon: Shield, pro: true },
+  { name: 'Leagues', href: '/leagues', icon: Shield, pro: false },
   { name: 'Scorekeeping', href: '/games', icon: Trophy, pro: false },
-  { name: 'Playbook', href: '/drills', icon: Dumbbell, pro: true, mobileName: 'Playbook' },
+  { name: 'Playbook', href: '/drills', icon: Dumbbell, pro: false, mobileName: 'Playbook' },
   { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
   { name: 'Roster', href: '/roster', icon: Users2, pro: false },
   { name: 'Library', href: '/files', icon: FolderClosed, pro: false, mobileName: 'Docs' },
@@ -207,7 +207,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { 
     activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin, 
-    resetDemo, isClubManager, secondsUntilReset, isStaff, isParent, hasFeature
+    resetDemo, isClubManager, secondsUntilReset, isStaff, isParent, hasFeature, isPlayer
   } = useTeam();
   const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
@@ -227,9 +227,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   // Unified tab filtering based on role and governance
   const filteredTabs = tabs.filter(tab => {
-    if (tab.name === 'Feed' && isParent && !hasFeature('live_feed_read')) return false;
+    // Hide Feed if user role doesn't have read access
+    if (tab.name === 'Feed') {
+      if (!hasFeature('live_feed_read')) return false;
+      // Also hide if non-staff and it's a "lock" tier (Player/Parent streamlined)
+      if ((isParent || isPlayer) && !isPro) return false;
+    }
+    
+    // Parent-to-Parent Chat toggle
     if (tab.name === 'Chats' && isParent && activeTeam && !activeTeam.parentChatEnabled) return false;
-    if (tab.name === 'Leagues' && !isStaff) return false;
+    
+    // Staff restricted tabs (removed Leagues from here)
+    if (tab.name === 'Management' && !isStaff) return false;
+    
     return true;
   });
 
@@ -311,7 +321,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     key={tab.name} 
                     tab={tab} 
                     isActive={pathname.startsWith(tab.href)} 
-                    isLocked={tab.pro && !isPro} 
+                    isLocked={tab.pro && !isPro && isStaff} 
                   />
                 ))}
                 
@@ -380,7 +390,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <div className="hidden md:flex items-center gap-4 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-xl lg:text-2xl font-black tracking-tighter uppercase truncate">
-                    {pathname === '/pricing' ? 'Pricing' : pathname === '/how-to' ? 'Tactical Manual' : (pathname === '/leagues' ? 'League Control' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard'))}
+                    {pathname === '/pricing' ? 'Pricing' : pathname === '/how-to' ? 'Tactical Manual' : (pathname === '/leagues' ? 'League Hub' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard'))}
                   </h2>
                   <p className="text-[9px] lg:text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] lg:tracking-[0.3em] ml-0.5 truncate">The Squad Hub • {activeTeam?.name}</p>
                 </div>
@@ -443,7 +453,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 {filteredTabs.slice(0, 5).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = pathname.startsWith(tab.href);
-                  const isLocked = tab.pro && !isPro;
+                  const isLocked = tab.pro && !isPro && isStaff;
                   return (
                     <Link 
                       key={tab.name} 
