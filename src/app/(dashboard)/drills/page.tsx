@@ -370,10 +370,10 @@ export default function DrillsAndGamePlayPage() {
 
       {/* Drill Builder/Editor */}
       <Dialog open={isAddDrillOpen} onOpenChange={(o) => { setIsAddDrillOpen(o); if(!o) resetForm(); }}>
-        <DialogContent className="sm:max-w-4xl overflow-hidden p-0 sm:rounded-[2.5rem] h-full sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
+        <DialogContent className="sm:max-w-4xl overflow-hidden p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
           <DialogTitle className="sr-only">{editingDrillId ? "Refine Drill" : "Publish Drill"}</DialogTitle>
-          <ScrollArea className="flex-1">
-            <div className="flex flex-col lg:flex-row h-full min-h-full">
+          <ScrollArea className="flex-1 h-full">
+            <div className="flex flex-col lg:flex-row min-h-full">
               <div className="lg:w-5/12 p-6 lg:p-10 bg-muted/30 lg:border-r space-y-8">
                 <DialogHeader>
                   <DialogTitle className="text-2xl lg:text-3xl font-black uppercase tracking-tight">
@@ -398,7 +398,7 @@ export default function DrillsAndGamePlayPage() {
 
       {/* Film Metadata Editor */}
       <Dialog open={isEditFilmOpen} onOpenChange={(o) => { setIsEditFilmOpen(o); if(!o) resetForm(); }}>
-        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
+        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Update Film Data</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Film Title</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl border-2 font-bold" /></div>
@@ -416,7 +416,7 @@ export default function DrillsAndGamePlayPage() {
 
       {/* Drill Detail */}
       <Dialog open={!!selectedDrill} onOpenChange={o => !o && setSelectedDrill(null)}>
-        <DialogContent className="sm:max-w-5xl h-full sm:h-auto overflow-hidden p-0 rounded-none sm:rounded-[3rem] border-none shadow-2xl">
+        <DialogContent className="sm:max-w-5xl h-[100dvh] sm:h-auto overflow-hidden p-0 rounded-none sm:rounded-[3rem] border-none shadow-2xl">
           {selectedDrill && (
             <div className="flex flex-col lg:flex-row h-full">
               <DialogTitle className="sr-only">{selectedDrill.title}</DialogTitle>
@@ -424,10 +424,10 @@ export default function DrillsAndGamePlayPage() {
                 <img src={selectedDrill.thumbnailUrl} className="w-full h-full object-contain" />
                 <Button variant="ghost" size="icon" className="absolute top-6 left-6 text-white bg-black/20 hover:bg-black/40 rounded-full" onClick={() => setSelectedDrill(null)}><X className="h-5 w-5" /></Button>
               </div>
-              <div className="w-full lg:w-96 bg-white p-8 space-y-6">
+              <div className="w-full lg:w-96 bg-white p-8 space-y-6 lg:overflow-y-auto">
                 <Badge className="bg-primary/10 text-primary border-none uppercase font-black px-2">Drill Guide</Badge>
                 <h2 className="text-3xl font-black uppercase tracking-tight">{selectedDrill.title}</h2>
-                <ScrollArea className="h-64">
+                <ScrollArea className="h-64 lg:h-auto lg:flex-1">
                   <p className="text-base font-medium leading-relaxed text-foreground/80">{selectedDrill.description}</p>
                 </ScrollArea>
                 <div className="pt-6 border-t flex gap-3">
@@ -442,11 +442,11 @@ export default function DrillsAndGamePlayPage() {
 
       {/* Media Detail (Theater Mode) */}
       <Dialog open={!!selectedFile} onOpenChange={o => !o && setSelectedFile(null)}>
-        <DialogContent className="sm:max-w-7xl h-full sm:h-[90vh] p-0 overflow-hidden rounded-none sm:rounded-[3rem] border-none shadow-2xl flex flex-col">
+        <DialogContent className="sm:max-w-7xl h-[100dvh] sm:h-[90vh] p-0 overflow-hidden rounded-none sm:rounded-[3rem] border-none shadow-2xl flex flex-col">
           {selectedFile && (
-            <div className="flex flex-col lg:flex-row h-full">
+            <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
               <DialogTitle className="sr-only">Viewing {selectedFile.name}</DialogTitle>
-              <div className="flex-1 bg-black flex flex-col relative">
+              <div className="flex-1 bg-black flex flex-col relative shrink-0">
                 <div className="flex-1 flex items-center justify-center p-4">
                   {selectedFile.type === 'link' ? (
                     <div className="text-center space-y-8 bg-white/5 p-12 rounded-[3rem] border-2 border-dashed border-white/10 max-w-lg">
@@ -466,7 +466,7 @@ export default function DrillsAndGamePlayPage() {
                   )}
                 </div>
               </div>
-              <aside className="w-full lg:w-96 bg-white flex flex-col border-l">
+              <aside className="w-full lg:w-96 bg-white flex flex-col border-l lg:overflow-y-auto custom-scrollbar">
                 <div className="p-6 border-b space-y-4">
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
@@ -502,7 +502,7 @@ export default function DrillsAndGamePlayPage() {
 
       {/* Upload/Link Dialogs */}
       <Dialog open={isUploadOpen} onOpenChange={(o) => { setIsUploadOpen(o); if(!o) resetForm(); }}>
-        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
+        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Enroll Game Tape</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Film Category</Label>
@@ -522,7 +522,7 @@ export default function DrillsAndGamePlayPage() {
       </Dialog>
 
       <Dialog open={isLinkOpen} onOpenChange={(o) => { setIsLinkOpen(o); if(!o) resetForm(); }}>
-        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
+        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-2xl font-black uppercase">External Strategy Link</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Hub Title</Label><Input placeholder="e.g. Rival Scout Video" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-bold border-2" /></div>

@@ -181,6 +181,16 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const currentStatus = event.userRsvps?.[user?.id || ''];
   const isUserStaff = members.find(m => m.userId === user?.id && ['Coach', 'Team Lead', 'Assistant Coach', 'Squad Leader', 'Manager', 'Platform Admin'].includes(m.position));
 
+  const parseFlexibleTime = (dateStr: string, timeStr: string) => {
+    const cleanDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const formats = ['yyyy-MM-dd h:mm a', 'yyyy-MM-dd HH:mm', 'yyyy-MM-dd h:mmA'];
+    for (const f of formats) {
+      const d = parse(`${cleanDate} ${timeStr}`, f, new Date());
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date(cleanDate);
+  };
+
   const syncTournamentSchedule = () => {
     if (!event.tournamentGames || !myParticipatingTeamName) return;
     const myGames = event.tournamentGames.filter(g => g.team1 === myParticipatingTeamName || g.team2 === myParticipatingTeamName);
@@ -188,13 +198,13 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
       toast({ title: "No Matches Found", description: "Your team has no matches scheduled yet.", variant: "destructive" });
       return;
     }
-    const events = myGames.map(g => ({
+    const calendarEvents = myGames.map(g => ({
       title: `${g.team1} vs ${g.team2}`,
-      start: parse(`${g.date} ${g.time}`, 'yyyy-MM-dd h:mm a', new Date()),
+      start: parseFlexibleTime(g.date, g.time),
       location: event.location,
       description: `Match for ${event.title}`
     }));
-    downloadICS(events, `${event.title.replace(/\s+/g, '_')}_Schedule.ics`);
+    downloadICS(calendarEvents, `${event.title.replace(/\s+/g, '_')}_Schedule.ics`);
     toast({ title: "Schedule Exported" });
   };
 
@@ -203,10 +213,10 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 overflow-hidden sm:rounded-[2.5rem] h-full sm:h-[90vh] flex flex-col border-none shadow-2xl">
+      <DialogContent className="sm:max-w-7xl p-0 overflow-hidden sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] flex flex-col border-none shadow-2xl">
         <DialogTitle className="sr-only">{event.title} Detail Hub</DialogTitle>
-        <div className="flex flex-col lg:flex-row h-full min-h-0">
-          <div className="lg:w-1/3 bg-black text-white p-6 lg:p-8 lg:border-r space-y-8 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
+          <div className="lg:w-1/3 bg-black text-white p-6 lg:p-8 lg:border-r space-y-8 flex flex-col shrink-0 lg:overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               <div className="flex justify-between items-start">
                 <Badge className={cn("uppercase font-black tracking-widest text-[9px] px-3 h-6", event.isTournament ? "bg-primary text-white" : "bg-white/20 text-white")}>
@@ -308,7 +318,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
             )}
           </div>
 
-          <div className="flex-1 flex flex-col bg-background min-h-0">
+          <div className="flex-1 flex flex-col bg-background min-h-0 lg:overflow-hidden">
             <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col min-h-0">
               <div className="px-6 lg:px-10 py-6 border-b bg-muted/30 shrink-0">
                 <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit overflow-x-auto no-scrollbar">
@@ -683,7 +693,8 @@ export default function EventsPage() {
           for (let i = 0; i < half; i++) {
             const t1 = teams[i]; const t2 = teams[numTeams - 1 - i];
             if (t1 !== "BYE" && t2 !== "BYE") {
-              games.push({ id: `gen_${Date.now()}_${round}_${i}`, team1: t1, team2: t2, score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: currentTime, isCompleted: false, round: round + 1 });
+              const displayTime = format(parse(currentTime, 'HH:mm', new Date()), 'h:mm a');
+              games.push({ id: `gen_${Date.now()}_${round}_${i}`, team1: t1, team2: t2, score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: displayTime, isCompleted: false, round: round + 1 });
               const [h, m] = currentTime.split(':').map(Number);
               const next = addMinutes(new Date(2000, 0, 1, h, m), parseInt(genMatchLength) + 15);
               currentTime = format(next, 'HH:mm');
@@ -704,7 +715,8 @@ export default function EventsPage() {
           
           for (let i = 0; i < poolTeams.length; i++) {
             for (let j = i + 1; j < poolTeams.length; j++) {
-              games.push({ id: `gen_p${poolChar}_${Date.now()}_${i}_${j}`, team1: poolTeams[i], team2: poolTeams[j], score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: poolTime, isCompleted: false, pool: poolChar });
+              const displayTime = format(parse(poolTime, 'HH:mm', new Date()), 'h:mm a');
+              games.push({ id: `gen_p${poolChar}_${Date.now()}_${i}_${j}`, team1: poolTeams[i], team2: poolTeams[j], score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: displayTime, isCompleted: false, pool: poolChar });
               const [h, m] = poolTime.split(':').map(Number);
               const next = addMinutes(new Date(2000, 0, 1, h, m), parseInt(genMatchLength) + 10);
               poolTime = format(next, 'HH:mm');
@@ -760,10 +772,10 @@ export default function EventsPage() {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-5xl overflow-hidden p-0 sm:rounded-[2.5rem] h-full sm:h-auto sm:max-h-[90vh] flex flex-col border-none shadow-2xl">
+        <DialogContent className="sm:max-w-5xl overflow-hidden p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] flex flex-col border-none shadow-2xl">
           <DialogTitle className="sr-only">{editingEvent ? "Update" : "Launch"} Event Hub</DialogTitle>
-          <div className="flex flex-col lg:flex-row h-full min-h-0">
-            <div className="lg:w-5/12 p-6 lg:p-8 lg:border-r bg-primary/5 space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
+            <div className="lg:w-5/12 p-6 lg:p-8 lg:border-r bg-primary/5 space-y-6 lg:overflow-y-auto custom-scrollbar">
               <DialogHeader>
                 <DialogTitle className="text-2xl lg:text-3xl font-black tracking-tight">{editingEvent ? "Update" : "Launch"} {isTournamentMode ? "Tournament" : "Match"}</DialogTitle>
               </DialogHeader>
@@ -805,7 +817,7 @@ export default function EventsPage() {
               </div>
             </div>
 
-            <div className="flex-1 p-6 lg:p-8 space-y-6 bg-background flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 p-6 lg:p-8 space-y-6 bg-background flex flex-col min-h-0 lg:overflow-hidden">
               {isTournamentMode ? (
                 <Tabs defaultValue="teams" className="flex-1 flex flex-col min-h-0">
                   <TabsList className="bg-muted/50 h-11 p-1 mb-6 shrink-0"><TabsTrigger value="teams" className="font-black text-[10px] uppercase px-6 flex-1">Squads</TabsTrigger><TabsTrigger value="games" className="font-black text-[10px] uppercase px-6 flex-1">Brackets</TabsTrigger><TabsTrigger value="generator" className="font-black text-[10px] uppercase px-6 flex-1">Generator</TabsTrigger></TabsList>

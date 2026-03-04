@@ -18,9 +18,10 @@ export interface CalendarEvent {
  * Note: Google URLs do not officially support multiple events in a single template.
  */
 export function generateGoogleCalendarLink(event: CalendarEvent): string {
-  const startStr = format(event.start, "yyyyMMdd'T'HHmmss'Z'");
+  // Use local time format without 'Z' for Google Template URLs to avoid offset shifts
+  const startStr = format(event.start, "yyyyMMdd'T'HHmmss");
   const end = event.end || addHours(event.start, 1);
-  const endStr = format(end, "yyyyMMdd'T'HHmmss'Z'");
+  const endStr = format(end, "yyyyMMdd'T'HHmmss");
   
   const params = new URLSearchParams({
     action: 'TEMPLATE',
@@ -36,10 +37,11 @@ export function generateGoogleCalendarLink(event: CalendarEvent): string {
 /**
  * Generates and downloads an ICS file for one or more events.
  * Follows RFC 5545 specifications for maximum compatibility with Outlook, Google, and Apple.
+ * Uses "Floating Time" (local time without Z) which is standard for local sports schedules.
  */
 export function downloadICS(events: CalendarEvent[], fileName: string = 'squad_schedule.ics') {
   const escapeText = (str: string = '') => str.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n');
-  const formatDate = (date: Date) => format(date, "yyyyMMdd'T'HHmmss'Z'");
+  const formatDate = (date: Date) => format(date, "yyyyMMdd'T'HHmmss");
 
   let icsLines = [
     'BEGIN:VCALENDAR',
@@ -51,6 +53,9 @@ export function downloadICS(events: CalendarEvent[], fileName: string = 'squad_s
   ];
 
   events.forEach(event => {
+    // Basic validation to prevent crashing on invalid dates
+    if (isNaN(event.start.getTime())) return;
+
     const startStr = formatDate(event.start);
     const end = event.end || addHours(event.start, 1);
     const endStr = formatDate(end);
@@ -58,9 +63,9 @@ export function downloadICS(events: CalendarEvent[], fileName: string = 'squad_s
     icsLines.push(
       'BEGIN:VEVENT',
       `UID:${Date.now()}-${Math.random().toString(36).substring(7)}@thesquad.io`,
-      `DTSTAMP:${formatDate(new Date())}`,
-      `DTSTART:${startStr}`,
-      `DTEND:${endStr}`,
+      `DTSTAMP:${formatDate(new Date())}Z`, // DTSTAMP is always UTC
+      `DTSTART:${startStr}`, // Floating time (Local)
+      `DTEND:${endStr}`,     // Floating time (Local)
       `SUMMARY:${escapeText(event.title)}`,
       `LOCATION:${escapeText(event.location)}`,
       `DESCRIPTION:${escapeText(event.description)}`,
