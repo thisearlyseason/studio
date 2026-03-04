@@ -629,8 +629,59 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           </div>
         )}
         
-        <Dialog open={isWaiverDialogOpen} onOpenChange={setIsWaiverDialogOpen}><DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0"><div className="h-2 bg-red-600 w-full" /><div className="p-8"><DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black uppercase tracking-tight">Required Participant Waiver</DialogTitle><DialogDescription className="font-bold text-red-600 uppercase text-[10px] tracking-widest">Action Required for Participation</DialogDescription></DialogHeader><div className="max-h-[300px] border-2 rounded-2xl p-6 bg-muted/30 mb-6 overflow-y-auto"><p className="text-sm font-bold leading-relaxed whitespace-pre-wrap">{event.specialWaiverText}</p></div><div className="bg-primary/5 p-4 rounded-2xl border flex items-start gap-3 mb-6"><div className="bg-white p-1 rounded text-primary shrink-0 mt-0.5"><Info className="h-4 w-4" /></div><p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">By clicking below, you officially sign this waiver for {event.title} as {user?.name}.</p></div><DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black bg-red-600 text-white shadow-xl" onClick={() => { submitEventWaiver(event.id, true); setIsWaiverDialogOpen(false); toast({ title: "Waiver Signed" }); }}>Verify & Sign Legally</Button></DialogFooter></div></DialogContent></Dialog>
-        <Dialog open={isTeamAgreementOpen} onOpenChange={setIsTeamAgreementOpen}><DialogContent className="sm:max-w-xl rounded-3xl border-none shadow-2xl overflow-hidden p-0"><div className="h-2 bg-primary w-full" /><div className="p-8"><DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black uppercase tracking-tight">Squad Participation Agreement</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Formal Enrollment Certification</DialogDescription></DialogHeader><div className="p-1 bg-muted rounded-2xl border-2 mb-6"><div className="max-h-[350px] p-6 bg-white rounded-xl overflow-y-auto">{event.teamWaiverText ? (<p className="text-sm font-bold leading-relaxed whitespace-pre-wrap text-foreground/80">{event.teamWaiverText}</p>) : (<div className="text-center py-10 opacity-40 space-y-2"><FileText className="h-8 w-8 mx-auto" /><p className="text-xs font-black uppercase">Standard Participation Terms Apply</p></div>)}</div></div><div className="bg-primary/5 p-5 rounded-2xl border border-primary/10 space-y-3 mb-6"><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><p className="text-[10px] font-black uppercase tracking-widest text-primary">Authority Verification</p></div><p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">As a representative of <strong>{myParticipatingTeamName}</strong>, clicking below verifies that your squad understands and accepts all tournament coordination protocols.</p></div><DialogFooter><Button className="w-full h-16 rounded-2xl text-lg font-black bg-primary text-white shadow-xl" onClick={() => { if(myParticipatingTeamName) { signTeamTournamentWaiver(event.teamId, event.id, myParticipatingTeamName); setIsTeamAgreementOpen(false); } }}>Verify & Sign for Squad</Button></DialogFooter></div></Dialog>
+        <Dialog open={isWaiverDialogOpen} onOpenChange={setIsWaiverDialogOpen}>
+          <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
+            <div className="h-2 bg-red-600 w-full" />
+            <div className="p-8">
+              <DialogHeader className="mb-6">
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight">Required Participant Waiver</DialogTitle>
+                <DialogDescription className="font-bold text-red-600 uppercase text-[10px] tracking-widest">Action Required for Participation</DialogDescription>
+              </DialogHeader>
+              <div className="max-h-[300px] border-2 rounded-2xl p-6 bg-muted/30 mb-6 overflow-y-auto">
+                <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap">{event.specialWaiverText}</p>
+              </div>
+              <div className="bg-primary/5 p-4 rounded-2xl border flex items-start gap-3 mb-6">
+                <div className="bg-white p-1 rounded text-primary shrink-0 mt-0.5"><Info className="h-4 w-4" /></div>
+                <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">By clicking below, you officially sign this waiver for {event.title} as {user?.name}.</p>
+              </div>
+              <DialogFooter>
+                <Button className="w-full h-14 rounded-2xl text-lg font-black bg-red-600 text-white shadow-xl" onClick={() => { submitEventWaiver(event.id, true); setIsWaiverDialogOpen(false); toast({ title: "Waiver Signed" }); }}>Verify & Sign Legally</Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isTeamAgreementOpen} onOpenChange={setIsTeamAgreementOpen}>
+          <DialogContent className="sm:max-w-xl rounded-3xl border-none shadow-2xl overflow-hidden p-0">
+            <div className="h-2 bg-primary w-full" />
+            <div className="p-8">
+              <DialogHeader className="mb-6">
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight">Squad Participation Agreement</DialogTitle>
+                <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Formal Enrollment Certification</DialogDescription>
+              </DialogHeader>
+              <div className="p-1 bg-muted rounded-2xl border-2 mb-6">
+                <div className="max-h-[350px] p-6 bg-white rounded-xl overflow-y-auto">
+                  {event.teamWaiverText ? (
+                    <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap text-foreground/80">{event.teamWaiverText}</p>
+                  ) : (
+                    <div className="text-center py-10 opacity-40 space-y-2">
+                      <FileText className="h-8 w-8 mx-auto" />
+                      <p className="text-xs font-black uppercase">Standard Participation Terms Apply</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10 space-y-3 mb-6">
+                <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><p className="text-[10px] font-black uppercase tracking-widest text-primary">Authority Verification</p></div>
+                <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">As a representative of <strong>{myParticipatingTeamName}</strong>, clicking below verifies that your squad understands and accepts all tournament coordination protocols.</p>
+              </div>
+              <DialogFooter>
+                <Button className="w-full h-16 rounded-2xl text-lg font-black bg-primary text-white shadow-xl" onClick={() => { if(myParticipatingTeamName) { signTeamTournamentWaiver(event.teamId, event.id, myParticipatingTeamName); setIsTeamAgreementOpen(false); } }}>Verify & Sign for Squad</Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={!!editingGame} onOpenChange={(o) => !o && setEditingGame(null)}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-primary w-full" />
@@ -854,7 +905,7 @@ export default function EventsPage() {
           <div className="grid gap-6">
             {filteredEvents.map((event) => {
               const myGames = event.isTournament ? (event.tournamentGames || []).filter(g => activeTeam && (g.team1.toLowerCase() === activeTeam.name.toLowerCase() || g.team2.toLowerCase() === activeTeam.name.toLowerCase())) : [];
-              const typeColor = event.isTournament ? EVENT_TYPE_COLORS.tournament : EVENT_TYPE_COLORS[event.eventType || 'game'];
+              const typeColor = event.isTournament ? EVENT_TYPE_COLORS.tournament : EVENT_TYPE_COLORS[event.eventType || 'other'];
 
               return (
                 <div key={event.id} className="space-y-4">
@@ -884,7 +935,6 @@ export default function EventsPage() {
                     </Card>
                   </EventDetailDialog>
 
-                  {/* Nested Team Matchups for Tournaments */}
                   {event.isTournament && myGames.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ml-6 lg:ml-12 border-l-4 border-primary/10 pl-6 animate-in slide-in-from-left-4 duration-500">
                       {myGames.map(game => {
