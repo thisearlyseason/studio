@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -29,7 +30,10 @@ import {
   LayoutGrid,
   Info,
   Loader2,
-  Table as TableIcon
+  Table as TableIcon,
+  DollarSign,
+  CreditCard,
+  Circle
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -41,6 +45,7 @@ import {
   DialogDescription
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,7 +55,7 @@ import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 export default function LeagueRegistrationAdminPage() {
   const { leagueId } = useParams();
   const router = useRouter();
-  const { saveLeagueRegistrationConfig, assignEntryToTeam, activeLeague, isClubManager, hasFeature } = useTeam();
+  const { saveLeagueRegistrationConfig, assignEntryToTeam, activeLeague, isClubManager, hasFeature, toggleRegistrationPaymentStatus } = useTeam();
   const db = useFirestore();
 
   const configRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string, 'registration', 'config') : null, [db, leagueId]);
@@ -63,7 +68,6 @@ export default function LeagueRegistrationAdminPage() {
   const [editingField, setEditingField] = useState<Partial<RegistrationFormField> | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Default values for config
   const formSchema = config?.form_schema || [
     { id: 'name', type: 'short_text', label: 'Full Name', required: true },
     { id: 'email', type: 'short_text', label: 'Email Address', required: true }
@@ -99,14 +103,14 @@ export default function LeagueRegistrationAdminPage() {
     }
     if (!entries || entries.length === 0) return;
 
-    // Build headers from schema + status/date
-    const headers = ['Submitted', 'Status', 'Assigned Team', ...formSchema.map(f => f.label)];
+    const headers = ['Submitted', 'Status', 'Assigned Team', 'Payment Received', ...formSchema.map(f => f.label)];
     const rows = entries.map(entry => {
       const answers = entry.answers || {};
       return [
         format(new Date(entry.created_at), 'yyyy-MM-dd'),
         entry.status,
         entry.assigned_team_id || 'Unassigned',
+        entry.payment_received ? 'YES' : 'NO',
         ...formSchema.map(f => answers[f.id] || '')
       ].map(v => `"${v}"`).join(',');
     });
@@ -175,14 +179,28 @@ export default function LeagueRegistrationAdminPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-8 space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Signup Title</Label>
-                  <Input 
-                    value={config?.title || ''} 
-                    onChange={e => handleSaveConfig({ title: e.target.value })}
-                    placeholder="e.g. 2024 Varsity Winter Season"
-                    className="h-12 rounded-xl font-bold border-2"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Signup Title</Label>
+                    <Input 
+                      value={config?.title || ''} 
+                      onChange={e => handleSaveConfig({ title: e.target.value })}
+                      placeholder="e.g. 2024 Varsity Winter Season"
+                      className="h-12 rounded-xl font-bold border-2"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Season Cost (e.g. $150)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                      <Input 
+                        value={config?.registration_cost || ''} 
+                        onChange={e => handleSaveConfig({ registration_cost: e.target.value })}
+                        placeholder="Cost"
+                        className="h-12 pl-10 rounded-xl font-black border-2 text-lg text-primary"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Season Description</Label>
@@ -194,7 +212,7 @@ export default function LeagueRegistrationAdminPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Payment Instructions (Offline Only)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">How to Pay (Offline Only)</Label>
                   <Textarea 
                     value={config?.payment_instructions || ''} 
                     onChange={e => handleSaveConfig({ payment_instructions: e.target.value })}
@@ -279,7 +297,7 @@ export default function LeagueRegistrationAdminPage() {
                           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{field.type.replace(/_/g, ' ')}</p>
                         </div>
                       </div>
-                      {i > 1 && ( // Name and Email are protected base fields for this prototype
+                      {i > 1 && ( 
                         <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveField(field.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -353,6 +371,7 @@ export default function LeagueRegistrationAdminPage() {
                   <tr>
                     <th className="px-8 py-5">Applicant</th>
                     <th className="px-4 py-5">Submitted</th>
+                    <th className="px-4 py-5 text-center">Payment</th>
                     <th className="px-4 py-5">Status</th>
                     <th className="px-4 py-5">Assigned Squad</th>
                     <th className="px-8 py-5 text-right">Actions</th>
@@ -367,6 +386,17 @@ export default function LeagueRegistrationAdminPage() {
                       </td>
                       <td className="px-4 py-6 text-xs font-bold text-muted-foreground">
                         {format(new Date(entry.created_at), 'MMM d, p')}
+                      </td>
+                      <td className="px-4 py-6 text-center">
+                        <button 
+                          onClick={() => toggleRegistrationPaymentStatus(leagueId as string, entry.id, !entry.payment_received)}
+                          className={cn(
+                            "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                            entry.payment_received ? "bg-primary text-white shadow-lg" : "bg-muted text-muted-foreground/30 hover:bg-muted/50"
+                          )}
+                        >
+                          <DollarSign className="h-4 w-4" />
+                        </button>
                       </td>
                       <td className="px-4 py-6">
                         <Badge className={cn(
@@ -399,6 +429,21 @@ export default function LeagueRegistrationAdminPage() {
                                 </DialogHeader>
                                 <ScrollArea className="h-[300px] bg-muted/30 p-6 rounded-2xl border-2">
                                   <div className="space-y-6">
+                                    <div className="p-4 bg-white rounded-xl border-2 flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className="bg-primary/10 p-2 rounded-lg text-primary">
+                                          <DollarSign className="h-4 w-4" />
+                                        </div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest">Financial Status</p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-[10px] font-bold uppercase">Payment Received</Label>
+                                        <Switch 
+                                          checked={entry.payment_received || false} 
+                                          onCheckedChange={(v) => toggleRegistrationPaymentStatus(leagueId as string, entry.id, v)} 
+                                        />
+                                      </div>
+                                    </div>
                                     {formSchema.map(field => (
                                       <div key={field.id} className="space-y-1">
                                         <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">{field.label}</p>
@@ -416,7 +461,6 @@ export default function LeagueRegistrationAdminPage() {
                                     <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
                                     <SelectContent className="rounded-xl">
                                       <SelectItem value="unassigned">Unassigned Pool</SelectItem>
-                                      {/* Only show squads the league owner has access to or mapped in league */}
                                       {Object.entries(activeLeague?.teams || {}).map(([id, t]) => (
                                         <SelectItem key={id} value={id}>{t.teamName}</SelectItem>
                                       ))}
@@ -435,7 +479,7 @@ export default function LeagueRegistrationAdminPage() {
                   ))}
                   {(!entries || entries.length === 0) && (
                     <tr>
-                      <td colSpan={5} className="py-20 text-center opacity-30">
+                      <td colSpan={6} className="py-20 text-center opacity-30">
                         <Users className="h-12 w-12 mx-auto mb-4" />
                         <p className="text-sm font-black uppercase tracking-widest">No applicants found in ledger.</p>
                       </td>

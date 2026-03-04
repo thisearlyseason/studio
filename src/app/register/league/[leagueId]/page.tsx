@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -24,7 +25,8 @@ import {
   Clock,
   ArrowRight,
   XCircle,
-  Plus
+  Plus,
+  DollarSign
 } from 'lucide-react';
 import { 
   Select, 
@@ -100,7 +102,7 @@ export default function PublicLeagueRegistrationPage() {
           <div className="bg-green-100 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-8">
             <CheckCircle2 className="h-10 w-10 text-green-600" />
           </div>
-          <h2 className="text-3xl font-black uppercase tracking-tighter leading-tight">Tactical Dispatch Successful</h2>
+          <h2 className="text-3xl font-black uppercase tracking-tighter leading-tight">Registration Successful</h2>
           <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 mb-8">Roster review in progress</p>
           
           <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 space-y-4 text-left">
@@ -114,14 +116,13 @@ export default function PublicLeagueRegistrationPage() {
           </div>
           
           <p className="text-xs font-medium text-muted-foreground mt-8">
-            The league organizers have received your data. You will be notified once squad assignments are finalized.
+            The league organizers have received your registration. You will be notified once squad assignments are finalized.
           </p>
         </Card>
       </div>
     );
   }
 
-  // Tactical Fallback: Ensure form_schema exists before mapping
   const formSchema = config.form_schema || [];
 
   return (
@@ -129,7 +130,6 @@ export default function PublicLeagueRegistrationPage() {
       <BrandLogo variant="light-background" className="h-10 w-40 mb-12" />
       
       <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-        {/* Left Side: Strategic Info */}
         <div className="lg:col-span-5 space-y-8 lg:sticky lg:top-12">
           <div className="space-y-3">
             <Badge className="bg-primary text-white border-none font-black uppercase tracking-widest text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Official Recruitment</Badge>
@@ -137,8 +137,23 @@ export default function PublicLeagueRegistrationPage() {
             <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">League Enrollment Portal</p>
           </div>
 
-          <div className="bg-white/50 backdrop-blur-sm p-6 rounded-3xl border-2 border-white shadow-xl space-y-4">
-            <p className="text-sm font-medium leading-relaxed text-foreground/80">{config.description}</p>
+          <div className="grid grid-cols-1 gap-4">
+            <div className="bg-white/50 backdrop-blur-sm p-6 rounded-3xl border-2 border-white shadow-xl space-y-4">
+              <p className="text-sm font-medium leading-relaxed text-foreground/80">{config.description}</p>
+            </div>
+
+            {config.registration_cost && (
+              <div className="bg-primary text-white p-6 rounded-3xl shadow-xl shadow-primary/20 flex items-center justify-between group overflow-hidden relative">
+                <DollarSign className="absolute -right-2 -bottom-2 h-20 w-20 opacity-10 -rotate-12" />
+                <div className="relative z-10">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Registration Fee</p>
+                  <p className="text-4xl font-black tracking-tighter">{config.registration_cost}</p>
+                </div>
+                <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm relative z-10">
+                  <CreditCard className="h-6 w-6" />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="bg-primary/5 p-6 rounded-3xl border-2 border-primary/10 space-y-4">
@@ -152,7 +167,6 @@ export default function PublicLeagueRegistrationPage() {
           </div>
         </div>
 
-        {/* Right Side: Form */}
         <Card className="lg:col-span-7 rounded-[3rem] border-none shadow-2xl overflow-hidden bg-white ring-1 ring-black/5">
           <div className="h-2 bg-primary w-full" />
           <form onSubmit={handleSubmit}>
@@ -295,7 +309,7 @@ export default function PublicLeagueRegistrationPage() {
                 className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Enrollment Entry"}
+                {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : "Send In Registration"}
               </Button>
             </CardFooter>
           </form>
