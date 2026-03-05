@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef } from 'react';
@@ -399,8 +400,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       sport: m.sport,
       parentChatEnabled: m.parentChatEnabled ?? true,
       parentCommentsEnabled: m.parentCommentsEnabled ?? true,
-      heroImageUrl: m.heroImageUrl,
-      teamLogoUrl: m.teamLogoUrl
+      heroImageUrl: m.heroImageUrl || '',
+      teamLogoUrl: m.teamLogoUrl || ''
     }));
   }, [teamsData]);
 
@@ -488,13 +489,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const playerSnap = await getDoc(doc(db, 'players', playerId)); const pData = playerSnap.data();
       const batch = writeBatch(db);
       
-      // Update Child's joined teams list
       batch.update(doc(db, 'players', playerId), { joinedTeamIds: arrayUnion(tid) });
       
-      // Add Child to Team Roster
       batch.set(doc(db, 'teams', tid, 'members', playerId), { id: playerId, userId: firebaseUser.uid, playerId, teamId: tid, role: 'Member', position, name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, avatar: '', isMinor: !!pData?.isMinor, joinedAt: new Date().toISOString(), jersey: 'TBD' });
       
-      // Add Parent to Team Membership
       batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { teamId: tid, teamName: tData.teamName || 'Unnamed Team', teamCode: (code || '').toUpperCase(), type: tData.type || 'adult', role: 'Member', ownerUserId: tData.ownerUserId || '', isPro: !!tData.isPro, planId: tData.planId || 'starter_squad' });
       
       await batch.commit();
