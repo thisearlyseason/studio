@@ -256,7 +256,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
   try {
     await batch.commit();
   } catch (error: any) {
-    // Only throw here, parent will catch and emit rich error
+    // Return error to parent for better contextual handling
     throw error;
   }
 }

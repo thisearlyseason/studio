@@ -13,7 +13,7 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       // Extremely safe check for email to handle anonymous/demo users where email is null
-      // Using safe map key existence check before property access
+      // Use map-safe check to prevent rule evaluation crashes
       return isSignedIn() && 
              'email' in request.auth.token && 
              (request.auth.token.email == 'thisearlyseason@gmail.com' || request.auth.token.email == 'test@gmail.com');
@@ -21,7 +21,8 @@ service cloud.firestore {
 
     function isDemoTeam(teamId) {
       // Document IDs for guest demos start with 'demo_'
-      return teamId != null && teamId.startsWith('demo_');
+      // Use matches for maximum compatibility in rules v2
+      return teamId != null && teamId.matches('^demo_.*');
     }
 
     function isAdmin(teamId) {
@@ -43,12 +44,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.get('assigned_team_owner_id', '') == request.auth.uid || 
         isSuperAdmin() ||
-        resource.data.get('assigned_team_id', '').startsWith('demo_')
+        resource.data.get('assigned_team_id', '').matches('^demo_.*')
       );
       allow update: if isSignedIn() && (
         resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
         isSuperAdmin() ||
-        resource.data.get('assigned_team_id', '').startsWith('demo_')
+        resource.data.get('assigned_team_id', '').matches('^demo_.*')
       );
       allow delete: if isSuperAdmin();
     }
@@ -97,6 +98,8 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if isSignedIn();
       // Explicitly allow all writes for demo squads to handle anonymous guest initialization
+      // This bypasses strict ownership checks for documents starting with 'demo_'
+      allow write: if isDemoTeam(teamId);
       allow create: if isSignedIn();
       allow update, delete: if isDemoTeam(teamId) || isAdmin(teamId);
 

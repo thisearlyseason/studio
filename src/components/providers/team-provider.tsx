@@ -354,7 +354,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!seedParam || !firebaseUser?.uid || isSeedingDemo) return;
 
     const seedKey = `${firebaseUser.uid}_${seedParam}`;
-    if (hasStartedSeeding.current === seedKey) return;
+    // HARD RE-ENTRANCY GUARD: Use sessionStorage to survive component remounts during error throwing
+    if (hasStartedSeeding.current === seedKey || sessionStorage.getItem(`squad_seeded_${seedKey}`)) return;
 
     const runSeed = async () => {
       hasStartedSeeding.current = seedKey;
@@ -367,18 +368,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
       try {
         const tid = await seedGuestDemoTeam(db, firebaseUser.uid, seedParam);
+        sessionStorage.setItem(`squad_seeded_${seedKey}`, 'true');
         setActiveTeamId(tid);
       } catch (e) {
         console.error("Seed failed", e);
-        // Do not reset hasStartedSeeding.current to null here, 
-        // as we want to prevent immediate retries in the same session.
       } finally {
         // Delay resetting state to allow Firestore cache to catch up
         setTimeout(() => setIsSeedingDemo(false), 1000);
       }
     };
     runSeed();
-  }, [searchParams, firebaseUser?.uid, db]);
+  }, [searchParams, firebaseUser?.uid, db, isSeedingDemo]);
 
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
