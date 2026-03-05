@@ -69,8 +69,8 @@ export default function DashboardLayout({
             </div>
           </div>
           <div className="text-center space-y-2">
-            <p className="text-lg font-black uppercase tracking-widest text-primary">Authenticating...</p>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">Verifying Elite Credentials</p>
+            <p className="text-lg font-black uppercase tracking-widest text-primary">Initialising Environment...</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">Synchronising Elite Infrastructure</p>
           </div>
         </div>
       </div>
