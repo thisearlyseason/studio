@@ -34,10 +34,7 @@ export default function DashboardLayout({
   }, [user, isUserLoading, router, mounted]);
 
   useEffect(() => {
-    if (!mounted) return;
-    
-    // Standard checks only proceed if seeder is inactive
-    if (isSeedingDemo) return;
+    if (!mounted || isSeedingDemo || isTeamsLoading || !user) return;
 
     // Force demo users to land on the feed first
     if (userProfile?.isDemo && pathname === '/') {
@@ -52,12 +49,8 @@ export default function DashboardLayout({
                         pathname === '/settings' || 
                         pathname === '/pricing';
     
-    // REDIRECT LOGIC: Only trigger setup redirect if definitely NO teams and NOT seeding
-    if (user && userProfile && !isTeamsLoading && teams.length === 0 && !isSetupPage) {
-      // Final guard for demo users who just finished seeding
-      if (userProfile.isDemo) return;
-
-      if (userProfile.role === 'coach') {
+    if (teams.length === 0 && !isSetupPage) {
+      if (userProfile?.role === 'coach') {
         router.push('/teams/new');
       } else {
         router.push('/teams/join');

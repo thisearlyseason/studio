@@ -218,7 +218,7 @@ export default function FamilyDashboardPage() {
                 
                 <div className="space-y-1">
                   <h3 className="text-3xl font-black uppercase tracking-tight">{child.firstName} {child.lastName}</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Minor Player Hub • Guardian ID: {user.id.slice(-4)}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Minor Player Hub • Guardian ID: {user?.id.slice(-4)}</p>
                 </div>
 
                 <div className="space-y-4 pt-4 border-t">
