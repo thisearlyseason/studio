@@ -18,8 +18,8 @@ service cloud.firestore {
     }
 
     function isDemoTeam(teamId) {
-      // Robust prefix check using matches for resilience
-      return teamId != null && teamId.matches('^demo_.*');
+      // Robust prefix check using slicing for maximum resilience across rule versions
+      return teamId != null && teamId.size() >= 5 && teamId[0:5] == 'demo_';
     }
 
     function isAdmin(teamId) {
@@ -138,9 +138,16 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Explicitly authorize listing for demo squads to prevent query-time crashes
+        // Broaden list permission for demo teams to prevent query-time permission crashes
         allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
-        allow get: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || request.auth.uid in resource.data.get('memberIds', []) || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
+        
+        // Detailed get check
+        allow get: if isSignedIn() && (
+          isDemoTeam(teamId) || 
+          isSuperAdmin() || 
+          request.auth.uid in resource.data.get('memberIds', []) || 
+          exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
+        );
         
         allow create: if isSignedIn();
         allow update: if isSignedIn() && (isDemoTeam(teamId) || isAdmin(teamId) || request.auth.uid in resource.data.get('memberIds', []));

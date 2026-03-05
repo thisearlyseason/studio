@@ -547,8 +547,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         jersey: 'TBD' 
       }));
       
-      // CRITICAL: Ensure the guardian is ALSO added to the team roster
-      // This provides the 'Member' permissions needed to list chats and hubs
+      // AUTHORIZATION: Ensure the guardian is ALSO added to the team roster
+      // This grants the 'Member' permissions needed to list chats and hubs in security rules
       if (playerId !== `p_${firebaseUser.uid}`) {
         batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
           id: firebaseUser.uid,
