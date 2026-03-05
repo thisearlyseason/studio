@@ -147,27 +147,24 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Splitting list rules to ensure query-safe static evaluation
-        // Branch 1: Demo authorization via path prefix
-        allow list: if isSignedIn() && isDemoTeam(teamId);
-        
-        // Branch 2: Standard authorization via membership query
+        // Combined list rule for query stability
         allow list: if isSignedIn() && (
+          isDemoTeam(teamId) || 
           isSuperAdmin() || 
-          request.auth.uid in resource.data.get('memberIds', [])
+          request.auth.uid in resource.data.memberIds
         );
         
         allow get: if isSignedIn() && (
           isDemoTeam(teamId) || 
           isSuperAdmin() || 
-          request.auth.uid in resource.data.get('memberIds', []) || 
+          request.auth.uid in resource.data.memberIds || 
           exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
         );
         
         allow create: if isTeamMember(teamId);
         allow update: if isTeamMember(teamId) && (
           isTeamAdmin(teamId) || 
-          request.auth.uid in resource.data.get('memberIds', [])
+          request.auth.uid in resource.data.memberIds
         );
         
         match /messages/{messageId} {
