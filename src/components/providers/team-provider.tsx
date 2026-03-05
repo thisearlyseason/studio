@@ -75,6 +75,8 @@ export type Team = {
   contactEmail?: string;
   contactPhone?: string;
   leagueIds?: string[];
+  createdBy?: string;
+  createdAt?: string;
 };
 
 export type Member = {
@@ -103,6 +105,7 @@ export type Member = {
   transportationWaiverSigned?: boolean;
   medicalClearance?: boolean;
   mediaRelease?: boolean;
+  joinedAt?: string;
 };
 
 export type FeeItem = {
@@ -208,6 +211,7 @@ export type TeamEvent = {
   teamWaiverText?: string;
   teamAgreements?: Record<string, { agreed: boolean; captainName: string; timestamp: string }>;
   coOrganizers?: Array<{ id: string; name: string; avatar: string }>;
+  lastUpdated?: string;
 };
 
 export type League = {

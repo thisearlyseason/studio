@@ -19,6 +19,24 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
 /**
+ * Sanitizes objects for Firestore by removing undefined values recursively.
+ */
+const clean = (obj: any): any => {
+  if (Array.isArray(obj)) return obj.map(v => clean(v));
+  if (obj !== null && typeof obj === 'object') {
+    const newObj: any = {};
+    Object.keys(obj).forEach(key => {
+      const val = obj[key];
+      if (val !== undefined) {
+        newObj[key] = clean(val);
+      }
+    });
+    return newObj;
+  }
+  return obj ?? null;
+};
+
+/**
  * Centrally defines the subscription plans and features.
  */
 export async function seedSubscriptionData(db: Firestore) {
@@ -145,13 +163,13 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
   
   for (let i = 0; i < 12; i++) {
     const mid = `demo_mem_${teamId}_${i}`;
-    batch.set(doc(db, 'teams', teamId, 'members', mid), {
+    batch.set(doc(db, 'teams', teamId, 'members', mid), clean({
       id: mid, userId: `demo_user_${teamId}_${i}`, teamId, name: names[i] || `Teammate ${i+1}`, 
       role: 'Member', position: i === 0 ? 'Team Lead' : 'Player', jersey: (i + 10).toString(),
       avatar: `https://picsum.photos/seed/demo_v3_${i}_${teamId}/150/150`, 
       joinedAt: now.toISOString(), amountOwed: i > 8 ? 50 : 0, feesPaid: i <= 8, isDemo: true,
       waiverSigned: isPro, medicalClearance: isPro && i % 2 === 0
-    });
+    }));
   }
 
   // Unified Tournament Hub (Regional Championship)
@@ -162,7 +180,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
   const day1Str = day1Date.toISOString().split('T')[0];
   const day2Str = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
-  batch.set(doc(db, 'teams', teamId, 'events', tid_tournament), {
+  batch.set(doc(db, 'teams', teamId, 'events', tid_tournament), clean({
     id: tid_tournament, teamId, 
     title: 'Regional Season Championship', 
     eventType: 'tournament',
@@ -179,11 +197,11 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
       { id: 'g3', team1: 'Metro Stars', team2: 'City Rangers', score1: 0, score2: 0, date: day2Str, time: '09:00 AM', isCompleted: false }
     ],
     userRsvps: { [userId]: 'going' }, isDemo: true, createdAt: now.toISOString(), lastUpdated: now.toISOString()
-  });
+  }));
 
   // Unified Standard Match
   const matchId = `demo_match_standard_${teamId}`;
-  batch.set(doc(db, 'teams', teamId, 'events', matchId), {
+  batch.set(doc(db, 'teams', teamId, 'events', matchId), clean({
     id: matchId, teamId, title: 'Season Match vs Wildcats',
     eventType: 'game',
     date: new Date(now.getTime() + 86400000).toISOString(), 
@@ -191,7 +209,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
     description: 'Standard season match. Arrive 30 minutes early for warmups.',
     isTournament: false, isTournamentPaid: false, userRsvps: { [userId]: 'going' },
     isDemo: true, createdAt: now.toISOString(), lastUpdated: now.toISOString()
-  });
+  }));
 
   // Unified Match Ledger (Recent results)
   const matches = [
@@ -200,64 +218,63 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
   ];
   matches.forEach((m, i) => {
     const gid = `demo_game_${teamId}_${i}`;
-    batch.set(doc(db, 'teams', teamId, 'games', gid), {
+    batch.set(doc(db, 'teams', teamId, 'games', gid), clean({
       id: gid, teamId, opponent: m.opponent, result: m.result, myScore: m.myScore, opponentScore: m.opponentScore,
       date: new Date(now.getTime() - 86400000 * m.offsetDays).toISOString(),
       location: 'City Arena Central', notes: isPro ? 'Exceptional execution of the primary tactical play.' : '', isDemo: true, createdAt: now.toISOString()
-    });
+    }));
   });
 
   // Unified Drills (only for Pro/Club)
   if (isPro) {
     const did = `demo_drill_${teamId}_1`;
-    batch.set(doc(db, 'teams', teamId, 'drills', did), {
+    batch.set(doc(db, 'teams', teamId, 'drills', did), clean({
       id: did, teamId, title: 'Full Court Coordination Drill',
       description: 'Defensive coordination focusing on zone transitions and communication protocols.',
       videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       thumbnailUrl: 'https://picsum.photos/seed/drill_v3/400/300',
       primaryMedia: 'video', createdAt: now.toISOString(), isDemo: true
-    });
+    }));
   }
 
   // Unified Files (only for Pro/Club)
   if (isPro) {
     const fid = `demo_file_${teamId}_1`;
-    batch.set(doc(db, 'teams', teamId, 'files', fid), {
+    batch.set(doc(db, 'teams', teamId, 'files', fid), clean({
       id: fid, teamId, name: 'Season Playbook Master.pdf', type: 'pdf', size: '2.4 MB',
       url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
       uploadedBy: 'Coach Sam', uploaderId: 'system', date: now.toISOString(), category: 'file', isDemo: true
-    });
+    }));
   }
 
   // Unified Broadcast Post (only for Pro/Club)
   if (isPro) {
     const pid = `demo_post_${teamId}_1`;
-    batch.set(doc(db, 'teams', teamId, 'feedPosts', pid), {
+    batch.set(doc(db, 'teams', teamId, 'feedPosts', pid), clean({
       id: pid, teamId, type: 'user', content: 'Huge win recently squad! Let’s keep this momentum for the Regional Championship.',
       author: { name: 'Coach Alex', avatar: 'https://picsum.photos/seed/coach_v3/100/100' }, authorId: 'demo_coach', 
       createdAt: now.toISOString(), likes: [userId], isDemo: true
-    });
+    }));
   }
 
   // Unified Alerts
   const aid = `demo_alert_${teamId}_1`;
-  batch.set(doc(db, 'teams', teamId, 'alerts', aid), {
+  batch.set(doc(db, 'teams', teamId, 'alerts', aid), clean({
     id: aid, teamId, title: 'Regional Championship Update',
     message: 'Review the updated tournament bracket. Pool play starts at 09:00 AM.',
     createdBy: 'system', createdAt: now.toISOString(), isDemo: true
-  });
+  }));
 
   // Unified Chat
   const cid = `demo_chat_${teamId}`;
-  batch.set(doc(db, 'teams', teamId, 'groupChats', cid), {
+  batch.set(doc(db, 'teams', teamId, 'groupChats', cid), clean({
     id: cid, teamId, name: 'Tactical Command Hub', memberIds: [userId], createdBy: userId, 
     createdAt: now.toISOString(), lastMessage: 'Review the Regional Championship bracket before tomorrow.', unread: 0, isDemo: true
-  });
+  }));
 
   try {
     await batch.commit();
   } catch (error: any) {
-    // Return error to parent for better contextual handling
     throw error;
   }
 }
@@ -276,11 +293,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const role = (isPlayerDemo || isParentDemo) ? 'Member' : 'Admin';
   const position = isPlayerDemo ? 'Player' : (isParentDemo ? 'Parent' : (planId === 'squad_organization' ? 'Club Manager' : 'Coach'));
   
-  // Set explicit user role for state logic
   const userRole = isPlayerDemo ? 'adult_player' : (isParentDemo ? 'parent' : 'coach');
-
-  // CRITICAL QUOTA LOGIC: For non-admin demos, the owner should be a virtual admin
-  // so the guest user's 1-seat personal quota remains empty.
   const ownerId = (isPlayerDemo || isParentDemo) ? 'system_demo_admin' : userId;
 
   const teamName = planId === 'starter_squad' ? 'Guest Grassroots Stars' : 
@@ -293,7 +306,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const batch = writeBatch(db);
   const nowStr = new Date().toISOString();
   
-  batch.set(doc(db, 'users', userId), {
+  batch.set(doc(db, 'users', userId), clean({
     id: userId, 
     fullName: isPlayerDemo ? 'Guest Teammate' : (isParentDemo ? 'Guest Guardian' : 'Guest Coordinator'), 
     email: isPlayerDemo ? 'teammate@thesquad.pro' : (isParentDemo ? 'parent@thesquad.pro' : 'guest@thesquad.pro'),
@@ -306,28 +319,29 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     proTeamLimit: planId === 'squad_organization' ? 15 : 1,
     planSource: 'free', 
     tournamentCredits: planId === 'tournament_pro' ? 1 : 0 
-  }, { merge: true });
+  }), { merge: true });
 
-  batch.set(doc(db, 'teams', teamId), {
+  batch.set(doc(db, 'teams', teamId), clean({
     id: teamId, teamName, teamCode: code, createdBy: ownerId, ownerUserId: ownerId,
     createdAt: nowStr,
     isPro, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
-    description: planId === 'squad_organization' ? 'Enterprise organization management demo.' : 'Professional coordination suite demo.'
-  });
+    description: planId === 'squad_organization' ? 'Enterprise organization management demo.' : 'Professional coordination suite demo.',
+    teamLogoUrl: '', heroImageUrl: ''
+  }));
   
-  batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), {
+  batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), clean({
     userId, teamId, teamName, teamCode: code, role, 
     isPro, planId: actualPlanId, isDemo: true, 
     joinedAt: nowStr, createdBy: ownerId, ownerUserId: ownerId,
-    sport: 'Multi-Sport'
-  });
+    sport: 'Multi-Sport', teamLogoUrl: ''
+  }));
 
-  batch.set(doc(db, 'teams', teamId, 'members', userId), {
+  batch.set(doc(db, 'teams', teamId, 'members', userId), clean({
     id: userId, userId, teamId, name: isPlayerDemo ? 'Guest Teammate' : (isParentDemo ? 'Guest Guardian' : 'Guest Coordinator'), 
     role, position, jersey: isPlayerDemo ? '22' : 'HQ',
     avatar: `https://picsum.photos/seed/${userId}/150/150`, joinedAt: nowStr,
     phone: '(555) 000-9999', amountOwed: 0, feesPaid: true, isDemo: true
-  });
+  }));
 
   try {
     await batch.commit();

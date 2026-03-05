@@ -18,7 +18,7 @@ service cloud.firestore {
     }
 
     function isDemoTeam(teamId) {
-      return teamId != null && teamId.size() >= 5 && teamId[0:5] == 'demo_';
+      return teamId != null && teamId.startsWith('demo_');
     }
 
     function isAdmin(teamId) {
@@ -134,13 +134,10 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Safe read allows listing for demo environments and staff
-        allow read: if isSignedIn() && (
-          isDemoTeam(teamId) || 
-          isSuperAdmin() || 
-          request.auth.uid in resource.data.get('memberIds', []) ||
-          exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
-        );
+        // Explicit list and get permissions for better list query performance
+        allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
+        allow get: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || request.auth.uid in resource.data.get('memberIds', []) || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
+        
         allow create: if isSignedIn();
         allow update: if isSignedIn() && (isDemoTeam(teamId) || isAdmin(teamId) || request.auth.uid in resource.data.get('memberIds', []));
         
