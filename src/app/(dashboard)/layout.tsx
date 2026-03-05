@@ -1,4 +1,3 @@
-
 "use client";
 
 import Shell from '@/components/layout/Shell';
@@ -60,7 +59,7 @@ export default function DashboardLayout({
 
   /**
    * HYDRATION GUARD: Ensuring the initial render handshake between server and client.
-   * To prevent reconciliation errors, we render a unified loading state until the client is mounted.
+   * Standardized loading text to "Authenticating..." to prevent reconciliation mismatches.
    */
   if (!isClient || isUserLoading || !user || isSeedingDemo) {
     return (
@@ -73,7 +72,7 @@ export default function DashboardLayout({
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              Initialising Environment...
+              Authenticating...
             </p>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
               Synchronising Elite Infrastructure
