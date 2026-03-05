@@ -531,9 +531,49 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       
       batch.update(doc(db, 'players', playerId), { joinedTeamIds: arrayUnion(tid) });
       
-      batch.set(doc(db, 'teams', tid, 'members', playerId), clean({ id: playerId, userId: firebaseUser.uid, playerId, teamId: tid, role: 'Member', position, name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, avatar: '', isMinor: !!pData?.isMinor, joinedAt: new Date().toISOString(), jersey: 'TBD' }));
+      // Add the child/player to the roster
+      batch.set(doc(db, 'teams', tid, 'members', playerId), clean({ 
+        id: playerId, 
+        userId: firebaseUser.uid, 
+        playerId, 
+        teamId: tid, 
+        role: 'Member', 
+        position, 
+        name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, 
+        avatar: '', 
+        isMinor: !!pData?.isMinor, 
+        joinedAt: new Date().toISOString(), 
+        jersey: 'TBD' 
+      }));
       
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: tData.teamName || 'Unnamed Team', teamCode: (code || '').toUpperCase(), type: tData.type || 'adult', role: 'Member', ownerUserId: tData.ownerUserId || '', isPro: !!tData.isPro, planId: tData.planId || 'starter_squad', teamLogoUrl: tData.teamLogoUrl || '', sport: tData.sport || 'Multi-Sport' }));
+      // IF joining for a child, ALSO add the guardian to the roster to ensure channel/read access
+      if (playerId !== `p_${firebaseUser.uid}`) {
+        batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
+          id: firebaseUser.uid,
+          userId: firebaseUser.uid,
+          playerId: 'guardian',
+          teamId: tid,
+          role: 'Member',
+          position: 'Parent',
+          name: userProfile?.name || 'Guardian',
+          avatar: userProfile?.avatar || '',
+          joinedAt: new Date().toISOString(),
+          jersey: 'HQ'
+        }));
+      }
+      
+      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ 
+        teamId: tid, 
+        teamName: tData.teamName || 'Unnamed Team', 
+        teamCode: (code || '').toUpperCase(), 
+        type: tData.type || 'adult', 
+        role: 'Member', 
+        ownerUserId: tData.ownerUserId || '', 
+        isPro: !!tData.isPro, 
+        planId: tData.planId || 'starter_squad', 
+        teamLogoUrl: tData.teamLogoUrl || '', 
+        sport: tData.sport || 'Multi-Sport' 
+      }));
       
       await batch.commit();
       toast({ title: "Welcome to the Squad!" });

@@ -1,10 +1,11 @@
+
 "use client";
 
 import Shell from '@/components/layout/Shell';
 import { AlertOverlay } from '@/components/layout/AlertOverlay';
 import { useUser } from '@/firebase';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { RevenueCatPaywall } from '@/components/RevenueCatPaywall';
 import { QuotaResolutionOverlay } from '@/components/layout/QuotaResolutionOverlay';
 import { useTeam } from '@/components/providers/team-provider';
@@ -19,14 +20,21 @@ export default function DashboardLayout({
   const { teams, isTeamsLoading, isSeedingDemo, user: userProfile } = useTeam();
   const router = useRouter();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isUserLoading && !user && mounted) {
       router.push('/login');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, mounted]);
 
   useEffect(() => {
+    if (!mounted) return;
+    
     // Standard checks only proceed if seeder is inactive
     if (isSeedingDemo) return;
 
@@ -54,9 +62,10 @@ export default function DashboardLayout({
         router.push('/teams/join');
       }
     }
-  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router]);
+  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted]);
 
-  if (isUserLoading || !user || isSeedingDemo) {
+  // Use mounted check to prevent hydration mismatch
+  if (!mounted || isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
