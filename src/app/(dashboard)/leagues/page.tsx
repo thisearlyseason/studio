@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -141,9 +140,17 @@ export default function LeaguesPage() {
   const leagues = useMemo(() => rawLeagues || [], [rawLeagues]);
 
   const invitesQuery = useMemoFirebase(() => {
-    if (!user?.email || !db) return null;
-    return query(collection(db, 'leagues', 'global', 'invites'), where('invitedEmail', '==', user.email.toLowerCase()), where('status', '==', 'pending'));
-  }, [user?.email, db]);
+    // CRITICAL: Queries on root collections with per-user filters MUST match security rules.
+    // Anonymous users (demos) don't have emails in their Auth Token, so the rule will reject
+    // a query filtered by 'guest@thesquad.pro' if the rule uses request.auth.token.email.
+    if (!user?.email || !db || user?.isDemo) return null;
+    
+    return query(
+      collection(db, 'leagues', 'global', 'invites'), 
+      where('invitedEmail', '==', user.email.toLowerCase()), 
+      where('status', '==', 'pending')
+    );
+  }, [user?.email, db, user?.isDemo]);
 
   const { data: rawInvites } = useCollection<LeagueInvite>(invitesQuery);
   const invites = useMemo(() => rawInvites || [], [rawInvites]);
