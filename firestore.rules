@@ -14,8 +14,7 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       return isSignedIn() && 
-             request.auth.token.get('email', '') != null &&
-             (request.auth.token.email == 'thisearlyseason@gmail.com' || request.auth.token.email == 'test@gmail.com');
+             request.auth.token.get('email', '') in ['thisearlyseason@gmail.com', 'test@gmail.com'];
     }
 
     function isDemoTeam(teamId) {
@@ -136,7 +135,12 @@ service cloud.firestore {
 
       match /groupChats/{chatId} {
         // Safe read allows listing for demo environments and staff
-        allow read: if isSignedIn() && (isDemoTeam(teamId) || isAdmin(teamId) || request.auth.uid in resource.data.get('memberIds', []));
+        allow read: if isSignedIn() && (
+          isDemoTeam(teamId) || 
+          isSuperAdmin() || 
+          request.auth.uid in resource.data.get('memberIds', []) ||
+          exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
+        );
         allow create: if isSignedIn();
         allow update: if isSignedIn() && (isDemoTeam(teamId) || isAdmin(teamId) || request.auth.uid in resource.data.get('memberIds', []));
         
@@ -166,12 +170,14 @@ service cloud.firestore {
       match /registrationEntries/{entryId} {
         allow read: if isSignedIn() && (
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
-          resource.data.get('assigned_team_owner_id', '') == request.auth.uid
+          resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
+          isDemoTeam(resource.data.get('assigned_team_id', ''))
         );
         allow create: if true; 
         allow update: if isSignedIn() && (
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
-          resource.data.get('assigned_team_owner_id', '') == request.auth.uid
+          resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
+          isDemoTeam(resource.data.get('assigned_team_id', ''))
         );
         allow delete: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid);
       }
