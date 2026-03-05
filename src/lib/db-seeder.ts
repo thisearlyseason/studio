@@ -20,6 +20,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 
 /**
  * Sanitizes objects for Firestore by removing undefined values recursively.
+ * Ensures data integrity for all demo and initialization writes.
  */
 const clean = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(v => clean(v));
@@ -348,6 +349,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     await seedDemoData(db, teamId, planId, userId);
     return teamId;
   } catch (error: any) {
+    // Provide the actual Firestore Error message for better debugging
     const contextualError = new FirestorePermissionError({
       path: `teams/${teamId}`,
       operation: 'write',

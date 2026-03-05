@@ -59,7 +59,7 @@ export default function DashboardLayout({
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted]);
 
   // Consolidated Hydration Guard
-  // Returns the identical loading state during the initial handshake
+  // Standardized rendering logic ensures server and client initial render match
   if (!mounted || isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
