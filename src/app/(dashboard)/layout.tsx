@@ -63,7 +63,6 @@ export default function DashboardLayout({
    * To prevent reconciliation errors, we render a unified loading state until the client is mounted.
    */
   if (!isClient || isUserLoading || !user || isSeedingDemo) {
-    // Both server and client initial render will show this exact HTML
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
@@ -74,10 +73,10 @@ export default function DashboardLayout({
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              Authenticating...
+              Initialising Environment...
             </p>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-              Verifying Elite Credentials
+              Synchronising Elite Infrastructure
             </p>
           </div>
         </div>

@@ -21,7 +21,7 @@ service cloud.firestore {
 
     // Robust demo check
     function isDemoTeam(tid) {
-      return tid != null && tid.matches('^demo_.*');
+      return tid != null && tid.size() >= 5 && tid[0:5] == 'demo_';
     }
 
     function isTeamMember(teamId) {
@@ -147,12 +147,14 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Query-safe listing logic
-        // Any signed-in user can list chats if the query is filtered by memberIds or if it's a demo team
+        // Splitting list rules to ensure query-safe static evaluation
+        // Branch 1: Demo authorization via path prefix
+        allow list: if isSignedIn() && isDemoTeam(teamId);
+        
+        // Branch 2: Standard authorization via membership query
         allow list: if isSignedIn() && (
-          isDemoTeam(teamId) || 
           isSuperAdmin() || 
-          request.auth.uid in resource.data.memberIds
+          request.auth.uid in resource.data.get('memberIds', [])
         );
         
         allow get: if isSignedIn() && (
