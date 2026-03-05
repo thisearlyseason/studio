@@ -19,10 +19,12 @@ service cloud.firestore {
 
     function isDemoTeam(teamId) {
       // Robust prefix check for demo/guest environments
+      // Slicing is safer than matches for complex query evaluation
       return teamId != null && teamId.size() >= 5 && teamId[0:5] == 'demo_';
     }
 
     function isAdmin(teamId) {
+      // Prioritize demo and superadmin checks to avoid expensive exists() calls for anonymous users
       return isSignedIn() && (
         isDemoTeam(teamId) ||
         isSuperAdmin() ||
@@ -51,30 +53,30 @@ service cloud.firestore {
 
     match /players/{playerId} {
       allow read: if isSignedIn() && (
-        resource.data.parentId == request.auth.uid || 
-        resource.data.userId == request.auth.uid ||
+        resource.data.get('parentId', '') == request.auth.uid || 
+        resource.data.get('userId', '') == request.auth.uid ||
         isSuperAdmin()
       );
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (
-        resource.data.parentId == request.auth.uid || 
-        resource.data.userId == request.auth.uid
+        resource.data.get('parentId', '') == request.auth.uid || 
+        resource.data.get('userId', '') == request.auth.uid
       );
     }
 
     match /families/{familyId} {
       allow read, write: if isSignedIn() && (
-        resource == null || resource.data.parentId == request.auth.uid || isSuperAdmin()
+        resource == null || resource.data.get('parentId', '') == request.auth.uid || isSuperAdmin()
       );
     }
 
     match /waivers/{waiverId} {
       allow read: if isSignedIn() && (
-        resource.data.signedByUserId == request.auth.uid || isSuperAdmin()
+        resource.data.get('signedByUserId', '') == request.auth.uid || isSuperAdmin()
       );
       allow create: if isSignedIn() && (
-        (request.resource.data.signedByRole == 'player' && request.resource.data.signedByUserId == request.auth.uid) ||
-        (request.resource.data.signedByRole == 'parent' && request.resource.data.signedByUserId == request.auth.uid)
+        (request.resource.data.get('signedByRole', '') == 'player' && request.resource.data.get('signedByUserId', '') == request.auth.uid) ||
+        (request.resource.data.get('signedByRole', '') == 'parent' && request.resource.data.get('signedByUserId', '') == request.auth.uid)
       );
     }
 
@@ -98,7 +100,7 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow write: if isDemoTeam(teamId) || isAdmin(teamId) || isOwner(memberId) || 
                      (exists(/databases/$(database)/documents/players/$(memberId)) && 
-                      get(/databases/$(database)/documents/players/$(memberId)).data.parentId == request.auth.uid);
+                      get(/databases/$(database)/documents/players/$(memberId)).data.get('parentId', '') == request.auth.uid);
       }
 
       match /events/{eventId} {
@@ -137,7 +139,7 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Explicit list and get permissions for better list query performance
+        // Separated list and get for robustness
         allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
         allow get: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || request.auth.uid in resource.data.get('memberIds', []) || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
         
