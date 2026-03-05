@@ -39,9 +39,6 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInYears } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 function WaiverComplianceHub({ child, isOpen, onOpenChange }: { child: PlayerProfile, isOpen: boolean, onOpenChange: (o: boolean) => void }) {

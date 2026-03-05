@@ -18,8 +18,8 @@ service cloud.firestore {
     }
 
     function isDemoTeam(teamId) {
-      // Robust prefix check using string slicing
-      return teamId != null && teamId.size() >= 5 && teamId[0:5] == 'demo_';
+      // Robust prefix check using startsWith
+      return teamId != null && teamId.startsWith('demo_');
     }
 
     function isAdmin(teamId) {
