@@ -27,7 +27,8 @@ export default function DashboardLayout({
   }, []);
 
   useEffect(() => {
-    if (!isUserLoading && !user && mounted) {
+    if (!mounted) return;
+    if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [user, isUserLoading, router, mounted]);
@@ -65,6 +66,7 @@ export default function DashboardLayout({
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted]);
 
   // Use mounted check to prevent hydration mismatch
+  // Client and Server must agree on the first render (which is !mounted)
   if (!mounted || isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">

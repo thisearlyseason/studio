@@ -310,6 +310,7 @@ const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
 /**
  * Sanitizes objects for Firestore by removing undefined values recursively.
+ * Firestore does not support 'undefined' values.
  */
 const clean = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(v => clean(v));
@@ -615,7 +616,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     updateTeamPlan: async (teamId: string, planId: string) => {
       const plan = plans.find(p => p.id === planId);
       if (!plan) return;
-      await updateDoc(doc(db, 'teams', teamId), { planId, isPro: planId !== 'starter_squad' });
+      await updateDoc(doc(db, 'teams', teamId), clean({ planId, isPro: planId !== 'starter_squad' }));
     },
     manageSubscription: () => { window.open('https://billing.thesquad.pro', '_blank'); },
     resetSeasonData: async () => { if (!activeTeam) return; toast({ title: "Resetting Season..." }); },
@@ -648,15 +649,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
     updateTeamHero: async (imageUrl: string) => {
       if (!activeTeam) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id), { heroImageUrl: imageUrl || '' });
+      await updateDoc(doc(db, 'teams', activeTeam.id), clean({ heroImageUrl: imageUrl || '' }));
     },
     resolveQuota: async (selectedIds: string[]) => {
       if (!firebaseUser) return;
       const batch = writeBatch(db);
       teams.filter(t => t.ownerUserId === firebaseUser.uid).forEach(t => {
         const isSelected = selectedIds.includes(t.id);
-        batch.update(doc(db, 'teams', t.id), { isPro: isSelected, planId: isSelected ? t.planId : 'starter_squad' });
-        batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), { isPro: isSelected, planId: isSelected ? t.planId : 'starter_squad' });
+        batch.update(doc(db, 'teams', t.id), clean({ isPro: isSelected, planId: isSelected ? t.planId : 'starter_squad' }));
+        batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), clean({ isPro: isSelected, planId: isSelected ? t.planId : 'starter_squad' }));
       });
       await batch.commit();
     },
