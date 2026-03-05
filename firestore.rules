@@ -13,6 +13,7 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       // Safe check for email to handle anonymous/demo users where email is null
+      // Use get() with a default to prevent null pointer evaluation crashes
       return isSignedIn() && 
         (request.auth.token.get('email', '') == 'thisearlyseason@gmail.com' || 
          request.auth.token.get('email', '') == 'test@gmail.com');
@@ -24,6 +25,7 @@ service cloud.firestore {
 
     function isAdmin(teamId) {
       // Prioritize demo check to avoid get() failures during batch initialization
+      // Rules evaluate lazily; if isDemoTeam is true, expensive lookups are skipped.
       return isSignedIn() && (
         isSuperAdmin() ||
         isDemoTeam(teamId) ||
@@ -94,16 +96,17 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin(teamId) || isDemoTeam(teamId);
+      // Explicitly allow writes for demo squads to handle anonymous guest initialization
+      allow update, delete: if isDemoTeam(teamId) || isAdmin(teamId);
 
       match /members/{memberId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isOwner(memberId) || isDemoTeam(teamId);
+        allow write: if isDemoTeam(teamId) || isAdmin(teamId) || isOwner(memberId);
       }
 
       match /events/{eventId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
+        allow write: if isDemoTeam(teamId) || isAdmin(teamId);
         
         match /registrations/{regId} {
           allow read, write: if isSignedIn();
@@ -112,27 +115,27 @@ service cloud.firestore {
 
       match /alerts/{alertId} {
         allow read: if isSignedIn();
-        allow create, update: if isAdmin(teamId) || isDemoTeam(teamId);
+        allow create, update: if isDemoTeam(teamId) || isAdmin(teamId);
       }
 
       match /drills/{drillId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
+        allow write: if isDemoTeam(teamId) || isAdmin(teamId);
       }
 
       match /files/{fileId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
+        allow write: if isDemoTeam(teamId) || isAdmin(teamId);
       }
 
       match /feedPosts/{postId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
+        allow write: if isDemoTeam(teamId) || isAdmin(teamId);
         
         match /comments/{commentId} {
           allow read: if isSignedIn();
           allow create: if isSignedIn();
-          allow delete: if isAdmin(teamId) || resource.data.authorId == request.auth.uid || isDemoTeam(teamId);
+          allow delete: if isDemoTeam(teamId) || isAdmin(teamId) || resource.data.authorId == request.auth.uid;
         }
       }
 
@@ -150,7 +153,7 @@ service cloud.firestore {
 
       match /games/{gameId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
+        allow write: if isDemoTeam(teamId) || isAdmin(teamId);
       }
     }
 
@@ -179,14 +182,14 @@ service cloud.firestore {
 
       match /invites/{inviteId} {
         allow read: if isSignedIn() && (
-          resource.data.get('invitedEmail', '').lower() == request.auth.token.get('email', '').lower() ||
+          request.auth.token.get('email', '').lower() == resource.data.get('invitedEmail', '').lower() ||
           (resource.data.get('invitedEmail', '').lower().startsWith('guest@') && isSignedIn()) ||
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
           isSuperAdmin()
         );
         allow create: if isSignedIn();
         allow update: if isSignedIn() && (
-          resource.data.get('invitedEmail', '').lower() == request.auth.token.get('email', '').lower() ||
+          request.auth.token.get('email', '').lower() == resource.data.get('invitedEmail', '').lower() ||
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid
         );
       }
