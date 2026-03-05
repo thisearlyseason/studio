@@ -58,8 +58,26 @@ export default function DashboardLayout({
     }
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted]);
 
-  // Strict hydration guard
-  if (!mounted || isUserLoading || !user || isSeedingDemo) {
+  // Strict hydration guard - ensure server and client render identical skeleton initially
+  if (!mounted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-6">
+          <div className="bg-primary/10 p-6 rounded-[2.5rem] shadow-xl relative">
+            <div className="h-16 w-16 flex items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-black uppercase tracking-widest text-primary">Authenticating...</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">Verifying Elite Credentials</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">

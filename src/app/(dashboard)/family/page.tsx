@@ -25,7 +25,8 @@ import {
   ArrowRight,
   ClipboardCheck,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import { 
   Dialog, 
