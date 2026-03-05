@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef } from 'react';
@@ -53,6 +54,7 @@ export type PlayerProfile = {
   userId: string | null;
   hasLogin: boolean;
   createdAt: string;
+  joinedTeamIds?: string[];
 };
 
 export type Team = {
@@ -244,6 +246,7 @@ interface TeamContextType {
   createNewTeam: (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => Promise<string>;
   joinTeamWithCode: (code: string, playerId: string, position: string) => Promise<boolean>;
   registerChild: (firstName: string, lastName: string, dob: string) => Promise<string>;
+  upgradeChildToLogin: (playerId: string, email: string) => Promise<void>;
   myChildren: PlayerProfile[];
   signWaiver: (playerId: string, version: string) => Promise<void>;
   plans: any[];
@@ -354,14 +357,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!seedParam || !firebaseUser?.uid || isSeedingDemo) return;
 
     const seedKey = `${firebaseUser.uid}_${seedParam}`;
-    // HARD RE-ENTRANCY GUARD: Use sessionStorage to survive component remounts during error throwing
     if (hasStartedSeeding.current === seedKey || sessionStorage.getItem(`squad_seeded_${seedKey}`)) return;
 
     const runSeed = async () => {
       hasStartedSeeding.current = seedKey;
       setIsSeedingDemo(true);
       
-      // CRITICAL: Clear URL immediately to prevent re-entrancy loops on failed writes
       const url = new URL(window.location.href);
       url.searchParams.delete('seed_demo');
       window.history.replaceState({}, '', url.toString());
@@ -373,7 +374,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error("Seed failed", e);
       } finally {
-        // Delay resetting state to allow Firestore cache to catch up
         setTimeout(() => setIsSeedingDemo(false), 1000);
       }
     };
@@ -488,16 +488,29 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const tDoc = snap.docs[0]; const tid = tDoc.id; const tData = tDoc.data();
       const playerSnap = await getDoc(doc(db, 'players', playerId)); const pData = playerSnap.data();
       const batch = writeBatch(db);
+      
+      // Update Child's joined teams list
+      batch.update(doc(db, 'players', playerId), { joinedTeamIds: arrayUnion(tid) });
+      
+      // Add Child to Team Roster
       batch.set(doc(db, 'teams', tid, 'members', playerId), { id: playerId, userId: firebaseUser.uid, playerId, teamId: tid, role: 'Member', position, name: `${pData?.firstName} ${pData?.lastName}`, avatar: '', isMinor: pData?.isMinor, joinedAt: new Date().toISOString(), jersey: 'TBD' });
+      
+      // Add Parent to Team Membership (if they aren't already there)
       batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { teamId: tid, teamName: tData.teamName, teamCode: code.toUpperCase(), type: tData.type, role: 'Member', ownerUserId: tData.ownerUserId, isPro: tData.isPro, planId: tData.planId });
+      
       await batch.commit();
       toast({ title: "Welcome to the Squad!" });
       return true;
     },
     registerChild: async (firstName: string, lastName: string, dob: string) => {
       if (!firebaseUser) return '';
-      const docRef = await addDoc(collection(db, 'players'), { firstName, lastName, dateOfBirth: dob, isMinor: true, parentId: firebaseUser.uid, hasLogin: false, createdAt: new Date().toISOString() });
+      const docRef = await addDoc(collection(db, 'players'), { firstName, lastName, dateOfBirth: dob, isMinor: true, parentId: firebaseUser.uid, hasLogin: false, createdAt: new Date().toISOString(), joinedTeamIds: [] });
       return docRef.id;
+    },
+    upgradeChildToLogin: async (playerId: string, email: string) => {
+      if (!firebaseUser) return;
+      await updateDoc(doc(db, 'players', playerId), { hasLogin: true, inviteEmail: email.toLowerCase() });
+      toast({ title: "Invite Dispatched", description: "Direct login instructions sent." });
     },
     myChildren,
     signWaiver: async (playerId: string, version: string) => {

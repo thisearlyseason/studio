@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,22 +13,16 @@ service cloud.firestore {
     }
     
     function isSuperAdmin() {
-      // Extremely safe check for email to handle anonymous/demo users where email is null
-      // Use map-safe check to prevent rule evaluation crashes
       return isSignedIn() && 
              'email' in request.auth.token && 
              (request.auth.token.email == 'thisearlyseason@gmail.com' || request.auth.token.email == 'test@gmail.com');
     }
 
     function isDemoTeam(teamId) {
-      // Document IDs for guest demos start with 'demo_'
-      // Use matches for maximum compatibility in rules v2
       return teamId != null && teamId.matches('^demo_.*');
     }
 
     function isAdmin(teamId) {
-      // Prioritize demo check to avoid get() failures during batch initialization
-      // Rules evaluate lazily; if isDemoTeam is true, expensive lookups are skipped.
       return isSignedIn() && (
         isDemoTeam(teamId) ||
         isSuperAdmin() ||
@@ -97,8 +92,6 @@ service cloud.firestore {
 
     match /teams/{teamId} {
       allow read: if isSignedIn();
-      // Explicitly allow all writes for demo squads to handle anonymous guest initialization
-      // This bypasses strict ownership checks for documents starting with 'demo_'
       allow write: if isDemoTeam(teamId);
       allow create: if isSignedIn();
       allow update, delete: if isDemoTeam(teamId) || isAdmin(teamId);
