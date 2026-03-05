@@ -151,11 +151,9 @@ service cloud.firestore {
       match /groupChats/{chatId} {
         // Query-safe listing for coordination channels
         // prioritized demo check for resilient anonymous listing
-        allow list: if isSignedIn() && (
-          isDemoTeam(teamId) || 
-          isSuperAdmin() || 
-          request.auth.uid in resource.data.memberIds
-        );
+        // Splitting into separate allow statements ensures query-safety for OR conditions
+        allow list: if isSignedIn() && isDemoTeam(teamId);
+        allow list: if isSignedIn() && (isSuperAdmin() || request.auth.uid in resource.data.memberIds);
         
         allow get: if isSignedIn() && (
           isDemoTeam(teamId) || 

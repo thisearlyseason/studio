@@ -20,21 +20,21 @@ export default function DashboardLayout({
   const { teams, isTeamsLoading, isSeedingDemo, user: userProfile } = useTeam();
   const router = useRouter();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!isClient) return;
     if (!isUserLoading && !user) {
       router.push('/login');
     }
-  }, [user, isUserLoading, router, mounted]);
+  }, [user, isUserLoading, router, isClient]);
 
   useEffect(() => {
-    if (!mounted || isSeedingDemo || isTeamsLoading || !user) return;
+    if (!isClient || isSeedingDemo || isTeamsLoading || !user) return;
 
     // Force demo users to land on the feed first
     if (userProfile?.isDemo && pathname === '/') {
@@ -56,23 +56,14 @@ export default function DashboardLayout({
         router.push('/teams/join');
       }
     }
-  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted]);
+  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, isClient]);
 
-  // Hydration-safe loading logic: Ensure server and initial client render match perfectly
-  // We use a strictly static message during the hydration phase (!mounted)
-  const showLoadingState = !mounted || isUserLoading || !user || isSeedingDemo;
-
-  if (showLoadingState) {
-    // CRITICAL: On the server and during client hydration, mounted is false.
-    // Both MUST render "Authenticating..." to avoid hydration mismatches.
-    const loadingTitle = !mounted 
-      ? "Authenticating..." 
-      : (isSeedingDemo ? "Seeding Demo Environment..." : "Initialising Environment...");
-    
-    const loadingSubtitle = !mounted
-      ? "Verifying Elite Credentials"
-      : (isSeedingDemo ? "Building Guest Squad Data" : "Synchronising Elite Infrastructure");
-
+  /**
+   * HYDRATION GUARD: Ensuring the initial render handshake between server and client.
+   * To prevent reconciliation errors, we render a unified loading state until the client is mounted.
+   */
+  if (!isClient || isUserLoading || !user || isSeedingDemo) {
+    // Both server and client initial render will show this exact HTML
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
@@ -83,10 +74,10 @@ export default function DashboardLayout({
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              {loadingTitle}
+              Authenticating...
             </p>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-              {loadingSubtitle}
+              Verifying Elite Credentials
             </p>
           </div>
         </div>

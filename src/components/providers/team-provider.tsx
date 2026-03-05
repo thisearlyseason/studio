@@ -547,8 +547,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         jersey: 'TBD' 
       }));
       
-      // AUTHORIZATION: Ensure the guardian is ALSO added to the team roster
-      // This grants the 'Member' permissions needed to list chats and hubs in security rules
+      /**
+       * AUTHORIZATION SYNC: Ensure the session user (Guardian/Parent) is explicitly 
+       * added to the team roster. This satisfies "list" security rules which require 
+       * existence in /teams/{id}/members for coordination access.
+       */
       if (playerId !== `p_${firebaseUser.uid}`) {
         batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
           id: firebaseUser.uid,
@@ -781,8 +784,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       }
       await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), clean({ assigned_team_id: tid, assigned_team_owner_id: ownerId, status: tid ? 'assigned' : 'pending' }));
     },
-    toggleRegistrationPaymentStatus: async (lid: string, eid: string, p: boolean) => {
-      await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), { payment_received: !!p });
+    toggleRegistrationPaymentStatus: async (lid: string, entryId: string, p: boolean) => {
+      await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', entryId), { payment_received: !!p });
     },
     submitRegistrationEntry: async (lid: string, a: any, v: number) => {
       await addDoc(collection(db, 'leagues', lid, 'registrationEntries'), clean({ league_id: lid, answers: a || {}, form_version: v || 0, status: 'pending', created_at: new Date().toISOString(), payment_received: false }));
