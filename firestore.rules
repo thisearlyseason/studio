@@ -24,10 +24,11 @@ service cloud.firestore {
     function isAdmin(teamId) {
       return isSignedIn() && (
         isSuperAdmin() ||
+        isDemoTeam(teamId) ||
         (exists(/databases/$(database)/documents/teams/$(teamId)) && (
-          get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+          get(/databases/$(database)/documents/teams/$(teamId)).data.get('ownerUserId', '') == request.auth.uid ||
           (exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin')
+           get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.get('role', '') == 'Admin')
         ))
       );
     }
@@ -37,12 +38,14 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.get('assigned_team_owner_id', '') == request.auth.uid || 
         isSuperAdmin() ||
-        resource.data.get('assigned_team_id', '').lower().startsWith('demo_')
+        resource.data.get('assigned_team_id', '').startsWith('demo_')
       );
       allow update: if isSignedIn() && (
         resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
-        isSuperAdmin()
+        isSuperAdmin() ||
+        resource.data.get('assigned_team_id', '').startsWith('demo_')
       );
+      allow delete: if isSuperAdmin();
     }
 
     // Legally Safe Collections for Minors
@@ -156,33 +159,33 @@ service cloud.firestore {
       
       match /registration/{config} {
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
+        allow write: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid);
       }
 
       match /registrationEntries/{entryId} {
         allow read: if isSignedIn() && (
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
           resource.data.get('assigned_team_owner_id', '') == request.auth.uid
         );
         allow create: if true; // Public signups
         allow update: if isSignedIn() && (
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
           resource.data.get('assigned_team_owner_id', '') == request.auth.uid
         );
-        allow delete: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
+        allow delete: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid);
       }
 
       match /invites/{inviteId} {
         allow read: if isSignedIn() && (
           resource.data.get('invitedEmail', '').lower() == request.auth.token.get('email', '').lower() ||
           (resource.data.get('invitedEmail', '').lower().startsWith('guest@') && isSignedIn()) ||
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
           isSuperAdmin()
         );
         allow create: if isSignedIn();
         allow update: if isSignedIn() && (
           resource.data.get('invitedEmail', '').lower() == request.auth.token.get('email', '').lower() ||
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid
         );
       }
     }
