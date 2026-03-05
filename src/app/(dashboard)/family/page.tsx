@@ -42,6 +42,7 @@ import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 function WaiverComplianceHub({ child, isOpen, onOpenChange }: { child: PlayerProfile, isOpen: boolean, onOpenChange: (o: boolean) => void }) {
   const { teams, signWaiver } = useTeam();
@@ -92,7 +93,7 @@ function WaiverComplianceHub({ child, isOpen, onOpenChange }: { child: PlayerPro
           </div>
 
           <div className="bg-primary/5 p-6 rounded-[2rem] border-2 border-dashed border-primary/20 space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <ShieldAlert className="h-5 w-5 text-primary" />
               <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Master Agreement</h4>
             </div>
