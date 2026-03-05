@@ -20,7 +20,7 @@ service cloud.firestore {
     }
 
     function isDemoTeam(teamId) {
-      return teamId != null && teamId.matches('^demo_.*');
+      return teamId != null && teamId.size() >= 5 && teamId[0:5] == 'demo_';
     }
 
     function isAdmin(teamId) {
@@ -40,12 +40,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.get('assigned_team_owner_id', '') == request.auth.uid || 
         isSuperAdmin() ||
-        resource.data.get('assigned_team_id', '').matches('^demo_.*')
+        resource.data.get('assigned_team_id', '').size() >= 5 && resource.data.get('assigned_team_id', '')[0:5] == 'demo_'
       );
       allow update: if isSignedIn() && (
         resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
         isSuperAdmin() ||
-        resource.data.get('assigned_team_id', '').matches('^demo_.*')
+        resource.data.get('assigned_team_id', '').size() >= 5 && resource.data.get('assigned_team_id', '')[0:5] == 'demo_'
       );
       allow delete: if isSuperAdmin();
     }
@@ -138,9 +138,9 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        allow read: if isSignedIn() && (isDemoTeam(teamId) || request.auth.uid in resource.data.get('memberIds', []));
+        allow read: if isSignedIn() && (isDemoTeam(teamId) || isAdmin(teamId) || request.auth.uid in resource.data.get('memberIds', []));
         allow create: if isSignedIn();
-        allow update: if isSignedIn() && (isDemoTeam(teamId) || request.auth.uid in resource.data.get('memberIds', []));
+        allow update: if isSignedIn() && (isDemoTeam(teamId) || isAdmin(teamId) || request.auth.uid in resource.data.get('memberIds', []));
         
         match /messages/{messageId} {
           allow read: if isSignedIn();

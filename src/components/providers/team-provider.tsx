@@ -396,8 +396,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       isPro: m.isPro || false,
       planId: m.planId || 'starter_squad',
       role: m.role || 'Member',
-      ownerUserId: m.ownerUserId,
-      sport: m.sport,
+      ownerUserId: m.ownerUserId || '',
+      sport: m.sport || 'Multi-Sport',
       parentChatEnabled: m.parentChatEnabled ?? true,
       parentCommentsEnabled: m.parentCommentsEnabled ?? true,
       heroImageUrl: m.heroImageUrl || '',
@@ -473,10 +473,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       const pId = planId || 'starter_squad';
       const batch = writeBatch(db);
-      const teamData = { id: tid, teamName: name, teamCode: code, type, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), isPro: pId !== 'starter_squad', planId: pId, parentChatEnabled: true, parentCommentsEnabled: true, description: description || '' };
+      const teamData = { id: tid, teamName: name, teamCode: code, type, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), isPro: pId !== 'starter_squad', planId: pId, parentChatEnabled: true, parentCommentsEnabled: true, description: description || '', teamLogoUrl: '', heroImageUrl: '', sport: 'Multi-Sport' };
       batch.set(doc(db, 'teams', tid), teamData);
       batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { id: firebaseUser.uid, userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' });
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { teamId: tid, teamName: name, teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, ownerUserId: firebaseUser.uid });
+      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { teamId: tid, teamName: name, teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' });
       await batch.commit();
       return tid;
     },
@@ -493,7 +493,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       
       batch.set(doc(db, 'teams', tid, 'members', playerId), { id: playerId, userId: firebaseUser.uid, playerId, teamId: tid, role: 'Member', position, name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, avatar: '', isMinor: !!pData?.isMinor, joinedAt: new Date().toISOString(), jersey: 'TBD' });
       
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { teamId: tid, teamName: tData.teamName || 'Unnamed Team', teamCode: (code || '').toUpperCase(), type: tData.type || 'adult', role: 'Member', ownerUserId: tData.ownerUserId || '', isPro: !!tData.isPro, planId: tData.planId || 'starter_squad' });
+      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { teamId: tid, teamName: tData.teamName || 'Unnamed Team', teamCode: (code || '').toUpperCase(), type: tData.type || 'adult', role: 'Member', ownerUserId: tData.ownerUserId || '', isPro: !!tData.isPro, planId: tData.planId || 'starter_squad', teamLogoUrl: tData.teamLogoUrl || '', sport: tData.sport || 'Multi-Sport' });
       
       await batch.commit();
       toast({ title: "Welcome to the Squad!" });
