@@ -17,6 +17,10 @@ service cloud.firestore {
          request.auth.token.get('email', '').lower() == 'test@gmail.com');
     }
 
+    function isDemoTeam(teamId) {
+      return teamId.startsWith('demo_');
+    }
+
     function isAdmin(teamId) {
       return isSignedIn() && (
         isSuperAdmin() ||
@@ -26,11 +30,6 @@ service cloud.firestore {
            get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin')
         ))
       );
-    }
-
-    // Identifies transient guest demo environments
-    function isDemoGuestTeam(teamId) {
-      return teamId.startsWith('demo_guest_');
     }
 
     // Collection Group Queries - Recruitment Ledger
@@ -90,17 +89,16 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin(teamId) || isDemoGuestTeam(teamId);
+      allow update, delete: if isAdmin(teamId) || isDemoTeam(teamId);
 
       match /members/{memberId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isOwner(memberId) || isDemoGuestTeam(teamId);
+        allow write: if isAdmin(teamId) || isOwner(memberId) || isDemoTeam(teamId);
       }
 
       match /events/{eventId} {
         allow read: if isSignedIn();
-        allow create, delete: if isAdmin(teamId) || isDemoGuestTeam(teamId);
-        allow update: if isSignedIn();
+        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
         
         match /registrations/{regId} {
           allow read, write: if isSignedIn();
@@ -109,34 +107,34 @@ service cloud.firestore {
 
       match /alerts/{alertId} {
         allow read: if isSignedIn();
-        allow create: if isAdmin(teamId) || isDemoGuestTeam(teamId);
+        allow create, update: if isAdmin(teamId) || isDemoTeam(teamId);
       }
 
       match /drills/{drillId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoGuestTeam(teamId);
+        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
       }
 
       match /files/{fileId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoGuestTeam(teamId);
+        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
       }
 
       match /feedPosts/{postId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoGuestTeam(teamId);
+        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
         
         match /comments/{commentId} {
           allow read: if isSignedIn();
           allow create: if isSignedIn();
-          allow delete: if isAdmin(teamId) || resource.data.authorId == request.auth.uid || isDemoGuestTeam(teamId);
+          allow delete: if isAdmin(teamId) || resource.data.authorId == request.auth.uid || isDemoTeam(teamId);
         }
       }
 
       match /groupChats/{chatId} {
-        allow read: if isSignedIn() && (request.auth.uid in resource.data.memberIds || isDemoGuestTeam(teamId));
+        allow read: if isSignedIn() && (request.auth.uid in resource.data.memberIds || isDemoTeam(teamId));
         allow create: if isSignedIn();
-        allow update: if isSignedIn() && (request.auth.uid in resource.data.memberIds || isDemoGuestTeam(teamId));
+        allow update: if isSignedIn() && (request.auth.uid in resource.data.memberIds || isDemoTeam(teamId));
         
         match /messages/{messageId} {
           allow read: if isSignedIn();
@@ -147,7 +145,7 @@ service cloud.firestore {
 
       match /games/{gameId} {
         allow read: if isSignedIn();
-        allow write: if isAdmin(teamId) || isDemoGuestTeam(teamId);
+        allow write: if isAdmin(teamId) || isDemoTeam(teamId);
       }
     }
 

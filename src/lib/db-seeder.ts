@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -14,6 +13,8 @@ import {
   updateDoc,
   addDoc
 } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 /**
  * Centrally defines the subscription plans and features.
@@ -251,7 +252,17 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
     createdAt: now.toISOString(), lastMessage: 'Review the Regional Championship bracket before tomorrow.', unread: 0, isDemo: true
   });
 
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error: any) {
+    const contextualError = new FirestorePermissionError({
+      path: `teams/${teamId}`,
+      operation: 'write',
+      requestResourceData: { message: 'Demo batch commit failure' }
+    });
+    errorEmitter.emit('permission-error', contextualError);
+    throw error;
+  }
 }
 
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
@@ -314,11 +325,19 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     phone: '(555) 000-9999', amountOwed: 0, feesPaid: true, isDemo: true
   });
 
-  await batch.commit();
-  
-  await seedDemoData(db, teamId, planId, userId);
-
-  return teamId;
+  try {
+    await batch.commit();
+    await seedDemoData(db, teamId, planId, userId);
+    return teamId;
+  } catch (error: any) {
+    const contextualError = new FirestorePermissionError({
+      path: `teams/${teamId}`,
+      operation: 'write',
+      requestResourceData: { message: 'Demo squad initialization failure' }
+    });
+    errorEmitter.emit('permission-error', contextualError);
+    throw error;
+  }
 }
 
 export async function resetDemoEnvironment(db: Firestore, teamId: string, planId: string, userId: string) {
