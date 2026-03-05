@@ -50,7 +50,6 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
-    // Legally Safe Collections for Minors
     match /players/{playerId} {
       allow read: if isSignedIn() && (
         resource.data.parentId == request.auth.uid || 
@@ -80,7 +79,6 @@ service cloud.firestore {
       );
     }
 
-    // Existing Collections
     match /users/{userId} {
       allow read, update, delete: if isOwner(userId) || isSuperAdmin();
       allow create: if isSignedIn(); 
@@ -170,7 +168,7 @@ service cloud.firestore {
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
           resource.data.get('assigned_team_owner_id', '') == request.auth.uid
         );
-        allow create: if true; // Public signups
+        allow create: if true; 
         allow update: if isSignedIn() && (
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
           resource.data.get('assigned_team_owner_id', '') == request.auth.uid
@@ -181,8 +179,8 @@ service cloud.firestore {
       match /invites/{inviteId} {
         allow read: if isSignedIn() && (
           request.auth.token != null &&
-          ('email' in request.auth.token && request.auth.token.email.lower() == resource.data.get('invitedEmail', '').lower()) ||
-          (resource.data.get('invitedEmail', '').lower().startsWith('guest@') && isSignedIn()) ||
+          'email' in request.auth.token &&
+          request.auth.token.email.lower() == resource.data.get('invitedEmail', '').lower() ||
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
           isSuperAdmin()
         );
