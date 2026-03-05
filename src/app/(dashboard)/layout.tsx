@@ -59,6 +59,7 @@ export default function DashboardLayout({
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted]);
 
   // Unified Hydration Guard: Ensure server and client render identical root
+  // On the server, mounted is always false. On the client, it starts false.
   if (!mounted || isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
