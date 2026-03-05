@@ -13,15 +13,16 @@ service cloud.firestore {
     }
     
     function isSuperAdmin() {
-      // Use get() with a fallback to safely handle anonymous tokens where email might be null
-      return isSignedIn() && 
-             (request.auth.token.get('email', '') == 'thisearlyseason@gmail.com' || 
-              request.auth.token.get('email', '') == 'test@gmail.com');
+      // Use direct property access which safely handles null in CEL
+      return isSignedIn() && (
+        request.auth.token.email == 'thisearlyseason@gmail.com' || 
+        request.auth.token.email == 'test@gmail.com'
+      );
     }
 
-    // Resilient prefix check using string slicing for maximum compatibility
-    function isDemoTeam(teamId) {
-      return teamId != null && teamId.size() >= 5 && teamId[0:5] == 'demo_';
+    // Robust prefix check using regex for maximum compatibility during query evaluation
+    function isDemoTeam(tid) {
+      return tid != null && tid.matches('^demo_.*');
     }
 
     function isTeamMember(teamId) {
@@ -147,8 +148,7 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // CRITICAL FIX: Ensure listing is query-safe by consolidating conditions
-        // Path variables like teamId are statically known at query time for collection listings
+        // Query-safe listing for coordination channels
         allow list: if isSignedIn() && (
           isDemoTeam(teamId) || 
           isSuperAdmin() || 
