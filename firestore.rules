@@ -13,11 +13,10 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       // Extremely safe check for email to handle anonymous/demo users where email is null
-      // Using direct property access which is safer than .get() on tokens in some rule environments
-      return isSignedIn() && (
-        (request.auth.token.email == 'thisearlyseason@gmail.com') || 
-        (request.auth.token.email == 'test@gmail.com')
-      );
+      // Using safe map key existence check before property access
+      return isSignedIn() && 
+             'email' in request.auth.token && 
+             (request.auth.token.email == 'thisearlyseason@gmail.com' || request.auth.token.email == 'test@gmail.com');
     }
 
     function isDemoTeam(teamId) {

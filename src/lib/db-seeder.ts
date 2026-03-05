@@ -256,12 +256,7 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
   try {
     await batch.commit();
   } catch (error: any) {
-    const contextualError = new FirestorePermissionError({
-      path: `teams/${teamId}/seeding`,
-      operation: 'write',
-      requestResourceData: { message: error.message || 'Demo sub-data batch commit failure' }
-    });
-    errorEmitter.emit('permission-error', contextualError);
+    // Only throw here, parent will catch and emit rich error
     throw error;
   }
 }
@@ -345,77 +340,5 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     });
     errorEmitter.emit('permission-error', contextualError);
     throw error;
-  }
-}
-
-export async function resetDemoEnvironment(db: Firestore, teamId: string, planId: string, userId: string) {
-  try {
-    const membershipsSnap = await getDocs(collection(db, 'users', userId, 'teamMemberships'));
-    const teamIds = membershipsSnap.docs.map(d => d.id);
-    const subcollections = ['events', 'games', 'drills', 'files', 'alerts', 'feedPosts', 'groupChats', 'members'];
-    
-    for (const tid of teamIds) {
-      for (const sub of subcollections) {
-        const snap = await getDocs(collection(db, 'teams', tid, sub));
-        if (snap.empty) continue;
-        const batch = writeBatch(db);
-        for (const docSnap of snap.docs) {
-          if (sub === 'members' && docSnap.data().userId === userId) continue;
-          if (sub === 'groupChats') {
-            const msgs = await getDocs(collection(db, 'teams', tid, sub, docSnap.id, 'messages'));
-            const msgBatch = writeBatch(db);
-            msgs.forEach(m => msgBatch.delete(m.ref));
-            if (msgs.size > 0) await msgBatch.commit();
-          }
-          batch.delete(docSnap.ref);
-        }
-        if (snap.size > 0) await batch.commit();
-      }
-    }
-    
-    const nowStr = new Date().toISOString();
-    await updateDoc(doc(db, 'users', userId), { createdAt: nowStr });
-    
-    for (const tid of teamIds) {
-      await seedDemoData(db, tid, planId, userId);
-    }
-  } catch (error) { throw error; }
-}
-
-export async function launchDemoEnvironments(db: Firestore, superAdminId: string) {
-  const demoTeams = [
-    { id: 'demo_starter_team', name: 'U10 Grassroots Stars', planId: 'starter_squad', sport: 'Soccer' },
-    { id: 'demo_pro_team', name: 'Elite Pro Squad', planId: 'squad_pro', sport: 'Basketball' },
-    { id: 'demo_tournament_team', name: 'Regionals Tournament Hub', planId: 'tournament_pro', sport: 'Baseball' },
-    { id: 'demo_club_team_1', name: 'City Central Academy Hub', planId: 'squad_organization', sport: 'Academy' }
-  ];
-
-  for (const dt of demoTeams) {
-    const teamRef = doc(db, 'teams', dt.id);
-    const snap = await getDocs(query(collection(db, 'teams'), where('id', '==', dt.id)));
-    if (snap.empty) {
-      const code = dt.id.slice(0, 6).toUpperCase();
-      const actualPid = dt.planId === 'tournament_pro' ? 'squad_pro' : dt.planId;
-      const batch = writeBatch(db);
-      const nowStr = new Date().toISOString();
-      batch.set(teamRef, {
-        id: dt.id, teamName: dt.name, teamCode: code, createdBy: superAdminId, ownerUserId: superAdminId,
-        createdAt: nowStr, members: { [superAdminId]: 'Admin' },
-        isPro: actualPid !== 'starter_squad', planId: actualPid, sport: dt.sport, isDemo: true
-      });
-      batch.set(doc(db, 'users', superAdminId, 'teamMemberships', dt.id), {
-        userId: superAdminId, teamId: dt.id, teamName: dt.name, teamCode: code,
-        role: 'Admin', isPro: actualPid !== 'starter_squad', planId: actualPid, isDemo: true, joinedAt: nowStr,
-        createdBy: superAdminId, ownerUserId: superAdminId, sport: dt.sport
-      });
-      batch.set(doc(db, 'teams', dt.id, 'members', superAdminId), {
-        id: superAdminId, userId: superAdminId, teamId: dt.id, name: 'Platform Admin', role: 'Admin',
-        position: 'Platform Admin', jersey: 'HQ', avatar: `https://picsum.photos/seed/${superAdminId}/150/150`,
-        joinedAt: nowStr, phone: '(555) 000-0000', amountOwed: 0, feesPaid: true, isDemo: true
-      });
-      await batch.commit();
-      
-      await seedDemoData(db, dt.id, dt.planId, superAdminId);
-    }
   }
 }
