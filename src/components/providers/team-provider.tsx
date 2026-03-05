@@ -549,7 +549,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       
       /**
        * AUTHORIZATION SYNC: Ensure the session user (Guardian/Parent) is explicitly 
-       * added to the team roster. This satisfies "list" security rules which require 
+       * added to the team roster. This satisfies security rules which require 
        * existence in /teams/{id}/members for coordination access.
        */
       if (playerId !== `p_${firebaseUser.uid}`) {

@@ -19,9 +19,9 @@ service cloud.firestore {
       );
     }
 
-    // Robust demo check
+    // Robust demo check using regex for prefix matching
     function isDemoTeam(tid) {
-      return tid != null && tid.size() >= 5 && tid[0:5] == 'demo_';
+      return tid != null && tid.matches('^demo_.*');
     }
 
     function isTeamMember(teamId) {
@@ -147,12 +147,10 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Combined list rule for query stability
-        allow list: if isSignedIn() && (
-          isDemoTeam(teamId) || 
-          isSuperAdmin() || 
-          request.auth.uid in resource.data.memberIds
-        );
+        // Optimized split list rule for static query authorization
+        allow list: if isSignedIn() && isDemoTeam(teamId);
+        allow list: if isSignedIn() && isSuperAdmin();
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberIds;
         
         allow get: if isSignedIn() && (
           isDemoTeam(teamId) || 
