@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -20,11 +19,11 @@ import {
   CheckCircle2, 
   XCircle, 
   ShieldCheck, 
-  Loader2,
-  Trash2,
-  Timer,
-  ChevronRight,
-  ClipboardList
+  Loader2, 
+  Trash2, 
+  Timer, 
+  ChevronRight, 
+  ClipboardList 
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -32,7 +31,8 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
-  DialogFooter
+  DialogFooter,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
