@@ -44,7 +44,9 @@ service cloud.firestore {
 
     function isParent() {
       return isSignedIn() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent'
+        isSuperAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent')
       );
     }
 
@@ -58,6 +60,37 @@ service cloud.firestore {
       }
     }
 
+    match /players/{playerId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.parentId == request.auth.uid || isSuperAdmin());
+    }
+
+    match /leagues/{leagueId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isSuperAdmin());
+      
+      match /registration/config {
+        allow read: if true;
+        allow write: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isSuperAdmin());
+      }
+      
+      match /registrationEntries/{entryId} {
+        allow read: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isSuperAdmin() || resource.data.assigned_team_owner_id == request.auth.uid);
+        allow create: if true;
+        allow update, delete: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isSuperAdmin());
+      }
+      
+      match /invites/{inviteId} {
+        allow list: if isSignedIn();
+        allow get: if isSignedIn();
+        allow create: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isSuperAdmin());
+        allow update: if isSignedIn();
+      }
+    }
+
     match /teams/{teamId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
@@ -65,14 +98,14 @@ service cloud.firestore {
 
       match /volunteers/{oppId} {
         allow read: if isTeamMember(teamId) && (isTeamAdmin(teamId) || isParent());
-        allow create, update, delete: if isTeamAdmin(teamId);
-        allow update: if isSignedIn() && isParent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signups']);
+        allow create, delete: if isTeamAdmin(teamId);
+        allow update: if isTeamAdmin(teamId) || (isSignedIn() && isParent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signups']));
       }
 
       match /fundraising/{fundId} {
         allow read: if isTeamMember(teamId) && (isTeamAdmin(teamId) || isParent());
-        allow create, update, delete: if isTeamAdmin(teamId);
-        allow update: if isSignedIn() && isParent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']);
+        allow create, delete: if isTeamAdmin(teamId);
+        allow update: if isTeamAdmin(teamId) || (isSignedIn() && isParent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']));
       }
 
       match /members/{memberId} {
@@ -81,11 +114,8 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Splitting list rule to ensure static path-based authorization for demo guest sessions
-        allow list: if isSignedIn() && isDemoTeam(teamId);
-        allow list: if isSignedIn() && (isSuperAdmin() || (request.auth.uid in resource.data.memberIds));
-        
-        allow get: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || (request.auth.uid in resource.data.memberIds) || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
+        allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || request.auth.uid in resource.data.memberIds);
+        allow get: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || request.auth.uid in resource.data.memberIds || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
         allow create: if isTeamMember(teamId);
         allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || request.auth.uid in resource.data.memberIds);
         
@@ -99,6 +129,11 @@ service cloud.firestore {
       match /events/{eventId} {
         allow read: if isTeamMember(teamId);
         allow write: if isTeamAdmin(teamId);
+        
+        match /registrations/{regId} {
+          allow read: if isTeamAdmin(teamId);
+          allow create: if true;
+        }
       }
 
       match /games/{gameId} {
