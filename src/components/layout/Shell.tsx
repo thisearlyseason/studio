@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, memo } from 'react';
@@ -32,7 +33,9 @@ import {
   Zap,
   Baby,
   UserPlus,
-  Star
+  Star,
+  HandHelping,
+  PiggyBank
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -81,6 +84,8 @@ const tabs = [
   { name: 'Leagues', href: '/leagues', icon: Shield, pro: false },
   { name: 'Scorekeeping', href: '/games', icon: Trophy, pro: false },
   { name: 'Playbook', icon: Dumbbell, href: '/drills', pro: false, mobileName: 'Playbook' },
+  { name: 'Volunteer', href: '/volunteers', icon: HandHelping, pro: false, gate: 'staff_or_parent' },
+  { name: 'Fundraising', href: '/fundraising', icon: PiggyBank, pro: false, gate: 'staff_or_parent' },
   { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
   { name: 'Roster', href: '/roster', icon: Users2, pro: false },
   { name: 'Library', href: '/files', icon: FolderClosed, pro: false, mobileName: 'Docs' },
@@ -217,8 +222,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     }
   }, [alerts]);
 
-  // Unified tab filtering based on role and governance
   const filteredTabs = tabs.filter(tab => {
+    if (tab.gate === 'staff_or_parent') {
+      if (!isStaff && !isParent) return false;
+    }
+
     if (tab.name === 'Feed') {
       if (isParent && !activeTeam?.parentCommentsEnabled) return false;
       if ((isParent || isPlayer) && !isPro) return false;

@@ -126,138 +126,50 @@
         "ownerUserId"
       ]
     },
-    "League": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "League",
+    "VolunteerOpportunity": {
+      "title": "VolunteerOpportunity",
       "type": "object",
-      "description": "A competitive grouping of multiple teams.",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "creatorId": { "type": "string" },
-        "createdAt": { "type": "string", format: "date-time" },
-        "sport": { "type": "string" },
-        "teams": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "slots": { "type": "number" },
+        "hoursPerSlot": { "type": "number" },
+        "signups": {
           "type": "object",
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "teamName": { "type": "string" },
-              "teamLogoUrl": { "type": "string" },
-              "wins": { "type": "number" },
-              "losses": { "type": "number" },
-              "ties": { "type": "number" },
-              "points": { "type": "number" }
+              "userId": { "type": "string" },
+              "userName": { "type": "string" },
+              "status": { "type": "string", "enum": ["signed_up", "completed", "verified"] },
+              "verifiedHours": { "type": "number" }
             }
           }
         }
-      },
-      "required": ["id", "name", "creatorId"]
+      }
     },
-    "LeagueRegistration": {
-      "title": "LeagueRegistration",
+    "FundraisingOpportunity": {
+      "title": "FundraisingOpportunity",
       "type": "object",
       "properties": {
-        "league_id": { "type": "string" },
         "title": { "type": "string" },
         "description": { "type": "string" },
-        "payment_instructions": { "type": "string" },
-        "is_active": { "type": "boolean" },
-        "shareable_slug": { "type": "string" },
-        "created_by": { "type": "string" }
-      }
-    },
-    "RegistrationForm": {
-      "title": "RegistrationForm",
-      "type": "object",
-      "properties": {
-        "league_registration_id": { "type": "string" },
-        "version": { "type": "number" },
-        "schema_json": { "type": "string" },
-        "is_active": { "type": "boolean" }
-      }
-    },
-    "RegistrationEntry": {
-      "title": "RegistrationEntry",
-      "type": "object",
-      "properties": {
-        "league_registration_id": { "type": "string" },
-        "form_version": { "type": "number" },
-        "answers_json": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "accepted", "assigned", "declined"] },
-        "assigned_team_id": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" }
-      }
-    },
-    "TeamEvent": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "TeamEvent",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "teamId": { "type": "string" },
-        "title": { "type": "string" },
-        "date": { "type": "string" },
-        "endDate": { "type": "string" },
-        "isTournament": { "type": "boolean" },
-        "tournamentGames": {
-          "type": "array",
-          "items": {
+        "goalAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "participants": {
+          "type": "object",
+          "additionalProperties": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "team1": { "type": "string" },
-              "team2": { "type": "string" },
-              "score1": { "type": "number" },
-              "score2": { "type": "number" },
-              "date": { "type": "string" },
-              "time": { "type": "string" },
-              "winnerId": { "type": "string" }
+              "userId": { "type": "string" },
+              "userName": { "type": "string" }
             }
           }
-        },
-        "lastUpdated": { "type": "string" }
-      }
-    },
-    "Subscription": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Subscription",
-      "type": "object",
-      "description": "User-level subscription state synced from RevenueCat or set manually.",
-      "properties": {
-        "productId": {
-          "type": "string",
-          "description": "The active product identifier."
-        },
-        "entitlementActive": {
-          "type": "boolean",
-          "description": "Whether the Pro entitlement is currently active."
-        },
-        "proTeamLimit": {
-          "type": "number",
-          "description": "Number of Pro teams allowed by this subscription."
-        },
-        "source": {
-          "type": "string",
-          "enum": [
-            "revenuecat",
-            "manual"
-          ],
-          "description": "The authoritative source of this subscription state."
-        },
-        "lastSyncedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "When this state was last refreshed from the provider."
         }
-      },
-      "required": [
-        "productId",
-        "entitlementActive",
-        "proTeamLimit",
-        "source",
-        "lastSyncedAt"
-      ]
+      }
     }
   },
   "auth": {
@@ -267,12 +179,6 @@
     ]
   },
   "firestore": {
-    "/plans/{planId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Plan"
-      },
-      "description": "Global collection defining subscription tiers."
-    },
     "/users/{userId}": {
       "schema": {
         "$ref": "#/backend/entities/User"
@@ -285,31 +191,17 @@
       },
       "description": "Collaborative team hubs."
     },
-    "/teams/{teamId}/events/{eventId}": {
+    "/teams/{teamId}/volunteers/{oppId}": {
       "schema": {
-        "$ref": "#/backend/entities/TeamEvent"
+        "$ref": "#/backend/entities/VolunteerOpportunity"
       },
-      "description": "Team schedule and tournament data."
+      "description": "Parent volunteer signups and hour tracking."
     },
-    "/leagues/{leagueId}": {
+    "/teams/{teamId}/fundraising/{fundId}": {
       "schema": {
-        "$ref": "#/backend/entities/League"
+        "$ref": "#/backend/entities/FundraisingOpportunity"
       },
-      "description": "Competitive league hubs."
-    },
-    "/leagues/{leagueId}/registration": {
-      "schema": {
-        "$ref": "#/backend/entities/LeagueRegistration"
-      },
-      "description": "League-wide signup configuration."
-    },
-    "/leagues/{leagueId}/registrationEntries/{entryId}": {
-      "schema": {
-        "$ref": "#/backend/entities/RegistrationEntry"
-      },
-      "description": "Submitted signups for the league."
+      "description": "Squad fundraising campaigns."
     }
   }
 }
-
-    

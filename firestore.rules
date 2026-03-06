@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -18,7 +19,6 @@ service cloud.firestore {
       );
     }
 
-    // Robust demo check using string slicing for query-safe listing
     function isDemoTeam(tid) {
       return tid != null && tid[0:5] == 'demo_';
     }
@@ -43,48 +43,9 @@ service cloud.firestore {
       );
     }
 
-    // Collection Group Queries
-    match /{path=**}/registrationEntries/{entryId} {
-      allow read: if isSignedIn() && (
-        resource.data.get('assigned_team_owner_id', '') == request.auth.uid || 
-        isSuperAdmin() ||
-        isDemoTeam(resource.data.get('assigned_team_id', ''))
-      );
-      allow update: if isSignedIn() && (
-        resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
-        isSuperAdmin() ||
-        isDemoTeam(resource.data.get('assigned_team_id', ''))
-      );
-      allow create: if true;
-      allow delete: if isSuperAdmin();
-    }
-
-    match /players/{playerId} {
-      allow read: if isSignedIn() && (
-        resource.data.get('parentId', '') == request.auth.uid || 
-        resource.data.get('userId', '') == request.auth.uid ||
-        isSuperAdmin()
-      );
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (
-        resource.data.get('parentId', '') == request.auth.uid || 
-        resource.data.get('userId', '') == request.auth.uid
-      );
-    }
-
-    match /families/{familyId} {
-      allow read, write: if isSignedIn() && (
-        resource == null || resource.data.get('parentId', '') == request.auth.uid || isSuperAdmin()
-      );
-    }
-
-    match /waivers/{waiverId} {
-      allow read: if isSignedIn() && (
-        resource.data.get('signedByUserId', '') == request.auth.uid || isSuperAdmin()
-      );
-      allow create: if isSignedIn() && (
-        (request.resource.data.get('signedByRole', '') == 'player' && request.resource.data.get('signedByUserId', '') == request.auth.uid) ||
-        (request.resource.data.get('signedByRole', '') == 'parent' && request.resource.data.get('signedByUserId', '') == request.auth.uid)
+    function isParent() {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent'
       );
     }
 
@@ -103,33 +64,57 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update, delete: if isTeamAdmin(teamId);
 
-      match /members/{memberId} {
-        allow read: if isSignedIn();
-        allow write: if isTeamAdmin(teamId) || isOwner(memberId) || 
-                     (exists(/databases/$(database)/documents/players/$(memberId)) && 
-                      get(/databases/$(database)/documents/players/$(memberId)).data.get('parentId', '') == request.auth.uid);
+      match /volunteers/{oppId} {
+        allow read: if isTeamMember(teamId) && (isTeamAdmin(teamId) || isParent());
+        allow create, update, delete: if isTeamAdmin(teamId);
+        allow update: if isSignedIn() && isParent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signups']);
       }
 
+      match /fundraising/{fundId} {
+        allow read: if isTeamMember(teamId) && (isTeamAdmin(teamId) || isParent());
+        allow create, update, delete: if isTeamAdmin(teamId);
+        allow update: if isSignedIn() && isParent() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']);
+      }
+
+      match /members/{memberId} {
+        allow read: if isSignedIn();
+        allow write: if isTeamAdmin(teamId) || isOwner(memberId);
+      }
+
+      match /groupChats/{chatId} {
+        allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || (request.auth.uid in resource.data.memberIds));
+        allow get: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || (request.auth.uid in resource.data.memberIds) || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
+        allow create: if isTeamMember(teamId);
+        allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || request.auth.uid in resource.data.memberIds);
+        
+        match /messages/{messageId} {
+          allow read: if isTeamMember(teamId);
+          allow create: if isTeamMember(teamId);
+          allow update: if isTeamMember(teamId);
+        }
+      }
+      
       match /events/{eventId} {
         allow read: if isTeamMember(teamId);
         allow write: if isTeamAdmin(teamId);
-        
-        match /registrations/{regId} {
-          allow read, write: if isSignedIn();
-        }
       }
 
-      match /alerts/{alertId} {
+      match /games/{gameId} {
         allow read: if isTeamMember(teamId);
-        allow create, update: if isTeamAdmin(teamId);
+        allow write: if isTeamAdmin(teamId);
       }
-
+      
       match /drills/{drillId} {
         allow read: if isTeamMember(teamId);
         allow write: if isTeamAdmin(teamId);
       }
 
       match /files/{fileId} {
+        allow read: if isTeamMember(teamId);
+        allow write: if isTeamAdmin(teamId);
+      }
+
+      match /alerts/{alertId} {
         allow read: if isTeamMember(teamId);
         allow write: if isTeamAdmin(teamId);
       }
@@ -143,77 +128,6 @@ service cloud.firestore {
           allow create: if isTeamMember(teamId);
           allow delete: if isTeamAdmin(teamId) || resource.data.authorId == request.auth.uid;
         }
-      }
-
-      match /groupChats/{chatId} {
-        // Atomic split rules for static query-time listing authorization
-        allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin());
-        allow list: if isSignedIn() && (request.auth.uid in resource.data.memberIds);
-        
-        // Standard document read access
-        allow get: if isSignedIn() && (
-          isDemoTeam(teamId) || 
-          isSuperAdmin() || 
-          (request.auth.uid in resource.data.memberIds) ||
-          exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
-        );
-        
-        allow create: if isTeamMember(teamId);
-        allow update: if isTeamMember(teamId) && (
-          isTeamAdmin(teamId) || 
-          request.auth.uid in resource.data.memberIds
-        );
-        
-        match /messages/{messageId} {
-          allow read: if isTeamMember(teamId);
-          allow create: if isTeamMember(teamId);
-          allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || resource.data.authorId == request.auth.uid);
-        }
-      }
-
-      match /games/{gameId} {
-        allow read: if isTeamMember(teamId);
-        allow write: if isTeamAdmin(teamId);
-      }
-    }
-
-    match /leagues/{leagueId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.get('creatorId', '') == request.auth.uid || isSuperAdmin());
-      
-      match /registration/{config} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid);
-      }
-
-      match /registrationEntries/{entryId} {
-        allow read: if isSignedIn() && (
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
-          resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
-          isDemoTeam(resource.data.get('assigned_team_id', ''))
-        );
-        allow create: if true; 
-        allow update: if isSignedIn() && (
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
-          resource.data.get('assigned_team_owner_id', '') == request.auth.uid ||
-          isDemoTeam(resource.data.get('assigned_team_id', ''))
-        );
-        allow delete: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid);
-      }
-
-      match /invites/{inviteId} {
-        allow read: if isSignedIn() && (
-          request.auth.token.get('email', '') != null &&
-          request.auth.token.email.lower() == resource.data.get('invitedEmail', '').lower() ||
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid ||
-          isSuperAdmin()
-        );
-        allow create: if isSignedIn();
-        allow update: if isSignedIn() && (
-          (request.auth.token.get('email', '') != null && request.auth.token.email.lower() == resource.data.get('invitedEmail', '').lower()) ||
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('creatorId', '') == request.auth.uid
-        );
       }
     }
 

@@ -140,6 +140,27 @@ export type TeamFile = {
   comments?: Array<{ id: string; authorName: string; text: string; date: string }>;
 };
 
+export type VolunteerOpportunity = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  location: string;
+  slots: number;
+  hoursPerSlot: number;
+  signups: Record<string, { userId: string, userName: string, status: 'signed_up' | 'completed' | 'verified', verifiedHours: number }>;
+};
+
+export type FundraisingOpportunity = {
+  id: string;
+  title: string;
+  description: string;
+  goalAmount: number;
+  currentAmount: number;
+  deadline: string;
+  participants: Record<string, { userId: string, userName: string }>;
+};
+
 export type RegistrationEntry = {
   id: string;
   league_id: string;
@@ -304,14 +325,20 @@ interface TeamContextType {
   signPublicTournamentWaiver: (teamId: string, eventId: string, selectedTeam: string, coachName: string) => Promise<boolean>;
   submitMatchScore: (teamId: string, eventId: string, gameId: string, isTeam1: boolean, s1: number, s2: number) => Promise<void>;
   respondToAssignment: (leagueId: string, entryId: string, status: 'accepted' | 'declined') => Promise<void>;
+  
+  // Volunteer & Fundraising Methods
+  addVolunteerOpportunity: (opp: Partial<VolunteerOpportunity>) => Promise<void>;
+  deleteVolunteerOpportunity: (id: string) => Promise<void>;
+  signUpForVolunteer: (oppId: string) => Promise<void>;
+  verifyVolunteerHours: (oppId: string, userId: string, hours: number) => Promise<void>;
+  addFundraisingOpportunity: (fund: Partial<FundraisingOpportunity>) => Promise<void>;
+  deleteFundraisingOpportunity: (id: string) => Promise<void>;
+  signUpForFundraising: (fundId: string) => Promise<void>;
+  updateFundraisingAmount: (fundId: string, amount: number) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
-/**
- * Sanitizes objects for Firestore by removing undefined values recursively.
- * Firestore does not support 'undefined' values.
- */
 const clean = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(v => clean(v));
   if (obj !== null && typeof obj === 'object') {
@@ -532,7 +559,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       
       batch.update(doc(db, 'players', playerId), { joinedTeamIds: arrayUnion(tid) });
       
-      // Add the child/player to the roster
       batch.set(doc(db, 'teams', tid, 'members', playerId), clean({ 
         id: playerId, 
         userId: firebaseUser.uid, 
@@ -547,11 +573,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         jersey: 'TBD' 
       }));
       
-      /**
-       * AUTHORIZATION SYNC: Ensure the session user (Guardian/Parent) is explicitly 
-       * added to the team roster. This satisfies security rules which require 
-       * existence in /teams/{id}/members for coordination access.
-       */
       if (playerId !== `p_${firebaseUser.uid}`) {
         batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
           id: firebaseUser.uid,
@@ -806,6 +827,59 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (!activeTeam) return;
       await updateDoc(doc(db, 'leagues', leagueId, 'registrationEntries', entryId), { status });
       if (status === 'accepted') toast({ title: "Player Recruited" });
+    },
+
+    // Volunteer Methods
+    addVolunteerOpportunity: async (opp: Partial<VolunteerOpportunity>) => {
+      if (!activeTeam) return;
+      await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ ...opp, signups: {} }));
+    },
+    deleteVolunteerOpportunity: async (id: string) => {
+      if (!activeTeam) return;
+      await deleteDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id));
+    },
+    signUpForVolunteer: async (oppId: string) => {
+      if (!activeTeam || !userProfile) return;
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), {
+        [`signups.${userProfile.id}`]: {
+          userId: userProfile.id,
+          userName: userProfile.name,
+          status: 'signed_up',
+          verifiedHours: 0
+        }
+      });
+    },
+    verifyVolunteerHours: async (oppId: string, uid: string, hrs: number) => {
+      if (!activeTeam) return;
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), {
+        [`signups.${uid}.status`]: 'verified',
+        [`signups.${uid}.verifiedHours`]: hrs
+      });
+    },
+
+    // Fundraising Methods
+    addFundraisingOpportunity: async (fund: Partial<FundraisingOpportunity>) => {
+      if (!activeTeam) return;
+      await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...fund, participants: {}, currentAmount: 0 }));
+    },
+    deleteFundraisingOpportunity: async (id: string) => {
+      if (!activeTeam) return;
+      await deleteDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id));
+    },
+    signUpForFundraising: async (fundId: string) => {
+      if (!activeTeam || !userProfile) return;
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), {
+        [`participants.${userProfile.id}`]: {
+          userId: userProfile.id,
+          userName: userProfile.name
+        }
+      });
+    },
+    updateFundraisingAmount: async (fundId: string, amount: number) => {
+      if (!activeTeam) return;
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), {
+        currentAmount: increment(amount)
+      });
     }
   };
 
