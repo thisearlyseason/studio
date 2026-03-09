@@ -51,11 +51,12 @@ service cloud.firestore {
       );
     }
 
-    // Additive Club Tier Rules
+    // Clubs & Organizations
     match /clubs/{clubId} {
       allow read, write: if isSignedIn();
     }
 
+    // Teams Hub
     match /teams/{teamId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
@@ -96,7 +97,9 @@ service cloud.firestore {
         allow write: if isTeamAdmin(teamId);
         
         match /registrations/{regId} {
-          allow read: if isTeamAdmin(teamId);
+          // Allow listing for all team members/demo users so they can see attendance
+          allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
+          allow get: if isTeamMember(teamId);
           allow create: if true;
         }
       }
@@ -143,12 +146,13 @@ service cloud.firestore {
       }
     }
 
-    match /members/{memberId} {
-      allow read, write: if isSignedIn();
+    // Collection Group Queries for Dashboard/Recruitment
+    match /{path=**}/members/{memberId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || resource.data.clubId == request.auth.uid || exists(/databases/$(database)/documents/teams/$(resource.data.teamId)/members/$(request.auth.uid)));
     }
 
-    match /events/{eventId} {
-      allow read, write: if isSignedIn();
+    match /{path=**}/events/{eventId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || resource.data.clubId == request.auth.uid || isTeamMember(resource.data.teamId));
     }
 
     match /payments/{paymentId} {
