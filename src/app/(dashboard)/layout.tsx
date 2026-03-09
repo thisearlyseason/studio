@@ -57,8 +57,7 @@ export default function DashboardLayout({
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, isMounted]);
 
   /**
-   * HYDRATION GUARD: Ensuring the initial render handshake between server and client.
-   * Standardized loading text to "Authenticating..." to prevent reconciliation mismatches.
+   * HYDRATION GUARD: Standardizing initial render state to prevent reconciliation mismatch.
    */
   if (!isMounted || isUserLoading || !user || isSeedingDemo) {
     return (

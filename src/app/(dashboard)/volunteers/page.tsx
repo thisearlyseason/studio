@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -15,15 +14,11 @@ import {
   Plus, 
   Calendar, 
   MapPin, 
-  Clock, 
   Users, 
-  CheckCircle2, 
-  XCircle, 
-  ShieldCheck, 
   Loader2, 
   Trash2, 
   Timer, 
-  ChevronRight, 
+  ShieldCheck, 
   ClipboardList 
 } from 'lucide-react';
 import { 
@@ -40,7 +35,6 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function VolunteerHubPage() {
   const { activeTeam, user, isStaff, isParent, addVolunteerOpportunity, signUpForVolunteer, verifyVolunteerHours, deleteVolunteerOpportunity } = useTeam();

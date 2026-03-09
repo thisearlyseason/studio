@@ -505,7 +505,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const hasFeature = useCallback((featureId: string) => {
     if (isSuperAdmin) return true;
-    const plan = plans.find(p => p.id === activeTeam?.planId);
+    const planId = activeTeam?.planId || 'starter_squad';
+    const plan = plans.find(p => p.id === planId);
     return !!plan?.features?.[featureId];
   }, [isSuperAdmin, plans, activeTeam?.planId]);
 
@@ -539,7 +540,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
     await batch.commit();
     return tid;
-  }, [firebaseUser, db, isClubManager, userProfile?.name, userProfile?.avatar, activeTeam?.planId]);
+  }, [firebaseUser, db, isClubManager, userProfile?.name, userProfile?.avatar]);
 
   const joinTeamWithCode = useCallback(async (code: string, playerId: string, position: string) => {
     if (!firebaseUser || !db) return false;
