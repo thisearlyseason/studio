@@ -99,8 +99,11 @@ service cloud.firestore {
         allow write: if isTeamAdmin(teamId);
         
         match /registrations/{regId} {
-          allow read: if isTeamMember(teamId);
-          allow create: if true;
+          // Allow listing for team members to see attendance
+          allow list: if isTeamMember(teamId);
+          allow get: if isTeamMember(teamId);
+          allow create: if true; // Public signups
+          allow update, delete: if isTeamAdmin(teamId);
         }
       }
 
@@ -157,6 +160,11 @@ service cloud.firestore {
 
     match /{path=**}/alerts/{alertId} {
       allow read: if isSignedIn() && (isSuperAdmin() || resource.data.clubId == request.auth.uid || isTeamMember(resource.data.teamId));
+    }
+
+    match /{path=**}/registrationEntries/{entryId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /payments/{paymentId} {
