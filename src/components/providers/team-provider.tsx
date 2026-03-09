@@ -539,7 +539,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
     await batch.commit();
     return tid;
-  }, [firebaseUser, db, isClubManager, userProfile?.name, userProfile?.avatar]);
+  }, [firebaseUser, db, isClubManager, userProfile?.name, userProfile?.avatar, activeTeam?.planId]);
 
   const joinTeamWithCode = useCallback(async (code: string, playerId: string, position: string) => {
     if (!firebaseUser || !db) return false;
