@@ -68,6 +68,7 @@ export type Team = {
   heroImageUrl?: string;
   isPro?: boolean;
   planId?: string;
+  clubId?: string;
   role?: 'Admin' | 'Member';
   ownerUserId?: string;
   parentChatEnabled?: boolean;
@@ -84,6 +85,7 @@ export type Member = {
   userId: string;
   playerId: string;
   teamId: string;
+  clubId?: string;
   name: string;
   role: 'Admin' | 'Member';
   position: string;
@@ -122,11 +124,13 @@ export type TeamAlert = {
   message: string;
   createdAt: string;
   createdBy: string;
+  clubId?: string;
 };
 
 export type TeamFile = {
   id: string;
   teamId: string;
+  clubId?: string;
   name: string;
   url: string;
   type: string;
@@ -148,6 +152,7 @@ export type VolunteerOpportunity = {
   location: string;
   slots: number;
   hoursPerSlot: number;
+  clubId?: string;
   signups: Record<string, { userId: string, userName: string, status: 'signed_up' | 'completed' | 'verified', verifiedHours: number }>;
 };
 
@@ -158,6 +163,7 @@ export type FundraisingOpportunity = {
   goalAmount: number;
   currentAmount: number;
   deadline: string;
+  clubId?: string;
   participants: Record<string, { userId: string, userName: string }>;
 };
 
@@ -212,6 +218,7 @@ export type TournamentGame = {
 export type TeamEvent = {
   id: string;
   teamId: string;
+  clubId?: string;
   title: string;
   date: string;
   endDate?: string;
@@ -267,6 +274,7 @@ interface TeamContextType {
   isPlayer: boolean;
   isSuperAdmin: boolean;
   isClubManager: boolean;
+  clubId: string | null;
   alerts: TeamAlert[];
   isRCInitialized: boolean;
   createNewTeam: (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => Promise<string>;
@@ -326,7 +334,6 @@ interface TeamContextType {
   submitMatchScore: (teamId: string, eventId: string, gameId: string, isTeam1: boolean, s1: number, s2: number) => Promise<void>;
   respondToAssignment: (leagueId: string, entryId: string, status: 'accepted' | 'declined') => Promise<void>;
   
-  // Volunteer & Fundraising Methods
   addVolunteerOpportunity: (opp: Partial<VolunteerOpportunity>) => Promise<void>;
   deleteVolunteerOpportunity: (id: string) => Promise<void>;
   signUpForVolunteer: (oppId: string) => Promise<void>;
@@ -446,6 +453,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       type: m.type || 'adult',
       isPro: m.isPro || false,
       planId: m.planId || 'starter_squad',
+      clubId: m.clubId || null,
       role: m.role || 'Member',
       ownerUserId: m.ownerUserId || '',
       sport: m.sport || 'Multi-Sport',
@@ -493,6 +501,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isPlayer = userProfile?.role === 'adult_player';
   const isSuperAdmin = userProfile?.email === 'thisearlyseason@gmail.com' || userProfile?.email === 'test@gmail.com';
   const isClubManager = userProfile?.activePlanId?.includes('squad_organization');
+  const clubId = isClubManager ? firebaseUser?.uid || null : activeTeam?.clubId || null;
 
   const hasFeature = (featureId: string) => {
     if (isSuperAdmin) return true;
@@ -516,6 +525,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isPlayer,
     isSuperAdmin,
     isClubManager,
+    clubId,
     alerts,
     isRCInitialized,
     hasFeature,
@@ -524,6 +534,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const tid = `team_${Date.now()}`;
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       const pId = planId || 'starter_squad';
+      const cId = isClubManager ? firebaseUser.uid : null;
       const batch = writeBatch(db);
       const teamData = clean({ 
         id: tid, 
@@ -532,6 +543,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         type, 
         createdBy: firebaseUser.uid, 
         ownerUserId: firebaseUser.uid, 
+        clubId: cId,
         createdAt: new Date().toISOString(), 
         isPro: pId !== 'starter_squad', 
         planId: pId, 
@@ -543,8 +555,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         sport: 'Multi-Sport' 
       });
       batch.set(doc(db, 'teams', tid), teamData);
-      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
+      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, clubId: cId, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
+      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
       await batch.commit();
       return tid;
     },
@@ -554,6 +566,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const snap = await getDocs(q);
       if (snap.empty) { toast({ title: "Invalid Code", variant: "destructive" }); return false; }
       const tDoc = snap.docs[0]; const tid = tDoc.id; const tData = tDoc.data();
+      const cId = tData.clubId || null;
       const playerSnap = await getDoc(doc(db, 'players', playerId)); const pData = playerSnap.data();
       const batch = writeBatch(db);
       
@@ -564,6 +577,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         userId: firebaseUser.uid, 
         playerId, 
         teamId: tid, 
+        clubId: cId,
         role: 'Member', 
         position, 
         name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, 
@@ -579,6 +593,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           userId: firebaseUser.uid,
           playerId: 'guardian',
           teamId: tid,
+          clubId: cId,
           role: 'Member',
           position: 'Parent',
           name: userProfile?.name || 'Guardian',
@@ -595,6 +610,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         type: tData.type || 'adult', 
         role: 'Member', 
         ownerUserId: tData.ownerUserId || '', 
+        clubId: cId,
         isPro: !!tData.isPro, 
         planId: tData.planId || 'starter_squad', 
         teamLogoUrl: tData.teamLogoUrl || '', 
@@ -647,7 +663,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     resetSeasonData: async () => { if (!activeTeam) return; toast({ title: "Resetting Season..." }); },
     createChat: async (name: string, memberIds: string[]) => {
       if (!activeTeam || !firebaseUser) return '';
-      const docRef = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), clean({ name: name || 'Team Chat', memberIds: [...memberIds, firebaseUser.uid], createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), lastMessage: 'New channel established.' }));
+      const docRef = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), clean({ name: name || 'Team Chat', memberIds: [...memberIds, firebaseUser.uid], clubId, createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), lastMessage: 'New channel established.' }));
       return docRef.id;
     },
     addMessage: async (chatId: string, author: string, content: string, type: any, imageUrl?: string, poll?: any) => {
@@ -670,7 +686,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     submitLead: async (data: any) => { await addDoc(collection(db, 'leads'), clean({ ...data, createdAt: new Date().toISOString() })); toast({ title: "Inquiry Dispatched" }); return true; },
     createAlert: async (title: string, message: string) => {
       if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title: title || 'Alert', message: message || '', createdAt: new Date().toISOString(), createdBy: firebaseUser?.uid }));
+      await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title: title || 'Alert', message: message || '', clubId, createdAt: new Date().toISOString(), createdBy: firebaseUser?.uid }));
     },
     updateTeamHero: async (imageUrl: string) => {
       if (!activeTeam) return;
@@ -686,7 +702,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       });
       await batch.commit();
     },
-    addEvent: async (p: any) => { if (!activeTeam) return; await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean(p)); },
+    addEvent: async (p: any) => { if (!activeTeam) return; await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean({ ...p, clubId })); },
     updateEvent: async (id: string, u: any) => { if (!activeTeam) return; await updateDoc(doc(db, 'teams', activeTeam.id, 'events', id), clean(u)); },
     deleteEvent: async (id: string) => { if (!activeTeam) return; await deleteDoc(doc(db, 'teams', activeTeam.id, 'events', id)); },
     updateRSVP: async (id: string, s: string, gid?: string) => {
@@ -723,11 +739,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     deleteDrill: async (id: string) => { if (!activeTeam) return; await deleteDoc(doc(db, 'teams', activeTeam.id, 'drills', id)); },
     addFile: async (n: string, t: string, s: number, u: string, c: string, d: string) => {
       if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: n || 'File', type: t || 'file', sizeBytes: s || 0, url: u || '', category: c || 'Other', description: d || '', date: new Date().toISOString(), uploadedBy: userProfile?.name || 'Unknown', viewedBy: {}, comments: [] }));
+      await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: n || 'File', type: t || 'file', sizeBytes: s || 0, url: u || '', clubId, category: c || 'Other', description: d || '', date: new Date().toISOString(), uploadedBy: userProfile?.name || 'Unknown', viewedBy: {}, comments: [] }));
     },
     addExternalLink: async (t: string, u: string, c: string, d: string) => {
       if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: t || 'Link', type: 'link', url: u || '', category: c || 'Other', description: d || '', date: new Date().toISOString(), uploadedBy: userProfile?.name || 'Unknown', viewedBy: {} }));
+      await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: t || 'Link', type: 'link', url: u || '', clubId, category: c || 'Other', description: d || '', date: new Date().toISOString(), uploadedBy: userProfile?.name || 'Unknown', viewedBy: {} }));
     },
     deleteFile: async (id: string) => { if (!activeTeam) return; await deleteDoc(doc(db, 'teams', activeTeam.id, 'files', id)); },
     markMediaAsViewed: async (id: string) => {
@@ -738,7 +754,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (!activeTeam || !userProfile) return;
       await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { comments: arrayUnion({ id: Date.now().toString(), authorName: userProfile.name || 'User', text: t || '', date: new Date().toISOString() }) });
     },
-    addGame: async (p: any) => { if (!activeTeam) return; await addDoc(collection(db, 'teams', activeTeam.id, 'games'), clean(p)); },
+    addGame: async (p: any) => { if (!activeTeam) return; await addDoc(collection(db, 'teams', activeTeam.id, 'games'), clean({ ...p, clubId })); },
     updateGame: async (id: string, u: any) => { if (!activeTeam) return; await updateDoc(doc(db, 'teams', activeTeam.id, 'games', id), clean(u)); },
     createLeague: async (n: string) => {
       if (!firebaseUser || !activeTeam) return;
@@ -829,10 +845,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (status === 'accepted') toast({ title: "Player Recruited" });
     },
 
-    // Volunteer Methods
     addVolunteerOpportunity: async (opp: Partial<VolunteerOpportunity>) => {
       if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ ...opp, signups: {} }));
+      await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ ...opp, clubId, signups: {} }));
     },
     deleteVolunteerOpportunity: async (id: string) => {
       if (!activeTeam) return;
@@ -857,10 +872,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       });
     },
 
-    // Fundraising Methods
     addFundraisingOpportunity: async (fund: Partial<FundraisingOpportunity>) => {
       if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...fund, participants: {}, currentAmount: 0 }));
+      await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...fund, clubId, participants: {}, currentAmount: 0 }));
     },
     deleteFundraisingOpportunity: async (id: string) => {
       if (!activeTeam) return;

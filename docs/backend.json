@@ -76,6 +76,18 @@
         "createdAt"
       ]
     },
+    "Club": {
+      "title": "Club",
+      "type": "object",
+      "description": "Represents a multi-team organization.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerUserId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerUserId"]
+    },
     "Team": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Team",
@@ -103,6 +115,10 @@
         },
         "ownerUserId": {
           "type": "string"
+        },
+        "clubId": {
+          "type": "string",
+          "description": "Reference to the parent club organization."
         },
         "createdAt": {
           "type": "string",
@@ -136,6 +152,7 @@
         "location": { "type": "string" },
         "slots": { "type": "number" },
         "hoursPerSlot": { "type": "number" },
+        "clubId": { "type": "string" },
         "signups": {
           "type": "object",
           "additionalProperties": {
@@ -159,6 +176,7 @@
         "goalAmount": { "type": "number" },
         "currentAmount": { "type": "number" },
         "deadline": { "type": "string", "format": "date-time" },
+        "clubId": { "type": "string" },
         "participants": {
           "type": "object",
           "additionalProperties": {
@@ -169,6 +187,20 @@
             }
           }
         }
+      }
+    },
+    "Payment": {
+      "title": "Payment",
+      "type": "object",
+      "description": "Records financial transactions at the club level.",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -184,6 +216,12 @@
         "$ref": "#/backend/entities/User"
       },
       "description": "Private user profiles."
+    },
+    "/clubs/{clubId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Club"
+      },
+      "description": "Multi-team organizations."
     },
     "/teams/{teamId}": {
       "schema": {
@@ -202,6 +240,12 @@
         "$ref": "#/backend/entities/FundraisingOpportunity"
       },
       "description": "Squad fundraising campaigns."
+    },
+    "/payments/{paymentId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Payment"
+      },
+      "description": "Organization financial records."
     }
   }
 }

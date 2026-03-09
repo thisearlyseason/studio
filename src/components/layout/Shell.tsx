@@ -35,7 +35,8 @@ import {
   UserPlus,
   Star,
   HandHelping,
-  PiggyBank
+  PiggyBank,
+  Layout
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -270,8 +271,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               )}
 
               {isClubManager && (
-                <div className="mb-6 px-2">
+                <div className="mb-6 px-2 space-y-2">
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2">Organization View</p>
+                  <Button 
+                    asChild 
+                    className={cn(
+                      "w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest transition-all",
+                      pathname === '/club/dashboard' ? "bg-black text-white shadow-xl" : "bg-primary/5 text-primary hover:bg-primary/10"
+                    )}
+                  >
+                    <Link href="/club/dashboard">
+                      <Layout className="h-5 w-5" />
+                      Strategic Dashboard
+                    </Link>
+                  </Button>
                   <Button 
                     asChild 
                     className={cn(
@@ -281,7 +294,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   >
                     <Link href="/club">
                       <Building className="h-5 w-5" />
-                      Club Hub
+                      Organization Roster
                     </Link>
                   </Button>
                 </div>
@@ -503,6 +516,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     )}
                     {isClubManager && (
                       <>
+                        <DropdownMenuItem asChild className="rounded-xl p-3">
+                          <Link href="/club/dashboard" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
+                            <Layout className="h-4 w-4" />
+                            Club Dashboard
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem asChild className="rounded-xl p-3">
                           <Link href="/club" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
                             <Building className="h-4 w-4" />
