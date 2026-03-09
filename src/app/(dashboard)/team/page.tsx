@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -42,7 +43,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogDescription,
+  DialogDescription, 
   DialogFooter
 } from '@/components/ui/dialog';
 import {
@@ -70,9 +71,12 @@ export default function TeamProfilePage() {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  // Stabilize boolean flag to prevent downstream hook thrashing
+  const canRecruit = useMemo(() => hasFeature('league_registration'), [hasFeature]);
+
   // Fetch pending assignments for this team - Restricted to administrative staff only
   const assignmentsQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db || !isStaff || !hasFeature('league_registration') || !user?.id) return null;
+    if (!activeTeam?.id || !db || !isStaff || !canRecruit || !user?.id) return null;
     
     const constraints = [
       where('assigned_team_id', '==', activeTeam.id), 
@@ -80,13 +84,12 @@ export default function TeamProfilePage() {
     ];
     
     // For production squads, include explicit owner check to satisfy security rules
-    // Note: Use 'demo_' prefix to cover all demo tier variants
     if (!activeTeam.id.startsWith('demo_')) {
       constraints.push(where('assigned_team_owner_id', '==', user.id));
     }
     
     return query(collectionGroup(db, 'registrationEntries'), ...constraints);
-  }, [activeTeam?.id, db, isStaff, user?.id, hasFeature]);
+  }, [activeTeam?.id, db, isStaff, user?.id, canRecruit]);
 
   const { data: rawAssignments } = useCollection<RegistrationEntry>(assignmentsQuery);
   const assignments = useMemo(() => rawAssignments || [], [rawAssignments]);
@@ -202,7 +205,6 @@ export default function TeamProfilePage() {
         </div>
       </div>
 
-      {/* Pending Assignments Section */}
       {isStaff && assignments.length > 0 && (
         <Card className="rounded-[2.5rem] border-none shadow-xl ring-4 ring-primary/5 bg-white overflow-hidden animate-in slide-in-from-top-4 duration-500">
           <CardHeader className="bg-primary/5 border-b p-8 flex flex-row items-center justify-between">

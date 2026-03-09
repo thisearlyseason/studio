@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { 
   collection, 
@@ -362,7 +362,7 @@ const clean = (obj: any): any => {
 };
 
 export function TeamProvider({ children }: { children: ReactNode }) {
-  const { user: firebaseUser, isUserLoading } = useUser();
+  const { user: firebaseUser } = useUser();
   const db = useFirestore();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -503,11 +503,105 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isClubManager = userProfile?.activePlanId?.includes('squad_organization');
   const clubId = isClubManager ? firebaseUser?.uid || null : activeTeam?.clubId || null;
 
-  const hasFeature = (featureId: string) => {
+  const hasFeature = useCallback((featureId: string) => {
     if (isSuperAdmin) return true;
     const plan = plans.find(p => p.id === activeTeam?.planId);
     return !!plan?.features?.[featureId];
-  };
+  }, [isSuperAdmin, plans, activeTeam?.planId]);
+
+  const createNewTeam = useCallback(async (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => {
+    if (!firebaseUser) return '';
+    const tid = `team_${Date.now()}`;
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const pId = planId || 'starter_squad';
+    const cId = isClubManager ? firebaseUser.uid : null;
+    const batch = writeBatch(db);
+    const teamData = clean({ 
+      id: tid, 
+      teamName: name || 'Unnamed Team', 
+      teamCode: code, 
+      type, 
+      createdBy: firebaseUser.uid, 
+      ownerUserId: firebaseUser.uid, 
+      clubId: cId,
+      createdAt: new Date().toISOString(), 
+      isPro: pId !== 'starter_squad', 
+      planId: pId, 
+      parentChatEnabled: true, 
+      parentCommentsEnabled: true, 
+      description: description || '', 
+      teamLogoUrl: '', 
+      heroImageUrl: '', 
+      sport: 'Multi-Sport' 
+    });
+    batch.set(doc(db, 'teams', tid), teamData);
+    batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, clubId: cId, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
+    await batch.commit();
+    return tid;
+  }, [firebaseUser, db, isClubManager, userProfile?.name, userProfile?.avatar]);
+
+  const joinTeamWithCode = useCallback(async (code: string, playerId: string, position: string) => {
+    if (!firebaseUser || !db) return false;
+    const q = query(collection(db, 'teams'), where('teamCode', '==', (code || '').toUpperCase()), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) { toast({ title: "Invalid Code", variant: "destructive" }); return false; }
+    const tDoc = snap.docs[0]; const tid = tDoc.id; const tData = tDoc.data();
+    const cId = tData.clubId || null;
+    const playerSnap = await getDoc(doc(db, 'players', playerId)); const pData = playerSnap.data();
+    const batch = writeBatch(db);
+    
+    batch.update(doc(db, 'players', playerId), { joinedTeamIds: arrayUnion(tid) });
+    
+    batch.set(doc(db, 'teams', tid, 'members', playerId), clean({ 
+      id: playerId, 
+      userId: firebaseUser.uid, 
+      playerId, 
+      teamId: tid, 
+      clubId: cId,
+      role: 'Member', 
+      position, 
+      name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, 
+      avatar: '', 
+      isMinor: !!pData?.isMinor, 
+      joinedAt: new Date().toISOString(), 
+      jersey: 'TBD' 
+    }));
+    
+    if (playerId !== `p_${firebaseUser.uid}`) {
+      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
+        id: firebaseUser.uid,
+        userId: firebaseUser.uid,
+        playerId: 'guardian',
+        teamId: tid,
+        clubId: cId,
+        role: 'Member',
+        position: 'Parent',
+        name: userProfile?.name || 'Guardian',
+        avatar: userProfile?.avatar || '',
+        joinedAt: new Date().toISOString(),
+        jersey: 'HQ'
+      }));
+    }
+    
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ 
+      teamId: tid, 
+      teamName: tData.teamName || 'Unnamed Team', 
+      teamCode: (code || '').toUpperCase(), 
+      type: tData.type || 'adult', 
+      role: 'Member', 
+      ownerUserId: tData.ownerUserId || '', 
+      clubId: cId,
+      isPro: !!tData.isPro, 
+      planId: tData.planId || 'starter_squad', 
+      teamLogoUrl: tData.teamLogoUrl || '', 
+      sport: tData.sport || 'Multi-Sport' 
+    }));
+    
+    await batch.commit();
+    toast({ title: "Welcome to the Squad!" });
+    return true;
+  }, [firebaseUser, db, userProfile?.name, userProfile?.avatar]);
 
   const value = {
     user: userProfile,
@@ -529,98 +623,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     alerts,
     isRCInitialized,
     hasFeature,
-    createNewTeam: async (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => {
-      if (!firebaseUser) return '';
-      const tid = `team_${Date.now()}`;
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const pId = planId || 'starter_squad';
-      const cId = isClubManager ? firebaseUser.uid : null;
-      const batch = writeBatch(db);
-      const teamData = clean({ 
-        id: tid, 
-        teamName: name || 'Unnamed Team', 
-        teamCode: code, 
-        type, 
-        createdBy: firebaseUser.uid, 
-        ownerUserId: firebaseUser.uid, 
-        clubId: cId,
-        createdAt: new Date().toISOString(), 
-        isPro: pId !== 'starter_squad', 
-        planId: pId, 
-        parentChatEnabled: true, 
-        parentCommentsEnabled: true, 
-        description: description || '', 
-        teamLogoUrl: '', 
-        heroImageUrl: '', 
-        sport: 'Multi-Sport' 
-      });
-      batch.set(doc(db, 'teams', tid), teamData);
-      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, clubId: cId, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
-      await batch.commit();
-      return tid;
-    },
-    joinTeamWithCode: async (code: string, playerId: string, position: string) => {
-      if (!firebaseUser || !db) return false;
-      const q = query(collection(db, 'teams'), where('teamCode', '==', (code || '').toUpperCase()), limit(1));
-      const snap = await getDocs(q);
-      if (snap.empty) { toast({ title: "Invalid Code", variant: "destructive" }); return false; }
-      const tDoc = snap.docs[0]; const tid = tDoc.id; const tData = tDoc.data();
-      const cId = tData.clubId || null;
-      const playerSnap = await getDoc(doc(db, 'players', playerId)); const pData = playerSnap.data();
-      const batch = writeBatch(db);
-      
-      batch.update(doc(db, 'players', playerId), { joinedTeamIds: arrayUnion(tid) });
-      
-      batch.set(doc(db, 'teams', tid, 'members', playerId), clean({ 
-        id: playerId, 
-        userId: firebaseUser.uid, 
-        playerId, 
-        teamId: tid, 
-        clubId: cId,
-        role: 'Member', 
-        position, 
-        name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, 
-        avatar: '', 
-        isMinor: !!pData?.isMinor, 
-        joinedAt: new Date().toISOString(), 
-        jersey: 'TBD' 
-      }));
-      
-      if (playerId !== `p_${firebaseUser.uid}`) {
-        batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
-          id: firebaseUser.uid,
-          userId: firebaseUser.uid,
-          playerId: 'guardian',
-          teamId: tid,
-          clubId: cId,
-          role: 'Member',
-          position: 'Parent',
-          name: userProfile?.name || 'Guardian',
-          avatar: userProfile?.avatar || '',
-          joinedAt: new Date().toISOString(),
-          jersey: 'HQ'
-        }));
-      }
-      
-      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ 
-        teamId: tid, 
-        teamName: tData.teamName || 'Unnamed Team', 
-        teamCode: (code || '').toUpperCase(), 
-        type: tData.type || 'adult', 
-        role: 'Member', 
-        ownerUserId: tData.ownerUserId || '', 
-        clubId: cId,
-        isPro: !!tData.isPro, 
-        planId: tData.planId || 'starter_squad', 
-        teamLogoUrl: tData.teamLogoUrl || '', 
-        sport: tData.sport || 'Multi-Sport' 
-      }));
-      
-      await batch.commit();
-      toast({ title: "Welcome to the Squad!" });
-      return true;
-    },
+    createNewTeam,
+    joinTeamWithCode,
     registerChild: async (firstName: string, lastName: string, dob: string) => {
       if (!firebaseUser) return '';
       const docRef = await addDoc(collection(db, 'players'), clean({ firstName: firstName || '', lastName: lastName || '', dateOfBirth: dob || '', isMinor: true, parentId: firebaseUser.uid, hasLogin: false, createdAt: new Date().toISOString(), joinedTeamIds: [] }));
