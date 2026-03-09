@@ -36,13 +36,11 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!isMounted || isSeedingDemo || isTeamsLoading || !user) return;
 
-    // Force demo users to land on the feed first
     if (userProfile?.isDemo && pathname === '/') {
       router.push('/feed');
       return;
     }
 
-    // Exclude settings and pricing to allow management
     const isSetupPage = pathname === '/teams/new' || 
                         pathname === '/teams/join' || 
                         pathname === '/family' || 
