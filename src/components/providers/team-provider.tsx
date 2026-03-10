@@ -298,7 +298,7 @@ interface TeamContextType {
   updateUser: (updates: Partial<UserProfile>) => Promise<void>;
   updateMember: (memberId: string, updates: Partial<Member>) => Promise<void>;
   updateTeamDetails: (updates: Partial<Team>) => Promise<void>;
-  updateTeamType: (teamId: string, teamType: TeamType) => Promise<void>;
+  updateTeamPlan: (teamId: string, planId: string) => Promise<void>;
   manageSubscription: () => void;
   resetSeasonData: () => Promise<void>;
   createChat: (name: string, memberIds: string[]) => Promise<string>;
@@ -519,12 +519,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const hasFeature = useCallback((featureId: string) => {
     if (isSuperAdmin) return true;
     
-    // Core Free Features
-    const freeFeatures = ['group_chat', 'schedule_games_events', 'score_tracking', 'basic_roster', 'playbook'];
+    // Core Free Features (Allowed for Starter)
+    const freeFeatures = ['group_chat', 'chat', 'schedule', 'schedule_games_events', 'score_tracking', 'basic_roster', 'playbook'];
     if (freeFeatures.includes(featureId)) return true;
 
-    // Pro-Only Features
-    const proFeatures = ['elite_tournament', 'payments', 'attendance_tracking', 'media_uploads', 'stats_basic', 'high_priority_alerts', 'full_roster_details'];
+    // Pro-Only Features (Restricted for Starter)
+    const proFeatures = [
+      'elite_tournament', 
+      'tournaments', 
+      'payments', 
+      'attendance_tracking', 
+      'attendance_reports',
+      'media_uploads', 
+      'documents',
+      'document_management',
+      'stats_basic', 
+      'advanced_analytics',
+      'analytics',
+      'high_priority_alerts', 
+      'full_roster_details'
+    ];
+    
     if (proFeatures.includes(featureId)) return isPro;
 
     // Plan-level features
@@ -682,11 +697,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (!activeTeam) return;
       await updateDoc(doc(db, 'teams', activeTeam.id), clean(updates));
     }, [activeTeam, db]),
-    updateTeamType: useCallback(async (teamId: string, teamType: TeamType) => {
+    updateTeamPlan: useCallback(async (teamId: string, planId: string) => {
       if (!firebaseUser) return;
+      // Map plan selection to teamType
+      const isProPlan = planId === 'squad_pro' || planId === 'elite_teams' || planId === 'elite_league';
+      const teamType: TeamType = isProPlan ? 'pro' : 'starter';
       const batch = writeBatch(db);
-      batch.update(doc(db, 'teams', teamId), { teamType, isPro: teamType === 'pro' });
-      batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), { teamType, isPro: teamType === 'pro' });
+      batch.update(doc(db, 'teams', teamId), { teamType, planId, isPro: isProPlan });
+      batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), { teamType, planId, isPro: isProPlan });
       await batch.commit();
     }, [firebaseUser, db]),
     manageSubscription: useCallback(() => { window.open('https://billing.thesquad.pro', '_blank'); }, []),

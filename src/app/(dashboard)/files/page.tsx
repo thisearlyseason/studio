@@ -65,7 +65,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function FilesPage() {
-  const { activeTeam, addFile, deleteFile, user, isPro, purchasePro, isSuperAdmin, isStaff } = useTeam();
+  const { activeTeam, addFile, deleteFile, user, isPro, purchasePro, isSuperAdmin, isStaff, hasFeature } = useTeam();
   const db = useFirestore();
   
   const [mounted, setMounted] = useState(false);
@@ -95,7 +95,37 @@ export default function FilesPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  const canUseDocs = hasFeature('documents');
+
   if (!mounted || !activeTeam) return null;
+
+  if (!canUseDocs) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="relative">
+          <div className="bg-primary/10 p-10 rounded-[3rem] shadow-2xl">
+            <FolderClosed className="h-24 w-24 text-primary" />
+          </div>
+          <div className="absolute -top-4 -right-4 bg-black text-white p-3 rounded-full shadow-lg border-4 border-background">
+            <Lock className="h-6 w-6" />
+          </div>
+        </div>
+        
+        <div className="text-center max-w-md space-y-4">
+          <h1 className="text-4xl font-black tracking-tight uppercase">Squad Library Locked</h1>
+          <p className="text-muted-foreground font-bold leading-relaxed text-lg uppercase tracking-wide">
+            Upgrade this team to Pro to unlock this feature.
+          </p>
+        </div>
+
+        {isStaff && (
+          <Button className="h-14 px-10 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>
+            Unlock Pro Library
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   const isAdmin = activeTeam.role === 'Admin' || isSuperAdmin;
 

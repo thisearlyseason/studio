@@ -265,7 +265,7 @@ export default function RosterPage() {
                     <div className="p-6 lg:p-8 bg-primary/5 rounded-2xl lg:rounded-[2.5rem] text-center space-y-4 border-2 border-dashed border-primary/20 group cursor-pointer active:scale-95 transition-all" onClick={copyTeamCode}>
                       <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Official Squad Code</p>
                       <div className="flex items-center justify-center gap-2 lg:gap-4">
-                        <p className="text-4xl lg:text-5xl font-black text-primary tracking-widest">{activeTeam.code}</p>
+                        <p className="text-4xl font-black text-primary tracking-widest">{activeTeam.code}</p>
                         <Copy className="h-5 w-5 lg:h-6 lg:w-6 text-primary opacity-30 group-hover:opacity-100 transition-opacity" />
                       </div>
                       <p className="text-[9px] lg:text-[10px] text-muted-foreground font-bold uppercase tracking-widest pt-2">Tap to copy and share</p>
@@ -439,7 +439,7 @@ export default function RosterPage() {
                                   <p className="text-[8px] lg:text-[9px] font-bold text-muted-foreground uppercase">${fee.amount}</p>
                                 </div>
                               </div>
-                              {isAdmin && <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-destructive hover:bg-destructive/5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveFee(fee.id)}><Trash2 className="h-3 w-3" /></Button>}
+                              {isAdmin && <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-destructive hover:bg-destructive/5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveFee(fee.id)}><Trash2 className="h-4 w-4" /></Button>}
                             </div>
                           )) : (
                             <div className="text-center py-8 lg:py-10 bg-white/50 rounded-xl lg:rounded-2xl border border-dashed"><p className="text-[8px] lg:text-[9px] font-black uppercase text-muted-foreground opacity-40 tracking-widest">No history</p></div>
@@ -539,7 +539,7 @@ export default function RosterPage() {
                             </div>
                             <div className="space-y-1">
                               <h4 className="text-sm font-black uppercase">Elite Fields Locked</h4>
-                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Waivers and Emergency contacts require Pro.</p>
+                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Upgrade this team to Pro to unlock this feature.</p>
                             </div>
                             <Button size="sm" className="rounded-full h-9 px-6 font-black uppercase text-[9px] tracking-widest" onClick={purchasePro}>Upgrade to Elite</Button>
                           </div>

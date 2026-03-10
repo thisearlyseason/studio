@@ -120,11 +120,8 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
   return Object.values(standings).sort((a, b) => b.points - a.points || b.wins - a.wins);
 }
 
-/**
- * Tactical Hub Content - Loaded lazily to prevent listener thrashing
- */
 function EventHubContent({ eventId, teamId, updateRSVP, formatTime, isAdmin, onEdit, onDelete, hasAttendance, purchasePro }: any) {
-  const { members = [], user, updateEvent, submitEventWaiver, signTeamTournamentWaiver, addCoOrganizerByEmail, removeCoOrganizer, isPro, activeTeam, isParent, isPlayer } = useTeam();
+  const { members = [], user, updateEvent, submitEventWaiver, signTeamTournamentWaiver, addCoOrganizerByEmail, removeCoOrganizer, isPro, activeTeam, isParent, isPlayer, hasFeature } = useTeam();
   const db = useFirestore();
   const router = useRouter();
 
@@ -173,7 +170,22 @@ function EventHubContent({ eventId, teamId, updateRSVP, formatTime, isAdmin, onE
     return { id: uid, name: member?.name || 'Teammate', avatar: member?.avatar, role: member?.position || 'Member', status };
   }), ...registrations.map(reg => ({ id: reg.id, name: reg.name, avatar: undefined, role: 'Public Registrant', status: 'going' }))];
 
-  const publicWaiverLink = origin ? `${origin}/tournaments/${event.teamId}/waiver/${event.id}` : '';
+  const canUseTournaments = hasFeature('elite_tournament');
+
+  if (event.isTournament && !canUseTournaments) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-6">
+        <div className="bg-primary/5 p-8 rounded-[3rem] shadow-inner">
+          <Trophy className="h-16 w-16 text-primary opacity-20" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black uppercase">Tournament Hub Locked</h2>
+          <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Upgrade this team to Pro to unlock this feature.</p>
+        </div>
+        <Button onClick={purchasePro} className="h-12 px-10 rounded-xl font-black uppercase">Unlock Pro Hub</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row min-h-full">
@@ -237,7 +249,6 @@ function EventHubContent({ eventId, teamId, updateRSVP, formatTime, isAdmin, onE
                 ))}
               </div>
             </TabsContent>
-            {/* Additional Tab Content (Manage, Bracket) would go here following the same robust pattern */}
           </div>
         </Tabs>
         
@@ -288,7 +299,7 @@ function EventDetailDialog({ event, updateRSVP, formatTime, isAdmin, onEdit, onD
 }
 
 export default function EventsPage() {
-  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, purchasePro, isStaff, user } = useTeam();
+  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, purchasePro, isStaff, user, hasFeature, isPro } = useTeam();
   const db = useFirestore();
   const [filterMode, setFilterMode] = useState<'live' | 'past'>('live');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -355,11 +366,33 @@ export default function EventsPage() {
     setIsCreateOpen(false); resetForm(); 
   };
 
+  const canUseTournaments = hasFeature('elite_tournament');
+
   return (
     <div className="space-y-10 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Tactical Hub</Badge><h1 className="text-4xl font-black uppercase tracking-tight">Schedule</h1></div>
-        {isStaff && (<div className="flex flex-wrap gap-2"><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { resetForm(); setIsTournamentMode(false); setIsEliteTournament(false); setIsCreateOpen(true); }}>+ Match</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-black text-white" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(false); setIsCreateOpen(true); }}><Trophy className="h-4 w-4 mr-2 text-primary" /> Tournament</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-primary text-white border-none" onClick={() => { resetForm(); setIsTournamentMode(true); setIsEliteTournament(true); setIsCreateOpen(true); }}><Sparkles className="h-4 w-4 mr-2" /> Elite Hub</Button></div>)}
+        {isStaff && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { resetForm(); setIsTournamentMode(false); setIsEliteTournament(false); setIsCreateOpen(true); }}>+ Match</Button>
+            <div className="relative group">
+              <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-black text-white" onClick={() => { 
+                if (!canUseTournaments) { purchasePro(); return; }
+                resetForm(); setIsTournamentMode(true); setIsEliteTournament(false); setIsCreateOpen(true); 
+              }}>
+                <Trophy className="h-4 w-4 mr-2 text-primary" /> Tournament
+                {!isPro && <Lock className="h-3 w-3 ml-2 opacity-40" />}
+              </Button>
+            </div>
+            <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg bg-primary text-white border-none" onClick={() => {
+              if (!canUseTournaments) { purchasePro(); return; }
+              resetForm(); setIsTournamentMode(true); setIsEliteTournament(true); setIsCreateOpen(true);
+            }}>
+              <Sparkles className="h-4 w-4 mr-2" /> Elite Hub
+              {!isPro && <Lock className="h-3 w-3 ml-2 opacity-40" />}
+            </Button>
+          </div>
+        )}
       </div>
       
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

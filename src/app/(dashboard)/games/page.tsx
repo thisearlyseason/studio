@@ -164,7 +164,7 @@ export default function GamesPage() {
   const resetForm = () => { setOpponent(''); setDate(''); setMyScore(''); setOpponentScore(''); setLocation(''); setNotes(''); setEditingGame(null); setSelectedLeagueId('none'); setSelectedOpponentTeamId('manual'); };
 
   const handleEditGame = (game: any) => {
-    if (!isAdmin) return; // Prevent editing for players/parents
+    if (!isAdmin) return; 
     setEditingGame(game); setOpponent(game.opponent); setDate(format(game.date, 'yyyy-MM-dd'));
     setMyScore(game.myScore.toString()); setOpponentScore(game.opponentScore.toString());
     setLocation(game.location || ''); setNotes(game.notes || ''); 
@@ -234,7 +234,7 @@ export default function GamesPage() {
                               <div className="bg-white p-3 rounded-xl shadow-sm"><Lock className="h-8 w-8 text-primary/40" /></div>
                               <div className="space-y-1">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Match Highlights Locked</p>
-                                <p className="text-[8px] font-bold text-muted-foreground uppercase max-w-[180px] mx-auto leading-relaxed">Upgrade to Elite to archive season highlights and tactical notes.</p>
+                                <p className="text-[8px] font-bold text-muted-foreground uppercase max-w-[180px] mx-auto leading-relaxed">Upgrade this team to Pro to unlock this feature.</p>
                               </div>
                               {isStaff && <Button size="sm" variant="ghost" className="h-8 rounded-lg text-[8px] font-black uppercase text-primary border border-primary/20" onClick={purchasePro}>Upgrade to Elite</Button>}
                             </div>
@@ -268,7 +268,7 @@ export default function GamesPage() {
           <div className="bg-white p-4 rounded-2xl shadow-sm relative"><ChartIcon className="h-8 w-8 text-primary/40" />{isStaff && <Lock className="absolute -top-1 -right-1 h-4 w-4 bg-black text-white p-0.5 rounded-full border-2 border-background" />}</div>
           <div className="space-y-1">
             <h3 className="text-sm font-black uppercase tracking-tight">Performance Analytics Locked</h3>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest max-w-xs">Upgrade to Pro to visualize season trajectory and win/loss metrics.</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest max-w-xs">Upgrade this team to Pro to unlock this feature.</p>
           </div>
           {isStaff && <Button size="sm" className="rounded-full h-9 px-6 font-black uppercase text-[10px] tracking-widest" onClick={purchasePro}>Unlock Pro Analytics</Button>}
         </div>
