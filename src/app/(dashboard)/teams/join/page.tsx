@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function JoinTeamPage() {
   const router = useRouter();
-  const { user, myChildren, joinTeamWithCode, isParent, isPlayer } = useTeam();
+  const { user, myChildren = [], joinTeamWithCode, isParent, isPlayer } = useTeam();
   
   const [teamCode, setTeamCode] = useState('');
   const [leagueCode, setLeagueCode] = useState('');
@@ -58,7 +58,7 @@ export default function JoinTeamPage() {
     router.push(`/register/league/${leagueCode.trim()}`);
   };
 
-  const hasChildren = myChildren.length > 0;
+  const hasChildren = (myChildren?.length || 0) > 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-8 animate-in fade-in duration-500">
@@ -205,7 +205,7 @@ export default function JoinTeamPage() {
         </div>
         <div className="space-y-1">
           <h4 className="text-lg font-black uppercase tracking-tight">Need a squad?</h4>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest max-w-sm mx-auto">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest max-w-sm mx-auto leading-relaxed">
             Contact your organization lead to receive your unique coordination code.
           </p>
         </div>
