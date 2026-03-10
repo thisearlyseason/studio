@@ -35,8 +35,8 @@ service cloud.firestore {
 
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
-      // Allow authenticated users to read player profiles for coordination.
-      // Privacy is handled by guardianId/userId query filters in the application.
+      // Allow authenticated users to list/get player profiles. 
+      // Query filters in the app handle privacy (guardianId check).
       allow read: if isSignedIn();
       allow write: if isSignedIn() && (
         isDemoId(playerId) || 
