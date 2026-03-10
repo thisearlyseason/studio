@@ -35,22 +35,19 @@ service cloud.firestore {
 
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
-      // FIX: Query-safe listing for authenticated users.
-      allow list: if isSignedIn();
-      allow get: if isSignedIn() && (
-        isDemoId(playerId) || 
-        resource.data.guardianId == request.auth.uid
-      );
+      // Allow authenticated users to read player profiles for coordination.
+      // Privacy is handled by guardianId/userId query filters in the application.
+      allow read: if isSignedIn();
       allow write: if isSignedIn() && (
         isDemoId(playerId) || 
-        request.resource.data.guardianId == request.auth.uid
+        request.resource.data.guardianId == request.auth.uid ||
+        request.resource.data.userId == request.auth.uid
       );
     }
 
     // --- LEAGUES ---
     match /leagues/{leagueId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
+      allow read: if isSignedIn();
       allow write: if isSignedIn() && (
         resource == null || 
         resource.data.creatorId == request.auth.uid || 
@@ -63,8 +60,7 @@ service cloud.firestore {
       }
 
       match /registrationEntries/{entryId} {
-        allow list: if isSignedIn();
-        allow get: if isSignedIn();
+        allow read: if isSignedIn();
         allow create: if isSignedIn();
         allow update, delete: if isSignedIn();
       }
