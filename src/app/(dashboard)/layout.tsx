@@ -38,7 +38,9 @@ export default function DashboardLayout({
                         pathname === '/teams/join' || 
                         pathname === '/family' || 
                         pathname === '/settings' || 
-                        pathname === '/pricing';
+                        pathname === '/pricing' ||
+                        pathname.startsWith('/leagues/registration') ||
+                        pathname.startsWith('/register/league');
     
     if (teams.length === 0 && !isSetupPage) {
       if (userProfile?.role === 'coach') {
@@ -51,7 +53,6 @@ export default function DashboardLayout({
 
   /**
    * HYDRATION GUARD: Synchronizing initial render state to prevent reconciliation mismatch.
-   * Both server and client render the "Authenticating..." loading state until mounting completes.
    */
   if (!isMounted) {
     return (

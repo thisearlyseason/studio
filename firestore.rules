@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // HELPER FUNCTIONS
     function isSignedIn() {
       return request.auth != null && request.auth.uid != null;
     }
@@ -19,9 +19,9 @@ service cloud.firestore {
       );
     }
 
+    // Robust demo check using regex for static query optimization
     function isDemoTeam(tid) {
-      // Robust check for demo IDs to satisfy query optimization
-      return tid != null && tid is string && tid.size() >= 5 && tid[0:5] == 'demo_';
+      return tid != null && tid is string && tid.matches('^demo_.*');
     }
 
     function isTeamMember(teamId) {
@@ -44,15 +44,8 @@ service cloud.firestore {
       );
     }
 
-    function isParent() {
-      return isSignedIn() && (
-        isSuperAdmin() ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'parent')
-      );
-    }
-
-    // Leagues Hub - Explicit list/get for query stabilization
+    // LEAGUES HUB
+    // Allow listing the leagues collection for any signed-in user
     match /leagues/{leagueId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn();
@@ -64,7 +57,12 @@ service cloud.firestore {
       }
       
       match /registrationEntries/{entryId} {
-        allow list, get: if isSignedIn();
+        // List entries if you created the league or if the entry is assigned to a team you own
+        allow list, get: if isSignedIn() && (
+          isSuperAdmin() || 
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+          (resource != null && resource.data.assigned_team_owner_id == request.auth.uid)
+        );
         allow create: if true;
         allow update, delete: if isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
@@ -76,27 +74,27 @@ service cloud.firestore {
       }
     }
 
-    // Clubs & Organizations
+    // CLUBS & ORGANIZATIONS
     match /clubs/{clubId} {
       allow read, write: if isSignedIn();
     }
 
-    // Teams Hub
+    // TEAMS HUB
     match /teams/{teamId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isTeamAdmin(teamId);
 
       match /volunteers/{oppId} {
-        allow read: if isTeamAdmin(teamId) || isParent();
+        allow read: if isSignedIn() && (isTeamMember(teamId) || isTeamAdmin(teamId));
         allow create, delete: if isTeamAdmin(teamId);
-        allow update: if isTeamAdmin(teamId) || isParent();
+        allow update: if isSignedIn() && (isTeamMember(teamId) || isTeamAdmin(teamId));
       }
 
       match /fundraising/{fundId} {
-        allow read: if isTeamAdmin(teamId) || isParent();
+        allow read: if isSignedIn() && (isTeamMember(teamId) || isTeamAdmin(teamId));
         allow create, delete: if isTeamAdmin(teamId);
-        allow update: if isTeamAdmin(teamId) || isParent();
+        allow update: if isSignedIn() && (isTeamMember(teamId) || isTeamAdmin(teamId));
       }
 
       match /members/{memberId} {
@@ -105,7 +103,7 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        allow get, list: if isSignedIn() && (isDemoTeam(teamId) || isTeamMember(teamId));
+        allow list, get: if isSignedIn() && (isDemoTeam(teamId) || isTeamMember(teamId));
         allow create: if isTeamMember(teamId);
         allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || request.auth.uid in resource.data.memberIds);
         
@@ -169,13 +167,13 @@ service cloud.firestore {
       }
     }
 
-    // Global Invites Access
+    // GLOBAL INVITES
     match /leagues/global/invites/{inviteId} {
-      allow read: if isSignedIn() && (request.auth.token.get('email', '').lower() == resource.data.invitedEmail.lower());
+      allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
 
-    // Collection Group Queries
+    // COLLECTION GROUPS
     match /{path=**}/members/{memberId} {
       allow read: if isSignedIn();
     }
