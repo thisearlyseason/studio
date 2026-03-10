@@ -53,8 +53,9 @@ export default function DashboardLayout({
 
   /**
    * HYDRATION GUARD: Synchronizing initial render state to prevent reconciliation mismatch.
+   * Standardizing the loading state text to 'Authenticating...' across server/client handshake.
    */
-  if (!isMounted) {
+  if (!isMounted || isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
@@ -65,32 +66,10 @@ export default function DashboardLayout({
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              Authenticating...
-            </p>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-              Synchronising Elite Infrastructure
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isUserLoading || !user || isSeedingDemo) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-6">
-          <div className="bg-primary/10 p-6 rounded-[2.5rem] shadow-xl relative">
-            <div className="h-16 w-16 flex items-center justify-center">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </div>
-          </div>
-          <div className="text-center space-y-2">
-            <p className="text-lg font-black uppercase tracking-widest text-primary">
               {isSeedingDemo ? 'Deploying Demo...' : 'Authenticating...'}
             </p>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-              {isSeedingDemo ? 'Initializing Tactical Hub' : 'Synchronising Elite Infrastructure'}
+              Synchronising Elite Infrastructure
             </p>
           </div>
         </div>

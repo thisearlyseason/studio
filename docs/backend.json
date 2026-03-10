@@ -89,58 +89,48 @@
       "required": ["id", "name", "ownerUserId"]
     },
     "Team": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Team",
       "type": "object",
       "description": "Represents a sports team or group within the application.",
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "teamName": {
-          "type": "string"
-        },
-        "sport": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "teamLogoUrl": {
-          "type": "string",
-          "format": "uri"
-        },
-        "teamCode": {
-          "type": "string"
-        },
-        "ownerUserId": {
-          "type": "string"
-        },
-        "clubId": {
-          "type": "string",
-          "description": "Reference to the parent club organization."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "planId": {
-          "type": "string"
-        },
-        "isPro": {
-          "type": "boolean"
-        },
-        "leagueIds": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
+        "id": { "type": "string" },
+        "teamName": { "type": "string" },
+        "sport": { "type": "string" },
+        "description": { "type": "string" },
+        "teamLogoUrl": { "type": "string", "format": "uri" },
+        "teamCode": { "type": "string" },
+        "ownerUserId": { "type": "string" },
+        "clubId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "planId": { "type": "string" },
+        "isPro": { "type": "boolean" },
+        "leagueIds": { "type": "array", "items": { "type": "string" } }
       },
-      "required": [
-        "id",
-        "teamName",
-        "teamCode",
-        "ownerUserId"
-      ]
+      "required": ["id", "teamName", "teamCode", "ownerUserId"]
+    },
+    "League": {
+      "title": "League",
+      "type": "object",
+      "description": "A competitive coordination hub for multiple teams.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sport": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "teams": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "creatorId"]
+    },
+    "LeagueInvite": {
+      "title": "LeagueInvite",
+      "type": "object",
+      "properties": {
+        "leagueId": { "type": "string" },
+        "leagueName": { "type": "string" },
+        "invitedEmail": { "type": "string", "format": "email" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] }
+      }
     },
     "VolunteerOpportunity": {
       "title": "VolunteerOpportunity",
@@ -153,18 +143,7 @@
         "slots": { "type": "number" },
         "hoursPerSlot": { "type": "number" },
         "clubId": { "type": "string" },
-        "signups": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "userId": { "type": "string" },
-              "userName": { "type": "string" },
-              "status": { "type": "string", "enum": ["signed_up", "completed", "verified"] },
-              "verifiedHours": { "type": "number" }
-            }
-          }
-        }
+        "signups": { "type": "object" }
       }
     },
     "FundraisingOpportunity": {
@@ -177,30 +156,7 @@
         "currentAmount": { "type": "number" },
         "deadline": { "type": "string", "format": "date-time" },
         "clubId": { "type": "string" },
-        "participants": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "userId": { "type": "string" },
-              "userName": { "type": "string" }
-            }
-          }
-        }
-      }
-    },
-    "Payment": {
-      "title": "Payment",
-      "type": "object",
-      "description": "Records financial transactions at the club level.",
-      "properties": {
-        "id": { "type": "string" },
-        "clubId": { "type": "string" },
-        "teamId": { "type": "string" },
-        "userId": { "type": "string" },
-        "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "completed"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "participants": { "type": "object" }
       }
     }
   },
@@ -212,40 +168,24 @@
   },
   "firestore": {
     "/users/{userId}": {
-      "schema": {
-        "$ref": "#/backend/entities/User"
-      },
+      "schema": { "$ref": "#/backend/entities/User" },
       "description": "Private user profiles."
     },
     "/clubs/{clubId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Club"
-      },
+      "schema": { "$ref": "#/backend/entities/Club" },
       "description": "Multi-team organizations."
     },
     "/teams/{teamId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Team"
-      },
+      "schema": { "$ref": "#/backend/entities/Team" },
       "description": "Collaborative team hubs."
     },
-    "/teams/{teamId}/volunteers/{oppId}": {
-      "schema": {
-        "$ref": "#/backend/entities/VolunteerOpportunity"
-      },
-      "description": "Parent volunteer signups and hour tracking."
+    "/leagues/{leagueId}": {
+      "schema": { "$ref": "#/backend/entities/League" },
+      "description": "Competitive coordination hubs."
     },
-    "/teams/{teamId}/fundraising/{fundId}": {
-      "schema": {
-        "$ref": "#/backend/entities/FundraisingOpportunity"
-      },
-      "description": "Squad fundraising campaigns."
-    },
-    "/payments/{paymentId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Payment"
-      },
-      "description": "Organization financial records."
+    "/leagues/global/invites/{inviteId}": {
+      "schema": { "$ref": "#/backend/entities/LeagueInvite" },
+      "description": "Cross-platform recruitment invitations."
     }
   }
 }
