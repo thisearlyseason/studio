@@ -17,7 +17,7 @@
         },
         "email": {
           "type": "string",
-          "description": "The user's email address, used for login and communication.",
+          "description": "The user's email address.",
           "format": "email"
         },
         "phone": {
@@ -33,14 +33,10 @@
           "type": "boolean",
           "description": "Indicates if the user has globally enabled push notifications."
         },
-        "createdAt": {
+        "role": {
           "type": "string",
-          "description": "Timestamp when the user account was created.",
-          "format": "date-time"
-        },
-        "isDemo": {
-          "type": "boolean",
-          "description": "Flag indicating if this is a demo admin account."
+          "enum": ["parent", "adult_player", "coach", "admin"],
+          "description": "The primary role of the user account."
         },
         "subscriptionPlan": {
           "type": "string",
@@ -52,24 +48,26 @@
           "enum": ["active", "inactive", "trial"],
           "description": "The status of the subscription."
         },
-        "activePlanId": {
-          "type": "string",
-          "description": "DEPRECATED: Use subscriptionPlan instead."
-        },
         "proTeamLimit": {
           "type": "number",
           "description": "The maximum number of teams this user can assign Pro features to."
         },
-        "tournamentCredits": {
-          "type": "number",
-          "description": "Number of Elite Tournament module credits remaining."
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "isDemo": {
+          "type": "boolean",
+          "description": "Flag indicating if this is a demo account."
         }
       },
       "required": [
         "id",
         "fullName",
         "email",
-        "notificationsEnabled",
+        "role",
+        "subscriptionPlan",
         "createdAt"
       ]
     },
@@ -83,18 +81,19 @@
         "sport": { "type": "string" },
         "description": { "type": "string" },
         "teamLogoUrl": { "type": "string", "format": "uri" },
+        "heroImageUrl": { "type": "string", "format": "uri" },
         "teamCode": { "type": "string" },
         "ownerUserId": { "type": "string" },
         "clubId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
         "teamType": { "type": "string", "enum": ["starter", "pro"] },
         "planId": { "type": "string" },
         "isPro": { "type": "boolean" },
         "leagueIds": { "type": "array", "items": { "type": "string" } },
         "parentChatEnabled": { "type": "boolean" },
-        "parentCommentsEnabled": { "type": "boolean" }
+        "parentCommentsEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "teamName", "teamCode", "ownerUserId"]
+      "required": ["id", "teamName", "teamCode", "ownerUserId", "teamType"]
     },
     "League": {
       "title": "League",
@@ -107,22 +106,11 @@
         "creatorId": { "type": "string" },
         "teams": { 
           "type": "object",
-          "description": "Map of teamId to stats (wins, losses, points)"
+          "description": "Map of teamId to stats (teamName, wins, losses, points)"
         },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "creatorId"]
-    },
-    "Organization": {
-      "title": "Organization",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "ownerUserId": { "type": "string" },
-        "subscriptionPlan": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
     }
   },
   "auth": {
@@ -136,14 +124,6 @@
       "schema": { "$ref": "#/backend/entities/User" },
       "description": "Private user profiles."
     },
-    "/organizations/{orgId}": {
-      "schema": { "$ref": "#/backend/entities/Organization" },
-      "description": "Club and Organization entities."
-    },
-    "/subscriptions/{subId}": {
-      "schema": { "type": "object" },
-      "description": "Subscription records."
-    },
     "/teams/{teamId}": {
       "schema": { "$ref": "#/backend/entities/Team" },
       "description": "Collaborative team hubs."
@@ -151,6 +131,10 @@
     "/leagues/{leagueId}": {
       "schema": { "$ref": "#/backend/entities/League" },
       "description": "Competitive coordination hubs."
+    },
+    "/subscriptions/{subId}": {
+      "schema": { "type": "object" },
+      "description": "Subscription records."
     }
   }
 }

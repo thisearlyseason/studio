@@ -51,11 +51,10 @@ export default function DashboardLayout({
     }
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, isMounted, isUserLoading]);
 
-  /**
-   * HYDRATION GUARD: Synchronizing initial render state to prevent reconciliation mismatch.
-   * Standardizing the loading state text to 'Authenticating...' across server/client handshake.
-   */
-  if (!isMounted || isUserLoading || !user || isSeedingDemo) {
+  // hydration guard
+  if (!isMounted) return null;
+
+  if (isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">

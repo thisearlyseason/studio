@@ -122,7 +122,7 @@ export default function LeaguesPage() {
   const [scoutTeamName, setScoutTeamName] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Use a query-safe fetch for the leagues collection
+  // Explicit collection-level query for query-safe rules
   const allLeaguesQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, 'leagues'), orderBy('createdAt', 'desc'));
@@ -137,7 +137,6 @@ export default function LeaguesPage() {
     return { myLeagues: my, otherLeagues: others };
   }, [leaguesData, activeTeam]);
 
-  // Fetch invites for the current user's email
   const invitesQuery = useMemoFirebase(() => {
     if (!user?.email || !db) return null;
     return query(
@@ -353,7 +352,7 @@ export default function LeaguesPage() {
                                       <Input placeholder="e.g. Northside United" value={manualTeamName} onChange={e => setManualTeamName(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
                                     </div>
                                   </div>
-                                  <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={() => handleManualEnroll(league.id)} disabled={isProcessing || !manualTeamName.trim()}>
+                                  <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleManualEnroll(league.id)} disabled={isProcessing || !manualTeamName.trim()}>
                                     {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Archive Manual Squad"}
                                   </Button>
                                 </TabsContent>

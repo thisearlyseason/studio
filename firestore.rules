@@ -19,13 +19,13 @@ service cloud.firestore {
       );
     }
 
-    function isDemoTeam(teamId) {
-      return teamId.size() >= 5 && teamId[0:5] == 'demo_';
+    function isDemoId(id) {
+      return id.size() >= 5 && id[0:5] == 'demo_';
     }
 
     function isTeamMember(teamId) {
       return isSignedIn() && (
-        isDemoTeam(teamId) || 
+        isDemoId(teamId) || 
         isSuperAdmin() ||
         exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
       );
@@ -41,7 +41,7 @@ service cloud.firestore {
     }
 
     match /teams/{teamId} {
-      allow read, write: if isSignedIn() || isDemoTeam(teamId);
+      allow read, write: if isSignedIn() || isDemoId(teamId);
       
       match /members/{memberId} {
         allow read, write: if isSignedIn();
@@ -56,8 +56,8 @@ service cloud.firestore {
       }
       
       match /groupChats/{chatId} {
-        allow read, write: if isSignedIn();
-        match /messages/{msgId} { allow read, write: if isSignedIn(); }
+        allow read, write: if isSignedIn() || isDemoId(teamId);
+        match /messages/{msgId} { allow read, write: if isSignedIn() || isDemoId(teamId); }
       }
 
       match /files/{fileId} {
@@ -81,8 +81,8 @@ service cloud.firestore {
       }
 
       match /feedPosts/{postId} {
-        allow read, write: if isSignedIn();
-        match /comments/{commentId} { allow read, write: if isSignedIn(); }
+        allow read, write: if isSignedIn() || isDemoId(teamId);
+        match /comments/{commentId} { allow read, write: if isSignedIn() || isDemoId(teamId); }
       }
     }
 
@@ -90,10 +90,19 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    // League Hub - Unified query-safe listing
     match /leagues/{leagueId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isSuperAdmin());
+      
       match /registrationEntries/{entryId} {
-        allow read, write: if isSignedIn() || request.auth == null;
+        allow read, write: if isSignedIn() || isDemoId(leagueId);
+      }
+      
+      match /registration/config {
+        allow read: if true;
+        allow write: if isSignedIn();
       }
     }
 
@@ -103,12 +112,14 @@ service cloud.firestore {
     match /features { allow get, list: if true; }
     match /leads { allow create: if true; }
     match /players/{playerId} { allow read, write: if isSignedIn(); }
-    match /leagues/global/invites/{inviteId} { allow read, write: if isSignedIn(); }
+    match /leagues/global/invites/{inviteId} { 
+      allow read, write: if isSignedIn(); 
+    }
 
     // Collection Group Helpers
     match /{path=**}/members/{memberId} { allow read: if isSignedIn(); }
     match /{path=**}/events/{eventId} { allow read: if isSignedIn(); }
     match /{path=**}/alerts/{alertId} { allow read: if isSignedIn(); }
-    match /{path=**}/registrationEntries/{entryId} { allow read: if true; }
+    match /{path=**}/registrationEntries/{entryId} { allow read: if isSignedIn(); }
   }
 }

@@ -254,6 +254,7 @@ export type League = {
   sport: string;
   creatorId: string;
   teams: Record<string, { teamName: string; teamLogoUrl: string; wins: number; losses: number; ties: number; points: number }>;
+  createdAt?: string;
 };
 
 export type LeagueInvite = {
@@ -268,6 +269,8 @@ interface TeamContextType {
   user: UserProfile | null;
   activeTeam: Team | null;
   setActiveTeam: (team: Team) => void;
+  activeLeague: League | null;
+  setActiveLeague: (league: League | null) => void;
   teams: Team[];
   isTeamsLoading: boolean;
   isSeedingDemo: boolean;
@@ -374,6 +377,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
+  const [activeLeague, setActiveLeague] = useState<League | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [myChildren, setMyChildren] = useState<PlayerProfile[]>([]);
@@ -537,7 +541,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       'advanced_analytics',
       'analytics',
       'high_priority_alerts', 
-      'full_roster_details'
+      'full_roster_details',
+      'league_registration'
     ];
     
     if (proFeatures.includes(featureId)) return isPro;
@@ -646,6 +651,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     user: userProfile,
     activeTeam,
     setActiveTeam: useCallback((t: Team) => setActiveTeamId(t.id), []),
+    activeLeague,
+    setActiveLeague: useCallback((l: League | null) => setActiveLeague(l), []),
     teams,
     isTeamsLoading,
     isSeedingDemo,
