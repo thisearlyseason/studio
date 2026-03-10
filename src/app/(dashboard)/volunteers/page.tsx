@@ -115,12 +115,12 @@ export default function VolunteerHubPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Date</Label>
+                    <Label className="text-[10px) font-black uppercase tracking-widest ml-1">Date</Label>
                     <Input type="date" value={newOpp.date} onChange={e => setNewOpp({...newOpp, date: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Slots</Label>
-                    <Input type="number" value={newOpp.slots} onChange={e => setNewOpp({...newOpp, slots: e.target.value})} className="h-12 rounded-xl font-black border-2" />
+                    <Label className="text-[10px) font-black uppercase tracking-widest ml-1">Slots</Label>
+                    <Input type="number" value={newOpp.slots} onChange={e => setNewOpp({...newOpp, slots: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
                   </div>
                 </div>
                 <div className="space-y-2">

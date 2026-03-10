@@ -27,14 +27,7 @@ export default function DashboardLayout({
   }, []);
 
   useEffect(() => {
-    if (!isMounted) return;
-    if (!isUserLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, isUserLoading, router, isMounted]);
-
-  useEffect(() => {
-    if (!isMounted || isSeedingDemo || isTeamsLoading || !user) return;
+    if (!isMounted || isUserLoading || isSeedingDemo || isTeamsLoading || !user) return;
 
     if (userProfile?.isDemo && pathname === '/') {
       router.push('/feed');
@@ -54,12 +47,13 @@ export default function DashboardLayout({
         router.push('/teams/join');
       }
     }
-  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, isMounted]);
+  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, isMounted, isUserLoading]);
 
   /**
    * HYDRATION GUARD: Standardizing initial render state to prevent reconciliation mismatch.
+   * We ensure that the server-rendered HTML matches the first client-side render perfectly.
    */
-  if (!isMounted || isUserLoading || !user || isSeedingDemo) {
+  if (!isMounted) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
@@ -74,6 +68,29 @@ export default function DashboardLayout({
             </p>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
               Synchronising Elite Infrastructure
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Once mounted on the client, we continue checking for user loading or demo status
+  if (isUserLoading || !user || isSeedingDemo) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-6">
+          <div className="bg-primary/10 p-6 rounded-[2.5rem] shadow-xl relative">
+            <div className="h-16 w-16 flex items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-black uppercase tracking-widest text-primary">
+              {isSeedingDemo ? 'Deploying Demo...' : 'Authenticating...'}
+            </p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+              {isSeedingDemo ? 'Initializing Tactical Hub' : 'Synchronising Elite Infrastructure'}
             </p>
           </div>
         </div>

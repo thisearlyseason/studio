@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -132,17 +133,14 @@ export default function LeaguesPage() {
   const canRegister = hasFeature('league_registration');
 
   const leaguesQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db) return null;
+    if (!activeTeam?.id || !db || !user?.id) return null;
     return query(collection(db, 'leagues'), where(`teams.${activeTeam.id}`, '!=', null));
-  }, [activeTeam?.id, db]);
+  }, [activeTeam?.id, db, user?.id]);
 
   const { data: rawLeagues, isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
   const leagues = useMemo(() => rawLeagues || [], [rawLeagues]);
 
   const invitesQuery = useMemoFirebase(() => {
-    // CRITICAL: Queries on root collections with per-user filters MUST match security rules.
-    // Anonymous users (demos) don't have emails in their Auth Token, so the rule will reject
-    // a query filtered by 'guest@thesquad.pro' if the rule uses request.auth.token.email.
     if (!user?.email || !db || user?.isDemo) return null;
     
     return query(
@@ -275,19 +273,12 @@ export default function LeaguesPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {isStaff && activeLeague.creatorId === user?.id && (
-                    canRegister ? (
-                      <Button asChild variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest border-white/20 bg-white/10 text-white hover:bg-white/20">
-                        <Link href={`/leagues/registration/${activeLeague.id}`}>
-                          <ClipboardList className="h-4 w-4 mr-2" />
-                          Registration Hub
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button variant="outline" onClick={purchasePro} className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest border-white/20 bg-white/10 text-white hover:bg-white/20 opacity-60">
-                        <Lock className="h-4 w-4 mr-2" />
+                    <Button asChild variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest border-white/20 bg-white/10 text-white hover:bg-white/20">
+                      <Link href={`/leagues/registration/${activeLeague.id}`}>
+                        <ClipboardList className="h-4 w-4 mr-2" />
                         Registration Hub
-                      </Button>
-                    )
+                      </Link>
+                    </Button>
                   )}
                   {isStaff && activeLeague.creatorId === user?.id && (
                     <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
@@ -494,7 +485,6 @@ export default function LeaguesPage() {
         </div>
       )}
 
-      {/* Roster Scout Dialog */}
       <TeamRosterDialog 
         teamId={scoutTeamId} 
         teamName={scoutTeamName} 

@@ -178,9 +178,6 @@ export default function ChatRoomPage() {
                     <div className="flex items-center gap-2 mb-2 px-1">
                       {!isMe && <Avatar className="h-6 w-6 rounded-lg border shadow-sm"><AvatarFallback className="text-[8px] font-black">{msg.author[0]}</AvatarFallback></Avatar>}
                       <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">{msg.author}</span>
-                      {msg.isOpponentCoach && (
-                        <Badge className="bg-amber-500 text-black border-none text-[7px] font-black uppercase h-4 px-2">Opponent Staff</Badge>
-                      )}
                       <span className="text-[8px] text-muted-foreground/40 font-bold">{formatTime(msg.createdAt)}</span>
                     </div>
                   )}
