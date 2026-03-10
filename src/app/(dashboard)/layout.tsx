@@ -50,8 +50,8 @@ export default function DashboardLayout({
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, isMounted, isUserLoading]);
 
   /**
-   * HYDRATION GUARD: Standardizing initial render state to prevent reconciliation mismatch.
-   * We ensure that the server-rendered HTML matches the first client-side render perfectly.
+   * HYDRATION GUARD: Synchronizing initial render state to prevent reconciliation mismatch.
+   * Both server and client render the "Authenticating..." loading state until mounting completes.
    */
   if (!isMounted) {
     return (
@@ -75,7 +75,6 @@ export default function DashboardLayout({
     );
   }
 
-  // Once mounted on the client, we continue checking for user loading or demo status
   if (isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">

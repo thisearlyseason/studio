@@ -129,7 +129,7 @@ export default function VolunteerHubPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Hours per Person</Label>
-                  <Input type="number" step="0.5" value={newOpp.hoursPerSlot} onChange={e => setNewOpp({...newOpp, hoursPerSlot: e.target.value})} className="h-12 rounded-xl font-black border-2" />
+                  <Input type="number" step="0.5" value={newOpp.hoursPerSlot} onChange={e => setNewOpp({...newOpp, hoursPerSlot: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
                 </div>
               </div>
               <DialogFooter>
@@ -175,7 +175,7 @@ export default function VolunteerHubPage() {
             </div>
             <div>
               <p className="text-xl font-black leading-tight uppercase truncate">{user?.name}</p>
-              <p className="text-[10px) font-black uppercase tracking-[0.2em] opacity-60">Verified Contributor</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Verified Contributor</p>
             </div>
           </CardContent>
         </Card>
