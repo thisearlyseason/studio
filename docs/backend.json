@@ -18,6 +18,48 @@
       },
       "required": ["id", "fullName", "email", "role", "subscriptionPlan", "createdAt"]
     },
+    "Team": {
+      "title": "Team",
+      "type": "object",
+      "description": "A tactical squad coordination workspace.",
+      "properties": {
+        "id": { "type": "string" },
+        "teamName": { "type": "string" },
+        "teamCode": { "type": "string" },
+        "teamType": { "type": "string", "enum": ["starter", "pro"] },
+        "sport": { "type": "string" },
+        "ownerUserId": { "type": "string" },
+        "clubId": { "type": "string" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Organization": {
+      "title": "Organization",
+      "type": "object",
+      "description": "A master entity for managing multiple squads and institutional facilities.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerUserId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "League": {
+      "title": "League",
+      "type": "object",
+      "description": "A competitive hub for multi-squad standings and recruitment.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sport": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "teams": { "type": "object" },
+        "isPublic": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "Player": {
       "title": "Player",
       "type": "object",
@@ -32,21 +74,6 @@
         "joinedTeamIds": { "type": "array", "items": { "type": "string" } },
         "createdAt": { "type": "string", "format": "date-time" }
       }
-    },
-    "League": {
-      "title": "League",
-      "type": "object",
-      "description": "A master hub for managing multiple squads and recruitment.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "sport": { "type": "string" },
-        "creatorId": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "completed"] },
-        "teams": { "type": "object" },
-        "isPublic": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
     }
   },
   "auth": {
@@ -57,17 +84,21 @@
       "schema": { "$ref": "#/backend/entities/User" },
       "description": "Private user data."
     },
-    "/players/{playerId}": {
-      "schema": { "$ref": "#/backend/entities/Player" },
-      "description": "Central player profiles for the Family Hub."
-    },
     "/teams/{teamId}": {
       "schema": { "$ref": "#/backend/entities/Team" },
       "description": "Squad coordination data."
     },
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/backend/entities/Organization" },
+      "description": "Institutional command data."
+    },
     "/leagues/{leagueId}": {
       "schema": { "$ref": "#/backend/entities/League" },
-      "description": "Elite recruitment and standings hubs."
+      "description": "Competitive standings and recruitment hubs."
+    },
+    "/players/{playerId}": {
+      "schema": { "$ref": "#/backend/entities/Player" },
+      "description": "Central player profiles for the Family Hub."
     }
   }
 }

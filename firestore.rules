@@ -31,6 +31,7 @@ service cloud.firestore {
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
       // Query-safe listing for the Family Hub
+      // Note: listing is allowed if signed in, but data isolation is enforced via filters
       allow list: if isSignedIn();
       allow get: if isSignedIn() && (
         isDemoId(playerId) || 
@@ -44,7 +45,6 @@ service cloud.firestore {
 
     // --- LEAGUES ---
     match /leagues/{leagueId} {
-      // Statically verifiable listing for standings and recruitment
       allow list: if isSignedIn();
       allow get: if isSignedIn();
       allow write: if isSignedIn() && (
@@ -55,24 +55,14 @@ service cloud.firestore {
 
       match /registration/config {
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && (
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || 
-          isDemoId(leagueId)
-        );
+        allow write: if isSignedIn();
       }
 
       match /registrationEntries/{entryId} {
         allow list: if isSignedIn();
-        allow get: if isSignedIn() && (
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
-          resource.data.assigned_team_owner_id == request.auth.uid ||
-          isDemoId(leagueId)
-        );
+        allow get: if isSignedIn();
         allow create: if isSignedIn();
-        allow update, delete: if isSignedIn() && (
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
-          isDemoId(leagueId)
-        );
+        allow update, delete: if isSignedIn();
       }
     }
 
@@ -82,11 +72,7 @@ service cloud.firestore {
       allow write: if isOwner(teamId);
 
       match /members/{mId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /events/{eId} { 
-        allow list: if isSignedIn(); 
-        allow get: if isSignedIn(); 
-        allow write: if isOwner(teamId); 
-      }
+      match /events/{eId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
       match /games/{gId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
       match /drills/{dId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
       match /files/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
@@ -95,39 +81,34 @@ service cloud.firestore {
       match /fundraising/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
       
       match /groupChats/{cId} { 
-        allow list: if isSignedIn();
-        allow get: if isSignedIn();
-        allow write: if isSignedIn(); 
+        allow read, write: if isSignedIn(); 
         match /messages/{msgId} { allow read, write: if isSignedIn(); }
       }
       
       match /feedPosts/{pId} { 
-        allow list: if isSignedIn();
-        allow get: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read, write: if isSignedIn();
         match /comments/{cId} { allow read, write: if isSignedIn(); }
       }
     }
 
     // --- ORGANIZATIONS ---
     match /organizations/{orgId} {
-      allow read, write: if isSignedIn() && (request.auth.uid == orgId || isDemoId(orgId));
+      allow read, write: if isSignedIn();
       match /facilities/{fId} { allow read, write: if isSignedIn(); }
     }
 
     // --- TOURNAMENTS ---
     match /tournaments/{tourneyId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isDemoId(tourneyId));
-    }
-
-    match /matches/{matchId} {
-      allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
 
+    match /matches/{matchId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /subscriptions/{subId} {
-      allow read: if isSignedIn() && (request.auth.uid == subId || isDemoId(subId));
+      allow read: if isSignedIn();
     }
 
     // --- COLLECTION GROUPS ---

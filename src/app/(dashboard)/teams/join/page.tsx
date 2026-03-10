@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -205,7 +206,7 @@ export default function JoinTeamPage() {
         </div>
         <div className="space-y-1">
           <h4 className="text-lg font-black uppercase tracking-tight">Need a squad?</h4>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest max-w-sm mx-auto leading-relaxed">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest max-sm:px-4 max-w-sm mx-auto leading-relaxed">
             Contact your organization lead to receive your unique coordination code.
           </p>
         </div>
