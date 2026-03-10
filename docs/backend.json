@@ -104,7 +104,9 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "planId": { "type": "string" },
         "isPro": { "type": "boolean" },
-        "leagueIds": { "type": "array", "items": { "type": "string" } }
+        "leagueIds": { "type": "array", "items": { "type": "string" } },
+        "parentChatEnabled": { "type": "boolean" },
+        "parentCommentsEnabled": { "type": "boolean" }
       },
       "required": ["id", "teamName", "teamCode", "ownerUserId"]
     },
@@ -117,7 +119,10 @@
         "name": { "type": "string" },
         "sport": { "type": "string" },
         "creatorId": { "type": "string" },
-        "teams": { "type": "object" },
+        "teams": { 
+          "type": "object",
+          "description": "Map of teamId to stats (wins, losses, points)"
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "creatorId"]
@@ -132,31 +137,16 @@
         "status": { "type": "string", "enum": ["pending", "accepted", "declined"] }
       }
     },
-    "VolunteerOpportunity": {
-      "title": "VolunteerOpportunity",
+    "RegistrationEntry": {
+      "title": "RegistrationEntry",
       "type": "object",
       "properties": {
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "location": { "type": "string" },
-        "slots": { "type": "number" },
-        "hoursPerSlot": { "type": "number" },
-        "clubId": { "type": "string" },
-        "signups": { "type": "object" }
-      }
-    },
-    "FundraisingOpportunity": {
-      "title": "FundraisingOpportunity",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "goalAmount": { "type": "number" },
-        "currentAmount": { "type": "number" },
-        "deadline": { "type": "string", "format": "date-time" },
-        "clubId": { "type": "string" },
-        "participants": { "type": "object" }
+        "league_id": { "type": "string" },
+        "answers": { "type": "object" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "assigned", "declined"] },
+        "assigned_team_id": { "type": "string" },
+        "payment_received": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -182,6 +172,10 @@
     "/leagues/{leagueId}": {
       "schema": { "$ref": "#/backend/entities/League" },
       "description": "Competitive coordination hubs."
+    },
+    "/leagues/{leagueId}/registrationEntries/{entryId}": {
+      "schema": { "$ref": "#/backend/entities/RegistrationEntry" },
+      "description": "Public enrollment submissions."
     },
     "/leagues/global/invites/{inviteId}": {
       "schema": { "$ref": "#/backend/entities/LeagueInvite" },

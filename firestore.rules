@@ -20,7 +20,8 @@ service cloud.firestore {
     }
 
     function isDemoTeam(teamId) {
-      return teamId.matches('^demo_.*');
+      // Using stable string check for query-time authorization in demo sessions
+      return teamId.size() >= 5 && teamId[0:5] == 'demo_';
     }
 
     function isTeamMember(teamId) {
@@ -43,12 +44,12 @@ service cloud.firestore {
       );
     }
 
-    match /leagues {
-      allow list: if isSignedIn();
-    }
-
+    // LEAGUES HUB
+    // Rules consolidated at top level for statically verifiable collection listing
     match /leagues/{leagueId} {
-      allow get, create, update, delete: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperAdmin() || (isSignedIn() && resource.data.creatorId == request.auth.uid);
       
       match /registration/config {
         allow read: if true;
@@ -56,19 +57,24 @@ service cloud.firestore {
       }
       
       match /registrationEntries/{entryId} {
+        // Query-safe listing: Must be able to prove access for any entry in the collection
         allow list, get: if isSignedIn() && (
           isSuperAdmin() || 
           isDemoTeam(leagueId) ||
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
           (resource != null && resource.data.assigned_team_owner_id == request.auth.uid)
         );
-        allow create: if true; // Public enrollment
+        allow create: if true; // Public enrollment portal access
         allow update, delete: if isSuperAdmin() || (isSignedIn() && get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
     }
 
+    match /leagues {
+        allow list: if isSignedIn();
+    }
+
     match /leagues/global/invites/{inviteId} {
-      // Users can only see invites sent to their specific email
+      // Users can only list invites sent to their specific email
       allow list, get: if isSignedIn() && (
         isSuperAdmin() || 
         (request.auth.token.get('email', '') != '' && resource.data.invitedEmail == request.auth.token.email)
@@ -111,6 +117,7 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
+        // Broadened list for query stabilization in demo sessions
         allow list, get: if isSignedIn() && (isDemoTeam(teamId) || isTeamMember(teamId));
         allow create: if isTeamMember(teamId);
         allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || request.auth.uid in resource.data.memberIds);
@@ -127,7 +134,8 @@ service cloud.firestore {
         allow write: if isTeamAdmin(teamId);
         
         match /registrations/{regId} {
-          allow list, get: if isTeamMember(teamId);
+          // Broadened list for query stabilization in demo sessions
+          allow list, get: if isSignedIn() && (isDemoTeam(teamId) || isTeamMember(teamId));
           allow create: if true;
           allow update, delete: if isTeamAdmin(teamId);
         }
