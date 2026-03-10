@@ -12,44 +12,31 @@ import {
   FolderClosed, 
   Settings,
   ChevronDown,
-  PlusCircle,
   Trophy,
   Bell,
-  Info,
   Lock,
   Dumbbell,
-  Search,
-  CreditCard,
-  ShieldAlert,
-  RotateCcw,
-  Eye,
   Building,
   History,
-  Timer,
-  ChevronRight,
   Shield,
-  BookOpen,
-  Video,
   Zap,
-  Baby,
-  UserPlus,
-  Star,
   HandHelping,
   PiggyBank,
+  Table as TableIcon,
+  CreditCard,
   Layout,
-  Table as TableIcon
+  BarChart3,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useTeam, Team } from '@/components/providers/team-provider';
+import { useTeam } from '@/components/providers/team-provider';
 import { CreateAlertButton, AlertsHistoryDialog } from '@/components/layout/AlertOverlay';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Badge } from '@/components/ui/badge';
@@ -62,45 +49,33 @@ import {
   SidebarMenuButton, 
   SidebarMenuItem, 
   SidebarProvider,
-  SidebarSeparator
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent
 } from "@/components/ui/sidebar";
 import BrandLogo from '@/components/BrandLogo';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const tabs = [
-  { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: true },
-  { name: 'Schedule', href: '/events', icon: CalendarDays, pro: false },
-  { name: 'Leagues', href: '/leagues', icon: Shield, pro: false, feature: 'leagues' },
-  { name: 'Tournaments', href: '/tournament', icon: TableIcon, pro: true, feature: 'tournaments' },
-  { name: 'Scorekeeping', href: '/games', icon: Trophy, pro: false },
-  { name: 'Playbook', icon: Dumbbell, href: '/drills', pro: false },
-  { name: 'Volunteer', href: '/volunteers', icon: HandHelping, pro: false },
-  { name: 'Fundraising', href: '/fundraising', icon: PiggyBank, pro: false },
-  { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
-  { name: 'Roster', href: '/roster', icon: Users2, pro: false },
-  { name: 'Library', href: '/files', icon: FolderClosed, pro: false },
-];
-
-const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boolean, isLocked: boolean }) => {
-  const Icon = tab.icon;
+const SidebarItem = memo(({ item, isActive, isLocked }: { item: any, isActive: boolean, isLocked: boolean }) => {
+  const Icon = item.icon;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton 
         asChild 
         isActive={isActive}
         className={cn(
-          "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
+          "h-11 px-4 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest",
           isActive 
             ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90" 
             : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
         )}
       >
-        <Link href={tab.href} className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-4">
-            <Icon className={cn("h-5 w-5", isActive ? "stroke-[3px]" : "stroke-[2]")} />
-            <span>{tab.name}</span>
+        <Link href={item.href} className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-3">
+            <Icon className={cn("h-4 w-4", isActive ? "stroke-[3px]" : "stroke-[2]")} />
+            <span>{item.name}</span>
           </div>
-          {isLocked && <Lock className="h-3.5 w-3.5 opacity-40" />}
+          {isLocked && <Lock className="h-3 w-3 opacity-40" />}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -110,16 +85,53 @@ SidebarItem.displayName = "SidebarItem";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { 
-    activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin, 
-    isClubManager, isStaff, hasFeature, clubId
+    activeTeam, setActiveTeam, teams, user, isPro, isClubManager, isStaff, hasFeature, clubId
   } = useTeam();
 
-  const filteredTabs = tabs.filter(tab => {
-    if (tab.feature) return hasFeature(tab.feature);
-    return true;
-  });
+  const navigationGroups = [
+    {
+      label: "Home",
+      items: [
+        { name: 'Dashboard', href: '/feed', icon: LayoutDashboard }
+      ]
+    },
+    {
+      label: "Team",
+      items: [
+        { name: 'Roster', href: '/roster', icon: Users2 },
+        { name: 'Schedule', href: '/events', icon: CalendarDays },
+        { name: 'Playbook', href: '/drills', icon: Dumbbell }
+      ]
+    },
+    {
+      label: "Communication",
+      items: [
+        { name: 'Team Chat', href: '/chats', icon: MessageCircle }
+      ]
+    },
+    {
+      label: "Competition",
+      items: [
+        { name: 'Scores', href: '/games', icon: Trophy },
+        { name: 'Tournaments', href: '/tournament', icon: TableIcon, pro: true, feature: 'tournaments' },
+        { name: 'Standings', href: '/leagues', icon: Shield, feature: 'leagues' }
+      ]
+    },
+    {
+      label: "Finance",
+      items: [
+        { name: 'Fundraising', href: '/fundraising', icon: PiggyBank, pro: true, feature: 'payments' },
+        { name: 'Volunteer', href: '/volunteers', icon: HandHelping, pro: true, feature: 'attendance' }
+      ]
+    },
+    {
+      label: "Documents",
+      items: [
+        { name: 'Library', href: '/files', icon: FolderClosed }
+      ]
+    }
+  ];
 
   return (
     <SidebarProvider>
@@ -131,21 +143,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 <BrandLogo variant="light-background" className="h-10 w-44 justify-start -ml-2" priority />
                 <div className="flex items-center gap-3 mt-1 ml-1">
                   <div className="h-[2px] w-6 bg-primary rounded-full" />
-                  <p className="text-[10px] font-extrabold text-primary uppercase tracking-[0.25em] whitespace-nowrap">Coordination Hub</p>
+                  <p className="text-[10px] font-extrabold text-primary uppercase tracking-[0.25em] whitespace-nowrap">Tactical OS</p>
                 </div>
               </div>
 
-              {isClubManager && clubId && (
-                <div className="mb-6 px-2 space-y-2">
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Institutional Hub</p>
-                  <Button asChild className={cn("w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest transition-all", pathname.startsWith('/organization') ? "bg-black text-white shadow-xl" : "bg-primary/5 text-primary hover:bg-primary/10")}>
-                    <Link href={`/organization/${clubId}`}><Building className="h-5 w-5" /> Command Center</Link>
-                  </Button>
-                </div>
-              )}
-
               <div className="px-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Tactical Switcher</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Squad Selector</p>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-14 px-3 border-muted-foreground/10 bg-background/50 hover:bg-white rounded-2xl shadow-sm group">
@@ -179,37 +182,77 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </SidebarHeader>
 
-            <SidebarContent className="px-4 py-2">
-              <SidebarMenu className="space-y-1.5">
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Squad Operations</p>
-                {filteredTabs.map((tab) => (
-                  <SidebarItem key={tab.name} tab={tab} isActive={pathname.startsWith(tab.href)} isLocked={tab.pro && !isPro && isStaff} />
+            <SidebarContent className="px-4">
+              <ScrollArea className="h-full pr-2">
+                {isClubManager && clubId && (
+                  <SidebarGroup className="mb-4">
+                    <SidebarGroupLabel className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Organization</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        <SidebarItem 
+                          item={{ name: 'Club Hub', href: `/organization/${clubId}`, icon: Building }} 
+                          isActive={pathname.startsWith(`/organization/${clubId}`)} 
+                          isLocked={false} 
+                        />
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </SidebarGroup>
+                )}
+
+                {navigationGroups.map((group) => (
+                  <SidebarGroup key={group.label} className="mb-4">
+                    <SidebarGroupLabel className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground">{group.label}</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                      <SidebarMenu className="space-y-1">
+                        {group.items
+                          .filter(item => !item.feature || hasFeature(item.feature))
+                          .map((item) => (
+                            <SidebarItem 
+                              key={item.name} 
+                              item={item} 
+                              isActive={pathname === item.href} 
+                              isLocked={item.pro && !isPro && isStaff} 
+                            />
+                          ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </SidebarGroup>
                 ))}
-              </SidebarMenu>
+              </ScrollArea>
             </SidebarContent>
 
             <SidebarFooter className="p-6">
-              <Link href="/settings">
-                <div className="flex items-center gap-3 p-2 hover:bg-primary/5 rounded-2xl transition-all cursor-pointer">
-                  <Avatar className="h-10 w-10 border-2 border-background shadow-md"><AvatarImage src={user?.avatar} /><AvatarFallback className="font-black text-xs">{user?.name?.[0] || '?'}</AvatarFallback></Avatar>
-                  <div className="flex flex-col min-w-0"><span className="font-black text-sm truncate leading-tight">{user?.name}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Account Settings</span></div>
-                </div>
-              </Link>
+              <SidebarMenu>
+                <SidebarItem 
+                  item={{ name: 'Settings', href: '/settings', icon: Settings }} 
+                  isActive={pathname === '/settings'} 
+                  isLocked={false} 
+                />
+              </SidebarMenu>
             </SidebarFooter>
           </Sidebar>
 
           <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden bg-background">
             <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between shrink-0">
-              <div className="hidden md:flex items-center gap-4 min-w-0">
+              <div className="flex items-center gap-4 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-xl lg:text-2xl font-black tracking-tighter uppercase truncate">{pathname.split('/')[1] || 'Dashboard'}</h2>
-                  <p className="text-[9px] lg:text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] ml-0.5 truncate">The Squad Hub • {activeTeam?.name}</p>
+                  <p className="text-[9px] lg:text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] ml-0.5 truncate">The Squad • {activeTeam?.name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <CreateAlertButton />
-                <AlertsHistoryDialog><Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl relative"><Bell className="h-5 w-5" /></Button></AlertsHistoryDialog>
-                <Link href="/settings"><Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-background shadow-md"><AvatarImage src={user?.avatar} /><AvatarFallback className="font-black text-[10px]">{user?.name?.[0] || '?'}</AvatarFallback></Avatar></Link>
+                <AlertsHistoryDialog>
+                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl relative">
+                    <Bell className="h-5 w-5" />
+                  </Button>
+                </AlertsHistoryDialog>
+                <Link href="/settings">
+                  <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-background shadow-md">
+                    <AvatarImage src={user?.avatar} />
+                    <AvatarFallback className="font-black text-[10px]">{user?.name?.[0] || '?'}</AvatarFallback>
+                  </Avatar>
+                </Link>
               </div>
             </header>
             <main className="flex-1 pb-36 md:pb-12 pt-4 md:pt-6 px-4 md:px-10 max-w-7xl mx-auto w-full overflow-y-auto custom-scrollbar">

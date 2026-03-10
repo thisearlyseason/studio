@@ -9,7 +9,7 @@ service cloud.firestore {
     }
 
     function isDemoId(id) {
-      return id.size() >= 5 && id[0:5] == "demo_";
+      return id != null && id.size() >= 5 && id[0:5] == "demo_";
     }
 
     function isOwner(teamId) {
@@ -30,7 +30,6 @@ service cloud.firestore {
 
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
-      // Allow listing if the query is filtered by the user's UID as guardian
       allow read: if isSignedIn() && (
         resource.data.guardianId == request.auth.uid || 
         isDemoId(playerId)
@@ -66,7 +65,7 @@ service cloud.firestore {
       }
     }
 
-    // --- LEAGUES & RECRUITMENT ---
+    // --- LEAGUES ---
     match /leagues/{leagueId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isDemoId(leagueId));
@@ -77,7 +76,6 @@ service cloud.firestore {
       }
 
       match /registrationEntries/{entryId} {
-        // Broad read for managers, specific read for assigned team owners
         allow read: if isSignedIn() && (
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
           resource.data.assigned_team_owner_id == request.auth.uid ||
@@ -91,7 +89,7 @@ service cloud.firestore {
       }
     }
 
-    // --- INSTITUTIONAL ASSETS ---
+    // --- ORGANIZATIONS ---
     match /organizations/{orgId} {
       allow read, write: if isSignedIn() && (request.auth.uid == orgId || isDemoId(orgId));
       match /facilities/{fId} { allow read, write: if isSignedIn(); }
