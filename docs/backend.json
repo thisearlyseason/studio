@@ -104,6 +104,8 @@
         "name": { "type": "string" },
         "sport": { "type": "string" },
         "creatorId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "isPublic": { "type": "boolean" },
         "teams": { 
           "type": "object",
           "description": "Map of teamId to stats (teamName, wins, losses, points)"

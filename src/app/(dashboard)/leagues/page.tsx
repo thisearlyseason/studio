@@ -20,7 +20,11 @@ import {
   ClipboardList,
   ArrowUpRight,
   Info,
-  MessageSquare
+  Globe,
+  Settings,
+  LayoutGrid,
+  TrendingUp,
+  Award
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -100,7 +104,7 @@ function TeamRosterScout({ teamId, teamName, isOpen, onOpenChange }: { teamId: s
             )}
           </ScrollArea>
           
-          <Button className="w-full h-12 rounded-xl font-black uppercase text-xs tracking-widest" onClick={() => onOpenChange(false)}>Close Scout Hub</Button>
+          <Button className="w-full h-12 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20" onClick={() => onOpenChange(false)}>Close Scout Hub</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -108,7 +112,7 @@ function TeamRosterScout({ teamId, teamName, isOpen, onOpenChange }: { teamId: s
 }
 
 export default function LeaguesPage() {
-  const { activeTeam, user, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, acceptLeagueInvite, isStaff, createChat } = useTeam();
+  const { activeTeam, user, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, acceptLeagueInvite, isStaff } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -122,7 +126,6 @@ export default function LeaguesPage() {
   const [scoutTeamName, setScoutTeamName] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Explicit collection-level query for query-safe rules
   const allLeaguesQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, 'leagues'), orderBy('createdAt', 'desc'));
@@ -136,6 +139,11 @@ export default function LeaguesPage() {
     const others = all.filter(l => !activeTeam || !l.teams || !l.teams[activeTeam.id]);
     return { myLeagues: my, otherLeagues: others };
   }, [leaguesData, activeTeam]);
+
+  const filteredMyLeagues = useMemo(() => {
+    if (!searchTerm.trim()) return myLeagues;
+    return myLeagues.filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [myLeagues, searchTerm]);
 
   const invitesQuery = useMemoFirebase(() => {
     if (!user?.email || !db) return null;
@@ -193,7 +201,7 @@ export default function LeaguesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Competitive Hub</Badge>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">League Ledger</h1>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Championship Hub</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Official Multi-Team Coordination</p>
         </div>
         
@@ -245,14 +253,14 @@ export default function LeaguesPage() {
               
               <div className="pt-4 border-t space-y-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Intelligence Brief</p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[10px] font-bold uppercase">
-                    <span className="text-muted-foreground">Joined Hubs</span>
-                    <span>{myLeagues.length}</span>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+                    <span className="text-muted-foreground flex items-center gap-2"><Shield className="h-3 w-3" /> Joined Hubs</span>
+                    <Badge variant="secondary" className="font-black border-none">{myLeagues.length}</Badge>
                   </div>
-                  <div className="flex justify-between text-[10px] font-bold uppercase">
-                    <span className="text-muted-foreground">Global Challenges</span>
-                    <span>{invites.length}</span>
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+                    <span className="text-muted-foreground flex items-center gap-2"><Zap className="h-3 w-3" /> Challenges</span>
+                    <Badge className="bg-amber-500 text-white font-black border-none">{invites.length}</Badge>
                   </div>
                 </div>
               </div>
@@ -262,14 +270,14 @@ export default function LeaguesPage() {
           {invites.length > 0 && (
             <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 px-2 flex items-center gap-2">
-                <Zap className="h-3.5 w-3.5" /> Pending Challenges
+                <TrendingUp className="h-3.5 w-3.5" /> Pending Challenges
               </p>
               {invites.map((invite) => (
                 <Card key={invite.id} className="rounded-2xl border-none shadow-lg ring-2 ring-amber-500/20 bg-amber-50 overflow-hidden">
                   <CardContent className="p-4 space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="bg-white p-2 rounded-lg shadow-sm border shrink-0">
-                        <Shield className="h-4 w-4 text-amber-600" />
+                        <Award className="h-4 w-4 text-amber-600" />
                       </div>
                       <p className="font-black text-xs uppercase truncate leading-tight">{invite.leagueName}</p>
                     </div>
@@ -287,7 +295,7 @@ export default function LeaguesPage() {
         </aside>
 
         <div className="lg:col-span-3 space-y-10">
-          {myLeagues.length > 0 ? myLeagues.map((league) => (
+          {filteredMyLeagues.length > 0 ? filteredMyLeagues.map((league) => (
             <section key={league.id} className="space-y-6">
               <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-black text-white relative group">
                 <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
@@ -352,7 +360,7 @@ export default function LeaguesPage() {
                                       <Input placeholder="e.g. Northside United" value={manualTeamName} onChange={e => setManualTeamName(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
                                     </div>
                                   </div>
-                                  <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleManualEnroll(league.id)} disabled={isProcessing || !manualTeamName.trim()}>
+                                  <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={() => handleManualEnroll(league.id)} disabled={isProcessing || !manualTeamName.trim()}>
                                     {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Archive Manual Squad"}
                                   </Button>
                                 </TabsContent>
