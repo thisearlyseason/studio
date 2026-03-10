@@ -43,13 +43,12 @@ service cloud.firestore {
       );
     }
 
-    // LEAGUES - TOP LEVEL ACCESS
+    match /leagues {
+      allow list: if isSignedIn();
+    }
+
     match /leagues/{leagueId} {
-      // Allow any signed-in user to list leagues for the standings view
-      allow list, get: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSuperAdmin() || (isSignedIn() && resource.data.creatorId == request.auth.uid);
-      allow delete: if isSuperAdmin();
+      allow get, create, update, delete: if isSignedIn();
       
       match /registration/config {
         allow read: if true;
@@ -57,7 +56,6 @@ service cloud.firestore {
       }
       
       match /registrationEntries/{entryId} {
-        // Query-safe listing: filter by assigned team owner OR league creator
         allow list, get: if isSignedIn() && (
           isSuperAdmin() || 
           isDemoTeam(leagueId) ||
