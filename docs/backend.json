@@ -113,6 +113,31 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "creatorId"]
+    },
+    "Organization": {
+      "title": "Organization",
+      "type": "object",
+      "description": "An elite institutional hub for multi-squad coordination.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Facility": {
+      "title": "Facility",
+      "type": "object",
+      "description": "A managed venue, field, or court within an organization.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["field", "court", "venue"] },
+        "location": { "type": "string" },
+        "orgId": { "type": "string" }
+      }
     }
   },
   "auth": {
@@ -133,6 +158,14 @@
     "/leagues/{leagueId}": {
       "schema": { "$ref": "#/backend/entities/League" },
       "description": "Competitive coordination hubs."
+    },
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/backend/entities/Organization" },
+      "description": "Elite organization command centers."
+    },
+    "/organizations/{orgId}/facilities/{facilityId}": {
+      "schema": { "$ref": "#/backend/entities/Facility" },
+      "description": "Managed organizational venues."
     },
     "/subscriptions/{subId}": {
       "schema": { "type": "object" },

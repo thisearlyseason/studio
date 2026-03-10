@@ -32,6 +32,14 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    match /organizations/{orgId} {
+      allow read, write: if isSignedIn();
+      
+      match /facilities/{facilityId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
     match /teams/{teamId} {
       allow read, write: if isSignedIn() || isDemoId(teamId);
       
@@ -78,11 +86,7 @@ service cloud.firestore {
       }
     }
 
-    match /organizations/{orgId} {
-      allow read, write: if isSignedIn();
-    }
-
-    // League Hub - Query-safe rules for all users
+    // League Hub
     match /leagues/{leagueId} {
       allow read: if isSignedIn() || isDemoId(leagueId);
       allow create: if isSignedIn();

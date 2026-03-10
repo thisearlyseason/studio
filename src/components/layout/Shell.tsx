@@ -205,7 +205,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { 
     activeTeam, setActiveTeam, teams, user, isPro, alerts, isSuperAdmin, 
-    isClubManager, isStaff, isParent, hasFeature, isPlayer
+    isClubManager, isStaff, isParent, hasFeature, isPlayer, clubId
   } = useTeam();
   const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
@@ -270,31 +270,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </div>
               )}
 
-              {isClubManager && (
+              {isClubManager && clubId && (
                 <div className="mb-6 px-2 space-y-2">
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2">Organization View</p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2">Institutional Hub</p>
                   <Button 
                     asChild 
                     className={cn(
                       "w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest transition-all",
-                      pathname === '/club/dashboard' ? "bg-black text-white shadow-xl" : "bg-primary/5 text-primary hover:bg-primary/10"
+                      pathname.startsWith('/organization') ? "bg-black text-white shadow-xl" : "bg-primary/5 text-primary hover:bg-primary/10"
                     )}
                   >
-                    <Link href="/club/dashboard">
-                      <Layout className="h-5 w-5" />
-                      Strategic Dashboard
-                    </Link>
-                  </Button>
-                  <Button 
-                    asChild 
-                    className={cn(
-                      "w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest transition-all",
-                      pathname === '/club' ? "bg-black text-white shadow-xl" : "bg-primary/5 text-primary hover:bg-primary/10"
-                    )}
-                  >
-                    <Link href="/club">
+                    <Link href={`/organization/${clubId}`}>
                       <Building className="h-5 w-5" />
-                      Organization Roster
+                      Command Center
                     </Link>
                   </Button>
                 </div>
@@ -415,7 +403,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <div className="hidden md:flex items-center gap-4 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-xl lg:text-2xl font-black tracking-tighter uppercase truncate">
-                    {pathname === '/pricing' ? 'Pricing' : pathname === '/how-to' ? 'Tactical Manual' : (pathname === '/leagues' ? 'League Hub' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard'))}
+                    {pathname.startsWith('/organization') ? 'Command Center' : (pathname === '/pricing' ? 'Pricing' : pathname === '/how-to' ? 'Tactical Manual' : (pathname === '/leagues' ? 'League Hub' : (tabs.find(t => pathname.startsWith(t.href))?.name || 'Dashboard')))}
                   </h2>
                   <p className="text-[9px] lg:text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] lg:tracking-[0.3em] ml-0.5 truncate">The Squad Hub • {activeTeam?.name}</p>
                 </div>
@@ -514,18 +502,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         <DropdownMenuSeparator />
                       </>
                     )}
-                    {isClubManager && (
+                    {isClubManager && clubId && (
                       <>
                         <DropdownMenuItem asChild className="rounded-xl p-3">
-                          <Link href="/club/dashboard" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
-                            <Layout className="h-4 w-4" />
-                            Club Dashboard
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild className="rounded-xl p-3">
-                          <Link href="/club" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
+                          <Link href={`/organization/${clubId}`} className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
                             <Building className="h-4 w-4" />
-                            Club Hub
+                            Institution Hub
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
