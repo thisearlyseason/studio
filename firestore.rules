@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     function isDemoTeam(tid) {
-      return tid != null && tid.size() >= 5 && tid[0:5] == 'demo_';
+      return tid != null && tid.matches('^demo_.*');
     }
 
     function isTeamMember(teamId) {
@@ -114,12 +114,11 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Optimized for query proveability: allows listing if user is an admin, or part of a demo team, 
-        // or explicitly in the memberIds array (which matches the query filter).
-        allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || request.auth.uid in resource.data.memberIds);
-        allow get: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || request.auth.uid in resource.data.memberIds || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
+        // Optimized list rule to support both guest demo access and member queries
+        allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || (exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))));
+        allow get: if isTeamMember(teamId);
         allow create: if isTeamMember(teamId);
-        allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || request.auth.uid in resource.data.memberIds);
+        allow update: if isTeamMember(teamId);
         
         match /messages/{messageId} {
           allow read: if isTeamMember(teamId);
@@ -133,7 +132,8 @@ service cloud.firestore {
         allow write: if isTeamAdmin(teamId);
         
         match /registrations/{regId} {
-          allow read: if isTeamAdmin(teamId);
+          // Relaxed to list for all members to support Attendance Hub viewing
+          allow read: if isTeamMember(teamId);
           allow create: if true;
         }
       }
