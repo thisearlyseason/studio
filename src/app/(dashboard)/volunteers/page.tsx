@@ -104,39 +104,42 @@ export default function VolunteerHubPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black tracking-tight uppercase">New Assignment</DialogTitle>
-                <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Enroll tactical squad support</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-6 py-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Title</Label>
-                  <Input placeholder="e.g. Concession Management" value={newOpp.title} onChange={e => setNewOpp({...newOpp, title: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="h-2 bg-primary w-full" />
+              <div className="p-8">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black tracking-tight uppercase">New Assignment</DialogTitle>
+                  <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Enroll tactical squad support</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Date</Label>
-                    <Input type="date" value={newOpp.date} onChange={e => setNewOpp({...newOpp, date: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Title</Label>
+                    <Input placeholder="e.g. Concession Management" value={newOpp.title} onChange={e => setNewOpp({...newOpp, title: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Date</Label>
+                      <Input type="date" value={newOpp.date} onChange={e => setNewOpp({...newOpp, date: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Slots</Label>
+                      <Input type="number" value={newOpp.slots} onChange={e => setNewOpp({...newOpp, slots: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Slots</Label>
-                    <Input type="number" value={newOpp.slots} onChange={e => setNewOpp({...newOpp, slots: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Location</Label>
+                    <Input placeholder="Venue/Field name" value={newOpp.location} onChange={e => setNewOpp({...newOpp, location: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Hours per Person</Label>
+                    <Input type="number" step="0.5" value={newOpp.hoursPerSlot} onChange={e => setNewOpp({...newOpp, hoursPerSlot: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Location</Label>
-                  <Input placeholder="Venue/Field name" value={newOpp.location} onChange={e => setNewOpp({...newOpp, location: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Hours per Person</Label>
-                  <Input type="number" step="0.5" value={newOpp.hoursPerSlot} onChange={e => setNewOpp({...newOpp, hoursPerSlot: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
-                </div>
+                <DialogFooter>
+                  <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleAddOpportunity} disabled={isProcessing || !newOpp.title}>
+                    Publish Assignment
+                  </Button>
+                </DialogFooter>
               </div>
-              <DialogFooter>
-                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleAddOpportunity} disabled={isProcessing || !newOpp.title}>
-                  Publish Assignment
-                </Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}

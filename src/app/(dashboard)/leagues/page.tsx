@@ -116,7 +116,7 @@ function TeamRosterDialog({ teamId, teamName, isOpen, onOpenChange }: { teamId: 
 }
 
 export default function LeaguesPage() {
-  const { activeTeam, user, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, acceptLeagueInvite, hasFeature, purchasePro, createChat, isStaff } = useTeam();
+  const { activeTeam, user, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, acceptLeagueInvite, isStaff, createChat } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -132,7 +132,6 @@ export default function LeaguesPage() {
   const [scoutTeamName, setScoutTeamName] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch all leagues to show availability
   const allLeaguesQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, 'leagues'), orderBy('createdAt', 'desc'));
@@ -140,7 +139,6 @@ export default function LeaguesPage() {
 
   const { data: leaguesData, isLoading: isLeaguesLoading } = useCollection<League>(allLeaguesQuery);
   
-  // Local logic: My leagues vs Global leagues
   const { myLeagues, otherLeagues } = useMemo(() => {
     const all = leaguesData || [];
     const my = all.filter(l => l.teams && activeTeam && l.teams[activeTeam.id]);
@@ -234,21 +232,24 @@ export default function LeaguesPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black tracking-tight uppercase">League Identity</DialogTitle>
-                <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Establish a new competitive coordination hub</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-6 py-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">League Name</Label>
-                  <Input placeholder="e.g. Regional Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
+              <div className="h-2 bg-primary w-full" />
+              <div className="p-8">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black tracking-tight uppercase">League Identity</DialogTitle>
+                  <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Establish a new competitive coordination hub</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">League Name</Label>
+                    <Input placeholder="e.g. Regional Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
+                  </div>
                 </div>
+                <DialogFooter>
+                  <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleCreateLeague} disabled={isProcessing || !leagueName.trim()}>
+                    {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Deploy Hub"}
+                  </Button>
+                </DialogFooter>
               </div>
-              <DialogFooter>
-                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleCreateLeague} disabled={isProcessing || !leagueName.trim()}>
-                  {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Deploy Hub"}
-                </Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}

@@ -20,13 +20,13 @@ service cloud.firestore {
     }
 
     // Robust demo check using regex for static query optimization
-    function isDemoTeam(tid) {
-      return tid != null && tid is string && tid.matches('^demo_.*');
+    function isDemoPath(path) {
+      return path.matches('.*/demo_.*');
     }
 
     function isTeamMember(teamId) {
       return isSignedIn() && (
-        isDemoTeam(teamId) || 
+        teamId.matches('^demo_.*') || 
         isSuperAdmin() ||
         exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
       );
@@ -34,7 +34,7 @@ service cloud.firestore {
 
     function isTeamAdmin(teamId) {
       return isSignedIn() && (
-        isDemoTeam(teamId) ||
+        teamId.matches('^demo_.*') ||
         isSuperAdmin() ||
         (exists(/databases/$(database)/documents/teams/$(teamId)) && (
           get(/databases/$(database)/documents/teams/$(teamId)).data.get('ownerUserId', '') == request.auth.uid ||
@@ -44,9 +44,9 @@ service cloud.firestore {
       );
     }
 
-    // LEAGUES HUB
-    // Allow listing the leagues collection for any signed-in user
+    // LEAGUES HUB - TOP LEVEL LISTING FIX
     match /leagues/{leagueId} {
+      // Allow listing the leagues collection for any signed-in user to support standings
       allow list, get: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSuperAdmin() || (isSignedIn() && resource.data.creatorId == request.auth.uid);
@@ -57,9 +57,11 @@ service cloud.firestore {
       }
       
       match /registrationEntries/{entryId} {
-        // List entries if you created the league or if the entry is assigned to a team you own
+        // List entries if you created the league or if assigned to a team you own
+        // Note: isDemoPath check ensures listing works for guest demo sessions
         allow list, get: if isSignedIn() && (
           isSuperAdmin() || 
+          isDemoPath(request.path.toString()) ||
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
           (resource != null && resource.data.assigned_team_owner_id == request.auth.uid)
         );
@@ -76,6 +78,11 @@ service cloud.firestore {
 
     // CLUBS & ORGANIZATIONS
     match /clubs/{clubId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // PAYMENTS LEDGER
+    match /payments/{paymentId} {
       allow read, write: if isSignedIn();
     }
 
@@ -103,7 +110,8 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        allow list, get: if isSignedIn() && (isDemoTeam(teamId) || isTeamMember(teamId));
+        // Query-safe listing for chats
+        allow list, get: if isSignedIn() && (teamId.matches('^demo_.*') || isTeamMember(teamId));
         allow create: if isTeamMember(teamId);
         allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || request.auth.uid in resource.data.memberIds);
         
@@ -119,6 +127,7 @@ service cloud.firestore {
         allow write: if isTeamAdmin(teamId);
         
         match /registrations/{regId} {
+          // List registrations for any team member to see attendance
           allow list, get: if isTeamMember(teamId);
           allow create: if true;
           allow update, delete: if isTeamAdmin(teamId);
@@ -173,7 +182,7 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    // COLLECTION GROUPS
+    // COLLECTION GROUPS - FOR CLUB DASHBOARD
     match /{path=**}/members/{memberId} {
       allow read: if isSignedIn();
     }
@@ -189,10 +198,6 @@ service cloud.firestore {
     match /{path=**}/registrationEntries/{entryId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
-    }
-
-    match /payments/{paymentId} {
-      allow read, write: if isSignedIn();
     }
 
     match /players/{playerId} {
