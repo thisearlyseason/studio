@@ -29,6 +29,10 @@ import { seedGuestDemoTeam } from '@/lib/db-seeder';
 
 export type UserRole = "parent" | "adult_player" | "coach" | "admin";
 
+export type SubscriptionPlan = "free" | "squad_pro" | "elite_teams" | "elite_league";
+export type SubscriptionStatus = "active" | "inactive" | "trial";
+export type TeamType = "starter" | "pro";
+
 export type UserProfile = {
   id: string;
   name: string;
@@ -38,8 +42,9 @@ export type UserProfile = {
   role: UserRole;
   createdAt?: string;
   isDemo?: boolean;
-  activePlanId?: string | null;
-  proTeamLimit?: number | null;
+  subscriptionPlan?: SubscriptionPlan;
+  subscriptionStatus?: SubscriptionStatus;
+  proTeamLimit?: number;
   tournamentCredits?: number;
 };
 
@@ -62,6 +67,7 @@ export type Team = {
   name: string;
   code: string;
   type: "adult" | "youth";
+  teamType: TeamType;
   sport?: string;
   description?: string;
   teamLogoUrl?: string;
@@ -277,7 +283,7 @@ interface TeamContextType {
   clubId: string | null;
   alerts: TeamAlert[];
   isRCInitialized: boolean;
-  createNewTeam: (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => Promise<string>;
+  createNewTeam: (name: string, type: "adult" | "youth", pos: string, description?: string, teamType?: TeamType) => Promise<string>;
   joinTeamWithCode: (code: string, playerId: string, position: string) => Promise<boolean>;
   registerChild: (firstName: string, lastName: string, dob: string) => Promise<string>;
   upgradeChildToLogin: (playerId: string, email: string) => Promise<void>;
@@ -292,7 +298,7 @@ interface TeamContextType {
   updateUser: (updates: Partial<UserProfile>) => Promise<void>;
   updateMember: (memberId: string, updates: Partial<Member>) => Promise<void>;
   updateTeamDetails: (updates: Partial<Team>) => Promise<void>;
-  updateTeamPlan: (teamId: string, planId: string) => Promise<void>;
+  updateTeamType: (teamId: string, teamType: TeamType) => Promise<void>;
   manageSubscription: () => void;
   resetSeasonData: () => Promise<void>;
   createChat: (name: string, memberIds: string[]) => Promise<string>;
@@ -392,7 +398,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           phone: data.phone || '',
           avatar: data.avatarUrl || data.avatar || '',
           role: data.role || 'adult_player',
-          activePlanId: data.activePlanId,
+          subscriptionPlan: data.subscriptionPlan || 'free',
+          subscriptionStatus: data.subscriptionStatus || 'active',
           proTeamLimit: data.proTeamLimit || 0,
           createdAt: data.createdAt,
           isDemo: data.isDemo,
@@ -451,7 +458,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: m.teamName || 'Unnamed Team',
       code: m.teamCode || '......',
       type: m.type || 'adult',
-      isPro: m.isPro || false,
+      teamType: m.teamType || (m.isPro ? 'pro' : 'starter'),
+      isPro: m.teamType === 'pro' || m.isPro || false,
       planId: m.planId || 'starter_squad',
       clubId: m.clubId || null,
       role: m.role || 'Member',
@@ -489,32 +497,47 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const proQuotaStatus = useMemo(() => {
-    const limitCount = userProfile?.proTeamLimit ?? 0;
-    const ownedProTeams = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro);
+    const plan = userProfile?.subscriptionPlan || 'free';
+    let limitCount = 0;
+    if (plan === 'squad_pro') limitCount = 1;
+    else if (plan === 'elite_teams') limitCount = 8;
+    else if (plan === 'elite_league') limitCount = 99999;
+
+    const ownedProTeams = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.teamType === 'pro');
     const current = ownedProTeams.length;
     return { current, limit: limitCount, remaining: Math.max(0, limitCount - current), exceeded: current > limitCount };
   }, [teams, userProfile, firebaseUser?.uid]);
 
   const isStaff = activeTeam?.role === 'Admin';
-  const isPro = activeTeam?.isPro || false;
+  const isPro = activeTeam?.teamType === 'pro';
   const isParent = userProfile?.role === 'parent';
   const isPlayer = userProfile?.role === 'adult_player';
   const isSuperAdmin = userProfile?.email === 'thisearlyseason@gmail.com' || userProfile?.email === 'test@gmail.com';
-  const isClubManager = userProfile?.activePlanId?.includes('squad_organization');
+  const isClubManager = userProfile?.subscriptionPlan === 'elite_teams' || userProfile?.subscriptionPlan === 'elite_league';
   const clubId = isClubManager ? firebaseUser?.uid || null : activeTeam?.clubId || null;
 
   const hasFeature = useCallback((featureId: string) => {
     if (isSuperAdmin) return true;
-    const planId = activeTeam?.planId || 'starter_squad';
-    const plan = plans.find(p => p.id === planId);
-    return !!plan?.features?.[featureId];
-  }, [isSuperAdmin, plans, activeTeam?.planId]);
+    
+    // Core Free Features
+    const freeFeatures = ['group_chat', 'schedule_games_events', 'score_tracking', 'basic_roster', 'playbook'];
+    if (freeFeatures.includes(featureId)) return true;
 
-  const createNewTeam = useCallback(async (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => {
+    // Pro-Only Features
+    const proFeatures = ['elite_tournament', 'payments', 'attendance_tracking', 'media_uploads', 'stats_basic', 'high_priority_alerts', 'full_roster_details'];
+    if (proFeatures.includes(featureId)) return isPro;
+
+    // Plan-level features
+    if (featureId === 'leagues') return userProfile?.subscriptionPlan === 'elite_league';
+    if (featureId === 'organization_hub') return isClubManager;
+
+    return false;
+  }, [isSuperAdmin, isPro, userProfile?.subscriptionPlan, isClubManager]);
+
+  const createNewTeam = useCallback(async (name: string, type: "adult" | "youth", pos: string, description?: string, teamType: TeamType = "starter") => {
     if (!firebaseUser) return '';
     const tid = `team_${Date.now()}`;
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const pId = planId || 'starter_squad';
     const cId = isClubManager ? firebaseUser.uid : null;
     const batch = writeBatch(db);
     const teamData = clean({ 
@@ -522,12 +545,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       teamName: name || 'Unnamed Team', 
       teamCode: code, 
       type, 
+      teamType,
       createdBy: firebaseUser.uid, 
       ownerUserId: firebaseUser.uid, 
       clubId: cId,
       createdAt: new Date().toISOString(), 
-      isPro: pId !== 'starter_squad', 
-      planId: pId, 
+      isPro: teamType === 'pro', 
       parentChatEnabled: true, 
       parentCommentsEnabled: true, 
       description: description || '', 
@@ -537,7 +560,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
     batch.set(doc(db, 'teams', tid), teamData);
     batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, clubId: cId, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
-    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
+    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, teamType, role: 'Admin', isPro: teamType === 'pro', clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
     await batch.commit();
     return tid;
   }, [firebaseUser, db, isClubManager, userProfile?.name, userProfile?.avatar]);
@@ -590,11 +613,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       teamName: tData.teamName || 'Unnamed Team', 
       teamCode: (code || '').toUpperCase(), 
       type: tData.type || 'adult', 
+      teamType: tData.teamType || 'starter',
       role: 'Member', 
       ownerUserId: tData.ownerUserId || '', 
       clubId: cId,
       isPro: !!tData.isPro, 
-      planId: tData.planId || 'starter_squad', 
       teamLogoUrl: tData.teamLogoUrl || '', 
       sport: tData.sport || 'Multi-Sport' 
     }));
@@ -659,11 +682,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (!activeTeam) return;
       await updateDoc(doc(db, 'teams', activeTeam.id), clean(updates));
     }, [activeTeam, db]),
-    updateTeamPlan: useCallback(async (teamId: string, planId: string) => {
-      const plan = plans.find(p => p.id === planId);
-      if (!plan) return;
-      await updateDoc(doc(db, 'teams', teamId), clean({ planId, isPro: planId !== 'starter_squad' }));
-    }, [plans, db]),
+    updateTeamType: useCallback(async (teamId: string, teamType: TeamType) => {
+      if (!firebaseUser) return;
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'teams', teamId), { teamType, isPro: teamType === 'pro' });
+      batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), { teamType, isPro: teamType === 'pro' });
+      await batch.commit();
+    }, [firebaseUser, db]),
     manageSubscription: useCallback(() => { window.open('https://billing.thesquad.pro', '_blank'); }, []),
     resetSeasonData: useCallback(async () => { if (!activeTeam) return; toast({ title: "Resetting Season..." }); }, [activeTeam]),
     createChat: useCallback(async (name: string, memberIds: string[]) => {
@@ -702,8 +727,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const batch = writeBatch(db);
       teams.filter(t => t.ownerUserId === firebaseUser.uid).forEach(t => {
         const isSelected = selectedIds.includes(t.id);
-        batch.update(doc(db, 'teams', t.id), clean({ isPro: isSelected, planId: isSelected ? t.planId : 'starter_squad' }));
-        batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), clean({ isPro: isSelected, planId: isSelected ? t.planId : 'starter_squad' }));
+        const nextType = isSelected ? 'pro' : 'starter';
+        batch.update(doc(db, 'teams', t.id), clean({ teamType: nextType, isPro: isSelected }));
+        batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), clean({ teamType: nextType, isPro: isSelected }));
       });
       await batch.commit();
     }, [firebaseUser, db, teams]),

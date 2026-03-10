@@ -5,33 +5,21 @@ import { doc, updateDoc, setDoc } from 'firebase/firestore';
 
 /**
  * Authoritative mapping of RevenueCat Product IDs to internal Plans and Quotas.
- * Ensure these keys match your RevenueCat Product identifiers.
  */
 const PRODUCT_PLAN_MAP: Record<string, { planId: string; limit: number }> = {
   'squad_pro_monthly': { planId: 'squad_pro', limit: 1 },
   'squad_pro_annual': { planId: 'squad_pro', limit: 1 },
-  'squad_duo_monthly': { planId: 'squad_duo', limit: 2 },
-  'squad_duo_annual': { planId: 'squad_duo', limit: 2 },
-  'squad_crew_monthly': { planId: 'squad_crew', limit: 4 },
-  'squad_crew_annual': { planId: 'squad_crew', limit: 4 },
-  'squad_league_monthly': { planId: 'squad_league', limit: 9 },
-  'squad_league_annual': { planId: 'squad_league', limit: 9 },
-  'squad_division_monthly': { planId: 'squad_division', limit: 12 },
-  'squad_division_annual': { planId: 'squad_division', limit: 12 },
-  'squad_conference_monthly': { planId: 'squad_conference', limit: 15 },
-  'squad_conference_annual': { planId: 'squad_conference', limit: 15 },
-  'squad_organization_custom': { planId: 'squad_organization', limit: 100 },
+  'elite_teams_monthly': { planId: 'elite_teams', limit: 8 },
+  'elite_teams_annual': { planId: 'elite_teams', limit: 8 },
+  'elite_league_monthly': { planId: 'elite_league', limit: 99999 },
+  'elite_league_annual': { planId: 'elite_league', limit: 99999 },
 };
 
 /**
  * Next.js Route Handler for RevenueCat Webhooks.
- * This function synchronizes subscription state from RevenueCat to Firestore.
- * 
- * Path: /api/webhooks/revenuecat
  */
 export async function POST(req: Request) {
   try {
-    // 1. Signature Verification
     const authHeader = req.headers.get('Authorization');
     const webhookSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
     
@@ -59,7 +47,6 @@ export async function POST(req: Request) {
 
     const { firestore } = initializeFirebase();
 
-    // 2. Handle Event Logic
     switch (eventType) {
       case 'INITIAL_PURCHASE':
       case 'RENEWAL':
@@ -67,7 +54,8 @@ export async function POST(req: Request) {
         const plan = PRODUCT_PLAN_MAP[productId] || { planId: 'squad_pro', limit: 1 };
 
         await updateDoc(doc(firestore, 'users', userId), {
-          activePlanId: plan.planId,
+          subscriptionPlan: plan.planId,
+          subscriptionStatus: 'active',
           proTeamLimit: plan.limit,
           planSource: 'revenuecat'
         });
@@ -81,7 +69,6 @@ export async function POST(req: Request) {
           lastSyncedAt: new Date().toISOString()
         }, { merge: true });
 
-        console.log(`Sync Success: User ${userId} updated to ${plan.planId} (Limit: ${plan.limit})`);
         break;
       }
 
@@ -93,11 +80,11 @@ export async function POST(req: Request) {
         }, { merge: true });
 
         await updateDoc(doc(firestore, 'users', userId), {
-          activePlanId: 'starter_squad',
+          subscriptionPlan: 'free',
+          subscriptionStatus: 'inactive',
           proTeamLimit: 0
         });
 
-        console.log(`Sync Expire: User ${userId} deactivation triggered.`);
         break;
       }
 

@@ -38,96 +38,35 @@ const clean = (obj: any): any => {
 };
 
 /**
- * Centrally defines the subscription plans and features.
+ * Centrally defines the subscription plans and features based on the new 4-tier model.
  */
 export async function seedSubscriptionData(db: Firestore) {
   try {
-    const featuresSnapshot = await getDocs(collection(db, 'features'));
-    if (featuresSnapshot.empty) {
-      const batch = writeBatch(db);
-      
-      const defaultFeatures = [
-        { id: 'schedule_games_events', description: 'Plan and coordinate team matches and events.', defaultEnabled: true },
-        { id: 'tournaments', description: 'Manage multi-day tournament series and brackets.', defaultEnabled: false },
-        { id: 'basic_roster', description: 'Manage a basic list of team members.', defaultEnabled: true },
-        { id: 'full_roster_details', description: 'Track medical info, emergency contacts, and coaching notes.', defaultEnabled: false },
-        { id: 'attendance_tracking', description: 'Track RSVPs and real-time attendance for events.', defaultEnabled: false },
-        { id: 'live_feed_read', description: 'View the squad activity feed.', defaultEnabled: true },
-        { id: 'live_feed_post', description: 'Post updates, photos, and polls to the squad.', defaultEnabled: false },
-        { id: 'group_chat', description: 'Real-time messaging channels for coordination.', defaultEnabled: true },
-        { id: 'score_tracking', description: 'Record game results and season progress.', defaultEnabled: true },
-        { id: 'stats_basic', description: 'Basic performance metrics and trends.', defaultEnabled: false },
-        { id: 'media_uploads', description: 'Upload and share playbooks, photos, and files.', defaultEnabled: false },
-        { id: 'history_unlimited', description: 'Retain full history of posts, chats, and results.', defaultEnabled: false },
-        { id: 'high_priority_alerts', description: 'Broadcast urgent team-wide popups.', defaultEnabled: false },
-        { id: 'leagues', description: 'Participate in and manage competitive leagues.', defaultEnabled: false },
-        { id: 'league_registration', description: 'Accept and manage new player signups for leagues.', defaultEnabled: false },
-      ];
-
-      defaultFeatures.forEach((f) => {
-        const ref = doc(db, 'features', f.id);
-        batch.set(ref, { id: f.id, description: f.description, defaultEnabled: f.defaultEnabled });
-      });
-
-      await batch.commit();
-    }
-
     const plansSnapshot = await getDocs(collection(db, 'plans'));
     
     if (plansSnapshot.empty) {
       const batch = writeBatch(db);
 
-      const proFeaturesMap = {
-        schedule_games_events: true, tournaments: true, basic_roster: true, full_roster_details: true,
-        attendance_tracking: true, live_feed_read: true, live_feed_post: true, group_chat: true,
-        score_tracking: true, stats_basic: true, media_uploads: true, history_unlimited: true,
-        high_priority_alerts: true, leagues: true, league_registration: true
-      };
-
-      const starterFeatures = {
-        schedule_games_events: true, basic_roster: true, live_feed_read: true, score_tracking: true, group_chat: true
-      };
-
       const plans = [
         {
-          id: 'starter_squad', name: 'Starter Squad', description: 'Essential coordination for growing teams.',
+          id: 'free', name: 'Free', description: 'Essential coordination for growing grassroots teams.',
           priceDisplay: '$0', annualPriceDisplay: '$0', billingCycle: '', isPublic: true, isContactOnly: false,
-          billingType: 'free', teamLimit: null, features: starterFeatures, proTeamLimit: 0
+          billingType: 'free', proTeamLimit: 0
         },
         {
-          id: 'squad_pro', name: 'Squad Pro', description: 'Full-scale coordination and analytics for elite squads.',
-          priceDisplay: '$12.99', annualPriceDisplay: '$99', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 1, features: proFeaturesMap, proTeamLimit: 1
+          id: 'squad_pro', name: 'Squad Pro', description: 'Full strategy engine for 1 professional squad.',
+          priceDisplay: '$19.99', annualPriceDisplay: '$199', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', proTeamLimit: 1
         },
         {
-          id: 'squad_duo', name: 'Club Duo', description: 'Elite features for 2 professional squads.',
-          priceDisplay: '$23.99', annualPriceDisplay: '$180', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 2, features: proFeaturesMap, proTeamLimit: 2
+          id: 'elite_teams', name: 'Elite Teams', description: 'Institutional coordination for up to 8 squads.',
+          priceDisplay: '$99', annualPriceDisplay: '$999', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', proTeamLimit: 8
         },
         {
-          id: 'squad_crew', name: 'Club Crew', description: 'Full coordination for up to 4 elite teams.',
-          priceDisplay: '$44.99', annualPriceDisplay: '$340', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 4, features: proFeaturesMap, proTeamLimit: 4
-        },
-        {
-          id: 'squad_league', name: 'Club League', description: 'Management for up to 9 competitive teams.',
-          priceDisplay: '$89.99', annualPriceDisplay: '$680', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 9, features: proFeaturesMap, proTeamLimit: 9
-        },
-        {
-          id: 'squad_division', name: 'Club Division', description: 'Coordination for 12 elite squads.',
-          priceDisplay: '$119.99', annualPriceDisplay: '$900', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 12, features: proFeaturesMap, proTeamLimit: 12
-        },
-        {
-          id: 'squad_conference', name: 'Club Conference', description: 'Professional hub for 15 elite teams.',
-          priceDisplay: '$149.99', annualPriceDisplay: '$1,120', billingCycle: '/mo', isPublic: true, isContactOnly: false,
-          billingType: 'monthly', teamLimit: 15, features: proFeaturesMap, proTeamLimit: 15
-        },
-        {
-          id: 'squad_organization', name: 'Club Custom', description: 'Enterprise solutions for leagues and multi-team organizations.',
-          priceDisplay: 'Custom', annualPriceDisplay: 'Custom', billingCycle: '', isPublic: true, isContactOnly: true,
-          billingType: 'manual', teamLimit: null, features: proFeaturesMap, proTeamLimit: 100
+          id: 'elite_league', name: 'Elite League', description: 'The master hub for league and tournament operators.',
+          priceDisplay: '$249', annualPriceDisplay: '$2499', billingCycle: '/mo', isPublic: true, isContactOnly: false,
+          billingType: 'monthly', proTeamLimit: 99999
         }
       ];
 
@@ -291,6 +230,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
                        (planId === 'tournament_pro' ? 'squad_pro' : planId);
   
   const isPro = actualPlanId !== 'starter_squad';
+  const teamType = isPro ? 'pro' : 'starter';
   const role = (isPlayerDemo || isParentDemo) ? 'Member' : 'Admin';
   const position = isPlayerDemo ? 'Player' : (isParentDemo ? 'Parent' : (planId === 'squad_organization' ? 'Club Manager' : 'Coach'));
   
@@ -316,23 +256,23 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     createdAt: nowStr, 
     isDemo: true, 
     avatarUrl: `https://picsum.photos/seed/${userId}/150/150`,
-    activePlanId: (isPlayerDemo || isParentDemo) ? 'starter_squad' : actualPlanId, 
-    proTeamLimit: planId === 'squad_organization' ? 15 : 1,
-    planSource: 'free', 
+    subscriptionPlan: actualPlanId === 'starter_squad' ? 'free' : actualPlanId,
+    subscriptionStatus: 'active',
+    proTeamLimit: planId === 'squad_organization' ? 100 : (isPro ? 1 : 0),
     tournamentCredits: planId === 'tournament_pro' ? 1 : 0 
   }), { merge: true });
 
   batch.set(doc(db, 'teams', teamId), clean({
     id: teamId, teamName, teamCode: code, createdBy: ownerId, ownerUserId: ownerId,
     createdAt: nowStr,
-    isPro, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
+    teamType, isPro, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
     description: planId === 'squad_organization' ? 'Enterprise organization management demo.' : 'Professional coordination suite demo.',
     teamLogoUrl: '', heroImageUrl: ''
   }));
   
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), clean({
     userId, teamId, teamName, teamCode: code, role, 
-    isPro, planId: actualPlanId, isDemo: true, 
+    teamType, isPro, planId: actualPlanId, isDemo: true, 
     joinedAt: nowStr, createdBy: ownerId, ownerUserId: ownerId,
     sport: 'Multi-Sport', teamLogoUrl: ''
   }));
@@ -349,13 +289,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     await seedDemoData(db, teamId, planId, userId);
     return teamId;
   } catch (error: any) {
-    // Provide the actual Firestore Error message for better debugging
-    const contextualError = new FirestorePermissionError({
-      path: `teams/${teamId}`,
-      operation: 'write',
-      requestResourceData: { message: error.message || 'Demo squad initialization failure' }
-    });
-    errorEmitter.emit('permission-error', contextualError);
+    console.error("Demo seed error:", error);
     throw error;
   }
 }

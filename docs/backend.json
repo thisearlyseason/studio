@@ -42,18 +42,19 @@
           "type": "boolean",
           "description": "Flag indicating if this is a demo admin account."
         },
+        "subscriptionPlan": {
+          "type": "string",
+          "enum": ["free", "squad_pro", "elite_teams", "elite_league"],
+          "description": "The current subscription plan ID."
+        },
+        "subscriptionStatus": {
+          "type": "string",
+          "enum": ["active", "inactive", "trial"],
+          "description": "The status of the subscription."
+        },
         "activePlanId": {
           "type": "string",
-          "description": "The ID of the plan currently active for the user's account."
-        },
-        "planSource": {
-          "type": "string",
-          "enum": [
-            "free",
-            "revenuecat",
-            "manual"
-          ],
-          "description": "The source of the active subscription state."
+          "description": "DEPRECATED: Use subscriptionPlan instead."
         },
         "proTeamLimit": {
           "type": "number",
@@ -62,10 +63,6 @@
         "tournamentCredits": {
           "type": "number",
           "description": "Number of Elite Tournament module credits remaining."
-        },
-        "revenueCatUserId": {
-          "type": "string",
-          "description": "The unique identifier for this user in RevenueCat."
         }
       },
       "required": [
@@ -75,18 +72,6 @@
         "notificationsEnabled",
         "createdAt"
       ]
-    },
-    "Club": {
-      "title": "Club",
-      "type": "object",
-      "description": "Represents a multi-team organization.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "ownerUserId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "ownerUserId"]
     },
     "Team": {
       "title": "Team",
@@ -102,6 +87,7 @@
         "ownerUserId": { "type": "string" },
         "clubId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
+        "teamType": { "type": "string", "enum": ["starter", "pro"] },
         "planId": { "type": "string" },
         "isPro": { "type": "boolean" },
         "leagueIds": { "type": "array", "items": { "type": "string" } },
@@ -127,26 +113,15 @@
       },
       "required": ["id", "name", "creatorId"]
     },
-    "LeagueInvite": {
-      "title": "LeagueInvite",
+    "Organization": {
+      "title": "Organization",
       "type": "object",
       "properties": {
-        "leagueId": { "type": "string" },
-        "leagueName": { "type": "string" },
-        "invitedEmail": { "type": "string", "format": "email" },
-        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] }
-      }
-    },
-    "RegistrationEntry": {
-      "title": "RegistrationEntry",
-      "type": "object",
-      "properties": {
-        "league_id": { "type": "string" },
-        "answers": { "type": "object" },
-        "status": { "type": "string", "enum": ["pending", "accepted", "assigned", "declined"] },
-        "assigned_team_id": { "type": "string" },
-        "payment_received": { "type": "boolean" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerUserId": { "type": "string" },
+        "subscriptionPlan": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -161,9 +136,13 @@
       "schema": { "$ref": "#/backend/entities/User" },
       "description": "Private user profiles."
     },
-    "/clubs/{clubId}": {
-      "schema": { "$ref": "#/backend/entities/Club" },
-      "description": "Multi-team organizations."
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/backend/entities/Organization" },
+      "description": "Club and Organization entities."
+    },
+    "/subscriptions/{subId}": {
+      "schema": { "type": "object" },
+      "description": "Subscription records."
     },
     "/teams/{teamId}": {
       "schema": { "$ref": "#/backend/entities/Team" },
@@ -172,14 +151,6 @@
     "/leagues/{leagueId}": {
       "schema": { "$ref": "#/backend/entities/League" },
       "description": "Competitive coordination hubs."
-    },
-    "/leagues/{leagueId}/registrationEntries/{entryId}": {
-      "schema": { "$ref": "#/backend/entities/RegistrationEntry" },
-      "description": "Public enrollment submissions."
-    },
-    "/leagues/global/invites/{inviteId}": {
-      "schema": { "$ref": "#/backend/entities/LeagueInvite" },
-      "description": "Cross-platform recruitment invitations."
     }
   }
 }
