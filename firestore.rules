@@ -20,7 +20,7 @@ service cloud.firestore {
     }
 
     function isDemoTeam(tid) {
-      // Robust slicing for query-safe authorization
+      // Robust string slicing for query-safe authorization
       return tid != null && tid is string && tid.size() >= 5 && tid[0:5] == 'demo_';
     }
 
@@ -52,9 +52,9 @@ service cloud.firestore {
       );
     }
 
-    // Leagues Hub - Explicit Collection Read
+    // Leagues Hub - Simplified top-level rule for query-safe listing
     match /leagues/{leagueId} {
-      allow read: if isSignedIn();
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSuperAdmin() || (isSignedIn() && resource.data.creatorId == request.auth.uid);
       
@@ -107,9 +107,8 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Query-safe listing: prioritizing path-based checks for demos
-        allow list: if isDemoTeam(teamId) || isTeamMember(teamId);
-        allow get: if isTeamMember(teamId);
+        // Consolidated list logic for query safety
+        allow get, list: if isSignedIn() && (isDemoTeam(teamId) || isTeamMember(teamId));
         allow create: if isTeamMember(teamId);
         allow update: if isTeamMember(teamId) && (isTeamAdmin(teamId) || request.auth.uid in resource.data.memberIds);
         
@@ -125,8 +124,7 @@ service cloud.firestore {
         allow write: if isTeamAdmin(teamId);
         
         match /registrations/{regId} {
-          allow list: if isDemoTeam(teamId) || isTeamMember(teamId);
-          allow get: if isTeamMember(teamId);
+          allow list, get: if isTeamMember(teamId);
           allow create: if true; // Public signups
           allow update, delete: if isTeamAdmin(teamId);
         }

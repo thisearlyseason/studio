@@ -27,8 +27,8 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
-  DialogFooter,
-  DialogDescription
+  DialogDescription,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
@@ -37,7 +37,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 export default function VolunteerHubPage() {
-  const { activeTeam, user, isStaff, isParent, addVolunteerOpportunity, signUpForVolunteer, verifyVolunteerHours, deleteVolunteerOpportunity } = useTeam();
+  const { activeTeam, user, isStaff, addVolunteerOpportunity, signUpForVolunteer, verifyVolunteerHours, deleteVolunteerOpportunity } = useTeam();
   const db = useFirestore();
   
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -115,11 +115,11 @@ export default function VolunteerHubPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px) font-black uppercase tracking-widest ml-1">Date</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Date</Label>
                     <Input type="date" value={newOpp.date} onChange={e => setNewOpp({...newOpp, date: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px) font-black uppercase tracking-widest ml-1">Slots</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Slots</Label>
                     <Input type="number" value={newOpp.slots} onChange={e => setNewOpp({...newOpp, slots: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
                   </div>
                 </div>
@@ -175,7 +175,7 @@ export default function VolunteerHubPage() {
             </div>
             <div>
               <p className="text-xl font-black leading-tight uppercase truncate">{user?.name}</p>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Verified Contributor</p>
+              <p className="text-[10px) font-black uppercase tracking-[0.2em] opacity-60">Verified Contributor</p>
             </div>
           </CardContent>
         </Card>
