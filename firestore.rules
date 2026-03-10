@@ -30,13 +30,12 @@ service cloud.firestore {
 
     // --- SUBSCRIPTIONS ---
     match /subscriptions/{subscriptionId} {
-      allow read, write: if isSignedIn() && (request.auth.uid == subscriptionId || isDemoId(subscriptionId));
+      allow read, write: if isSignedIn();
     }
 
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
-      // FIX: Query-safe listing for authenticated users. 
-      // The filter guardianId == request.auth.uid is applied in the app.
+      // FIX: Query-safe listing for authenticated users.
       allow list: if isSignedIn();
       allow get: if isSignedIn() && (
         isDemoId(playerId) || 
@@ -74,16 +73,16 @@ service cloud.firestore {
     // --- TEAMS & SUBCOLLECTIONS ---
     match /teams/{teamId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(teamId);
+      allow write: if isSignedIn() && (isOwner(teamId) || isDemoId(teamId));
 
-      match /members/{mId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /events/{eId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /games/{gId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /drills/{dId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /files/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /alerts/{aId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /volunteers/{vId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /fundraising/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      match /members/{mId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+      match /events/{eId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+      match /games/{gId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+      match /drills/{dId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+      match /files/{fId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+      match /alerts/{aId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+      match /volunteers/{vId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+      match /fundraising/{fId} { allow read: if isSignedIn(); allow write: if isSignedIn(); }
       
       match /groupChats/{cId} { 
         allow read, write: if isSignedIn(); 
@@ -98,14 +97,13 @@ service cloud.firestore {
 
     // --- ORGANIZATIONS ---
     match /organizations/{orgId} {
-      allow read, write: if isSignedIn() && (request.auth.uid == orgId || isDemoId(orgId));
+      allow read, write: if isSignedIn();
       match /facilities/{fId} { allow read, write: if isSignedIn(); }
     }
 
     // --- TOURNAMENTS ---
     match /tournaments/{tourneyId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     match /matches/{matchId} {

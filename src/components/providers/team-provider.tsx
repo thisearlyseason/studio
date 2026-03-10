@@ -38,7 +38,7 @@ export type UserProfile = {
   avatar: string;
   role: UserRole;
   subscriptionPlan: SubscriptionPlan;
-  subscriptionStatus: string;
+  subscriptionStatus: 'active' | 'inactive' | 'trial';
   proTeamLimit: number;
   isDemo?: boolean;
 };
@@ -77,6 +77,27 @@ export type PlayerProfile = {
 };
 
 export type TournamentFormat = "single_elim" | "double_elim" | "round_robin";
+
+export type Tournament = {
+  tourneyId: string;
+  name: string;
+  format: TournamentFormat;
+  status: 'active' | 'completed';
+  teams: string[];
+  creatorId: string;
+  createdAt: string;
+};
+
+export type Match = {
+  matchId: string;
+  tourneyId: string;
+  team1: string;
+  team2: string;
+  score1: number;
+  score2: number;
+  date: string;
+  status: 'scheduled' | 'completed';
+};
 
 export type TeamEvent = {
   id: string;
@@ -356,7 +377,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: m.teamName,
       code: m.teamCode,
       teamType: m.teamType || 'starter',
-      isPro: m.teamType === 'pro' || m.isPro || false,
+      isPro: m.teamType === 'pro',
       role: m.role || 'Member',
       ownerUserId: m.ownerUserId || '',
       sport: m.sport || 'Multi-Sport',
@@ -411,11 +432,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const freeFeatures = ['chat', 'schedule', 'score_tracking', 'basic_roster', 'playbook'];
     if (freeFeatures.includes(featureId)) return true;
 
-    // Organization and Leagues are gated by user plan
     if (featureId === 'organization') return isClubManager;
     if (featureId === 'leagues') return isLeagueManager;
 
-    // Professional squad features are gated by teamType
     const proFeatures = ['tournaments', 'payments', 'attendance', 'documents', 'analytics', 'automation', 'full_roster', 'live_feed_read', 'high_priority_alerts', 'league_registration', 'elite_tournament'];
     if (proFeatures.includes(featureId)) return isPro;
 
