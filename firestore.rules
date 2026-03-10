@@ -28,10 +28,15 @@ service cloud.firestore {
       }
     }
 
+    // --- SUBSCRIPTIONS ---
+    match /subscriptions/{subscriptionId} {
+      allow read, write: if isSignedIn() && (request.auth.uid == subscriptionId || isDemoId(subscriptionId));
+    }
+
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
-      // Query-safe listing for the Family Hub
-      // Note: listing is allowed if signed in, but data isolation is enforced via filters
+      // FIX: Query-safe listing for authenticated users. 
+      // The filter guardianId == request.auth.uid is applied in the app.
       allow list: if isSignedIn();
       allow get: if isSignedIn() && (
         isDemoId(playerId) || 
@@ -93,7 +98,7 @@ service cloud.firestore {
 
     // --- ORGANIZATIONS ---
     match /organizations/{orgId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSignedIn() && (request.auth.uid == orgId || isDemoId(orgId));
       match /facilities/{fId} { allow read, write: if isSignedIn(); }
     }
 
@@ -105,10 +110,6 @@ service cloud.firestore {
 
     match /matches/{matchId} {
       allow read, write: if isSignedIn();
-    }
-
-    match /subscriptions/{subId} {
-      allow read: if isSignedIn();
     }
 
     // --- COLLECTION GROUPS ---

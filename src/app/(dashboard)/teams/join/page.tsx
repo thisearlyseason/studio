@@ -149,7 +149,7 @@ export default function JoinTeamPage() {
           <div className="h-2 bg-primary w-full" />
           <CardHeader className="p-8 lg:p-10">
             <div className="flex items-center gap-4 mb-2">
-              <div className="bg-primary p-3 rounded-2xl text-white shadow-lg shadow-primary/20">
+              <div className="bg-primary/30 p-3 rounded-2xl text-primary shadow-lg shadow-primary/20">
                 <Trophy className="h-6 w-6" />
               </div>
               <div>

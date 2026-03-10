@@ -218,11 +218,6 @@ export default function PricingPage() {
         </p>
         <Button variant="secondary" className="h-14 px-10 rounded-2xl bg-white text-black font-black uppercase text-xs tracking-widest shadow-xl">Contact Enterprise Hub</Button>
       </div>
-      
-      <div className="text-center pt-4 space-y-2">
-        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-40">The Squad Coordination Engine v2.0.0</p>
-        <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-[0.1em] opacity-30 italic">All prices listed are current promotional rates and are subject to change without notice.</p>
-      </div>
     </div>
   );
 }

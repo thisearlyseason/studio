@@ -276,7 +276,7 @@ interface TeamContextType {
   setIsPaywallOpen: (open: boolean) => void;
   resolveQuota: (selectedTeamIds: string[]) => Promise<void>;
 
-  // Additional methods used in components
+  // Additional methods
   registerChild: (firstName: string, lastName: string, dob: string) => Promise<void>;
   upgradeChildToLogin: (childId: string, email: string) => Promise<void>;
   signWaiver: (childId: string, version: string) => Promise<void>;
@@ -411,11 +411,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const freeFeatures = ['chat', 'schedule', 'score_tracking', 'basic_roster', 'playbook'];
     if (freeFeatures.includes(featureId)) return true;
 
-    if (featureId === 'tournaments') return isPro;
+    // Organization and Leagues are gated by user plan
     if (featureId === 'organization') return isClubManager;
     if (featureId === 'leagues') return isLeagueManager;
 
-    const proFeatures = ['payments', 'attendance', 'documents', 'analytics', 'automation', 'full_roster', 'live_feed_read', 'high_priority_alerts', 'league_registration', 'elite_tournament'];
+    // Professional squad features are gated by teamType
+    const proFeatures = ['tournaments', 'payments', 'attendance', 'documents', 'analytics', 'automation', 'full_roster', 'live_feed_read', 'high_priority_alerts', 'league_registration', 'elite_tournament'];
     if (proFeatures.includes(featureId)) return isPro;
 
     return false;

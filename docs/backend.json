@@ -84,6 +84,10 @@
       "schema": { "$ref": "#/backend/entities/User" },
       "description": "Private user data."
     },
+    "/subscriptions/{subId}": {
+      "schema": { "type": "object" },
+      "description": "Billing and entitlement history."
+    },
     "/teams/{teamId}": {
       "schema": { "$ref": "#/backend/entities/Team" },
       "description": "Squad coordination data."
