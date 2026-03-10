@@ -385,7 +385,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const childrenQuery = useMemoFirebase(() => {
     if (!firebaseUser?.uid || !db) return null;
-    // CRITICAL: Ensure the query filter exactly matches the security rule constraints
+    // CRITICAL: Ensure query matches security rule: where('guardianId', '==', uid)
     return query(collection(db, 'players'), where('guardianId', '==', firebaseUser.uid));
   }, [firebaseUser?.uid, db]);
   const { data: childrenData } = useCollection<PlayerProfile>(childrenQuery);

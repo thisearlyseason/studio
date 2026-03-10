@@ -103,11 +103,11 @@ export default function VolunteerHubPage() {
                 <Plus className="h-5 w-5 mr-2" /> Dispatch Request
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl">
+            <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl p-0 overflow-hidden">
               <div className="h-2 bg-primary w-full" />
               <div className="p-8">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black tracking-tight uppercase">New Assignment</DialogTitle>
+                  <DialogTitle className="text-2xl font-black uppercase tracking-tight">New Assignment</DialogTitle>
                   <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Enroll tactical squad support</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-4">
@@ -205,12 +205,14 @@ export default function VolunteerHubPage() {
                       {hasSignedUp && <Badge className="bg-green-500 text-white font-black text-[8px] px-2 h-5 border-none uppercase">Enrolled</Badge>}
                     </div>
                     <CardTitle className="text-2xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{opp.title}</CardTitle>
-                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">{opp.description || 'General support assignment for the upcoming event.'}</CardDescription>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                      {opp.description || 'Tactical support assignment for upcoming squad activity.'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="p-8 pt-0 flex-1 space-y-6">
                     <div className="space-y-3 pt-4 border-t">
                       <div className="flex items-center gap-3 text-[11px] font-bold uppercase text-muted-foreground"><Calendar className="h-4 w-4 text-primary" /> {format(new Date(opp.date), 'MMM d, yyyy')}</div>
-                      <div className="flex items-center gap-3 text-[11px] font-bold uppercase text-muted-foreground"><MapPin className="h-4 w-4 text-primary" /> {opp.location || 'TBD'}</div>
+                      <div className="flex items-center gap-3 text-[11px] font-bold uppercase text-muted-foreground"><MapPin className="h-4 w-4 text-primary" /> {opp.location || 'Venue TBD'}</div>
                       <div className="flex items-center justify-between pt-2">
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-primary" />

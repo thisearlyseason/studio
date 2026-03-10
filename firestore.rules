@@ -30,55 +30,40 @@ service cloud.firestore {
 
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
-      // Simplified for query-safe listing by guardians and demo access
-      allow read: if isSignedIn() && (
-        resource == null || 
-        resource.data.guardianId == request.auth.uid || 
-        isDemoId(playerId)
+      // Query-safe listing for the Family Hub
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && (
+        isDemoId(playerId) || 
+        resource.data.guardianId == request.auth.uid
       );
       allow write: if isSignedIn() && (
-        request.resource.data.guardianId == request.auth.uid || 
-        isDemoId(playerId)
+        isDemoId(playerId) || 
+        request.resource.data.guardianId == request.auth.uid
       );
-    }
-
-    // --- TEAMS & SUBCOLLECTIONS ---
-    match /teams/{teamId} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(teamId);
-
-      match /members/{mId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /events/{eId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /games/{gId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /drills/{dId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /files/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /alerts/{aId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /volunteers/{vId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      match /fundraising/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
-      
-      match /groupChats/{cId} { 
-        allow read, write: if isSignedIn(); 
-        match /messages/{msgId} { allow read, write: if isSignedIn(); }
-      }
-      
-      match /feedPosts/{pId} { 
-        allow read, write: if isSignedIn();
-        match /comments/{cId} { allow read, write: if isSignedIn(); }
-      }
     }
 
     // --- LEAGUES ---
     match /leagues/{leagueId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isDemoId(leagueId));
+      // Statically verifiable listing for standings and recruitment
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow write: if isSignedIn() && (
+        resource == null || 
+        resource.data.creatorId == request.auth.uid || 
+        isDemoId(leagueId)
+      );
 
       match /registration/config {
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && (get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || isDemoId(leagueId));
+        allow write: if isSignedIn() && (
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid || 
+          isDemoId(leagueId)
+        );
       }
 
       match /registrationEntries/{entryId} {
-        allow read: if isSignedIn() && (
+        allow list: if isSignedIn();
+        allow get: if isSignedIn() && (
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
           resource.data.assigned_team_owner_id == request.auth.uid ||
           isDemoId(leagueId)
@@ -88,6 +73,39 @@ service cloud.firestore {
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
           isDemoId(leagueId)
         );
+      }
+    }
+
+    // --- TEAMS & SUBCOLLECTIONS ---
+    match /teams/{teamId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(teamId);
+
+      match /members/{mId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      match /events/{eId} { 
+        allow list: if isSignedIn(); 
+        allow get: if isSignedIn(); 
+        allow write: if isOwner(teamId); 
+      }
+      match /games/{gId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      match /drills/{dId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      match /files/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      match /alerts/{aId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      match /volunteers/{vId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      match /fundraising/{fId} { allow read: if isSignedIn(); allow write: if isOwner(teamId); }
+      
+      match /groupChats/{cId} { 
+        allow list: if isSignedIn();
+        allow get: if isSignedIn();
+        allow write: if isSignedIn(); 
+        match /messages/{msgId} { allow read, write: if isSignedIn(); }
+      }
+      
+      match /feedPosts/{pId} { 
+        allow list: if isSignedIn();
+        allow get: if isSignedIn();
+        allow write: if isSignedIn();
+        match /comments/{cId} { allow read, write: if isSignedIn(); }
       }
     }
 

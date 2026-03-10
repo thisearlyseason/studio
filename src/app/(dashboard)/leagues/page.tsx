@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useTeam, League } from '@/components/providers/team-provider';
+import { useTeam, League, Member } from '@/components/providers/team-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,19 +23,86 @@ import {
   TrendingUp,
   MessageSquare,
   ShieldAlert,
-  Table as TableIcon
+  Table as TableIcon,
+  Filter,
+  Eye,
+  Settings
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where } from 'firebase/firestore';
+import { collection, query, orderBy, where, collectionGroup } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+function RosterScoutTool({ teamId, teamName }: { teamId: string, teamName: string }) {
+  const db = useFirestore();
+  const scoutQuery = useMemoFirebase(() => {
+    if (!db || !teamId) return null;
+    return query(collection(db, 'teams', teamId, 'members'), orderBy('name', 'asc'));
+  }, [db, teamId]);
+
+  const { data: roster, isLoading } = useCollection<Member>(scoutQuery);
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5">
+          <Eye className="h-3 w-3 mr-1.5" /> Scout Roster
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl overflow-hidden p-0">
+        <div className="h-2 bg-primary w-full" />
+        <div className="p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight">{teamName}</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Tactical Roster Audit</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-72 mt-6 bg-muted/30 rounded-2xl p-4 border-2 border-dashed">
+            {isLoading ? (
+              <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-20" /></div>
+            ) : roster && roster.length > 0 ? (
+              <div className="space-y-2">
+                {roster.map(m => (
+                  <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-xl border shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8 rounded-lg border shadow-inner"><AvatarFallback className="font-black text-[10px] bg-muted">{m.name[0]}</AvatarFallback></Avatar>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase truncate leading-none mb-1">{m.name}</p>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter">{m.position}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[8px] h-4 font-black border-primary/20 text-primary">#{m.jersey || '??'}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 opacity-30"><Users className="h-8 w-8 mx-auto mb-2" /><p className="text-[10px] font-black uppercase">No personnel detected</p></div>
+            )}
+          </ScrollArea>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function LeagueHubPage() {
-  const { isLeagueManager, isClubManager, purchasePro, user, teams } = useTeam();
+  const { isLeagueManager, isClubManager, purchasePro, user, teams, hasFeature } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+
+  const canManageLeagues = hasFeature('leagues');
 
   const leaguesQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -57,7 +124,7 @@ export default function LeagueHubPage() {
     myManagedLeagues.filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase())),
   [myManagedLeagues, searchTerm]);
 
-  if (!isLeagueManager && !isClubManager) {
+  if (!canManageLeagues) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in fade-in duration-700">
         <div className="relative">
@@ -69,9 +136,9 @@ export default function LeagueHubPage() {
           </div>
         </div>
         <div className="space-y-4 max-w-md mx-auto">
-          <h1 className="text-4xl font-black uppercase tracking-tight leading-none">League Center Locked</h1>
+          <h1 className="text-4xl font-black uppercase tracking-tight leading-none">League Hub Locked</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs leading-relaxed">
-            Multi-squad management and recruitment portals require an Elite League subscription tier.
+            Multi-squad standings and recruitment ledgers require an Elite League subscription tier.
           </p>
         </div>
         <Button onClick={purchasePro} className="h-14 px-10 rounded-2xl font-black uppercase shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
@@ -85,33 +152,32 @@ export default function LeagueHubPage() {
     <div className="space-y-10 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
-          <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Competitive HQ</Badge>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">League Hub</h1>
-          <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Managed Recruitment & Standings</p>
+          <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Competitive headquarters</Badge>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Strategic Hub</h1>
+          <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Managed Recruitment & Competitive Standings</p>
         </div>
         
         <div className="flex flex-wrap gap-3">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Search hubs..." 
+              placeholder="Tactical search..." 
               className="pl-9 h-12 rounded-xl bg-muted/50 border-none font-bold text-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <Button onClick={() => router.push('/leagues/new')} className="h-12 px-8 rounded-xl font-black uppercase text-xs shadow-xl shadow-primary/20 active:scale-95 transition-all">
-            <Plus className="h-4 w-4 mr-2" /> Launch League
+            <Plus className="h-4 w-4 mr-2" /> Launch Hub
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-8 space-y-12">
-          {/* Managed Leaguess */}
           <section className="space-y-6">
             <div className="flex items-center justify-between px-2">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">My Managed Hubs</h2>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Managed Tactical Hubs</h2>
               <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary">{myManagedLeagues.length} TOTAL</Badge>
             </div>
             
@@ -136,7 +202,7 @@ export default function LeagueHubPage() {
                     <div className="flex items-center gap-4">
                       <div className="hidden sm:flex flex-col items-end">
                         <span className="text-[8px] font-black uppercase text-muted-foreground opacity-60">Recruitment</span>
-                        <span className="text-xs font-black text-primary">PORTAL ACTIVE</span>
+                        <span className="text-xs font-black text-primary uppercase">Portal Active</span>
                       </div>
                       <ChevronRight className="h-6 w-6 text-muted-foreground opacity-20 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
                     </div>
@@ -145,13 +211,12 @@ export default function LeagueHubPage() {
               )) : (
                 <div className="text-center py-20 bg-muted/10 rounded-[3rem] border-2 border-dashed space-y-4 opacity-40">
                   <Shield className="h-12 w-12 mx-auto" />
-                  <p className="text-sm font-black uppercase tracking-widest">No managed leagues established.</p>
+                  <p className="text-sm font-black uppercase tracking-widest">No managed hubs established.</p>
                 </div>
               )}
             </div>
           </section>
 
-          {/* Available Hubs */}
           <section className="space-y-6">
             <div className="flex items-center justify-between px-2">
               <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Available Global Challenges</h2>
@@ -164,11 +229,11 @@ export default function LeagueHubPage() {
                   <CardContent className="p-6 space-y-4">
                     <div className="flex justify-between items-start">
                       <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest border-primary/20 text-primary">{league.sport}</Badge>
-                      <Badge className="bg-black text-white h-5 text-[8px] font-black">{league.status || 'ACTIVE'}</Badge>
+                      <Badge className="bg-black text-white h-5 text-[8px] font-black uppercase">{league.status || 'Active'}</Badge>
                     </div>
                     <div>
                       <h4 className="text-xl font-black uppercase tracking-tight truncate">{league.name}</h4>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Managed Hub ID: {league.id.slice(-6)}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Managed ID: {league.id.slice(-6)}</p>
                     </div>
                     <Button 
                       variant="ghost" 
@@ -195,16 +260,16 @@ export default function LeagueHubPage() {
                 <h3 className="text-3xl font-black uppercase tracking-tighter leading-[0.9]">Master <br />Coordination.</h3>
               </div>
               <p className="text-white/60 text-sm font-medium leading-relaxed">
-                Admins can now manage public signups, automated squad assignments, and institutional payment verification directly within the hub.
+                Admins manage public enrollment, automated squad assignments, and institutional payment verification within the hub.
               </p>
               <div className="bg-white/10 p-4 rounded-2xl border border-white/10 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/20 p-2 rounded-lg text-primary"><Target className="h-4 w-4" /></div>
                   <span className="text-[10px] font-black uppercase tracking-widest">Roster Scout Tool</span>
                 </div>
-                <p className="text-[10px] font-medium leading-relaxed italic text-white/40">Analyze opponent lineups and team capacity across the entire league ledger.</p>
+                <p className="text-[10px] font-medium leading-relaxed italic text-white/40">Analyze opponent lineups and team capacity across the hub ledger.</p>
               </div>
-              <Button variant="secondary" className="w-full h-12 rounded-xl font-black uppercase text-[10px] bg-white text-black hover:bg-white/90 shadow-lg" onClick={() => router.push('/how-to')}>Review Operations Manual</Button>
+              <Button variant="secondary" className="w-full h-12 rounded-xl font-black uppercase text-[10px] bg-white text-black hover:bg-white/90 shadow-lg" onClick={() => router.push('/how-to')}>Review Manual</Button>
             </CardContent>
           </Card>
 
@@ -223,13 +288,13 @@ export default function LeagueHubPage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Active Talent</p>
-                  <p className="text-2xl font-black">2.4k+</p>
+                  <p className="text-2xl font-black">5.2k+</p>
                 </div>
               </div>
               <div className="pt-4 border-t space-y-4">
                 <div className="flex items-start gap-3">
                   <Globe className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                  <p className="text-[10px] font-medium leading-relaxed text-muted-foreground italic">Leagues marked as **Public** are discoverable by any squad on the platform coordination hub.</p>
+                  <p className="text-[10px] font-medium leading-relaxed text-muted-foreground italic">Public hubs are discoverable across the global coordination ledger.</p>
                 </div>
               </div>
             </CardContent>
