@@ -3,119 +3,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // HELPER FUNCTIONS
     function isSignedIn() {
-      return request.auth != null && request.auth.uid != null;
+      return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.get('email', '') == 'thisearlyseason@gmail.com' || 
-        request.auth.token.get('email', '') == 'test@gmail.com'
-      );
-    }
-
-    function isDemoId(id) {
-      return id.size() >= 5 && id[0:5] == 'demo_';
-    }
-
-    // CORE RULES
     match /users/{userId} {
       allow read, write: if isSignedIn();
+      match /teamMemberships/{mId} { allow read, write: if isSignedIn(); }
     }
 
-    match /subscriptions/{subscriptionId} {
+    match /subscriptions/{subId} {
       allow read, write: if isSignedIn();
+    }
+
+    match /teams/{teamId} {
+      allow read, write: if isSignedIn();
+      match /members/{mId} { allow read, write: if isSignedIn(); }
+      match /events/{eId} { allow read, write: if isSignedIn(); }
+      match /games/{gId} { allow read, write: if isSignedIn(); }
+      match /groupChats/{cId} { 
+        allow read, write: if isSignedIn(); 
+        match /messages/{msgId} { allow read, write: if isSignedIn(); }
+      }
+      match /files/{fId} { allow read, write: if isSignedIn(); }
+      match /drills/{dId} { allow read, write: if isSignedIn(); }
+      match /alerts/{aId} { allow read, write: if isSignedIn(); }
+      match /volunteers/{vId} { allow read, write: if isSignedIn(); }
+      match /fundraising/{fId} { allow read, write: if isSignedIn(); }
+      match /feedPosts/{pId} { 
+        allow read, write: if isSignedIn();
+        match /comments/{cId} { allow read, write: if isSignedIn(); }
+      }
     }
 
     match /organizations/{orgId} {
       allow read, write: if isSignedIn();
-      
-      match /facilities/{facilityId} {
-        allow read, write: if isSignedIn();
-      }
+      match /facilities/{fId} { allow read, write: if isSignedIn(); }
     }
 
-    match /teams/{teamId} {
-      allow read, write: if isSignedIn() || isDemoId(teamId);
-      
-      match /members/{memberId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-      
-      match /events/{eventId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-      
-      match /games/{gameId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-      
-      match /groupChats/{chatId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-        match /messages/{msgId} { allow read, write: if isSignedIn() || isDemoId(teamId); }
-      }
-
-      match /files/{fileId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-
-      match /drills/{drillId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-
-      match /alerts/{alertId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-
-      match /volunteers/{oppId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-
-      match /fundraising/{fundId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-      }
-
-      match /feedPosts/{postId} {
-        allow read, write: if isSignedIn() || isDemoId(teamId);
-        match /comments/{commentId} { allow read, write: if isSignedIn() || isDemoId(teamId); }
-      }
-    }
-
-    // League Hub
     match /leagues/{leagueId} {
-      allow read: if isSignedIn() || isDemoId(leagueId);
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isSuperAdmin());
-      
-      match /registrationEntries/{entryId} {
-        allow read, write: if isSignedIn() || isDemoId(leagueId);
-      }
-      
-      match /registration/config {
-        allow read: if true;
-        allow write: if isSignedIn() || isDemoId(leagueId);
-      }
+      allow read, write: if isSignedIn();
+      match /registration/config { allow read, write: if isSignedIn(); }
+      match /registrationEntries/{eId} { allow read, write: if isSignedIn(); }
     }
 
-    // Global Collections
-    match /leagues { allow list: if isSignedIn(); }
-    match /plans { allow get, list: if true; }
-    match /features { allow get, list: if true; }
-    match /leads { allow create: if true; }
-    match /players/{playerId} { allow read, write: if isSignedIn(); }
-    match /leagues/global/invites/{inviteId} { 
-      allow read, write: if isSignedIn(); 
+    match /tournaments/{tourneyId} {
+      allow read, write: if isSignedIn();
     }
 
-    // Collection Group Helpers
-    match /{path=**}/members/{memberId} { allow read: if isSignedIn(); }
-    match /{path=**}/events/{eventId} { allow read: if isSignedIn(); }
-    match /{path=**}/alerts/{alertId} { allow read: if isSignedIn(); }
-    match /{path=**}/registrationEntries/{entryId} { allow read: if isSignedIn(); }
+    match /matches/{matchId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /players/{pId} { allow read, write: if isSignedIn(); }
+    match /plans/{pId} { allow read: if true; }
+    match /features/{fId} { allow read: if true; }
+    
+    // Collection group helpers
+    match /{path=**}/members/{mId} { allow read: if isSignedIn(); }
+    match /{path=**}/events/{eId} { allow read: if isSignedIn(); }
+    match /{path=**}/alerts/{aId} { allow read: if isSignedIn(); }
+    match /{path=**}/registrationEntries/{eId} { allow read: if isSignedIn(); }
   }
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { 
   collection, 
@@ -23,14 +23,11 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { seedGuestDemoTeam } from '@/lib/db-seeder';
 
 export type UserRole = "parent" | "adult_player" | "coach" | "admin";
-
 export type SubscriptionPlan = "free" | "squad_pro" | "elite_teams" | "elite_league";
-export type SubscriptionStatus = "active" | "inactive" | "trial";
 export type TeamType = "starter" | "pro";
 
 export type UserProfile = {
@@ -40,335 +37,105 @@ export type UserProfile = {
   phone: string;
   avatar: string;
   role: UserRole;
-  createdAt?: string;
+  subscriptionPlan: SubscriptionPlan;
+  subscriptionStatus: string;
+  proTeamLimit: number;
   isDemo?: boolean;
-  subscriptionPlan?: SubscriptionPlan;
-  subscriptionStatus?: SubscriptionStatus;
-  proTeamLimit?: number;
-  tournamentCredits?: number;
-};
-
-export type PlayerProfile = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  ageGroup: string;
-  isMinor: boolean;
-  parentId: string | null;
-  userId: string | null;
-  hasLogin: boolean;
-  createdAt: string;
-  joinedTeamIds?: string[];
 };
 
 export type Team = {
   id: string;
   name: string;
   code: string;
-  type: "adult" | "youth";
   teamType: TeamType;
   sport?: string;
-  description?: string;
-  teamLogoUrl?: string;
-  heroImageUrl?: string;
-  isPro?: boolean;
+  isPro: boolean;
   planId?: string;
   clubId?: string;
-  role?: 'Admin' | 'Member';
-  ownerUserId?: string;
+  role: 'Admin' | 'Member';
+  ownerUserId: string;
+  teamLogoUrl?: string;
+  heroImageUrl?: string;
   parentChatEnabled?: boolean;
   parentCommentsEnabled?: boolean;
-  contactEmail?: string;
-  contactPhone?: string;
-  leagueIds?: string[];
-  createdBy?: string;
-  createdAt?: string;
 };
 
-export type Member = {
-  id: string;
-  userId: string;
-  playerId: string;
-  teamId: string;
-  clubId?: string;
+export type TournamentFormat = "single_elim" | "double_elim" | "round_robin";
+
+export type Tournament = {
+  tourneyId: string;
   name: string;
-  role: 'Admin' | 'Member';
-  position: string;
-  jersey: string;
-  avatar: string;
-  isMinor?: boolean;
-  feesPaid?: boolean;
-  amountOwed?: number;
-  fees?: FeeItem[];
-  birthdate?: string;
-  phone?: string;
-  parentName?: string;
-  parentPhone?: string;
-  parentEmail?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  notes?: string;
-  waiverSigned?: boolean;
-  transportationWaiverSigned?: boolean;
-  medicalClearance?: boolean;
-  mediaRelease?: boolean;
-  joinedAt?: string;
-};
-
-export type FeeItem = {
-  id: string;
-  title: string;
-  amount: number;
-  paid: boolean;
+  format: TournamentFormat;
+  status: "draft" | "active" | "completed";
+  teams: string[];
+  creatorId: string;
+  leagueId?: string;
   createdAt: string;
 };
 
-export type TeamAlert = {
-  id: string;
-  title: string;
-  message: string;
-  createdAt: string;
-  createdBy: string;
-  clubId?: string;
-};
-
-export type TeamFile = {
-  id: string;
-  teamId: string;
-  clubId?: string;
-  name: string;
-  url: string;
-  type: string;
-  size: string;
-  sizeBytes?: number;
-  date: string;
-  category: string;
-  description?: string;
-  uploadedBy?: string;
-  viewedBy?: Record<string, boolean>;
-  comments?: Array<{ id: string; authorName: string; text: string; date: string }>;
-};
-
-export type VolunteerOpportunity = {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  location: string;
-  slots: number;
-  hoursPerSlot: number;
-  clubId?: string;
-  signups: Record<string, { userId: string, userName: string, status: 'signed_up' | 'completed' | 'verified', verifiedHours: number }>;
-};
-
-export type FundraisingOpportunity = {
-  id: string;
-  title: string;
-  description: string;
-  goalAmount: number;
-  currentAmount: number;
-  deadline: string;
-  clubId?: string;
-  participants: Record<string, { userId: string, userName: string }>;
-};
-
-export type RegistrationEntry = {
-  id: string;
-  league_id: string;
-  answers: Record<string, any>;
-  status: 'pending' | 'accepted' | 'assigned' | 'declined';
-  assigned_team_id: string | null;
-  assigned_team_owner_id?: string;
-  payment_received?: boolean;
-  created_at: string;
-};
-
-export type LeagueRegistrationConfig = {
-  league_id: string;
-  title: string;
-  description: string;
-  is_active: boolean;
-  registration_cost?: string;
-  payment_instructions?: string;
-  form_schema: RegistrationFormField[];
-  form_version: number;
-};
-
-export type RegistrationFormField = {
-  id: string;
-  type: 'short_text' | 'long_text' | 'dropdown' | 'checkbox' | 'yes_no' | 'image' | 'header';
-  label: string;
-  required: boolean;
-  options?: string[];
-  description?: string;
-};
-
-export type EventType = 'game' | 'practice' | 'meeting' | 'tournament' | 'other';
-
-export type TournamentGame = {
-  id: string;
+export type TournamentMatch = {
+  matchId: string;
+  tourneyId: string;
   team1: string;
   team2: string;
   score1: number;
   score2: number;
   date: string;
   time: string;
-  isCompleted: boolean;
-  winnerId?: string;
-  location?: string;
-  round?: number;
-  pool?: string;
+  status: "scheduled" | "completed";
+  round: number;
+  nextMatchId?: string;
 };
 
-export type TeamEvent = {
+export type Message = {
   id: string;
-  teamId: string;
-  clubId?: string;
-  title: string;
-  date: string;
-  endDate?: string;
-  startTime: string;
-  location: string;
-  description: string;
-  eventType: EventType;
-  isTournament?: boolean;
-  isTournamentPaid?: boolean;
-  tournamentTeams?: string[];
-  tournamentTeamsMetadata?: Record<string, { coach: string; email: string }>;
-  tournamentGames?: TournamentGame[];
-  userRsvps?: Record<string, string>;
-  gameRsvps?: Record<string, Record<string, string>>;
-  requiresSpecialWaiver?: boolean;
-  specialWaiverText?: string;
-  specialWaiverResponses?: Record<string, { agreed: boolean; timestamp: string }>;
-  teamWaiverText?: string;
-  teamAgreements?: Record<string, { agreed: boolean; captainName: string; timestamp: string }>;
-  coOrganizers?: Array<{ id: string; name: string; avatar: string }>;
-  lastUpdated?: string;
-};
-
-export type League = {
-  id: string;
-  name: string;
-  sport: string;
-  creatorId: string;
-  teams: Record<string, { teamName: string; teamLogoUrl: string; wins: number; losses: number; ties: number; points: number }>;
-  createdAt?: string;
-};
-
-export type LeagueInvite = {
-  id: string;
-  leagueId: string;
-  leagueName: string;
-  invitedEmail: string;
-  status: 'pending' | 'accepted' | 'declined';
+  author: string;
+  authorId: string;
+  content: string;
+  type: 'text' | 'image' | 'poll';
+  imageUrl?: string;
+  createdAt: string;
+  poll?: any;
 };
 
 interface TeamContextType {
   user: UserProfile | null;
   activeTeam: Team | null;
   setActiveTeam: (team: Team) => void;
-  activeLeague: League | null;
-  setActiveLeague: (league: League | null) => void;
   teams: Team[];
   isTeamsLoading: boolean;
   isSeedingDemo: boolean;
-  members: Member[];
-  isMembersLoading: boolean;
-  currentMember: Member | null;
+  members: any[];
   isStaff: boolean;
   isPro: boolean;
-  isParent: boolean;
-  isPlayer: boolean;
-  isSuperAdmin: boolean;
   isClubManager: boolean;
+  isLeagueManager: boolean;
   clubId: string | null;
-  alerts: TeamAlert[];
-  isRCInitialized: boolean;
+  alerts: any[];
+  hasFeature: (featureId: string) => boolean;
   createNewTeam: (name: string, type: "adult" | "youth", pos: string, description?: string, teamType?: TeamType) => Promise<string>;
   joinTeamWithCode: (code: string, playerId: string, position: string) => Promise<boolean>;
-  registerChild: (firstName: string, lastName: string, dob: string) => Promise<string>;
-  upgradeChildToLogin: (playerId: string, email: string) => Promise<void>;
-  myChildren: PlayerProfile[];
-  signWaiver: (playerId: string, version: string) => Promise<void>;
-  plans: any[];
-  isPlansLoading: boolean;
-  proQuotaStatus: { current: number; limit: number; remaining: number; exceeded: boolean };
-  purchasePro: () => void;
-  setIsPaywallOpen: (open: boolean) => void;
-  isPaywallOpen: boolean;
   updateUser: (updates: Partial<UserProfile>) => Promise<void>;
-  updateMember: (memberId: string, updates: Partial<Member>) => Promise<void>;
   updateTeamDetails: (updates: Partial<Team>) => Promise<void>;
-  updateTeamPlan: (teamId: string, planId: string) => Promise<void>;
-  manageSubscription: () => void;
-  resetSeasonData: () => Promise<void>;
   createChat: (name: string, memberIds: string[]) => Promise<string>;
   addMessage: (chatId: string, author: string, content: string, type: any, imageUrl?: string, poll?: any) => Promise<void>;
   votePoll: (chatId: string, msgId: string, optIdx: number) => Promise<void>;
   formatTime: (date: string | Date) => string;
-  submitLead: (data: any) => Promise<boolean>;
-  hasFeature: (featureId: string) => boolean;
   createAlert: (title: string, message: string) => Promise<void>;
-  updateTeamHero: (imageUrl: string) => Promise<void>;
-  resolveQuota: (selectedTeamIds: string[]) => Promise<void>;
-  addEvent: (payload: any) => Promise<void>;
-  updateEvent: (eventId: string, updates: any) => Promise<void>;
-  deleteEvent: (eventId: string) => Promise<void>;
-  updateRSVP: (eventId: string, status: string, gameId?: string) => Promise<void>;
-  addRegistration: (teamId: string, eventId: string, data: any) => Promise<boolean>;
-  signTeamTournamentWaiver: (teamId: string, eventId: string, teamName: string) => Promise<void>;
-  submitEventWaiver: (eventId: string, agreed: boolean) => Promise<void>;
-  addCoOrganizerByEmail: (eventId: string, email: string) => Promise<void>;
-  removeCoOrganizer: (eventId: string, organizerId: string) => Promise<void>;
-  addDrill: (payload: any) => Promise<void>;
-  deleteDrill: (drillId: string) => Promise<void>;
-  addFile: (name: string, type: string, size: number, url: string, category: string, description: string) => Promise<void>;
-  addExternalLink: (title: string, url: string, category: string, description: string) => Promise<void>;
-  deleteFile: (fileId: string) => Promise<void>;
-  markMediaAsViewed: (fileId: string) => Promise<void>;
-  addMediaComment: (fileId: string, text: string) => Promise<void>;
-  addGame: (payload: any) => Promise<void>;
-  updateGame: (gameId: string, updates: any) => Promise<void>;
-  createLeague: (name: string) => Promise<void>;
-  inviteTeamToLeague: (leagueId: string, leagueName: string, email: string) => Promise<void>;
-  manuallyAddTeamToLeague: (leagueId: string, teamName: string, coachEmail: string, logoUrl: string) => Promise<void>;
-  acceptLeagueInvite: (inviteId: string, leagueId: string) => Promise<void>;
-  saveLeagueRegistrationConfig: (leagueId: string, updates: any) => Promise<void>;
-  assignEntryToTeam: (leagueId: string, entryId: string, teamId: string | null) => Promise<void>;
-  toggleRegistrationPaymentStatus: (leagueId: string, entryId: string, received: boolean) => Promise<void>;
-  submitRegistrationEntry: (leagueId: string, answers: any, version: number) => Promise<void>;
-  signPublicTournamentWaiver: (teamId: string, eventId: string, selectedTeam: string, coachName: string) => Promise<boolean>;
-  submitMatchScore: (teamId: string, eventId: string, gameId: string, isTeam1: boolean, s1: number, s2: number) => Promise<void>;
-  respondToAssignment: (leagueId: string, entryId: string, status: 'accepted' | 'declined') => Promise<void>;
   
-  addVolunteerOpportunity: (opp: Partial<VolunteerOpportunity>) => Promise<void>;
-  deleteVolunteerOpportunity: (id: string) => Promise<void>;
-  signUpForVolunteer: (oppId: string) => Promise<void>;
-  verifyVolunteerHours: (oppId: string, userId: string, hours: number) => Promise<void>;
-  addFundraisingOpportunity: (fund: Partial<FundraisingOpportunity>) => Promise<void>;
-  deleteFundraisingOpportunity: (id: string) => Promise<void>;
-  signUpForFundraising: (fundId: string) => Promise<void>;
-  updateFundraisingAmount: (fundId: string, amount: number) => Promise<void>;
+  // Tournament Methods
+  createTournament: (name: string, format: TournamentFormat, teams: string[]) => Promise<string>;
+  updateMatchScore: (matchId: string, s1: number, s2: number) => Promise<void>;
+  
+  // Subscription Methods
+  plans: any[];
+  proQuotaStatus: { current: number; limit: number; remaining: number; exceeded: boolean };
+  purchasePro: () => void;
+  isPaywallOpen: boolean;
+  setIsPaywallOpen: (open: boolean) => void;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
-
-const clean = (obj: any): any => {
-  if (Array.isArray(obj)) return obj.map(v => clean(v));
-  if (obj !== null && typeof obj === 'object') {
-    const newObj: any = {};
-    Object.keys(obj).forEach(key => {
-      const val = obj[key];
-      if (val !== undefined) {
-        newObj[key] = clean(val);
-      }
-    });
-    return newObj;
-  }
-  return obj ?? null;
-};
 
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser } = useUser();
@@ -377,18 +144,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
-  const [activeLeague, setActiveLeague] = useState<League | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
-  const [myChildren, setMyChildren] = useState<PlayerProfile[]>([]);
-  const [isRCInitialized, setIsRCInitialized] = useState(false);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
-  
-  const hasStartedSeeding = useRef<string | null>(null);
-
-  const plansQuery = useMemoFirebase(() => db ? collection(db, 'plans') : null, [db]);
-  const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
-  const plans = plansData || [];
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
 
   useEffect(() => {
     if (!firebaseUser?.uid || !db) return;
@@ -397,7 +155,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         const data = snap.data();
         setUserProfile({
           id: firebaseUser.uid,
-          name: data.fullName || data.name || '',
+          name: data.fullName || data.name || 'User',
           email: data.email || '',
           phone: data.phone || '',
           avatar: data.avatarUrl || data.avatar || '',
@@ -405,49 +163,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           subscriptionPlan: data.subscriptionPlan || 'free',
           subscriptionStatus: data.subscriptionStatus || 'active',
           proTeamLimit: data.proTeamLimit || 0,
-          createdAt: data.createdAt,
-          isDemo: data.isDemo,
-          tournamentCredits: data.tournamentCredits || 0
+          isDemo: data.isDemo
         });
       }
     });
   }, [firebaseUser?.uid, db]);
-
-  useEffect(() => {
-    if (!firebaseUser?.uid || !db || userProfile?.role !== 'parent') return;
-    const q = query(collection(db, 'players'), where('parentId', '==', firebaseUser.uid));
-    return onSnapshot(q, (snap) => {
-      setMyChildren(snap.docs.map(d => ({ id: d.id, ...d.data() } as PlayerProfile)));
-    });
-  }, [firebaseUser?.uid, db, userProfile?.role]);
-
-  useEffect(() => {
-    const seedParam = searchParams.get('seed_demo');
-    if (!seedParam || !firebaseUser?.uid || isSeedingDemo) return;
-
-    const seedKey = `${firebaseUser.uid}_${seedParam}`;
-    if (hasStartedSeeding.current === seedKey || sessionStorage.getItem(`squad_seeded_${seedKey}`)) return;
-
-    const runSeed = async () => {
-      hasStartedSeeding.current = seedKey;
-      setIsSeedingDemo(true);
-      
-      const url = new URL(window.location.href);
-      url.searchParams.delete('seed_demo');
-      window.history.replaceState({}, '', url.toString());
-
-      try {
-        const tid = await seedGuestDemoTeam(db, firebaseUser.uid, seedParam);
-        sessionStorage.setItem(`squad_seeded_${seedKey}`, 'true');
-        setActiveTeamId(tid);
-      } catch (e) {
-        console.error("Seed failed", e);
-      } finally {
-        setTimeout(() => setIsSeedingDemo(false), 1000);
-      }
-    };
-    runSeed();
-  }, [searchParams, firebaseUser?.uid, db, isSeedingDemo]);
 
   const teamsQuery = useMemoFirebase(() => {
     if (!firebaseUser || !db) return null;
@@ -459,21 +179,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!teamsData) return [];
     return teamsData.map(m => ({
       id: m.teamId || m.id,
-      name: m.teamName || 'Unnamed Team',
-      code: m.teamCode || '......',
-      type: m.type || 'adult',
-      teamType: m.teamType || (m.isPro ? 'pro' : 'starter'),
+      name: m.teamName,
+      code: m.teamCode,
+      teamType: m.teamType || 'starter',
       isPro: m.teamType === 'pro' || m.isPro || false,
-      planId: m.planId || 'starter_squad',
-      clubId: m.clubId || null,
       role: m.role || 'Member',
       ownerUserId: m.ownerUserId || '',
       sport: m.sport || 'Multi-Sport',
-      parentChatEnabled: m.parentChatEnabled ?? true,
-      parentCommentsEnabled: m.parentCommentsEnabled ?? true,
-      heroImageUrl: m.heroImageUrl || '',
       teamLogoUrl: m.teamLogoUrl || '',
-      leagueIds: m.leagueIds || []
+      parentChatEnabled: m.parentChatEnabled ?? true,
+      parentCommentsEnabled: m.parentCommentsEnabled ?? true
     }));
   }, [teamsData]);
 
@@ -486,19 +201,37 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!activeTeam?.id || !db) return null;
     return query(collection(db, 'teams', activeTeam.id, 'members'));
   }, [activeTeam?.id, db]);
-  const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
-  const members = useMemo(() => membersData || [], [membersData]);
+  const { data: membersData } = useCollection(membersQuery);
+  const members = membersData || [];
 
   const alertsQuery = useMemoFirebase(() => {
     if (!activeTeam?.id || !db) return null;
     return query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10));
   }, [activeTeam?.id, db]);
-  const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
-  const alerts = useMemo(() => alertsData || [], [alertsData]);
+  const { data: alertsData } = useCollection(alertsQuery);
+  const alerts = alertsData || [];
 
-  useEffect(() => {
-    setIsRCInitialized(true);
-  }, []);
+  const isStaff = activeTeam?.role === 'Admin';
+  const isPro = activeTeam?.teamType === 'pro';
+  const isClubManager = userProfile?.subscriptionPlan === 'elite_teams' || userProfile?.subscriptionPlan === 'elite_league';
+  const isLeagueManager = userProfile?.subscriptionPlan === 'elite_league';
+  const clubId = isClubManager ? firebaseUser?.uid || null : activeTeam?.clubId || null;
+
+  const hasFeature = useCallback((featureId: string) => {
+    if (userProfile?.subscriptionPlan === 'elite_league') return true;
+    
+    const freeFeatures = ['chat', 'schedule', 'score_tracking', 'basic_roster', 'playbook'];
+    if (freeFeatures.includes(featureId)) return true;
+
+    if (featureId === 'tournaments') return isPro;
+    if (featureId === 'organization') return isClubManager;
+    if (featureId === 'leagues') return isLeagueManager;
+
+    const proFeatures = ['payments', 'attendance', 'documents', 'analytics', 'automation', 'full_roster'];
+    if (proFeatures.includes(featureId)) return isPro;
+
+    return false;
+  }, [userProfile, isPro, isClubManager, isLeagueManager]);
 
   const proQuotaStatus = useMemo(() => {
     const plan = userProfile?.subscriptionPlan || 'free';
@@ -512,445 +245,81 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return { current, limit: limitCount, remaining: Math.max(0, limitCount - current), exceeded: current > limitCount };
   }, [teams, userProfile, firebaseUser?.uid]);
 
-  const isStaff = activeTeam?.role === 'Admin';
-  const isPro = activeTeam?.teamType === 'pro';
-  const isParent = userProfile?.role === 'parent';
-  const isPlayer = userProfile?.role === 'adult_player';
-  const isSuperAdmin = userProfile?.email === 'thisearlyseason@gmail.com' || userProfile?.email === 'test@gmail.com';
-  const isClubManager = userProfile?.subscriptionPlan === 'elite_teams' || userProfile?.subscriptionPlan === 'elite_league';
-  const clubId = isClubManager ? firebaseUser?.uid || null : activeTeam?.clubId || null;
-
-  const hasFeature = useCallback((featureId: string) => {
-    if (isSuperAdmin) return true;
-    
-    // Core Free Features (Allowed for Starter)
-    const freeFeatures = ['group_chat', 'chat', 'schedule', 'schedule_games_events', 'score_tracking', 'basic_roster', 'playbook'];
-    if (freeFeatures.includes(featureId)) return true;
-
-    // Pro-Only Features (Restricted for Starter)
-    const proFeatures = [
-      'elite_tournament', 
-      'tournaments', 
-      'payments', 
-      'attendance_tracking', 
-      'attendance_reports',
-      'media_uploads', 
-      'documents',
-      'document_management',
-      'stats_basic', 
-      'advanced_analytics',
-      'analytics',
-      'high_priority_alerts', 
-      'full_roster_details',
-      'league_registration'
-    ];
-    
-    if (proFeatures.includes(featureId)) return isPro;
-
-    // Plan-level features
-    if (featureId === 'leagues') return userProfile?.subscriptionPlan === 'elite_league';
-    if (featureId === 'organization_hub') return isClubManager;
-
-    return false;
-  }, [isSuperAdmin, isPro, userProfile?.subscriptionPlan, isClubManager]);
-
-  const createNewTeam = useCallback(async (name: string, type: "adult" | "youth", pos: string, description?: string, teamType: TeamType = "starter") => {
-    if (!firebaseUser) return '';
-    const tid = `team_${Date.now()}`;
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const cId = isClubManager ? firebaseUser.uid : null;
-    const batch = writeBatch(db);
-    const teamData = clean({ 
-      id: tid, 
-      teamName: name || 'Unnamed Team', 
-      teamCode: code, 
-      type, 
-      teamType,
-      createdBy: firebaseUser.uid, 
-      ownerUserId: firebaseUser.uid, 
-      clubId: cId,
-      createdAt: new Date().toISOString(), 
-      isPro: teamType === 'pro', 
-      parentChatEnabled: true, 
-      parentCommentsEnabled: true, 
-      description: description || '', 
-      teamLogoUrl: '', 
-      heroImageUrl: '', 
-      sport: 'Multi-Sport' 
-    });
-    batch.set(doc(db, 'teams', tid), teamData);
-    batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, clubId: cId, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
-    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name || 'Unnamed Team', teamCode: code, type, teamType, role: 'Admin', isPro: teamType === 'pro', clubId: cId, ownerUserId: firebaseUser.uid, teamLogoUrl: '', sport: 'Multi-Sport' }));
-    await batch.commit();
-    return tid;
-  }, [firebaseUser, db, isClubManager, userProfile?.name, userProfile?.avatar]);
-
-  const joinTeamWithCode = useCallback(async (code: string, playerId: string, position: string) => {
-    if (!firebaseUser || !db) return false;
-    const q = query(collection(db, 'teams'), where('teamCode', '==', (code || '').toUpperCase()), limit(1));
-    const snap = await getDocs(q);
-    if (snap.empty) { toast({ title: "Invalid Code", variant: "destructive" }); return false; }
-    const tDoc = snap.docs[0]; const tid = tDoc.id; const tData = tDoc.data();
-    const cId = tData.clubId || null;
-    const playerSnap = await getDoc(doc(db, 'players', playerId)); const pData = playerSnap.data();
-    const batch = writeBatch(db);
-    
-    batch.update(doc(db, 'players', playerId), { joinedTeamIds: arrayUnion(tid) });
-    
-    batch.set(doc(db, 'teams', tid, 'members', playerId), clean({ 
-      id: playerId, 
-      userId: firebaseUser.uid, 
-      playerId, 
-      teamId: tid, 
-      clubId: cId,
-      role: 'Member', 
-      position, 
-      name: `${pData?.firstName || ''} ${pData?.lastName || ''}`, 
-      avatar: '', 
-      isMinor: !!pData?.isMinor, 
-      joinedAt: new Date().toISOString(), 
-      jersey: 'TBD' 
-    }));
-    
-    if (playerId !== `p_${firebaseUser.uid}`) {
-      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
-        id: firebaseUser.uid,
-        userId: firebaseUser.uid,
-        playerId: 'guardian',
-        teamId: tid,
-        clubId: cId,
-        role: 'Member',
-        position: 'Parent',
-        name: userProfile?.name || 'Guardian',
-        avatar: userProfile?.avatar || '',
-        joinedAt: new Date().toISOString(),
-        jersey: 'HQ'
-      }));
-    }
-    
-    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ 
-      teamId: tid, 
-      teamName: tData.teamName || 'Unnamed Team', 
-      teamCode: (code || '').toUpperCase(), 
-      type: tData.type || 'adult', 
-      teamType: tData.teamType || 'starter',
-      role: 'Member', 
-      ownerUserId: tData.ownerUserId || '', 
-      clubId: cId,
-      isPro: !!tData.isPro, 
-      teamLogoUrl: tData.teamLogoUrl || '', 
-      sport: tData.sport || 'Multi-Sport' 
-    }));
-    
-    await batch.commit();
-    toast({ title: "Welcome to the Squad!" });
-    return true;
-  }, [firebaseUser, db, userProfile?.name, userProfile?.avatar]);
-
   const value = {
     user: userProfile,
     activeTeam,
-    setActiveTeam: useCallback((t: Team) => setActiveTeamId(t.id), []),
-    activeLeague,
-    setActiveLeague: useCallback((l: League | null) => setActiveLeague(l), []),
+    setActiveTeam: (t: Team) => setActiveTeamId(t.id),
     teams,
     isTeamsLoading,
     isSeedingDemo,
     members,
-    isMembersLoading,
-    currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
     isStaff,
     isPro,
-    isParent,
-    isPlayer,
-    isSuperAdmin,
     isClubManager,
+    isLeagueManager,
     clubId,
     alerts,
-    isRCInitialized,
     hasFeature,
-    createNewTeam,
-    joinTeamWithCode,
-    registerChild: useCallback(async (firstName: string, lastName: string, dob: string) => {
+    createNewTeam: async (name: string, type: any, pos: string, description?: string, teamType: TeamType = 'starter') => {
       if (!firebaseUser) return '';
-      const docRef = await addDoc(collection(db, 'players'), clean({ firstName: firstName || '', lastName: lastName || '', dateOfBirth: dob || '', isMinor: true, parentId: firebaseUser.uid, hasLogin: false, createdAt: new Date().toISOString(), joinedTeamIds: [] }));
-      return docRef.id;
-    }, [firebaseUser, db]),
-    upgradeChildToLogin: useCallback(async (playerId: string, email: string) => {
-      if (!firebaseUser) return;
-      await updateDoc(doc(db, 'players', playerId), { hasLogin: true, inviteEmail: (email || '').toLowerCase() });
-      toast({ title: "Invite Dispatched", description: "Direct login instructions sent." });
-    }, [firebaseUser, db]),
-    myChildren,
-    signWaiver: useCallback(async (playerId: string, version: string) => {
-      if (!firebaseUser) return;
-      await addDoc(collection(db, 'waivers'), clean({ playerId, signedByUserId: firebaseUser.uid, signedByRole: userProfile?.role === 'parent' ? 'parent' : 'player', signedAt: new Date().toISOString(), version: version || '1.0' }));
-    }, [firebaseUser, db, userProfile?.role]),
-    plans,
-    isPlansLoading,
-    proQuotaStatus,
-    purchasePro: useCallback(() => setIsPaywallOpen(true), []),
-    setIsPaywallOpen,
-    isPaywallOpen,
-    updateUser: useCallback(async (updates: Partial<UserProfile>) => {
-      if (!firebaseUser) return;
-      await updateDoc(doc(db, 'users', firebaseUser.uid), clean(updates));
-    }, [firebaseUser, db]),
-    updateMember: useCallback(async (memberId: string, updates: Partial<Member>) => {
-      if (!activeTeam) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'members', memberId), clean(updates));
-    }, [activeTeam, db]),
-    updateTeamDetails: useCallback(async (updates: Partial<Team>) => {
-      if (!activeTeam) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id), clean(updates));
-    }, [activeTeam, db]),
-    updateTeamPlan: useCallback(async (teamId: string, planId: string) => {
-      if (!firebaseUser) return;
-      // Map plan selection to teamType
-      const isProPlan = planId === 'squad_pro' || planId === 'elite_teams' || planId === 'elite_league';
-      const teamType: TeamType = isProPlan ? 'pro' : 'starter';
+      const tid = `team_${Date.now()}`;
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       const batch = writeBatch(db);
-      batch.update(doc(db, 'teams', teamId), { teamType, planId, isPro: isProPlan });
-      batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId), { teamType, planId, isPro: isProPlan });
+      const teamData = { id: tid, teamName: name, teamCode: code, type, teamType, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), isPro: teamType === 'pro' };
+      batch.set(doc(db, 'teams', tid), teamData);
+      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), { id: firebaseUser.uid, userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', joinedAt: new Date().toISOString() });
+      batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), { teamId: tid, teamName: name, teamCode: code, teamType, role: 'Admin', ownerUserId: firebaseUser.uid, isPro: teamType === 'pro' });
       await batch.commit();
-    }, [firebaseUser, db]),
-    manageSubscription: useCallback(() => { window.open('https://billing.thesquad.pro', '_blank'); }, []),
-    resetSeasonData: useCallback(async () => { if (!activeTeam) return; toast({ title: "Resetting Season..." }); }, [activeTeam]),
-    createChat: useCallback(async (name: string, memberIds: string[]) => {
-      if (!activeTeam || !firebaseUser) return '';
-      const docRef = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), clean({ name: name || 'Team Chat', memberIds: [...memberIds, firebaseUser.uid], clubId, createdBy: firebaseUser.uid, createdAt: new Date().toISOString(), lastMessage: 'New channel established.' }));
-      return docRef.id;
-    }, [activeTeam, firebaseUser, db, clubId]),
-    addMessage: useCallback(async (chatId: string, author: string, content: string, type: any, imageUrl?: string, poll?: any) => {
-      if (!activeTeam || !firebaseUser) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages'), clean({ author: author || 'User', authorId: firebaseUser.uid, content: content || '', type: type || 'text', imageUrl: imageUrl || null, poll: poll || null, createdAt: new Date().toISOString() }));
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', chatId), { lastMessage: type === 'poll' ? 'New Poll' : (content || 'Media attached'), lastMessageAt: new Date().toISOString() });
-    }, [activeTeam, firebaseUser, db]),
-    votePoll: useCallback(async (chatId: string, msgId: string, optIdx: number) => {
-      if (!activeTeam || !firebaseUser) return;
-      const ref = doc(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages', msgId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-      const poll = snap.data().poll; const current = poll.voters?.[firebaseUser.uid];
-      const u: any = { [`poll.voters.${firebaseUser.uid}`]: optIdx };
-      if (current === undefined) { u[`poll.options.${optIdx}.votes`] = increment(1); u['poll.totalVotes'] = increment(1); }
-      else if (current !== optIdx) { u[`poll.options.${current}.votes`] = increment(-1); u[`poll.options.${optIdx}.votes`] = increment(1); }
-      await updateDoc(ref, u);
-    }, [activeTeam, firebaseUser, db]),
-    formatTime: (date: string | Date) => { return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); },
-    submitLead: useCallback(async (data: any) => { await addDoc(collection(db, 'leads'), clean({ ...data, createdAt: new Date().toISOString() })); toast({ title: "Inquiry Dispatched" }); return true; }, [db]),
-    createAlert: useCallback(async (title: string, message: string) => {
-      if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title: title || 'Alert', message: message || '', clubId, createdAt: new Date().toISOString(), createdBy: firebaseUser?.uid }));
-    }, [activeTeam, db, clubId, firebaseUser]),
-    updateTeamHero: useCallback(async (imageUrl: string) => {
-      if (!activeTeam) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id), clean({ heroImageUrl: imageUrl || '' }));
-    }, [activeTeam, db]),
-    resolveQuota: useCallback(async (selectedIds: string[]) => {
-      if (!firebaseUser) return;
-      const batch = writeBatch(db);
-      teams.filter(t => t.ownerUserId === firebaseUser.uid).forEach(t => {
-        const isSelected = selectedIds.includes(t.id);
-        const nextType = isSelected ? 'pro' : 'starter';
-        batch.update(doc(db, 'teams', t.id), clean({ teamType: nextType, isPro: isSelected }));
-        batch.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), clean({ teamType: nextType, isPro: isSelected }));
-      });
-      await batch.commit();
-    }, [firebaseUser, db, teams]),
-    addEvent: useCallback(async (p: any) => { if (!activeTeam) return; await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean({ ...p, clubId })); }, [activeTeam, db, clubId]),
-    updateEvent: useCallback(async (id: string, u: any) => { if (!activeTeam) return; await updateDoc(doc(db, 'teams', activeTeam.id, 'events', id), clean(u)); }, [activeTeam, db]),
-    deleteEvent: useCallback(async (id: string) => { if (!activeTeam) return; await deleteDoc(doc(db, 'teams', activeTeam.id, 'events', id)); }, [activeTeam, db]),
-    updateRSVP: useCallback(async (id: string, s: string, gid?: string) => {
-      if (!activeTeam || !firebaseUser) return;
-      const update: any = gid ? { [`gameRsvps.${gid}.${firebaseUser.uid}`]: s } : { [`userRsvps.${firebaseUser.uid}`]: s };
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', id), update);
-    }, [activeTeam, firebaseUser, db]),
-    addRegistration: useCallback(async (tid: string, eid: string, d: any) => {
-      await addDoc(collection(db, 'teams', tid, 'events', eid, 'registrations'), clean({ ...d, createdAt: new Date().toISOString() }));
-      return true;
-    }, [db]),
-    signTeamTournamentWaiver: useCallback(async (tid: string, eid: string, teamName: string) => {
-      await updateDoc(doc(db, 'teams', tid, 'events', eid), { [`teamAgreements.${teamName}`]: { agreed: true, captainName: userProfile?.name || 'Representative', timestamp: new Date().toISOString() } });
-    }, [db, userProfile?.name]),
-    submitEventWaiver: useCallback(async (eid: string, a: boolean) => {
-      if (!activeTeam || !firebaseUser) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', eid), { [`specialWaiverResponses.${firebaseUser.uid}`]: { agreed: a, timestamp: new Date().toISOString() } });
-    }, [activeTeam, firebaseUser, db]),
-    addCoOrganizerByEmail: useCallback(async (eid: string, email: string) => {
-      if (!activeTeam) return;
-      const q = query(collection(db, 'teams', activeTeam.id, 'members'), where('parentEmail', '==', (email || '').toLowerCase()), limit(1));
+      return tid;
+    },
+    joinTeamWithCode: async (code: string, playerId: string, position: string) => {
+      const q = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1));
       const snap = await getDocs(q);
-      if (snap.empty) { toast({ title: "User not found in roster", variant: "destructive" }); return; }
-      const mem = snap.docs[0].data();
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', eid), { coOrganizers: arrayUnion({ id: mem.userId, name: mem.name || 'Staff', avatar: mem.avatar || '' }) });
-    }, [activeTeam, db]),
-    removeCoOrganizer: useCallback(async (eid: string, oid: string) => {
-      if (!activeTeam) return;
-      const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'events', eid));
-      const cos = snap.data()?.coOrganizers || [];
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', eid), { coOrganizers: cos.filter((c: any) => c.id !== oid) });
-    }, [activeTeam, db]),
-    addDrill: useCallback(async (p: any) => { if (!activeTeam) return; await addDoc(collection(db, 'teams', activeTeam.id, 'drills'), clean(p)); }, [activeTeam, db]),
-    deleteDrill: useCallback(async (id: string) => { if (!activeTeam) return; await deleteDoc(doc(db, 'teams', activeTeam.id, 'drills', id)); }, [activeTeam, db]),
-    addFile: useCallback(async (n: string, t: string, s: number, u: string, c: string, d: string) => {
-      if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: n || 'File', type: t || 'file', sizeBytes: s || 0, url: u || '', clubId, category: c || 'Other', description: d || '', date: new Date().toISOString(), uploadedBy: userProfile?.name || 'Unknown', viewedBy: {}, comments: [] }));
-    }, [activeTeam, db, clubId, userProfile?.name]),
-    addExternalLink: useCallback(async (t: string, u: string, c: string, d: string) => {
-      if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: t || 'Link', type: 'link', url: u || '', clubId, category: c || 'Other', description: d || '', date: new Date().toISOString(), uploadedBy: userProfile?.name || 'Unknown', viewedBy: {} }));
-    }, [activeTeam, db, clubId, userProfile?.name]),
-    deleteFile: useCallback(async (id: string) => { if (!activeTeam) return; await deleteDoc(doc(db, 'teams', activeTeam.id, 'files', id)); }, [activeTeam, db]),
-    markMediaAsViewed: useCallback(async (id: string) => {
-      if (!activeTeam || !firebaseUser) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { [`viewedBy.${firebaseUser.uid}`]: true });
-    }, [activeTeam, firebaseUser, db]),
-    addMediaComment: useCallback(async (id: string, t: string) => {
-      if (!activeTeam || !userProfile) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { comments: arrayUnion({ id: Date.now().toString(), authorName: userProfile.name || 'User', text: t || '', date: new Date().toISOString() }) });
-    }, [activeTeam, userProfile, db]),
-    addGame: useCallback(async (p: any) => { if (!activeTeam) return; await addDoc(collection(db, 'teams', activeTeam.id, 'games'), clean({ ...p, clubId })); }, [activeTeam, db, clubId]),
-    updateGame: useCallback(async (id: string, u: any) => { if (!activeTeam) return; await updateDoc(doc(db, 'teams', activeTeam.id, 'games', id), clean(u)); }, [activeTeam, db]),
-    createLeague: useCallback(async (n: string) => {
-      if (!firebaseUser || !activeTeam) return;
-      const lid = `league_${Date.now()}`;
-      await setDoc(doc(db, 'leagues', lid), clean({ 
-        id: lid, 
-        name: n || 'New League', 
-        creatorId: firebaseUser.uid, 
-        createdAt: new Date().toISOString(), 
-        sport: activeTeam?.sport || 'Multi-Sport', 
-        teams: { 
-          [activeTeam.id]: { 
-            teamName: activeTeam?.name || 'Unnamed Squad', 
-            teamLogoUrl: activeTeam?.teamLogoUrl || '', 
-            wins: 0, 
-            losses: 0, 
-            ties: 0, 
-            points: 0 
-          } 
-        } 
-      }));
-      await updateDoc(doc(db, 'teams', activeTeam.id), { leagueIds: arrayUnion(lid) });
-    }, [firebaseUser, activeTeam, db]),
-    inviteTeamToLeague: useCallback(async (lid: string, lname: string, e: string) => {
-      await addDoc(collection(db, 'leagues', 'global', 'invites'), clean({ leagueId: lid, leagueName: lname || 'League', invitedEmail: (e || '').toLowerCase(), status: 'pending', createdAt: new Date().toISOString() }));
-    }, [db]),
-    manuallyAddTeamToLeague: useCallback(async (lid: string, n: string, e: string, l: string) => {
-      const mid = `manual_${Date.now()}`;
-      await updateDoc(doc(db, 'leagues', lid), { 
-        [`teams.${mid}`]: clean({ 
-          teamName: n || 'Manual Team', 
-          teamLogoUrl: l || '', 
-          wins: 0, 
-          losses: 0, 
-          ties: 0, 
-          points: 0 
-        })
-      });
-    }, [db]),
-    acceptLeagueInvite: useCallback(async (iid: string, lid: string) => {
-      if (!activeTeam) return;
-      await updateDoc(doc(db, 'leagues', lid), { 
-        [`teams.${activeTeam.id}`]: clean({ 
-          teamName: activeTeam?.name || 'Unnamed Squad', 
-          teamLogoUrl: activeTeam?.teamLogoUrl || '', 
-          wins: 0, 
-          losses: 0, 
-          ties: 0, 
-          points: 0 
-        })
-      });
-      await updateDoc(doc(db, 'leagues', 'global', 'invites', iid), { status: 'accepted' });
-      await updateDoc(doc(db, 'teams', activeTeam.id), { leagueIds: arrayUnion(lid) });
-    }, [activeTeam, db]),
-    saveLeagueRegistrationConfig: useCallback(async (lid: string, u: any) => {
-      await setDoc(doc(db, 'leagues', lid, 'registration', 'config'), clean({ league_id: lid, ...u }), { merge: true });
-    }, [db]),
-    assignEntryToTeam: useCallback(async (lid: string, eid: string, tid: string | null) => {
-      if (!db) return;
-      let ownerId = '';
-      if (tid) {
-        const tSnap = await getDoc(doc(db, 'teams', tid));
-        ownerId = tSnap.data()?.ownerUserId || '';
-      }
-      await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), clean({ assigned_team_id: tid, assigned_team_owner_id: ownerId, status: tid ? 'assigned' : 'pending' }));
-    }, [db]),
-    toggleRegistrationPaymentStatus: useCallback(async (lid: string, entryId: string, p: boolean) => {
-      await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', entryId), { payment_received: !!p });
-    }, [db]),
-    submitRegistrationEntry: useCallback(async (lid: string, a: any, v: number) => {
-      await addDoc(collection(db, 'leagues', lid, 'registrationEntries'), clean({ league_id: lid, answers: a || {}, form_version: v || 0, status: 'pending', created_at: new Date().toISOString(), payment_received: false }));
-    }, [db]),
-    signPublicTournamentWaiver: useCallback(async (tid: string, eid: string, tname: string, cname: string) => {
-      await updateDoc(doc(db, 'teams', tid, 'events', eid), { [`teamAgreements.${tname}`]: { agreed: true, captainName: cname || 'Representative', timestamp: new Date().toISOString() } });
+      if (snap.empty) return false;
+      const tid = snap.docs[0].id;
+      const tData = snap.docs[0].data();
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'teams', tid, 'members', firebaseUser!.uid), { id: firebaseUser!.uid, userId: firebaseUser!.uid, teamId: tid, role: 'Member', position, name: userProfile?.name || 'Teammate', joinedAt: new Date().toISOString() });
+      batch.set(doc(db, 'users', firebaseUser!.uid, 'teamMemberships', tid), { teamId: tid, teamName: tData.teamName, teamCode: code.toUpperCase(), role: 'Member', ownerUserId: tData.ownerUserId });
+      await batch.commit();
       return true;
-    }, [db]),
-    submitMatchScore: useCallback(async (tid: string, eid: string, gameId: string, isT1: boolean, s1: number, s2: number) => {
-      const evRef = doc(db, 'teams', tid, 'events', eid);
-      const snap = await getDoc(evRef);
-      if (!snap.exists()) return;
-      const games = snap.data().tournamentGames || [];
-      const updated = games.map((g: any) => g.id === gameId ? { ...g, score1: s1 || 0, score2: s2 || 0, isCompleted: true } : g);
-      await updateDoc(evRef, { tournamentGames: updated });
-    }, [db]),
-    respondToAssignment: useCallback(async (leagueId: string, entryId: string, status: 'accepted' | 'declined') => {
-      if (!activeTeam) return;
-      await updateDoc(doc(db, 'leagues', leagueId, 'registrationEntries', entryId), { status });
-      if (status === 'accepted') toast({ title: "Player Recruited" });
-    }, [activeTeam, db]),
-
-    addVolunteerOpportunity: useCallback(async (opp: Partial<VolunteerOpportunity>) => {
-      if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ ...opp, clubId, signups: {} }));
-    }, [activeTeam, db, clubId]),
-    deleteVolunteerOpportunity: useCallback(async (id: string) => {
-      if (!activeTeam) return;
-      await deleteDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id));
-    }, [activeTeam, db]),
-    signUpForVolunteer: useCallback(async (oppId: string) => {
-      if (!activeTeam || !userProfile) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), {
-        [`signups.${userProfile.id}`]: {
-          userId: userProfile.id,
-          userName: userProfile.name,
-          status: 'signed_up',
-          verifiedHours: 0
-        }
-      });
-    }, [activeTeam, userProfile, db]),
-    verifyVolunteerHours: useCallback(async (oppId: string, uid: string, hrs: number) => {
-      if (!activeTeam) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), {
-        [`signups.${uid}.status`]: 'verified',
-        [`signups.${uid}.verifiedHours`]: hrs
-      });
-    }, [activeTeam, db]),
-
-    addFundraisingOpportunity: useCallback(async (fund: Partial<FundraisingOpportunity>) => {
-      if (!activeTeam) return;
-      await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...fund, clubId, participants: {}, currentAmount: 0 }));
-    }, [activeTeam, db, clubId]),
-    deleteFundraisingOpportunity: useCallback(async (id: string) => {
-      if (!activeTeam) return;
-      await deleteDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id));
-    }, [activeTeam, db]),
-    signUpForFundraising: useCallback(async (fundId: string) => {
-      if (!activeTeam || !userProfile) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), {
-        [`participants.${userProfile.id}`]: {
-          userId: userProfile.id,
-          userName: userProfile.name
-        }
-      });
-    }, [activeTeam, userProfile, db]),
-    updateFundraisingAmount: useCallback(async (fundId: string, amount: number) => {
-      if (!activeTeam) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), {
-        currentAmount: increment(amount)
-      });
-    }, [activeTeam, db])
+    },
+    updateUser: async (updates: any) => { if (firebaseUser) await updateDoc(doc(db, 'users', firebaseUser.uid), updates); },
+    updateTeamDetails: async (updates: any) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id), updates); },
+    createChat: async (name: string, memberIds: string[]) => {
+      const docRef = await addDoc(collection(db, 'teams', activeTeam!.id, 'groupChats'), { name, memberIds: [...memberIds, firebaseUser!.uid], createdAt: new Date().toISOString() });
+      return docRef.id;
+    },
+    addMessage: async (chatId: string, author: string, content: string, type: any, imageUrl?: string, poll?: any) => {
+      await addDoc(collection(db, 'teams', activeTeam!.id, 'groupChats', chatId, 'messages'), { author, authorId: firebaseUser!.uid, content, type, imageUrl, poll, createdAt: new Date().toISOString() });
+    },
+    votePoll: async (chatId: string, msgId: string, optIdx: number) => {
+      const ref = doc(db, 'teams', activeTeam!.id, 'groupChats', chatId, 'messages', msgId);
+      const snap = await getDoc(ref);
+      const poll = snap.data()!.poll;
+      const voters = poll.voters || {};
+      voters[firebaseUser!.uid] = optIdx;
+      const options = poll.options.map((o: any, i: number) => ({ ...o, votes: Object.values(voters).filter(v => v === i).length }));
+      await updateDoc(ref, { 'poll.voters': voters, 'poll.options': options, 'poll.totalVotes': Object.keys(voters).length });
+    },
+    formatTime: (date: any) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    createAlert: async (title: string, message: string) => {
+      await addDoc(collection(db, 'teams', activeTeam!.id, 'alerts'), { title, message, createdAt: new Date().toISOString(), createdBy: firebaseUser!.uid });
+    },
+    createTournament: async (name: string, format: TournamentFormat, teams: string[]) => {
+      const tourneyId = `tourney_${Date.now()}`;
+      await setDoc(doc(db, 'tournaments', tourneyId), { tourneyId, name, format, status: 'active', teams, creatorId: firebaseUser!.uid, createdAt: new Date().toISOString() });
+      // Logic for initial match generation based on format would go here
+      return tourneyId;
+    },
+    updateMatchScore: async (matchId: string, s1: number, s2: number) => {
+      await updateDoc(doc(db, 'matches', matchId), { score1: s1, score2: s2, status: 'completed' });
+    },
+    plans: [],
+    proQuotaStatus,
+    purchasePro: () => setIsPaywallOpen(true),
+    isPaywallOpen,
+    setIsPaywallOpen
   };
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;

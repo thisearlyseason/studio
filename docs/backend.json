@@ -2,149 +2,89 @@
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user account in the SquadForge application, storing personal and contact information.",
+      "description": "Represents a user account, storing personal information and subscription status.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
-        "fullName": {
-          "type": "string",
-          "description": "The user's full name."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "The user's cell phone number (optional)."
-        },
-        "avatarUrl": {
-          "type": "string",
-          "description": "URL to the user's profile avatar image (optional).",
-          "format": "uri"
-        },
-        "notificationsEnabled": {
-          "type": "boolean",
-          "description": "Indicates if the user has globally enabled push notifications."
-        },
-        "role": {
-          "type": "string",
-          "enum": ["parent", "adult_player", "coach", "admin"],
-          "description": "The primary role of the user account."
-        },
-        "subscriptionPlan": {
-          "type": "string",
-          "enum": ["free", "squad_pro", "elite_teams", "elite_league"],
-          "description": "The current subscription plan ID."
-        },
-        "subscriptionStatus": {
-          "type": "string",
-          "enum": ["active", "inactive", "trial"],
-          "description": "The status of the subscription."
-        },
-        "proTeamLimit": {
-          "type": "number",
-          "description": "The maximum number of teams this user can assign Pro features to."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user account was created.",
-          "format": "date-time"
-        },
-        "isDemo": {
-          "type": "boolean",
-          "description": "Flag indicating if this is a demo account."
-        }
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "avatarUrl": { "type": "string", "format": "uri" },
+        "role": { "type": "string", "enum": ["parent", "adult_player", "coach", "admin"] },
+        "subscriptionPlan": { "type": "string", "enum": ["free", "squad_pro", "elite_teams", "elite_league"] },
+        "subscriptionStatus": { "type": "string", "enum": ["active", "inactive", "trial"] },
+        "proTeamLimit": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "fullName",
-        "email",
-        "role",
-        "subscriptionPlan",
-        "createdAt"
-      ]
+      "required": ["id", "fullName", "email", "role", "subscriptionPlan", "createdAt"]
     },
     "Team": {
       "title": "Team",
       "type": "object",
-      "description": "Represents a sports team or group within the application.",
+      "description": "Represents a sports team or group.",
       "properties": {
         "id": { "type": "string" },
         "teamName": { "type": "string" },
         "sport": { "type": "string" },
-        "description": { "type": "string" },
-        "teamLogoUrl": { "type": "string", "format": "uri" },
-        "heroImageUrl": { "type": "string", "format": "uri" },
         "teamCode": { "type": "string" },
         "ownerUserId": { "type": "string" },
         "clubId": { "type": "string" },
         "teamType": { "type": "string", "enum": ["starter", "pro"] },
         "planId": { "type": "string" },
         "isPro": { "type": "boolean" },
-        "leagueIds": { "type": "array", "items": { "type": "string" } },
-        "parentChatEnabled": { "type": "boolean" },
-        "parentCommentsEnabled": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "teamName", "teamCode", "ownerUserId", "teamType"]
+      }
     },
     "League": {
       "title": "League",
       "type": "object",
-      "description": "A competitive coordination hub for multiple teams.",
+      "description": "A competitive standing hub for multiple squads.",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "sport": { "type": "string" },
         "creatorId": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "completed"] },
-        "isPublic": { "type": "boolean" },
-        "teams": { 
-          "type": "object",
-          "description": "Map of teamId to stats (teamName, wins, losses, points)"
-        },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "creatorId"]
-    },
-    "Organization": {
-      "title": "Organization",
-      "type": "object",
-      "description": "An elite institutional hub for multi-squad coordination.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "ownerId": { "type": "string" },
-        "logoUrl": { "type": "string", "format": "uri" },
+        "teams": { "type": "object" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
-    "Facility": {
-      "title": "Facility",
+    "Tournament": {
+      "title": "Tournament",
       "type": "object",
-      "description": "A managed venue, field, or court within an organization.",
+      "description": "An event-based competitive bracket system.",
       "properties": {
-        "id": { "type": "string" },
+        "tourneyId": { "type": "string" },
         "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["field", "court", "venue"] },
-        "location": { "type": "string" },
-        "orgId": { "type": "string" }
+        "format": { "type": "string", "enum": ["single_elim", "double_elim", "round_robin"] },
+        "status": { "type": "string", "enum": ["draft", "active", "completed"] },
+        "teams": { "type": "array", "items": { "type": "string" } },
+        "creatorId": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tourneyId", "name", "format", "status", "creatorId"]
+    },
+    "Match": {
+      "title": "Match",
+      "type": "object",
+      "description": "A specific competitive matchup within a tournament.",
+      "properties": {
+        "matchId": { "type": "string" },
+        "tourneyId": { "type": "string" },
+        "team1": { "type": "string" },
+        "team2": { "type": "string" },
+        "score1": { "type": "number" },
+        "score2": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["scheduled", "completed"] },
+        "round": { "type": "number" },
+        "nextMatchId": { "type": "string" }
       }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "/users/{userId}": {
@@ -153,23 +93,19 @@
     },
     "/teams/{teamId}": {
       "schema": { "$ref": "#/backend/entities/Team" },
-      "description": "Collaborative team hubs."
+      "description": "Squad data."
     },
     "/leagues/{leagueId}": {
       "schema": { "$ref": "#/backend/entities/League" },
-      "description": "Competitive coordination hubs."
+      "description": "Competitive hubs."
     },
-    "/organizations/{orgId}": {
-      "schema": { "$ref": "#/backend/entities/Organization" },
-      "description": "Elite organization command centers."
+    "/tournaments/{tourneyId}": {
+      "schema": { "$ref": "#/backend/entities/Tournament" },
+      "description": "Tournament brackets."
     },
-    "/organizations/{orgId}/facilities/{facilityId}": {
-      "schema": { "$ref": "#/backend/entities/Facility" },
-      "description": "Managed organizational venues."
-    },
-    "/subscriptions/{subId}": {
-      "schema": { "type": "object" },
-      "description": "Subscription records."
+    "/matches/{matchId}": {
+      "schema": { "$ref": "#/backend/entities/Match" },
+      "description": "Tournament match data."
     }
   }
 }
