@@ -30,7 +30,9 @@ service cloud.firestore {
 
     // --- PLAYERS (Family Hub) ---
     match /players/{playerId} {
+      // Simplified for query-safe listing by guardians and demo access
       allow read: if isSignedIn() && (
+        resource == null || 
         resource.data.guardianId == request.auth.uid || 
         isDemoId(playerId)
       );

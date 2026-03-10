@@ -51,7 +51,7 @@ export default function DashboardLayout({
     }
   }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, isMounted, isUserLoading]);
 
-  // hydration guard - ensure initial render state is consistent
+  // hydration guard - ensure initial render state is perfectly consistent
   if (!isMounted || isUserLoading || !user || isSeedingDemo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
