@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -23,7 +24,7 @@ import {
   deleteField
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export type UserRole = "parent" | "adult_player" | "coach" | "admin";
 export type SubscriptionPlan = "free" | "squad_pro" | "elite_teams" | "elite_league";
@@ -61,6 +62,7 @@ export type Team = {
   contactEmail?: string;
   contactPhone?: string;
   createdBy?: string;
+  isDemo?: boolean;
 };
 
 export type PlayerProfile = {
@@ -196,8 +198,11 @@ export type League = {
   id: string;
   name: string;
   sport: string;
+  creatorId: string;
   teams: Record<string, any>;
   leagueIds?: string[];
+  isPublic?: boolean;
+  status?: string;
 };
 
 export type RegistrationFormField = {
@@ -227,6 +232,7 @@ export type RegistrationEntry = {
   status: 'pending' | 'assigned' | 'accepted' | 'declined';
   payment_received: boolean;
   assigned_team_id: string | null;
+  assigned_team_owner_id?: string;
   created_at: string;
 };
 
@@ -301,6 +307,7 @@ interface TeamContextType {
   addVolunteerOpportunity: (data: any) => Promise<void>;
   verifyVolunteerHours: (oppId: string, userId: string, hours: number) => Promise<void>;
   deleteVolunteerOpportunity: (id: string) => Promise<void>;
+  activeLeague?: League;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -378,10 +385,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const childrenQuery = useMemoFirebase(() => {
     if (!firebaseUser?.uid || !db) return null;
+    // CRITICAL: Ensure the query filter exactly matches the security rule constraints
     return query(collection(db, 'players'), where('guardianId', '==', firebaseUser.uid));
   }, [firebaseUser?.uid, db]);
   const { data: childrenData } = useCollection<PlayerProfile>(childrenQuery);
-  const myChildren = childrenData || [];
+  const myChildren = useMemo(() => childrenData || [], [childrenData]);
 
   const alertsQuery = useMemoFirebase(() => {
     if (!activeTeam?.id || !db) return null;
@@ -390,13 +398,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: alertsData } = useCollection(alertsQuery);
   const alerts = alertsData || [];
 
-  const isStaff = activeTeam?.role === 'Admin';
-  const isPro = activeTeam?.teamType === 'pro';
-  const isClubManager = userProfile?.subscriptionPlan === 'elite_teams' || userProfile?.subscriptionPlan === 'elite_league';
-  const isLeagueManager = userProfile?.subscriptionPlan === 'elite_league';
-  const clubId = isClubManager ? firebaseUser?.uid || null : activeTeam?.clubId || null;
-  const isParent = userProfile?.role === 'parent';
-  const isPlayer = userProfile?.role === 'adult_player';
+  const isStaff = useMemo(() => activeTeam?.role === 'Admin', [activeTeam]);
+  const isPro = useMemo(() => activeTeam?.teamType === 'pro', [activeTeam]);
+  const isClubManager = useMemo(() => userProfile?.subscriptionPlan === 'elite_teams' || userProfile?.subscriptionPlan === 'elite_league', [userProfile]);
+  const isLeagueManager = useMemo(() => userProfile?.subscriptionPlan === 'elite_league', [userProfile]);
+  const clubId = useMemo(() => isClubManager ? firebaseUser?.uid || null : activeTeam?.clubId || null, [isClubManager, firebaseUser, activeTeam]);
+  const isParent = useMemo(() => userProfile?.role === 'parent', [userProfile]);
+  const isPlayer = useMemo(() => userProfile?.role === 'adult_player', [userProfile]);
 
   const hasFeature = useCallback((featureId: string) => {
     if (userProfile?.subscriptionPlan === 'elite_league') return true;

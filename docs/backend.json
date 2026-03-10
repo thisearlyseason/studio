@@ -4,82 +4,48 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Represents a user account, storing personal information and subscription status.",
+      "description": "Private user profile and subscription status.",
       "properties": {
         "id": { "type": "string" },
         "fullName": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "phone": { "type": "string" },
-        "avatarUrl": { "type": "string", "format": "uri" },
         "role": { "type": "string", "enum": ["parent", "adult_player", "coach", "admin"] },
         "subscriptionPlan": { "type": "string", "enum": ["free", "squad_pro", "elite_teams", "elite_league"] },
         "subscriptionStatus": { "type": "string", "enum": ["active", "inactive", "trial"] },
         "proTeamLimit": { "type": "number" },
+        "isDemo": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "fullName", "email", "role", "subscriptionPlan", "createdAt"]
     },
-    "Team": {
-      "title": "Team",
+    "Player": {
+      "title": "Player",
       "type": "object",
-      "description": "Represents a sports team or group.",
+      "description": "A player profile, potentially linked to a parent guardian.",
       "properties": {
         "id": { "type": "string" },
-        "teamName": { "type": "string" },
-        "sport": { "type": "string" },
-        "teamCode": { "type": "string" },
-        "ownerUserId": { "type": "string" },
-        "clubId": { "type": "string" },
-        "teamType": { "type": "string", "enum": ["starter", "pro"] },
-        "planId": { "type": "string" },
-        "isPro": { "type": "boolean" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "dateOfBirth": { "type": "string", "format": "date" },
+        "guardianId": { "type": "string" },
+        "isMinor": { "type": "boolean" },
+        "joinedTeamIds": { "type": "array", "items": { "type": "string" } },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
     "League": {
       "title": "League",
       "type": "object",
-      "description": "A competitive standing hub for multiple squads.",
+      "description": "A master hub for managing multiple squads and recruitment.",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "sport": { "type": "string" },
         "creatorId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
         "teams": { "type": "object" },
+        "isPublic": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "Tournament": {
-      "title": "Tournament",
-      "type": "object",
-      "description": "An event-based competitive bracket system.",
-      "properties": {
-        "tourneyId": { "type": "string" },
-        "name": { "type": "string" },
-        "format": { "type": "string", "enum": ["single_elim", "double_elim", "round_robin"] },
-        "status": { "type": "string", "enum": ["draft", "active", "completed"] },
-        "teams": { "type": "array", "items": { "type": "string" } },
-        "creatorId": { "type": "string" },
-        "leagueId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["tourneyId", "name", "format", "status", "creatorId"]
-    },
-    "Match": {
-      "title": "Match",
-      "type": "object",
-      "description": "A specific competitive matchup within a tournament.",
-      "properties": {
-        "matchId": { "type": "string" },
-        "tourneyId": { "type": "string" },
-        "team1": { "type": "string" },
-        "team2": { "type": "string" },
-        "score1": { "type": "number" },
-        "score2": { "type": "number" },
-        "date": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["scheduled", "completed"] },
-        "round": { "type": "number" },
-        "nextMatchId": { "type": "string" }
       }
     }
   },
@@ -89,23 +55,19 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/backend/entities/User" },
-      "description": "Private user profiles."
+      "description": "Private user data."
+    },
+    "/players/{playerId}": {
+      "schema": { "$ref": "#/backend/entities/Player" },
+      "description": "Central player profiles for the Family Hub."
     },
     "/teams/{teamId}": {
       "schema": { "$ref": "#/backend/entities/Team" },
-      "description": "Squad data."
+      "description": "Squad coordination data."
     },
     "/leagues/{leagueId}": {
       "schema": { "$ref": "#/backend/entities/League" },
-      "description": "Competitive hubs."
-    },
-    "/tournaments/{tourneyId}": {
-      "schema": { "$ref": "#/backend/entities/Tournament" },
-      "description": "Tournament brackets."
-    },
-    "/matches/{matchId}": {
-      "schema": { "$ref": "#/backend/entities/Match" },
-      "description": "Tournament match data."
+      "description": "Elite recruitment and standings hubs."
     }
   }
 }
