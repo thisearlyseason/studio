@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef } from 'react';
@@ -439,14 +438,27 @@ const clean = (obj: any): any => {
 
 const parseTimeToMinutes = (timeStr: string) => {
   if (!timeStr || timeStr === 'TBD') return 0;
-  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!match) return 0;
-  let hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
-  const period = match[3].toUpperCase();
-  if (period === 'PM' && hours !== 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
-  return hours * 60 + (minutes || 0);
+  
+  // Try AM/PM format (e.g. "02:40 PM" or "2:40 PM")
+  const matchAMPM = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (matchAMPM) {
+    let hours = parseInt(matchAMPM[1]);
+    const minutes = parseInt(matchAMPM[2]);
+    const period = matchAMPM[3].toUpperCase();
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+  
+  // Try 24h format (e.g. "14:40")
+  const match24 = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (match24) {
+    const hours = parseInt(match24[1]);
+    const minutes = parseInt(match24[2]);
+    return hours * 60 + minutes;
+  }
+  
+  return 0;
 };
 
 export function TeamProvider({ children }: { children: ReactNode }) {

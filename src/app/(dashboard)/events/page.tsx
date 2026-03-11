@@ -62,17 +62,26 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
   other: 'bg-slate-600 text-white border-slate-600',
 };
 
+/**
+ * Normalizes various time string formats into standard HH:mm for ISO construction.
+ */
 const normalizeTime = (t: string) => {
   if (!t || t === 'TBD') return '12:00';
+  
+  // Handle AM/PM format (e.g. "02:40 PM")
   if (t.toUpperCase().includes('M')) {
     const parts = t.trim().split(/\s+/);
     const timePart = parts[0];
     const period = parts[1]?.toUpperCase() || (t.toUpperCase().includes('PM') ? 'PM' : 'AM');
-    let [h, m] = timePart.split(':').map(Number);
+    let [hStr, mStr] = timePart.split(':');
+    let h = parseInt(hStr);
+    let m = parseInt(mStr) || 0;
     if (period === 'PM' && h !== 12) h += 12;
     if (period === 'AM' && h === 12) h = 0;
-    return `${h.toString().padStart(2, '0')}:${(m || 0).toString().padStart(2, '0')}`;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   }
+  
+  // Handle standard HH:mm format
   return t.includes(':') ? t : '12:00';
 };
 
@@ -209,12 +218,16 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
     toast({ title: "Protocol Updated" });
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = async (text: string) => {
     try {
-      navigator.clipboard.writeText(text);
-      toast({ title: "Link Synchronized", description: "URL is ready to share." });
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        toast({ title: "Link Synchronized", description: "URL is ready to share." });
+      } else {
+        throw new Error("Clipboard API unavailable");
+      }
     } catch (err) {
-      toast({ title: "Copy Failed", variant: "destructive" });
+      toast({ title: "Copy Failed", description: "Browser restricted clipboard access.", variant: "destructive" });
     }
   };
 
@@ -462,14 +475,25 @@ export default function EventsPage() {
   };
 
   const handleCreateEvent = async () => { 
-    if (!newTitle || !newDate) return; 
+    if (!newTitle || !newDate || !newTime || !newEndTime) {
+      toast({ title: "Incomplete Data", description: "All fields including End Time are required.", variant: "destructive" });
+      return; 
+    }
+    
     const timeISO = normalizeTime(newTime);
+    
     try {
+      // Use numeric parts for safer cross-browser Date construction
+      const [year, month, day] = newDate.split('-').map(Number);
+      const [hour, minute] = timeISO.split(':').map(Number);
+      const eventDate = new Date(year, month - 1, day, hour, minute);
+      
       const payload: any = { 
-        title: newTitle, eventType: isTournamentMode ? 'tournament' : eventType,
-        date: new Date(newDate + 'T' + timeISO).toISOString(), 
-        startTime: newTime || 'TBD', 
-        endTime: newEndTime || null, 
+        title: newTitle, 
+        eventType: isTournamentMode ? 'tournament' : eventType,
+        date: eventDate.toISOString(), 
+        startTime: newTime, 
+        endTime: newEndTime, 
         location: newLocation, 
         facilityId: newFacilityId === 'manual' ? null : newFacilityId,
         fieldId: newFieldId === 'manual' ? null : newFieldId,
@@ -477,9 +501,15 @@ export default function EventsPage() {
         isTournament: isTournamentMode, 
         lastUpdated: new Date().toISOString() 
       }; 
-      if (editingEvent) await updateEvent(editingEvent.id, payload); else await addEvent(payload); 
-      setIsCreateOpen(false); 
-      setEditingEvent(null);
+      
+      const success = editingEvent 
+        ? await updateEvent(editingEvent.id, payload) 
+        : await addEvent(payload); 
+      
+      if (success) {
+        setIsCreateOpen(false); 
+        setEditingEvent(null);
+      }
     } catch (e) {
       toast({ title: "Itinerary Error", description: "Verify date/time formats.", variant: "destructive" });
     }
@@ -521,10 +551,16 @@ export default function EventsPage() {
                       </Select>
                     </div>
                   )}
-                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Title</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-bold border-2" /></div>
+                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Title *</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-bold border-2" /></div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Time</Label><div className="flex gap-2"><Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" /><Input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Date *</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Time Block *</Label>
+                      <div className="flex gap-2">
+                        <Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" />
+                        <Input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
