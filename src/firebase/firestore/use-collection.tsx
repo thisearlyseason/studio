@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,22 +13,14 @@ import {
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-/** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
 
-/**
- * Interface for the return value of the useCollection hook.
- * @template T Type of the document data.
- */
 export interface UseCollectionResult<T> {
-  data: WithId<T>[] | null; // Document data with ID, or null.
-  isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
+  data: WithId<T>[] | null;
+  isLoading: boolean;
+  error: FirestoreError | Error | null;
 }
 
-/* Internal implementation of Query:
-  https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
-*/
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
     path: {
@@ -40,7 +33,7 @@ export interface InternalQuery extends Query<DocumentData> {
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Handles nullable references/queries and prevents unauthorized root-level listing.
+ * Hardened with defensive path guards to prevent unauthorized root listing.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -53,7 +46,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // 1. Early return if query is not provided
+    // 1. Return early if target is null (safe fallback)
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -61,14 +54,14 @@ export function useCollection<T = any>(
       return;
     }
 
-    // 2. Extract path to verify it's not root (preventing "documents//" errors)
+    // 2. Extract path for defensive verification
     let path = '';
     let isCollectionGroup = false;
     try {
       // @ts-ignore - internal property access for defensive path checking
       isCollectionGroup = (memoizedTargetRefOrQuery as any)._query?.path?.isEmpty?.() || false;
       
-      // @ts-ignore - type exists on internal query
+      // @ts-ignore - check if it's a collection reference or query
       if ((memoizedTargetRefOrQuery as any).type === 'collection') {
         path = (memoizedTargetRefOrQuery as CollectionReference).path;
       } else {
@@ -77,7 +70,7 @@ export function useCollection<T = any>(
       }
     } catch (e) {}
 
-    // 3. Strict guard: Skip root-level, empty, or uninitialized paths that trigger security denials
+    // 3. Strict Guard: Prevent uninitialized or root-level listing requests
     const trimmedPath = (path || '').trim();
     if (!isCollectionGroup && (!trimmedPath || trimmedPath === '/' || trimmedPath === '')) {
       setData(null);
@@ -101,8 +94,9 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
-        // Suppress errors for root paths that should never have fired
+        // 4. Final Guard: Suppress permission errors for root paths that should never have fired
         if (!trimmedPath || trimmedPath === '/' || trimmedPath === '') {
+          setIsLoading(false);
           return;
         }
 

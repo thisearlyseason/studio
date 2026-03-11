@@ -30,7 +30,10 @@ import {
   Sparkles,
   ShieldCheck,
   LayoutDashboard,
-  ShieldAlert
+  ShieldAlert,
+  PenTool,
+  Package,
+  ArrowRight
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -119,7 +122,7 @@ export default function FeedPage() {
   if (!activeTeam) return null;
   const isAdmin = activeTeam.role === 'Admin' || isSuperAdmin;
   const canReadFeed = hasFeature('live_feed_read');
-  const canPost = isStaff; // Only staff can post broadcasts
+  const canPost = isStaff; 
   const canComment = isStaff || isPlayer || (isParent && activeTeam.parentCommentsEnabled);
 
   if (!canReadFeed) {
@@ -379,6 +382,46 @@ export default function FeedPage() {
       </div>
 
       <aside className="hidden lg:flex flex-col w-80 shrink-0 space-y-8">
+        {isStaff && (
+          <Card className="rounded-[2.5rem] border-none shadow-xl bg-black text-white overflow-hidden relative group">
+            <div className="absolute top-0 right-0 p-6 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+              <ShieldAlert className="h-24 w-24" />
+            </div>
+            <CardHeader className="relative z-10 border-b border-white/10 pb-4">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Admin Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 relative z-10 space-y-3">
+              <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5">
+                <Link href="/coaches-corner" className="flex items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <PenTool className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Coaches Corner</span>
+                  </div>
+                  <ChevronRight className="h-3 w-3 opacity-40" />
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5">
+                <Link href="/facilities" className="flex items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Facilities</span>
+                  </div>
+                  <ChevronRight className="h-3 w-3 opacity-40" />
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5">
+                <Link href="/equipment" className="flex items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <Package className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Equipment</span>
+                  </div>
+                  <ChevronRight className="h-3 w-3 opacity-40" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
           <CardHeader className="bg-primary/5 border-b pb-4">
             <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary">Upcoming Schedule</CardTitle>

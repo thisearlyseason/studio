@@ -31,7 +31,10 @@ import {
   Package,
   MapPin,
   Calendar as CalendarIcon,
-  PenTool
+  PenTool,
+  ShieldCheck,
+  Terminal,
+  Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -61,21 +64,24 @@ import {
 import BrandLogo from '@/components/BrandLogo';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const tabs = [
+const coordinationTabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: true },
   { name: 'Calendar', href: '/calendar', icon: CalendarIcon, pro: false },
   { name: 'Schedule', href: '/events', icon: CalendarDays, pro: false },
   { name: 'Leagues', href: '/leagues', icon: Shield, pro: false },
-  { name: 'Coaches Corner', href: '/coaches-corner', icon: PenTool, pro: true, gate: 'staff' },
-  { name: 'Facilities', href: '/facilities', icon: MapPin, pro: true, gate: 'staff' },
   { name: 'Scorekeeping', href: '/games', icon: Trophy, pro: false },
-  { name: 'Playbook', icon: Dumbbell, href: '/drills', pro: false, mobileName: 'Playbook' },
+  { name: 'Playbook', icon: Dumbbell, href: '/drills', pro: false },
   { name: 'Volunteer', href: '/volunteers', icon: HandHelping, pro: false, gate: 'staff_or_parent' },
   { name: 'Fundraising', href: '/fundraising', icon: PiggyBank, pro: false, gate: 'staff_or_parent' },
-  { name: 'Equipment', href: '/equipment', icon: Package, pro: true, gate: 'staff' },
   { name: 'Chats', href: '/chats', icon: MessageCircle, pro: false },
   { name: 'Roster', href: '/roster', icon: Users2, pro: false },
   { name: 'Library', href: '/files', icon: FolderClosed, pro: false, mobileName: 'Docs' },
+];
+
+const adminTabs = [
+  { name: 'Coaches Corner', href: '/coaches-corner', icon: PenTool, pro: true, desc: 'Waivers & Docs' },
+  { name: 'Facilities', href: '/facilities', icon: MapPin, pro: true, desc: 'Venue Control' },
+  { name: 'Equipment', href: '/equipment', icon: Package, pro: true, desc: 'Inventory Vault' },
 ];
 
 const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boolean, isLocked: boolean }) => {
@@ -95,7 +101,10 @@ const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boo
         <Link href={tab.href} className="flex items-center justify-between w-full">
           <div className="flex items-center gap-4">
             <Icon className={cn("h-5 w-5", isActive ? "stroke-[3px]" : "stroke-[2]")} />
-            <span>{tab.name}</span>
+            <div className="flex flex-col">
+              <span>{tab.name}</span>
+              {tab.desc && isActive && <span className="text-[7px] opacity-60 tracking-widest">{tab.desc}</span>}
+            </div>
           </div>
           {isLocked && <Lock className="h-3.5 w-3.5 opacity-40" />}
         </Link>
@@ -153,7 +162,7 @@ function TeamSwitcherContent({
       
       {activeTeam && (
         <DropdownMenuItem onClick={() => router.push('/team')} className="p-3 cursor-pointer rounded-xl font-bold text-xs gap-3 hover:bg-muted group">
-          <div className="bg-primary/5 p-2 rounded-lg group-hover:bg-primary/10"><Info className="h-4 w-4 text-primary" /></div>
+          <div className="bg-primary/5 p-2 rounded-lg group-hover:bg-primary/10"><Settings className="h-4 w-4 text-primary" /></div>
           <span>Active Squad Profile</span>
         </DropdownMenuItem>
       )}
@@ -177,7 +186,7 @@ function TeamSwitcherContent({
             <div className="bg-amber-100 p-2 rounded-lg group-hover:bg-amber-200"><Star className="h-4 w-4 text-amber-600" /></div>
             <div className="flex flex-col">
               <span>Deploy Elite Pro Squad</span>
-              <span className="text-[8px] opacity-60">UNLIMITED COORDINATION</span>
+              <span className="text-[8px] opacity-60 uppercase">Unlimited Features</span>
             </div>
           </DropdownMenuItem>
         </>
@@ -214,21 +223,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     }
   }, [alerts]);
 
-  const filteredTabs = tabs.filter(tab => {
-    if (tab.gate === 'staff_or_parent') {
-      if (!isStaff && !isParent) return false;
-    }
-    if (tab.gate === 'staff') {
-      if (!isStaff) return false;
-    }
-
+  const filteredCoordTabs = coordinationTabs.filter(tab => {
+    if (tab.gate === 'staff_or_parent') return isStaff || isParent;
     if (tab.name === 'Feed') {
       if (isParent && !activeTeam?.parentCommentsEnabled) return false;
       if ((isParent || isPlayer) && !isPro) return false;
     }
-    
-    if (tab.name === 'Chats' && isParent && activeTeam && !activeTeam.parentChatEnabled) return false;
-    
     return true;
   });
 
@@ -320,58 +320,56 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </SidebarHeader>
 
             <SidebarContent className="px-4 py-2">
-              <SidebarMenu className="space-y-1.5">
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Squad Operations</p>
-                {filteredTabs.map((tab) => (
-                  <SidebarItem 
-                    key={tab.name} 
-                    tab={tab} 
-                    isActive={pathname === tab.href} 
-                    isLocked={tab.pro && !isPro && isStaff} 
-                  />
-                ))}
+              <SidebarMenu className="space-y-6">
+                {isStaff && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 px-2 mb-2">
+                      <Terminal className="h-3 w-3 text-primary" />
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-primary leading-none">Command Center</p>
+                    </div>
+                    {adminTabs.map((tab) => (
+                      <SidebarItem 
+                        key={tab.name} 
+                        tab={tab} 
+                        isActive={pathname === tab.href} 
+                        isLocked={tab.pro && !isPro} 
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 px-2 mb-2">
+                    <Activity className="h-3 w-3 text-muted-foreground" />
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground leading-none">Squad Operations</p>
+                  </div>
+                  {filteredCoordTabs.map((tab) => (
+                    <SidebarItem 
+                      key={tab.name} 
+                      tab={tab} 
+                      isActive={pathname === tab.href} 
+                      isLocked={tab.pro && !isPro && isStaff} 
+                    />
+                  ))}
+                </div>
                 
                 {isStaff && (
-                  <>
+                  <div className="space-y-1.5">
                     <SidebarSeparator className="my-4 opacity-10" />
                     <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2 px-2">Resources</p>
                     
                     <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={pathname === '/how-to'}
-                        className={cn(
-                          "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                          pathname === '/how-to' 
-                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                            : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
-                        )}
-                      >
-                        <Link href="/how-to" className="flex items-center gap-4">
-                          <BookOpen className="h-5 w-5" />
-                          <span>Tactical Manual</span>
-                        </Link>
+                      <SidebarMenuButton asChild isActive={pathname === '/how-to'} className={cn("h-12 px-4 rounded-2xl font-black text-xs uppercase tracking-widest", pathname === '/how-to' ? "bg-primary text-white" : "text-muted-foreground hover:bg-primary/5")}>
+                        <Link href="/how-to"><BookOpen className="h-5 w-5" /><span>Tactical Manual</span></Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
                     <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={pathname === '/pricing'}
-                        className={cn(
-                          "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                          pathname === '/pricing' 
-                            ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600" 
-                            : "text-muted-foreground hover:bg-amber-500/5 hover:text-amber-600"
-                        )}
-                      >
-                        <Link href="/pricing" className="flex items-center gap-4">
-                          <CreditCard className="h-5 w-5" />
-                          <span>Pricing & Plans</span>
-                        </Link>
+                      <SidebarMenuButton asChild isActive={pathname === '/pricing'} className={cn("h-12 px-4 rounded-2xl font-black text-xs uppercase tracking-widest", pathname === '/pricing' ? "bg-amber-500 text-white" : "text-muted-foreground hover:bg-amber-500/5")}>
+                        <Link href="/pricing"><CreditCard className="h-5 w-5" /><span>Pricing & Plans</span></Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  </>
+                  </div>
                 )}
               </SidebarMenu>
             </SidebarContent>
@@ -397,7 +395,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <div className="hidden md:flex items-center gap-4 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-xl lg:text-2xl font-black tracking-tighter uppercase truncate">
-                    {pathname === '/pricing' ? 'Pricing' : pathname === '/how-to' ? 'Tactical Manual' : (pathname === '/calendar' ? 'Calendar' : (pathname === '/leagues' ? 'League Hub' : (tabs.find(t => pathname === t.href)?.name || 'Dashboard')))}
+                    {pathname === '/pricing' ? 'Pricing' : pathname === '/how-to' ? 'Tactical Manual' : (pathname === '/calendar' ? 'Calendar' : (pathname === '/leagues' ? 'League Hub' : (adminTabs.concat(coordinationTabs).find(t => pathname === t.href)?.name || 'Dashboard')))}
                   </h2>
                   <p className="text-[9px] lg:text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] lg:tracking-[0.3em] ml-0.5 truncate">The Squad Hub • {activeTeam?.name}</p>
                 </div>
@@ -457,7 +455,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
             <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/40 p-1.5 ring-1 ring-black/5">
               <div className="flex items-center justify-around h-16">
-                {filteredTabs.slice(0, 5).map((tab) => {
+                {[...adminTabs, ...filteredCoordTabs].slice(0, 5).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = pathname === tab.href;
                   const isLocked = tab.pro && !isPro && isStaff;
@@ -471,7 +469,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       )}
                     >
                       <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110 stroke-[3px]", isLocked && "opacity-50")} strokeWidth={isActive ? 3 : 2} />
-                      <span className="text-[8px] font-black tracking-[0.05em] uppercase truncate">{tab.mobileName || tab.name}</span>
+                      <span className="text-[8px] font-black tracking-[0.05em] uppercase truncate">{tab.name}</span>
                       {isLocked && <Lock className="absolute top-1.5 right-2 h-2 w-2 opacity-40" />}
                       {isActive && <div className="absolute -bottom-1 h-1 w-4 bg-primary rounded-full" />}
                     </Link>
@@ -486,42 +484,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-2xl p-2 mb-4">
                     {isParent && (
-                      <>
-                        <DropdownMenuItem asChild className="rounded-xl p-3">
-                          <Link href="/family" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
-                            <Baby className="h-4 w-4" />
-                            Family Hub
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
+                      <DropdownMenuItem asChild className="rounded-xl p-3"><Link href="/family" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest"><Baby className="h-4 w-4" />Family Hub</Link></DropdownMenuItem>
                     )}
                     {isClubManager && (
-                      <>
-                        <DropdownMenuItem asChild className="rounded-xl p-3">
-                          <Link href="/club" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
-                            <Building className="h-4 w-4" />
-                            Club Hub
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
+                      <DropdownMenuItem asChild className="rounded-xl p-3"><Link href="/club" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest"><Building className="h-4 w-4" />Club Hub</Link></DropdownMenuItem>
                     )}
-                    {filteredTabs.slice(5).map((tab) => (
-                      <DropdownMenuItem key={tab.name} asChild className="rounded-xl p-3">
-                        <Link href={tab.href} className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
-                          <tab.icon className="h-4 w-4" />
-                          {tab.name}
-                        </Link>
-                      </DropdownMenuItem>
+                    {[...adminTabs, ...filteredCoordTabs].slice(5).map((tab) => (
+                      <DropdownMenuItem key={tab.name} asChild className="rounded-xl p-3"><Link href={tab.href} className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest"><tab.icon className="h-4 w-4" />{tab.name}</Link></DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild className="rounded-xl p-3 text-primary">
-                      <Link href="/settings" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest">
-                        <Settings className="h-4 w-4" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="rounded-xl p-3 text-primary"><Link href="/settings" className="flex items-center gap-3 font-bold text-xs uppercase tracking-widest"><Settings className="h-4 w-4" />Settings</Link></DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -13,7 +14,13 @@ import {
   ClipboardList,
   CheckCircle2,
   XCircle,
-  Zap
+  Zap,
+  PenTool,
+  MapPin,
+  Package,
+  Shield,
+  ChevronRight,
+  ArrowUpRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +50,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collectionGroup, query, where } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function TeamProfilePage() {
   const { user: authUser } = useUser();
@@ -56,10 +64,7 @@ export default function TeamProfilePage() {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // STABILITY GUARD: Ensure the collectionGroup query is strictly memoized and conditional on a valid UID
   const assignmentsQuery = useMemoFirebase(() => {
-    // CRITICAL: Prevent constructor from executing without valid auth UID
-    // This avoids root listing requests /databases/(default)/documents/
     if (!db || !authUser?.uid || !activeTeam?.id || !isStaff || !hasFeature('league_registration')) return null;
     
     const constraints = [
@@ -67,7 +72,6 @@ export default function TeamProfilePage() {
       where('status', '==', 'assigned')
     ];
     
-    // For production squads, include explicit owner check to satisfy security rules
     if (!activeTeam.id.startsWith('demo_')) {
       constraints.push(where('assigned_team_owner_id', '==', authUser.uid));
     }
@@ -78,7 +82,6 @@ export default function TeamProfilePage() {
   const { data: rawAssignments } = useCollection<RegistrationEntry>(assignmentsQuery);
   const assignments = useMemo(() => rawAssignments || [], [rawAssignments]);
 
-  // Form state
   const [editForm, setEditForm] = useState({
     name: '',
     sport: '',
@@ -111,19 +114,7 @@ export default function TeamProfilePage() {
   }
 
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
-  
-  const admins = members.filter(m => 
-    m.role === 'Admin' || 
-    ['Coach', 'Assistant Coach', 'Squad Leader', 'Team Lead'].includes(m.position)
-  ).sort((a, b) => {
-    const rank = (pos: string) => {
-      if (pos === 'Coach') return 1;
-      if (pos === 'Assistant Coach') return 2;
-      if (pos === 'Team Lead' || pos === 'Squad Leader') return 3;
-      return 4;
-    };
-    return rank(a.position) - rank(b.position);
-  });
+  const activePlan = plans.find(p => p.id === activeTeam.planId);
 
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -157,8 +148,6 @@ export default function TeamProfilePage() {
     setIsPlanOpen(false);
   };
 
-  const activePlan = plans.find(p => p.id === activeTeam.planId);
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-muted/20 p-6 rounded-[2.5rem] border border-black/5">
@@ -189,7 +178,65 @@ export default function TeamProfilePage() {
         </div>
       </div>
 
-      {/* Pending Assignments Section */}
+      {isStaff && (
+        <Card className="rounded-[2.5rem] border-none shadow-xl bg-black text-white overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+            <ShieldAlert className="h-48 w-48" />
+          </div>
+          <CardHeader className="p-8 lg:p-10 relative z-10 border-b border-white/5">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary p-3 rounded-2xl text-white shadow-lg">
+                <Terminal className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-black uppercase tracking-tight">Admin Quick-Access Hub</CardTitle>
+                <CardDescription className="text-primary font-bold text-[10px] uppercase tracking-widest">Team Command & Control</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-8 lg:p-10 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button asChild variant="outline" className="h-20 rounded-2xl bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest justify-start gap-4 px-6 group/btn">
+                <Link href="/coaches-corner" className="flex items-center w-full">
+                  <PenTool className="h-6 w-6 text-primary group-hover/btn:scale-110 transition-transform" />
+                  <div className="flex flex-col items-start min-w-0 ml-3">
+                    <span>Coaches Corner</span>
+                    <span className="text-[7px] text-white/40">Docs & Waivers</span>
+                  </div>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-20 rounded-2xl bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest justify-start gap-4 px-6 group/btn">
+                <Link href="/leagues" className="flex items-center w-full">
+                  <Shield className="h-6 w-6 text-primary group-hover/btn:scale-110 transition-transform" />
+                  <div className="flex flex-col items-start min-w-0 ml-3">
+                    <span>Leagues Hub</span>
+                    <span className="text-[7px] text-white/40">Standings & Invites</span>
+                  </div>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-20 rounded-2xl bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest justify-start gap-4 px-6 group/btn">
+                <Link href="/facilities" className="flex items-center w-full">
+                  <MapPin className="h-6 w-6 text-primary group-hover/btn:scale-110 transition-transform" />
+                  <div className="flex flex-col items-start min-w-0 ml-3">
+                    <span>Facilities</span>
+                    <span className="text-[7px] text-white/40">Venue Control</span>
+                  </div>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-20 rounded-2xl bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest justify-start gap-4 px-6 group/btn">
+                <Link href="/equipment" className="flex items-center w-full">
+                  <Package className="h-6 w-6 text-primary group-hover/btn:scale-110 transition-transform" />
+                  <div className="flex flex-col items-start min-w-0 ml-3">
+                    <span>Equipment</span>
+                    <span className="text-[7px] text-white/40">Inventory Vault</span>
+                  </div>
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {isStaff && assignments.length > 0 && (
         <Card className="rounded-[2.5rem] border-none shadow-xl ring-4 ring-primary/5 bg-white overflow-hidden animate-in slide-in-from-top-4 duration-500">
           <CardHeader className="bg-primary/5 border-b p-8 flex flex-row items-center justify-between">
@@ -218,21 +265,8 @@ export default function TeamProfilePage() {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="rounded-xl h-10 w-10 text-destructive hover:bg-destructive/5"
-                      onClick={() => respondToAssignment(entry.league_id, entry.id, 'declined')}
-                    >
-                      <XCircle className="h-5 w-5" />
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="rounded-xl h-10 px-4 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20"
-                      onClick={() => respondToAssignment(entry.league_id, entry.id, 'accepted')}
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-2" /> Accept
-                    </Button>
+                    <Button size="sm" variant="ghost" className="rounded-xl h-10 w-10 text-destructive hover:bg-destructive/5" onClick={() => respondToAssignment(entry.league_id, entry.id, 'declined')}><XCircle className="h-5 w-5" /></Button>
+                    <Button size="sm" className="rounded-xl h-10 px-4 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20" onClick={() => respondToAssignment(entry.league_id, entry.id, 'accepted')}><CheckCircle2 className="h-4 w-4 mr-2" /> Accept</Button>
                   </div>
                 </div>
               ))}
@@ -387,22 +421,7 @@ export default function TeamProfilePage() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Joining Code</p>
                 <p className="text-4xl font-black tracking-[0.2em]">{activeTeam.code}</p>
               </div>
-              <Button 
-                variant="secondary" 
-                className="w-full h-12 rounded-xl font-black bg-white text-primary" 
-                onClick={async () => { 
-                  try {
-                    if (navigator.clipboard && window.isSecureContext) {
-                      await navigator.clipboard.writeText(activeTeam.code);
-                      toast({ title: "Copied!" });
-                    } else {
-                      throw new Error("Clipboard API Blocked");
-                    }
-                  } catch (e) {
-                    toast({ title: "Copy Failed", description: `Your squad code is: ${activeTeam.code}`, variant: "destructive" });
-                  }
-                }}
-              >
+              <Button variant="secondary" className="w-full h-12 rounded-xl font-black bg-white text-primary" onClick={async () => { try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(activeTeam.code); toast({ title: "Copied!" }); } else { throw new Error("Blocked"); } } catch (e) { toast({ title: "Copy Failed", description: activeTeam.code }); } }}>
                 Copy Join Link
               </Button>
             </CardContent>
@@ -420,57 +439,45 @@ export default function TeamProfilePage() {
           </div>
           <div className="space-y-5 p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Team Name</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
               <Input className="rounded-xl h-12 text-lg font-bold border-2" value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Sport</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Sport</Label>
               <Input className="rounded-xl h-12 border-2 font-bold" value={editForm.sport} onChange={e => setEditForm(p => ({ ...p, sport: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Squad Bio</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Squad Bio</Label>
               <Textarea className="rounded-xl min-h-[120px] border-2 font-bold resize-none" placeholder="Brief history or goals..." value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Contact Email</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label>
                 <Input className="rounded-xl h-12 border-2 font-bold" value={editForm.contactEmail} onChange={e => setEditForm(p => ({ ...p, contactEmail: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Contact Phone</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Phone</Label>
                 <Input className="rounded-xl h-12 border-2 font-bold" value={editForm.contactPhone} onChange={e => setEditForm(p => ({ ...p, contactPhone: e.target.value }))} />
               </div>
             </div>
           </div>
-          <div className="p-8 bg-muted/10 border-t">
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleSaveDetails}>
-              <CheckCircle2 className="h-5 w-5 mr-2" /> Commit Changes
-            </Button>
-          </div>
+          <div className="p-8 bg-muted/10 border-t"><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleSaveDetails}>Commit Changes</Button></div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isPlanOpen} onOpenChange={setIsPlanOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tight uppercase">Admin Plan Override</DialogTitle>
-            <DialogDescription className="font-bold text-red-600 uppercase tracking-widest text-[10px]">Super Admin Access Only</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Admin Plan Override</DialogTitle></DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Select Subscription Tier</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Select Tier</Label>
               <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
-                <SelectTrigger className="h-14 rounded-xl font-bold border-2"><SelectValue /></SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {plans.map(p => (<SelectItem key={p.id} value={p.id}>{p.name} ({p.billingType})</SelectItem>))}
-                </SelectContent>
+                <SelectTrigger className="h-14 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-xl">{plans.map(p => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent>
               </Select>
             </div>
-            <div className="bg-muted/30 p-4 rounded-xl border-2 border-dashed">
-              <p className="text-[10px] font-medium leading-relaxed italic">Note: Changing the plan will immediately update available features and team limits for this squad.</p>
-            </div>
           </div>
-          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black bg-black" onClick={handleUpdatePlan}>Assign Tier to Squad</Button></DialogFooter>
+          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black bg-black" onClick={handleUpdatePlan}>Assign Tier</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
