@@ -23,7 +23,12 @@ import {
   Calendar as CalendarIcon, 
   Terminal, 
   Download, 
-  Signature 
+  Signature,
+  Users,
+  Copy,
+  Share2,
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -55,6 +60,20 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
   meeting: 'bg-amber-500 text-white border-amber-500',
   tournament: 'bg-black text-white border-black',
   other: 'bg-slate-600 text-white border-slate-600',
+};
+
+const normalizeTime = (t: string) => {
+  if (!t || t === 'TBD') return '12:00';
+  if (t.toUpperCase().includes('M')) {
+    const parts = t.trim().split(/\s+/);
+    const timePart = parts[0];
+    const period = parts[1]?.toUpperCase() || (t.toUpperCase().includes('PM') ? 'PM' : 'AM');
+    let [h, m] = timePart.split(':').map(Number);
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return `${h.toString().padStart(2, '0')}:${(m || 0).toString().padStart(2, '0')}`;
+  }
+  return t.includes(':') ? t : '12:00';
 };
 
 function calculateTournamentStandings(teams: string[], games: TournamentGame[]) {
@@ -104,6 +123,11 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   const [genFieldCount, setGenFieldCount] = useState('2');
   const [isEditingWaiver, setIsEditingWaiver] = useState(false);
   const [tempWaiver, setTempWaiver] = useState(event.teamWaiverText || '');
+  const [baseUrl, setBaseUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') setBaseUrl(window.location.origin);
+  }, []);
 
   const facilityRef = useMemoFirebase(() => (db && event.facilityId) ? doc(db, 'facilities', event.facilityId) : null, [db, event.facilityId]);
   const { data: facility } = useDoc<Facility>(facilityRef);
@@ -183,6 +207,15 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
     await updateEvent(event.id, { teamWaiverText: tempWaiver });
     setIsEditingWaiver(false);
     toast({ title: "Protocol Updated" });
+  };
+
+  const copyToClipboard = (text: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      toast({ title: "Link Copied", description: "URL is ready to share." });
+    } catch (err) {
+      toast({ title: "Copy Failed", variant: "destructive" });
+    }
   };
 
   return (
@@ -300,6 +333,45 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   <TabsContent value="roster" className="mt-0">
                     <div className="py-20 text-center opacity-30"><Users className="h-12 w-12 mx-auto mb-2" /><p className="text-xs font-black uppercase">Consolidated Roster Intelligence Loading...</p></div>
                   </TabsContent>
+                  <TabsContent value="portals" className="mt-0 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="rounded-[2rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden group">
+                        <CardHeader className="bg-primary/5 p-6 border-b">
+                          <div className="flex items-center gap-3">
+                            <Eye className="h-5 w-5 text-primary" />
+                            <CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                          <p className="text-xs font-medium text-muted-foreground italic">Public link for parents and fans to follow live scores and standings.</p>
+                          <div className="flex gap-2">
+                            <Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-10 text-[10px] font-mono bg-muted/30 border-none" />
+                            <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => copyToClipboard(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`)}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-[2rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden group">
+                        <CardHeader className="bg-black text-white p-6 border-b">
+                          <div className="flex items-center gap-3">
+                            <Terminal className="h-5 w-5 text-primary" />
+                            <CardTitle className="text-sm font-black uppercase">Scorekeeper Portal</CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                          <p className="text-xs font-medium text-muted-foreground italic">Share this with field marshals to log scores without a login.</p>
+                          <div className="flex gap-2">
+                            <Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[10px] font-mono bg-muted/30 border-none" />
+                            <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => copyToClipboard(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`)}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
                   <TabsContent value="manage" className="mt-0 space-y-10">
                     <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-8">
                       <div className="flex items-center gap-4"><div className="bg-white p-3 rounded-2xl shadow-sm text-primary"><Zap className="h-6 w-6" /></div><h3 className="text-xl font-black uppercase tracking-tight">Auto-Scheduler</h3></div>
@@ -380,20 +452,6 @@ export default function EventsPage() {
   }, [allEvents, filterMode]);
 
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
-
-  const normalizeTime = (t: string) => {
-    if (!t || t === 'TBD') return '12:00';
-    if (t.toUpperCase().includes('M')) {
-      const parts = t.trim().split(/\s+/);
-      const timePart = parts[0];
-      const period = parts[1]?.toUpperCase() || (t.toUpperCase().includes('PM') ? 'PM' : 'AM');
-      let [h, m] = timePart.split(':').map(Number);
-      if (period === 'PM' && h !== 12) h += 12;
-      if (period === 'AM' && h === 12) h = 0;
-      return `${h.toString().padStart(2, '0')}:${(m || 0).toString().padStart(2, '0')}`;
-    }
-    return t.includes(':') ? t : '12:00';
-  };
 
   const handleEdit = (event: TeamEvent) => { 
     setEditingEvent(event); setIsTournamentMode(!!event.isTournament); setNewTitle(event.title); 
