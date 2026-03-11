@@ -93,7 +93,6 @@ service cloud.firestore {
       match /volunteers/{oppId} {
         allow read: if isTeamMember(teamId);
         allow create, delete: if isTeamAdmin(teamId);
-        // Allow parents/staff to update for signups and verification
         allow update: if isTeamAdmin(teamId) || (isSignedIn() && exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
       }
 
@@ -109,7 +108,7 @@ service cloud.firestore {
       }
 
       match /groupChats/{chatId} {
-        // Combined list rule to support both guest demo access and member queries reliably
+        // Unified list rule to support both guest demo access and member queries reliably
         allow list: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || (request.auth.uid in resource.data.memberIds));
         allow get: if isTeamMember(teamId);
         allow create: if isTeamMember(teamId);
