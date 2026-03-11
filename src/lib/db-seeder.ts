@@ -324,7 +324,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     createdAt: nowStr,
     isPro, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
     description: planId === 'squad_organization' ? 'Enterprise organization management demo.' : 'Professional coordination suite demo.',
-    teamLogoUrl: '', heroImageUrl: ''
+    teamLogoUrl: '', heroImageUrl: '',
+    members: { [userId]: role.toLowerCase() } // Added members map for security rules
   }));
   
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), clean({

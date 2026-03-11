@@ -63,6 +63,7 @@ export function useCollection<T = any>(
     // 2. Extract path to verify it's not root (preventing "documents//" errors)
     let path = '';
     try {
+      // @ts-ignore - type exists on internal query
       if (memoizedTargetRefOrQuery.type === 'collection') {
         path = (memoizedTargetRefOrQuery as CollectionReference).path;
       } else {
@@ -74,10 +75,15 @@ export function useCollection<T = any>(
     // 3. Skip root-level, empty, or uninitialized paths that trigger security denials
     const trimmedPath = (path || '').trim();
     if (!trimmedPath || trimmedPath === '/' || trimmedPath === '.' || trimmedPath === '(default)' || trimmedPath.includes('//')) {
-      setData(null);
-      setIsLoading(false);
-      setError(null);
-      return;
+      // Only return early for standard collections. collectionGroup paths are often empty in memory.
+      // @ts-ignore - internal property
+      const isCollectionGroup = memoizedTargetRefOrQuery._query?.path?.isEmpty?.() || false;
+      if (!isCollectionGroup) {
+        setData(null);
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -95,14 +101,15 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
+        // Only propagate if we have a valid path or it's a collection group error
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: trimmedPath || '/',
-        })
+        });
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
         errorEmitter.emit('permission-error', contextualError);
       }
     );

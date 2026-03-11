@@ -549,8 +549,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return { current, limit: limitCount, remaining: Math.max(0, limitCount - current), exceeded: current > limitCount };
   }, [teams, userProfile, firebaseUser?.uid]);
 
-  const isStaff = activeTeam?.role === 'Admin';
   const isPro = activeTeam?.isPro || false;
+  const isStaff = activeTeam?.role === 'Admin';
   const isParent = userProfile?.role === 'parent';
   const isPlayer = userProfile?.role === 'adult_player';
   const isSuperAdmin = userProfile?.email === 'thisearlyseason@gmail.com' || userProfile?.email === 'test@gmail.com';
@@ -890,7 +890,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), clean({ assigned_team_id: tid, assigned_team_owner_id: ownerId, status: tid ? 'assigned' : 'pending' }));
     },
     toggleRegistrationPaymentStatus: async (lid: string, entryId: string, p: boolean) => {
-      await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', entryId), { payment_received: !!p });
+      await updateDoc(doc(db, 'leagues', entryId), { payment_received: !!p });
     },
     submitRegistrationEntry: async (lid: string, a: any, v: number) => {
       await addDoc(collection(db, 'leagues', lid, 'registrationEntries'), clean({ league_id: lid, answers: a || {}, form_version: v || 0, status: 'pending', created_at: new Date().toISOString(), payment_received: false }));
