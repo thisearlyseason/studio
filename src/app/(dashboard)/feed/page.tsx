@@ -10,19 +10,15 @@ import {
   ImagePlus, 
   MessageSquare, 
   Trash2, 
-  Calendar, 
   Send, 
   Heart, 
   Camera, 
   Loader2, 
   X, 
   MapPin, 
-  Clock, 
   Trophy, 
   ChevronRight,
   BarChart2,
-  Plus,
-  ImageIcon,
   Lock,
   Sparkles,
   LayoutDashboard,
@@ -31,7 +27,7 @@ import {
   Package,
   Terminal,
   Shield,
-  Search
+  Activity
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -40,7 +36,6 @@ import { Progress } from '@/components/ui/progress';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useTeam } from '@/components/providers/team-provider';
 import { cn } from '@/lib/utils';
-import { toast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit, doc, increment, arrayUnion, arrayRemove, getDoc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -390,7 +385,7 @@ export default function FeedPage() {
               </div>
             </CardHeader>
             <CardContent className="p-6 relative z-10 space-y-3">
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5 transition-all">
+              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
                 <Link href="/coaches-corner" className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3">
                     <PenTool className="h-4 w-4 text-primary" />
@@ -399,7 +394,7 @@ export default function FeedPage() {
                   <ChevronRight className="h-3 w-3 opacity-40" />
                 </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5 transition-all">
+              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
                 <Link href="/leagues" className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3">
                     <Shield className="h-4 w-4 text-primary" />
@@ -408,7 +403,7 @@ export default function FeedPage() {
                   <ChevronRight className="h-3 w-3 opacity-40" />
                 </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5 transition-all">
+              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
                 <Link href="/facilities" className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3">
                     <MapPin className="h-4 w-4 text-primary" />
@@ -417,7 +412,7 @@ export default function FeedPage() {
                   <ChevronRight className="h-3 w-3 opacity-40" />
                 </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5 transition-all">
+              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
                 <Link href="/equipment" className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-3">
                     <Package className="h-4 w-4 text-primary" />

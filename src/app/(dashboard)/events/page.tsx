@@ -532,7 +532,7 @@ export default function EventsPage() {
   const [newTime, setNewTime] = useState('');
   const [newEndTime, setNewEndTime] = useState('');
   const [newLocation, setNewLocation] = useState('');
-  const [newFacilityId, setNewFacilityId] = useState<string>('manual');
+  const [selectedFacilityIds, setSelectedFacilityIds] = useState<string[]>([]);
   const [newFieldId, setNewFieldId] = useState<string>('manual');
   const [newDescription, setNewDescription] = useState('');
   const [eventType, setEventType] = useState<EventType>('game');
@@ -546,9 +546,6 @@ export default function EventsPage() {
 
   const facilitiesQuery = useMemoFirebase(() => (db && user?.id) ? query(collection(db, 'facilities'), where('clubId', '==', user.id)) : null, [db, user?.id]);
   const { data: facilities } = useCollection<Facility>(facilitiesQuery);
-
-  const fieldsQuery = useMemoFirebase(() => (db && newFacilityId !== 'manual') ? query(collection(db, 'facilities', newFacilityId, 'fields'), orderBy('name', 'asc')) : null, [db, newFacilityId]);
-  const { data: fields } = useCollection<Field>(fieldsQuery);
 
   const filteredEvents = useMemo(() => { 
     const now = new Date(); 
@@ -569,7 +566,7 @@ export default function EventsPage() {
     setNewTime(event.startTime); 
     setNewEndTime(event.endTime || ''); 
     setNewLocation(event.location); 
-    setNewFacilityId(event.facilityId || 'manual'); 
+    setSelectedFacilityIds(event.facilityId ? [event.facilityId] : []); 
     setNewFieldId(event.fieldId || 'manual'); 
     setNewDescription(event.description); 
     setIsCreateOpen(true); 
@@ -591,12 +588,14 @@ export default function EventsPage() {
         startTime: newTime, 
         endTime: newEndTime || 'TBD', 
         location: newLocation, 
-        facilityId: newFacilityId === 'manual' ? null : newFacilityId, 
+        facilityId: selectedFacilityIds[0] || null, // For single event, we use first
+        facilityIds: isTournamentMode ? selectedFacilityIds : null, // Multi-facility for tourney
         fieldId: newFieldId === 'manual' ? null : newFieldId, 
         description: newDescription, 
         isTournament: isTournamentMode, 
         lastUpdated: new Date().toISOString() 
       }; 
+
       const success = editingEvent ? await updateEvent(editingEvent.id, payload) : await addEvent(payload); 
       if (success) { setIsCreateOpen(false); setEditingEvent(null); resetForm(); }
     } catch (e) { toast({ title: "Itinerary Error", variant: "destructive" }); }
@@ -604,8 +603,12 @@ export default function EventsPage() {
 
   const resetForm = () => {
     setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewEndTime('');
-    setNewLocation(''); setNewFacilityId('manual'); setNewFieldId('manual');
+    setNewLocation(''); setSelectedFacilityIds([]); setNewFieldId('manual');
     setNewDescription(''); setEventType('game'); setEditingEvent(null);
+  };
+
+  const toggleFacility = (fid: string) => {
+    setSelectedFacilityIds(prev => prev.includes(fid) ? prev.filter(id => id !== fid) : [...prev, fid]);
   };
 
   return (
@@ -619,7 +622,7 @@ export default function EventsPage() {
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col lg:flex-row min-h-full">
               <div className="w-full lg:w-5/12 bg-muted/30 p-10 space-y-8 lg:border-r shrink-0">
-                <DialogHeader><DialogTitle className="text-3xl font-black uppercase">{editingEvent ? "Update" : "Launch"} Event</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle className="text-3xl font-black uppercase">{editingEvent ? "Update" : (isTournamentMode ? "Launch Tournament" : "Launch Event")}</DialogTitle></DialogHeader>
                 <div className="space-y-6">
                   {!isTournamentMode && ( 
                     <div className="space-y-1.5">
@@ -663,16 +666,32 @@ export default function EventsPage() {
               </div>
               <div className="flex-1 p-10 space-y-8 bg-background">
                 <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest">Venue Selection</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest">{isTournamentMode ? "Tournament Venues" : "Venue Selection"}</Label>
                   <div className="grid gap-3">
-                    <Select value={newFacilityId} onValueChange={(val) => { setNewFacilityId(val); if(val !== 'manual') setNewLocation(facilities?.find(f => f.id === val)?.address || ''); }}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 font-bold bg-white"><SelectValue placeholder="Select Facility" /></SelectTrigger>
-                      <SelectContent className="rounded-xl"><SelectItem value="manual">Manual Entry</SelectItem>{facilities?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                    {newFacilityId !== 'manual' && ( 
+                    {isTournamentMode ? (
+                      <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                        {facilities?.map(f => (
+                          <div key={f.id} className="flex items-center space-x-3 p-3 bg-white rounded-xl border shadow-sm group cursor-pointer" onClick={() => toggleFacility(f.id)}>
+                            <Checkbox checked={selectedFacilityIds.includes(f.id)} onCheckedChange={() => toggleFacility(f.id)} />
+                            <div className="min-w-0">
+                              <p className="text-xs font-black uppercase truncate">{f.name}</p>
+                              <p className="text-[8px] font-medium opacity-60 truncate">{f.address}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {(!facilities || facilities.length === 0) && <p className="text-[10px] text-center opacity-40 py-4 italic">No facilities registered.</p>}
+                      </div>
+                    ) : (
+                      <Select value={selectedFacilityIds[0] || 'manual'} onValueChange={(val) => { if(val === 'manual') setSelectedFacilityIds([]); else setSelectedFacilityIds([val]); if(val !== 'manual') setNewLocation(facilities?.find(f => f.id === val)?.address || ''); }}>
+                        <SelectTrigger className="h-11 rounded-xl border-2 font-bold bg-white"><SelectValue placeholder="Select Facility" /></SelectTrigger>
+                        <SelectContent className="rounded-xl"><SelectItem value="manual">Manual Entry</SelectItem>{facilities?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    )}
+                    
+                    {!isTournamentMode && selectedFacilityIds[0] && ( 
                       <Select value={newFieldId} onValueChange={setNewFieldId}>
                         <SelectTrigger className="h-11 rounded-xl border-2 font-bold bg-white"><SelectValue placeholder="Field/Court" /></SelectTrigger>
-                        <SelectContent className="rounded-xl"><SelectItem value="manual">General</SelectItem>{fields?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                        <SelectContent className="rounded-xl"><SelectItem value="manual">General</SelectItem>{/* This should query fields for specific facility, simplified for MVP */}</SelectContent>
                       </Select> 
                     )}
                     <Input placeholder="Location Label" value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-11 rounded-xl font-bold border-2 bg-white" />
