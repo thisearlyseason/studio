@@ -14,10 +14,7 @@ import {
   isSameDay, 
   addMonths, 
   subMonths,
-  addDays,
-  startOfDay,
-  isToday,
-  isPast
+  isToday
 } from 'date-fns';
 import { 
   ChevronLeft, 
@@ -28,21 +25,15 @@ import {
   List, 
   Trophy, 
   Zap, 
-  Clock, 
   MapPin, 
-  MoreVertical,
-  CheckCircle2,
-  Lock,
-  Search,
-  Users,
   ChevronRight as ChevronRightIcon
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useTeam, TeamEvent, Team, EventType } from '@/components/providers/team-provider';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where, orderBy, limit } from 'firebase/firestore';
+import { useTeam, TeamEvent, EventType } from '@/components/providers/team-provider';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collectionGroup, query, where, orderBy } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -59,7 +50,8 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
 };
 
 export default function MasterCalendarPage() {
-  const { teams, user, isStaff, isPro, purchasePro } = useTeam();
+  const { user: authUser } = useUser();
+  const { teams, user, purchasePro } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -78,10 +70,12 @@ export default function MasterCalendarPage() {
 
   // Aggregate fetch for all squad events using collectionGroup
   const eventsQuery = useMemoFirebase(() => {
-    // SECURITY GUARD: Ensure we don't query before team data is synchronized
-    if (!db || teams.length === 0 || !user?.id) return null;
+    // SECURITY GUARD: Ensure we don't query before user AND team data is synchronized
+    // Constructing a query without a valid UID or specific collection ID can trigger root listing errors
+    if (!db || !authUser?.uid || !teams || teams.length === 0) return null;
     
-    const teamIds = teams.map(t => t.id);
+    const teamIds = teams.map(t => t.id).filter(id => !!id);
+    if (teamIds.length === 0) return null;
     
     // collectionGroup queries require specific wildcard match in firestore.rules
     return query(
@@ -89,7 +83,7 @@ export default function MasterCalendarPage() {
       where('teamId', 'in', teamIds.slice(0, 30)),
       orderBy('date', 'asc')
     );
-  }, [db, teams, user?.id]);
+  }, [db, teams, authUser?.uid]);
 
   const { data: rawEvents, isLoading } = useCollection<TeamEvent>(eventsQuery);
   const allEvents = useMemo(() => rawEvents || [], [rawEvents]);

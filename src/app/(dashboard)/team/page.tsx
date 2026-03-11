@@ -1,32 +1,20 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Trophy, 
-  Mail, 
-  Phone, 
-  Shield, 
   Camera, 
   Edit3, 
-  ExternalLink, 
   Hash, 
   Globe,
   Loader2,
-  X,
-  Check,
-  Star,
   Users,
-  ShieldCheck,
-  Zap,
-  CreditCard,
-  ChevronDown,
-  Lock,
   MessageSquare,
   ShieldAlert,
   ClipboardList,
   CheckCircle2,
   XCircle,
-  ArrowRight
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,12 +42,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where, orderBy } from 'firebase/firestore';
-import { format } from 'date-fns';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collectionGroup, query, where } from 'firebase/firestore';
 
 export default function TeamProfilePage() {
+  const { user: authUser } = useUser();
   const { activeTeam, setActiveTeam, teams, user, members, updateTeamDetails, isSuperAdmin, plans, updateTeamPlan, isStaff, hasFeature, respondToAssignment } = useTeam();
   const db = useFirestore();
   
@@ -72,7 +59,9 @@ export default function TeamProfilePage() {
 
   // Fetch pending assignments for this team - Restricted to administrative staff only
   const assignmentsQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db || !isStaff || !hasFeature('league_registration') || !user?.id) return null;
+    // CRITICAL: Prevent constructor from executing without valid auth UID
+    // This avoids root listing requests /databases/(default)/documents/
+    if (!db || !authUser?.uid || !activeTeam?.id || !isStaff || !hasFeature('league_registration')) return null;
     
     const constraints = [
       where('assigned_team_id', '==', activeTeam.id), 
@@ -80,13 +69,12 @@ export default function TeamProfilePage() {
     ];
     
     // For production squads, include explicit owner check to satisfy security rules
-    // Note: Use 'demo_' prefix to cover all demo tier variants
     if (!activeTeam.id.startsWith('demo_')) {
-      constraints.push(where('assigned_team_owner_id', '==', user.id));
+      constraints.push(where('assigned_team_owner_id', '==', authUser.uid));
     }
     
     return query(collectionGroup(db, 'registrationEntries'), ...constraints);
-  }, [activeTeam?.id, db, isStaff, user?.id, hasFeature]);
+  }, [activeTeam?.id, db, isStaff, authUser?.uid, hasFeature]);
 
   const { data: rawAssignments } = useCollection<RegistrationEntry>(assignmentsQuery);
   const assignments = useMemo(() => rawAssignments || [], [rawAssignments]);
@@ -386,39 +374,13 @@ export default function TeamProfilePage() {
               </div>
             </CardContent>
           </Card>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Squad Leadership & Staff</h2>
-              <Badge variant="outline" className="text-[9px] font-black border-primary/20 text-primary uppercase">{admins.length} STAFF</Badge>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {admins.map((admin) => (
-                <Card key={admin.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 hover:shadow-md transition-all group overflow-hidden">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <Avatar className="h-14 w-14 rounded-2xl ring-2 ring-primary/10 border-2 border-background shadow-sm">
-                      <AvatarImage src={admin.avatar} className="object-cover" />
-                      <AvatarFallback className="rounded-2xl font-black bg-muted">{admin.name ? admin.name[0] : '?'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <span className="font-extrabold text-sm truncate tracking-tight">{admin.name}</span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">{admin.position}</span>
-                        {admin.role === 'Admin' && <span className="text-[8px] font-bold text-muted-foreground uppercase">• Authority</span>}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
         </div>
 
         <aside className="space-y-8">
           <Card className="rounded-[2rem] border-none shadow-xl bg-primary text-primary-foreground overflow-hidden">
             <CardContent className="p-8 space-y-6">
               <div className="space-y-1">
-                <Trophy className="h-10 w-10 text-white/40 mb-2" />
+                <Badge className="bg-white/20 text-white border-none font-black uppercase tracking-widest text-[8px] h-5 px-2">Recruitment</Badge>
                 <h3 className="text-2xl font-black tracking-tight">Recruit Teammates</h3>
                 <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Growth & Enrollment</p>
               </div>
@@ -466,7 +428,7 @@ export default function TeamProfilePage() {
           </div>
           <div className="p-8 bg-muted/10 border-t">
             <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleSaveDetails}>
-              <Check className="h-5 w-5 mr-2" /> Commit Changes
+              <CheckCircle2 className="h-5 w-5 mr-2" /> Commit Changes
             </Button>
           </div>
         </DialogContent>
