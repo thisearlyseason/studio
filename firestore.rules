@@ -24,7 +24,7 @@ service cloud.firestore {
     }
 
     function isTeamMember(teamId) {
-      return isSignedIn() && (
+      return isSignedIn() && teamId != null && (
         isDemoTeam(teamId) || 
         isSuperAdmin() ||
         exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
@@ -32,7 +32,7 @@ service cloud.firestore {
     }
 
     function isTeamAdmin(teamId) {
-      return isSignedIn() && (
+      return isSignedIn() && teamId != null && (
         isDemoTeam(teamId) ||
         isSuperAdmin() ||
         (exists(/databases/$(database)/documents/teams/$(teamId)) && (
@@ -41,6 +41,16 @@ service cloud.firestore {
            get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.get('role', '') == 'Admin')
         ))
       );
+    }
+
+    // COLLECTION GROUP RULES
+    // Required for aggregated queries like the Master Calendar and Recruitment Hub
+    match /{path=**}/events/{eventId} {
+      allow read: if isTeamMember(resource.data.teamId);
+    }
+    
+    match /{path=**}/registrationEntries/{entryId} {
+      allow read: if isSignedIn();
     }
 
     match /users/{userId} {
