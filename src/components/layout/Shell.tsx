@@ -17,17 +17,11 @@ import {
   Info,
   Lock,
   Dumbbell,
-  Search,
   CreditCard,
-  ExternalLink,
   Building,
-  History,
-  Timer,
   ChevronRight,
   Shield,
   BookOpen,
-  Video,
-  Zap,
   Baby,
   UserPlus,
   Star,
@@ -41,7 +35,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { useTeam, Team, TeamAlert } from '@/components/providers/team-provider';
+import { useTeam, Team } from '@/components/providers/team-provider';
 import { CreateAlertButton, AlertsHistoryDialog } from '@/components/layout/AlertOverlay';
 import {
   DropdownMenu,
@@ -64,8 +58,6 @@ import {
 } from "@/components/ui/sidebar";
 import BrandLogo from '@/components/BrandLogo';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useMemoFirebase, useCollection, useFirestore } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
 
 const tabs = [
   { name: 'Feed', href: '/feed', icon: LayoutDashboard, pro: true },
@@ -194,22 +186,11 @@ function TeamSwitcherContent({
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const db = useFirestore();
   const { 
-    activeTeam, setActiveTeam, teams, user, isPro, isSuperAdmin, 
-    isClubManager, isStaff, isParent, hasFeature, isPlayer
+    activeTeam, setActiveTeam, teams, user, isPro, 
+    isClubManager, isStaff, isParent, isPlayer, alerts 
   } = useTeam();
 
-  const alertsQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || activeTeam.id === '' || !db) return null;
-    return query(
-      collection(db, 'teams', activeTeam.id, 'alerts'), 
-      orderBy('createdAt', 'desc'), 
-      limit(10)
-    );
-  }, [activeTeam?.id, db]);
-
-  const { data: alerts } = useCollection<TeamAlert>(alertsQuery);
   const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
   useEffect(() => {
@@ -219,14 +200,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     }
     const stored = localStorage.getItem('squad_seen_alerts_ids');
     if (!stored) {
-      setHasUnreadAlerts((alerts?.length || 0) > 0);
+      setHasUnreadAlerts(alerts.length > 0);
       return;
     }
     try {
       const seenIds = JSON.parse(stored);
       setHasUnreadAlerts(alerts.some(a => !seenIds.includes(a.id)));
     } catch (e) {
-      setHasUnreadAlerts(alerts ? alerts.length > 0 : false);
+      setHasUnreadAlerts(alerts.length > 0);
     }
   }, [alerts]);
 

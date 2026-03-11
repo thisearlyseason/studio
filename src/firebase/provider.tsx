@@ -85,7 +85,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setUserAuthState({ 
           user: firebaseUser, 
           isUserLoading: false, 
-          userError: null,
+          userError: null, 
           isAuthResolved: true 
         });
       },
@@ -94,7 +94,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setUserAuthState({ 
           user: null, 
           isUserLoading: false, 
-          userError: error,
+          userError: error, 
           isAuthResolved: true 
         });
       }
