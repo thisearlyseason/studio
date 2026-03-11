@@ -74,7 +74,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTeam, TeamEvent, TournamentGame, EventType, Facility, Field } from '@/components/providers/team-provider';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, where } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -124,7 +124,7 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
     if (!game.isCompleted) return;
     const t1 = game.team1; const t2 = game.team2;
     if (!standings[t1]) standings[t1] = { name: t1, wins: 0, losses: 0, ties: 0, points: 0 };
-    if (!standings[t2]) standings[t2] = { name: t2, wins: 0, losses: 0, ties: 0, points: 0 };
+    if (!standings[t2]) standings[t2] = { name: t2, wins: 0, losses: 0, ties: 0, teamLogoUrl: '', wins: 0, losses: 0, ties: 0, points: 0 };
     if (game.score1 > game.score2) { standings[t1].wins += 1; standings[t1].points += 1; standings[t2].losses += 1; standings[t2].points -= 1; }
     else if (game.score2 > game.score1) { standings[t2].wins += 1; standings[t2].points += 1; standings[t1].losses += 1; standings[t1].points -= 1; }
     else { standings[t1].ties += 1; standings[t2].ties += 1; }
@@ -300,6 +300,21 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
       setIsGenConfirmOpen(true);
     } else {
       handleGenerateSchedule();
+    }
+  };
+
+  const handleCopyLink = (text: string) => {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      toast({ title: "Link Copied" });
+    } catch (err) {
+      console.warn("Clipboard access denied", err);
+      toast({ 
+        title: "Copy Failed", 
+        description: "Your browser restricted clipboard access. Please manually copy the URL.", 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -577,7 +592,14 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                             <Card className="border-2 border-dashed border-primary/20 bg-primary/5 rounded-[2.5rem] overflow-hidden">
                               <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-6">
                                 <div className="flex items-center gap-4"><div className="bg-white p-4 rounded-2xl shadow-sm"><Globe className="h-8 w-8 text-primary" /></div><div className="space-y-1"><h4 className="text-xl font-black uppercase tracking-tight">Public Signature Portal</h4><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Share this link with participating squads</p></div></div>
-                                <div className="flex gap-2 w-full md:w-auto"><Button className="flex-1 md:flex-none h-12 rounded-xl font-black uppercase text-xs" onClick={() => { if(publicWaiverLink) { navigator.clipboard.writeText(publicWaiverLink); toast({ title: "Link Copied" }); } }}><Copy className="h-4 w-4 mr-2" /> Copy Waiver URL</Button><Button variant="outline" className="h-12 rounded-xl border-2 font-black uppercase text-xs" onClick={() => { if(publicWaiverLink) window.open(publicWaiverLink, '_blank'); }}><ExternalLink className="h-4 w-4 mr-2" /> Open</Button></div>
+                                <div className="flex gap-2 w-full md:w-auto">
+                                  <Button className="flex-1 md:flex-none h-12 rounded-xl font-black uppercase text-xs" onClick={() => handleCopyLink(publicWaiverLink)}>
+                                    <Copy className="h-4 w-4 mr-2" /> Copy Waiver URL
+                                  </Button>
+                                  <Button variant="outline" className="h-12 rounded-xl border-2 font-black uppercase text-xs" onClick={() => { if(publicWaiverLink) window.open(publicWaiverLink, '_blank'); }}>
+                                    <ExternalLink className="h-4 w-4 mr-2" /> Open
+                                  </Button>
+                                </div>
                               </CardContent>
                             </Card>
                             <div className="space-y-4">
@@ -729,7 +751,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Scorekeeper URL</Label>
                     <div className="flex gap-2">
                       <Input readOnly value={origin ? `${origin}/tournaments/scorekeeper/${event.teamId}/${event.id}/${editingGame.id}` : ''} className="rounded-xl h-10 text-[10px] font-mono bg-muted/30" />
-                      <Button size="icon" variant="ghost" className="rounded-xl h-10 w-10 border" onClick={() => { if(origin) { navigator.clipboard.writeText(`${origin}/tournaments/scorekeeper/${event.teamId}/${event.id}/${editingGame.id}`); toast({ title: "Score Link Copied" }); } }}>
+                      <Button size="icon" variant="ghost" className="rounded-xl h-10 w-10 border" onClick={() => handleCopyLink(origin ? `${origin}/tournaments/scorekeeper/${event.teamId}/${event.id}/${editingGame.id}` : '')}>
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
@@ -976,7 +998,7 @@ export default function EventsPage() {
                       {requiresWaiver && (
                         <div className="space-y-2 animate-in fade-in duration-300">
                           <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Individual Waiver Terms</Label>
-                          <Textarea placeholder="Paste your liability terms here..." value={waiverText} onChange={e => setWaiverText(e.target.value)} className="min-h-[120px] rounded-xl border-2 bg-white font-medium" />
+                          <Textarea placeholder="Paste your liability terms here..." value={requiresWaiver ? waiverText : ''} onChange={e => setWaiverText(e.target.value)} className="min-h-[120px] rounded-xl border-2 bg-white font-medium" />
                         </div>
                       )}
                     </div>
