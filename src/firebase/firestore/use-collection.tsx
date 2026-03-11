@@ -76,7 +76,7 @@ export function useCollection<T = any>(
         // Extraction logic for path-specific error reporting
         let path: string = '/';
         try {
-          if (targetRefOrQuery.type === 'collection') {
+          if ('path' in targetRefOrQuery) {
             path = (targetRefOrQuery as CollectionReference).path;
           } else {
             const internal = targetRefOrQuery as unknown as InternalQuery;

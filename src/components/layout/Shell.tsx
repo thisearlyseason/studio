@@ -210,8 +210,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     );
   }, [activeTeam?.id, db]);
 
-  const { data: rawAlerts } = useCollection<TeamAlert>(alertsQuery);
-  const alerts = rawAlerts || [];
+  const { data: alerts } = useCollection<TeamAlert>(alertsQuery);
   const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false);
 
   useEffect(() => {
@@ -228,7 +227,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       const seenIds = JSON.parse(stored);
       setHasUnreadAlerts(alerts.some(a => !seenIds.includes(a.id)));
     } catch (e) {
-      setHasUnreadAlerts((alerts?.length || 0) > 0);
+      setHasUnreadAlerts(alerts ? alerts.length > 0 : false);
     }
   }, [alerts]);
 
