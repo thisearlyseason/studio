@@ -68,7 +68,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/AlertDialog";
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -285,16 +285,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
       await updateEvent(event.id, { tournamentGames: games });
       toast({ title: "Elite Schedule Forged" });
     } finally { setIsGenerating(false); }
-  };
-
-  const handleAddGuestSquad = async () => {
-    const tName = newTeamName.trim();
-    if (!tName || event.tournamentTeams?.includes(tName)) return;
-    const updatedTeams = [...(event.tournamentTeams || []), tName];
-    const updatedMetadata = { ...(event.tournamentTeamsMetadata || {}), [tName]: { coach: newTeamCoach.trim(), email: newTeamEmail.trim() } };
-    await updateEvent(event.id, { tournamentTeams: updatedTeams, tournamentTeamsMetadata: updatedMetadata });
-    setNewTeamName(''); setNewTeamCoach(''); setNewTeamEmail('');
-    toast({ title: "Squad Enrolled" });
   };
 
   const syncTournamentSchedule = () => {
