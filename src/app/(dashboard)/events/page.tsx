@@ -137,7 +137,6 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
 function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAttendance, purchasePro, children }: EventDetailDialogProps) {
   const { members = [], user, updateEvent, signTeamTournamentWaiver, submitEventWaiver, isPro, addCoOrganizerByEmail, removeCoOrganizer, isStaff, activeTeam, hasFeature } = useTeam();
   const db = useFirestore();
-  const router = useRouter();
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
   const [isTeamAgreementOpen, setIsTeamAgreementOpen] = useState(false);
@@ -585,7 +584,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
         <Dialog open={isTeamAgreementOpen} onOpenChange={setIsTeamAgreementOpen}>
           <DialogContent className="sm:max-w-xl rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-primary w-full" />
-            <div className="p-8">
+            <div className="p-8 space-y-8">
               <DialogHeader className="mb-6">
                 <DialogTitle className="text-2xl font-black uppercase tracking-tight">Squad Participation Agreement</DialogTitle>
                 <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Formal Enrollment Certification</DialogDescription>
@@ -964,7 +963,6 @@ export default function EventsPage() {
           <div className="flex items-center justify-between px-2"><h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Itinerary</h2><div className="flex bg-muted/50 p-1 rounded-xl border"><Button variant={filterMode === 'live' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('live')} className="h-8 rounded-lg font-black text-[10px] uppercase">Live</Button><Button variant={filterMode === 'past' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('past')} className="h-8 rounded-lg font-black text-[10px] uppercase">History</Button></div></div>
           <div className="grid gap-6">
             {filteredEvents.map((event) => {
-              const myGames = event.isTournament ? (event.tournamentGames || []).filter(g => activeTeam && (g.team1.toLowerCase() === activeTeam.name.toLowerCase() || g.team2.toLowerCase() === activeTeam.name.toLowerCase())) : [];
               const typeColor = event.isTournament ? EVENT_TYPE_COLORS.tournament : EVENT_TYPE_COLORS[event.eventType || 'other'];
 
               return (
