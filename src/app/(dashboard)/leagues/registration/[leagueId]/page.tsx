@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -63,10 +62,10 @@ export default function LeagueRegistrationAdminPage() {
 
   const canRegister = hasFeature('league_registration');
 
-  const configRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string, 'registration', 'config') : null, [db, leagueId]);
+  const configRef = useMemoFirebase(() => (db && leagueId) ? doc(db, 'leagues', leagueId as string, 'registration', 'config') : null, [db, leagueId]);
   const { data: config, isLoading: isConfigLoading } = useDoc<LeagueRegistrationConfig>(configRef);
 
-  const entriesQuery = useMemoFirebase(() => db ? query(collection(db, 'leagues', leagueId as string, 'registrationEntries'), orderBy('created_at', 'desc')) : null, [db, leagueId]);
+  const entriesQuery = useMemoFirebase(() => (db && leagueId) ? query(collection(db, 'leagues', leagueId as string, 'registrationEntries'), orderBy('created_at', 'desc')) : null, [db, leagueId]);
   const { data: entries } = useCollection<RegistrationEntry>(entriesQuery);
 
   const [activeTab, setActiveTab] = useState<'config' | 'entries'>('config');

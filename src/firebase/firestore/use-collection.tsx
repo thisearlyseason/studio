@@ -77,9 +77,9 @@ export function useCollection<T = any>(
       }
     } catch (e) {}
 
-    // 3. Skip root-level, empty, or uninitialized paths that trigger security denials
+    // 3. Strict guard: Skip root-level, empty, or uninitialized paths that trigger security denials
     const trimmedPath = (path || '').trim();
-    if (!isCollectionGroup && (!trimmedPath || trimmedPath === '/' || trimmedPath === '.' || trimmedPath === '(default)' || trimmedPath.includes('//') || trimmedPath.endsWith('/'))) {
+    if (!isCollectionGroup && (!trimmedPath || trimmedPath === '/' || trimmedPath === '')) {
       setData(null);
       setIsLoading(false);
       setError(null);

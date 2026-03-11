@@ -146,9 +146,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
   const [origin, setOrigin] = useState('');
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [newTeamCoach, setNewTeamCoach] = useState('');
-  const [newTeamEmail, setNewTeamEmail] = useState('');
   const [genStartTime, setGenStartTime] = useState('09:00');
   const [genMatchLength, setGenMatchLength] = useState('60');
   const [genType, setGenType] = useState('round_robin');
@@ -600,7 +597,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
                   ) : (
                     <div className="text-center py-10 opacity-40 space-y-2">
                       <FileText className="h-8 w-8 mx-auto" />
-                      <p className="text-xs font-black uppercase">Standard Participation Terms Apply</p>
+                      <p className="text-[10px] font-black uppercase">Standard Participation Terms Apply</p>
                     </div>
                   )}
                 </div>
