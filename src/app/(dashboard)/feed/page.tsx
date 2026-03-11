@@ -15,25 +15,20 @@ import {
   Heart, 
   Camera, 
   Loader2, 
-  Info, 
   X, 
   MapPin, 
   Clock, 
   Trophy, 
   ChevronRight,
-  Users,
   BarChart2,
   Plus,
-  XCircle,
   ImageIcon,
   Lock,
   Sparkles,
-  ShieldCheck,
   LayoutDashboard,
   ShieldAlert,
   PenTool,
   Package,
-  ArrowRight,
   Terminal,
   Shield
 } from 'lucide-react';
@@ -55,11 +50,9 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription,
-  DialogFooter,
-  DialogClose
+  DialogFooter
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 function CommentList({ postId, teamId, isAdmin, currentUserId, canComment }: { postId: string, teamId: string, isAdmin: boolean, currentUserId: string, canComment: boolean }) {
   const db = useFirestore();
@@ -222,7 +215,7 @@ export default function FeedPage() {
     const u: any = { [`poll.voters.${user?.id}`]: optionIdx };
     if (current === undefined) { u[`poll.options.${optionIdx}.votes`] = increment(1); u['poll.totalVotes'] = increment(1); }
     else if (current !== optionIdx) { u[`poll.options.${current}.votes`] = increment(-1); u[`poll.options.${optionIdx}.votes`] = increment(1); }
-    updateDocumentNonBlocking(ref, u);
+    await updateDoc(ref, u);
   };
 
   const handleToggleLike = async (postId: string) => {
@@ -230,7 +223,7 @@ export default function FeedPage() {
     const snap = await getDoc(ref);
     if (!snap.exists()) return;
     const isLiked = snap.data().likes?.includes(user?.id);
-    updateDocumentNonBlocking(ref, { likes: isLiked ? arrayRemove(user?.id) : arrayUnion(user?.id) });
+    await updateDoc(ref, { likes: isLiked ? arrayRemove(user?.id) : arrayUnion(user?.id) });
   };
 
   return (
@@ -289,7 +282,7 @@ export default function FeedPage() {
 
         <div className="space-y-6 lg:space-y-8">
           {posts?.map((post) => (
-            <Card key={post.id} className={cn("rounded-3xl lg:rounded-[2.5rem] border-none shadow-md overflow-hidden ring-1 ring-black/5 group", post.type === 'system' ? 'bg-muted/30 ring-primary/10' : '')}>
+            <Card key={post.id} className={cn("rounded-3xl lg:rounded-2xl border-none shadow-md overflow-hidden ring-1 ring-black/5 group", post.type === 'system' ? 'bg-muted/30 ring-primary/10' : '')}>
               <CardHeader className="flex flex-row items-center gap-4 lg:gap-5 pb-4 pt-6 lg:pt-8 px-6 lg:px-8">
                 <Avatar className="h-10 w-10 lg:h-12 lg:w-12 border-2 border-background shadow-md">
                   <AvatarImage src={post.author?.avatar} />
@@ -334,7 +327,7 @@ export default function FeedPage() {
                 ) : (
                   <p className="text-base lg:text-lg leading-relaxed font-medium text-foreground/80 break-words">{post.content}</p>
                 )}
-                {post.imageUrl && <img src={post.imageUrl} className="rounded-2xl lg:rounded-[2rem] w-full h-auto object-cover max-h-[400px] lg:max-h-[600px] border shadow-inner" alt="Feed media" />}
+                {post.imageUrl && <img src={post.imageUrl} className="rounded-2xl lg:rounded-2xl w-full h-auto object-cover max-h-[400px] lg:max-h-[600px] border shadow-inner" alt="Feed media" />}
               </CardContent>
               <CardFooter className="flex flex-col border-t border-muted/30 pt-4 lg:pt-6 pb-6 lg:pb-8 gap-4 lg:gap-6 px-6 lg:px-8">
                 <div className="flex items-center gap-4 lg:gap-8 w-full">
@@ -346,7 +339,7 @@ export default function FeedPage() {
                 <CommentList postId={post.id} teamId={activeTeam.id} isAdmin={isAdmin} currentUserId={user?.id || ''} canComment={canComment} />
                 <div className="flex gap-2 lg:gap-3 w-full">
                   <Input 
-                    placeholder={canComment ? "Write to squad..." : "Comments are restricted by staff"} 
+                    placeholder={canComment ? "Write to squad..." : "Comments restricted"} 
                     disabled={!canComment}
                     className="bg-muted/50 border-none rounded-xl lg:rounded-2xl h-10 lg:h-12 text-xs lg:text-sm font-bold px-4 lg:px-6 shadow-inner" 
                     value={commentInputs[post.id] || ''} 
@@ -392,11 +385,13 @@ export default function FeedPage() {
               </Button>
               <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5">
                 <Link href="/leagues" className="flex items-center w-full">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Leagues Hub</span>
-                </div>
-                <ChevronRight className="h-3 w-3 opacity-40" />
-              </Link>
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Leagues Hub</span>
+                  </div>
+                  <ChevronRight className="h-3 w-3 opacity-40" />
+                </Link>
+              </Button>
               <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5">
                 <Link href="/facilities" className="flex items-center w-full">
                   <div className="flex items-center gap-3">
@@ -460,7 +455,7 @@ export default function FeedPage() {
       </aside>
 
       <Dialog open={isPollDialogOpen} onOpenChange={setIsPollDialogOpen}>
-        <DialogContent className="sm:max-w-4xl rounded-3xl lg:rounded-[2.5rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
+        <DialogContent className="sm:max-w-4xl rounded-3xl lg:rounded-[2rem] overflow-hidden p-0 max-h-[90vh] flex flex-col border-none shadow-2xl">
           <div className="overflow-y-auto flex-1 custom-scrollbar">
             <div className="grid grid-cols-1 lg:grid-cols-2 h-full">
               <div className="p-6 lg:p-8 bg-primary/5 lg:border-r space-y-4 lg:space-y-6">
@@ -511,7 +506,7 @@ export default function FeedPage() {
 
       {lightboxImage && (
         <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(null)}>
-          <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-2xl lg:rounded-[2rem]">
+          <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-2xl lg:rounded-2xl">
             <DialogTitle className="sr-only">Image Preview</DialogTitle>
             <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain" alt="Enlarged view" />
           </DialogContent>
