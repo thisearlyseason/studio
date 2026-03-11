@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // --- HELPER FUNCTIONS ---
     function isSignedIn() {
       return request.auth != null;
     }
@@ -27,7 +27,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isDemoTeam(teamId) || 
         isSuperAdmin() ||
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
+        (teamId != null && exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)))
       );
     }
 
@@ -35,7 +35,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isDemoTeam(teamId) ||
         isSuperAdmin() ||
-        (exists(/databases/$(database)/documents/teams/$(teamId)) && (
+        (teamId != null && exists(/databases/$(database)/documents/teams/$(teamId)) && (
           get(/databases/$(database)/documents/teams/$(teamId)).data.get('ownerUserId', '') == request.auth.uid ||
           (exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) && 
            get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.get('role', '') == 'Admin')
@@ -43,19 +43,19 @@ service cloud.firestore {
       );
     }
 
-    // COLLECTION GROUP RULES (Must be top-level for aggregation queries)
+    // --- COLLECTION GROUP RULES (Must be top-level for aggregation queries) ---
+    // These allow the Master Calendar and Recruitment Ledger to function across all squads
     match /{path=**}/events/{eventId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
+      allow list, get: if isSignedIn();
     }
     
     match /{path=**}/registrationEntries/{entryId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
-      allow create: if true;
+      allow list, get: if isSignedIn();
+      allow create: if true; // Public recruitment portal
       allow update: if isSignedIn();
     }
 
+    // --- GLOBAL COLLECTIONS ---
     match /users/{userId} {
       allow read, update, delete: if isOwner(userId) || isSuperAdmin();
       allow create: if isSignedIn(); 
@@ -105,6 +105,19 @@ service cloud.firestore {
       }
     }
 
+    match /plans/{planId} {
+      allow get, list: if true;
+    }
+
+    match /features/{featureId} {
+      allow get, list: if true;
+    }
+
+    match /leads/{leadId} {
+      allow create: if true;
+    }
+
+    // --- TEAM SCOPED HUB ---
     match /teams/{teamId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
@@ -188,18 +201,6 @@ service cloud.firestore {
           allow delete: if isTeamAdmin(teamId) || resource.data.authorId == request.auth.uid;
         }
       }
-    }
-
-    match /plans/{planId} {
-      allow get, list: if true;
-    }
-
-    match /features/{featureId} {
-      allow get, list: if true;
-    }
-
-    match /leads/{leadId} {
-      allow create: if true;
     }
   }
 }
