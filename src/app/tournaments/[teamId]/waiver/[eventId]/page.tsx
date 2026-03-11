@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -51,7 +50,6 @@ export default function PublicTournamentWaiverPage() {
   const [isSigned, setIsSigned] = useState(false);
 
   useEffect(() => {
-    // Only set once on mount
     setSignDate(format(new Date(), 'yyyy-MM-dd'));
   }, []);
 
@@ -66,7 +64,7 @@ export default function PublicTournamentWaiverPage() {
     if (!event?.tournamentTeams) return [];
     const agreements = event.teamAgreements || {};
     return event.tournamentTeams.filter(t => !agreements[t]?.agreed);
-  }, [event]);
+  }, [event?.tournamentTeams, event?.teamAgreements]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

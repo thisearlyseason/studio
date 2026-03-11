@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -156,6 +155,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   const [genMatchLength, setGenMatchLength] = useState('60');
   const [genBreakLength, setGenBreakLength] = useState('15');
   const [maxGamesPerDay, setMaxGamesPerDay] = useState('10');
+  const [maxGamesPerTeam, setMaxGamesPerTeam] = useState('5');
   const [dayConfigs, setDayConfigs] = useState<Record<string, { start: string, end: string }>>({});
   
   const [isEditingWaiver, setIsEditingWaiver] = useState(false);
@@ -186,16 +186,36 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
   const tournamentStandings = useMemo(() => (event.isTournament && event.tournamentTeams) ? calculateTournamentStandings(event.tournamentTeams, event.tournamentGames || []) : [], [event]);
   
-  const groupedGames = useMemo(() => {
-    if (!event.tournamentGames) return {};
+  const itineraryDays = useMemo(() => {
+    if (!event.tournamentGames) return [];
+    const daysSet = new Set<string>();
+    event.tournamentGames.forEach(g => daysSet.add(g.date));
+    return Array.from(daysSet).sort();
+  }, [event.tournamentGames]);
+
+  const [activeItineraryDay, setActiveItineraryDay] = useState<string>('');
+
+  useEffect(() => {
+    if (itineraryDays.length > 0 && !activeItineraryDay) {
+      setActiveItineraryDay(itineraryDays[0]);
+    }
+  }, [itineraryDays, activeItineraryDay]);
+
+  const dayGamesByField = useMemo(() => {
+    if (!event.tournamentGames || !activeItineraryDay) return {};
+    const filtered = event.tournamentGames.filter(g => g.date === activeItineraryDay);
     const groups: Record<string, TournamentGame[]> = {};
-    [...event.tournamentGames].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(game => {
-      const key = game.location || format(new Date(game.date), 'EEEE, MMM d');
+    filtered.forEach(game => {
+      const key = game.location || 'Main Hub';
       if (!groups[key]) groups[key] = [];
       groups[key].push(game);
     });
+    // Sort each field's games by time
+    Object.keys(groups).forEach(key => {
+      groups[key].sort((a, b) => a.time.localeCompare(b.time));
+    });
     return groups;
-  }, [event.tournamentGames]);
+  }, [event.tournamentGames, activeItineraryDay]);
 
   const handleGenerateSchedule = async () => {
     if (!event.tournamentTeams || event.tournamentTeams.length < 2) {
@@ -205,13 +225,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
     const fieldPool = event.fieldIds || []; 
     const manualPool = event.manualLocations || [];
-    
-    // Pool all resources: Exact fields and/or manual location names
     const resources = [...fieldPool, ...manualPool.map(m => `manual:${m}`)];
-    
-    if (resources.length === 0) {
-      resources.push(`manual:${event.location || 'Main Venue'}`);
-    }
+    if (resources.length === 0) resources.push(`manual:${event.location || 'Main Venue'}`);
 
     setIsGenerating(true);
     await new Promise(r => setTimeout(r, 1500));
@@ -221,7 +236,11 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       const matchMinutes = parseInt(genMatchLength);
       const breakMinutes = parseInt(genBreakLength);
       const maxPerDay = parseInt(maxGamesPerDay);
+      const maxPerTeamTotal = parseInt(maxGamesPerTeam);
       
+      const teamGameCounts: Record<string, number> = {};
+      teams.forEach(t => teamGameCounts[t] = 0);
+
       const pairings: [string, string][] = [];
       for (let i = 0; i < teams.length; i++) {
         for (let j = i + 1; j < teams.length; j++) pairings.push([teams[i], teams[j]]);
@@ -234,34 +253,41 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
         const config = dayConfigs[dayKey];
         let dayGameCount = 0;
         
-        // Track time per resource for this day
         const resourceTimes: Record<string, string> = {};
         resources.forEach(rid => resourceTimes[rid] = config.start);
 
+        // Track team availability for this day to avoid double-bookings for teams
+        const teamAvailability: Record<string, string> = {};
+        teams.forEach(t => teamAvailability[t] = config.start);
+
         while (pairingIdx < pairings.length && dayGameCount < maxPerDay) {
-          // Find resource with earliest available time
-          let nextResourceId = resources[0];
-          let earliestTime = resourceTimes[nextResourceId];
+          const pair = pairings[pairingIdx];
+          
+          // Check if teams in pair have reached their total limit
+          if (teamGameCounts[pair[0]] >= maxPerTeamTotal || teamGameCounts[pair[1]] >= maxPerTeamTotal) {
+            pairingIdx++;
+            continue;
+          }
+
+          // Find resource with earliest available time that works for BOTH teams
+          let bestResourceId = null;
+          let earliestMatchTime = "23:59";
 
           for (const rid of resources) {
-            if (resourceTimes[rid] < earliestTime) {
-              nextResourceId = rid;
-              earliestTime = resourceTimes[rid];
+            const fieldReadyAt = resourceTimes[rid];
+            const teamsReadyAt = teamAvailability[pair[0]] > teamAvailability[pair[1]] ? teamAvailability[pair[0]] : teamAvailability[pair[1]];
+            const actualStart = fieldReadyAt > teamsReadyAt ? fieldReadyAt : teamsReadyAt;
+
+            if (actualStart < earliestMatchTime && actualStart < config.end) {
+              earliestMatchTime = actualStart;
+              bestResourceId = rid;
             }
           }
 
-          if (earliestTime >= config.end) break; // All resources full for today
+          if (!bestResourceId) break; // No more resources available today for this pair
 
-          const pair = pairings[pairingIdx];
-          const displayTime = format(parse(earliestTime, 'HH:mm', new Date()), 'h:mm a');
-          
-          let locationLabel = '';
-          if (nextResourceId.startsWith('manual:')) {
-            locationLabel = nextResourceId.split(':')[1];
-          } else {
-            // It's a facId:fieldName
-            locationLabel = nextResourceId.split(':')[1];
-          }
+          const displayTime = format(parse(earliestMatchTime, 'HH:mm', new Date()), 'h:mm a');
+          let locationLabel = bestResourceId.includes(':') ? bestResourceId.split(':')[1] : bestResourceId;
 
           games.push({ 
             id: `gen_${Date.now()}_${pairingIdx}`, 
@@ -275,10 +301,15 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
             isCompleted: false 
           });
 
-          // Update resource time
-          const [h, m] = earliestTime.split(':').map(Number);
-          const next = addMinutes(new Date(2000, 0, 1, h, m), matchMinutes + breakMinutes);
-          resourceTimes[nextResourceId] = format(next, 'HH:mm');
+          // Update state
+          const [h, m] = earliestMatchTime.split(':').map(Number);
+          const nextAvailable = format(addMinutes(new Date(2000, 0, 1, h, m), matchMinutes + breakMinutes), 'HH:mm');
+          
+          resourceTimes[bestResourceId] = nextAvailable;
+          teamAvailability[pair[0]] = nextAvailable;
+          teamAvailability[pair[1]] = nextAvailable;
+          teamGameCounts[pair[0]]++;
+          teamGameCounts[pair[1]]++;
           
           pairingIdx++;
           dayGameCount++;
@@ -286,9 +317,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       }
 
       await updateEvent(event.id, { tournamentGames: games });
-      toast({ title: "Itinerary Synchronized", description: `${games.length} matchups broadcasted.` });
+      toast({ title: "Itinerary Synchronized", description: `${games.length} matchups established.` });
     } catch (err) {
-      toast({ title: "Deployment Failure", description: "Check tournament parameters and try again.", variant: "destructive" });
+      toast({ title: "Deployment Failure", variant: "destructive" });
     } finally { setIsGenerating(false); }
   };
 
@@ -433,25 +464,63 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                 <ScrollArea className="flex-1">
                   <div className="p-10">
                     <TabsContent value="bracket" className="mt-0 space-y-10">
-                      {Object.entries(groupedGames).map(([groupTitle, games]) => (
-                        <div key={groupTitle} className="space-y-6">
-                          <Badge className="bg-primary text-white font-black uppercase text-[10px] px-4 h-7">{groupTitle}</Badge>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {games.map((game) => (
-                              <button key={game.id} onClick={() => isOrganizer && setEditingGame(game)} className="w-full p-5 bg-white rounded-3xl border shadow-sm transition-all text-left relative overflow-hidden group ring-1 ring-black/5 active:scale-95">
-                                <div className="flex justify-between items-center mb-4"><Badge variant="outline" className="text-[8px] font-black uppercase">{game.time}</Badge>{game.isCompleted && <Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white border-none">Final</Badge>}</div>
-                                <div className="grid grid-cols-7 items-center gap-4 text-center">
-                                  <div className="col-span-3"><p className="font-black text-xs uppercase truncate">{game.team1}</p><p className="text-3xl font-black">{game.score1}</p></div>
-                                  <div className="col-span-1 opacity-20 font-black text-[10px]">VS</div>
-                                  <div className="col-span-3"><p className="font-black text-xs uppercase truncate">{game.team2}</p><p className="text-3xl font-black">{game.score2}</p></div>
+                      {itineraryDays.length > 0 ? (
+                        <div className="space-y-8">
+                          <div className="flex bg-muted/50 p-1.5 rounded-2xl border w-fit mx-auto">
+                            {itineraryDays.map(day => (
+                              <Button 
+                                key={day} 
+                                variant={activeItineraryDay === day ? 'default' : 'ghost'} 
+                                onClick={() => setActiveItineraryDay(day)}
+                                className="h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest"
+                              >
+                                {format(new Date(day), 'MMM d')}
+                              </Button>
+                            ))}
+                          </div>
+
+                          <div className="space-y-12">
+                            {Object.entries(dayGamesByField).map(([fieldName, games]) => (
+                              <div key={fieldName} className="space-y-6">
+                                <Badge className="bg-primary text-white font-black uppercase text-[10px] px-4 h-7">{fieldName}</Badge>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                  {games.map((game) => (
+                                    <button 
+                                      key={game.id} 
+                                      onClick={() => isOrganizer && setEditingGame(game)} 
+                                      className="w-full p-8 bg-white rounded-[2.5rem] border-2 shadow-sm transition-all text-left relative group ring-1 ring-black/5 active:scale-95 hover:border-primary/20"
+                                    >
+                                      <div className="absolute top-6 left-8">
+                                        <Badge variant="outline" className="text-[10px] font-black uppercase h-7 px-3 border-2">{game.time}</Badge>
+                                      </div>
+                                      {game.isCompleted && (
+                                        <div className="absolute top-6 right-8">
+                                          <Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white border-none">FINAL</Badge>
+                                        </div>
+                                      )}
+                                      <div className="grid grid-cols-7 items-center gap-4 text-center mt-10">
+                                        <div className="col-span-3 space-y-2">
+                                          <p className="font-black text-sm uppercase truncate leading-tight">{game.team1}</p>
+                                          <p className="text-5xl font-black tracking-tighter">{game.score1}</p>
+                                        </div>
+                                        <div className="col-span-1 opacity-20 font-black text-xs">VS</div>
+                                        <div className="col-span-3 space-y-2">
+                                          <p className="font-black text-sm uppercase truncate leading-tight">{game.team2}</p>
+                                          <p className="text-5xl font-black tracking-tighter">{game.score2}</p>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))}
                                 </div>
-                              </button>
+                              </div>
                             ))}
                           </div>
                         </div>
-                      ))}
-                      {Object.keys(groupedGames).length === 0 && (
-                        <div className="text-center py-20 opacity-20"><Zap className="h-12 w-12 mx-auto mb-4" /><p className="font-black uppercase">Schedule not yet deployed.</p></div>
+                      ) : (
+                        <div className="text-center py-24 opacity-20">
+                          <Zap className="h-12 w-12 mx-auto mb-4" />
+                          <p className="font-black uppercase tracking-widest text-sm">Itinerary not yet deployed.</p>
+                        </div>
                       )}
                     </TabsContent>
                     
@@ -580,10 +649,11 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                         <div className="flex items-center gap-4"><div className="bg-white p-3 rounded-2xl shadow-sm text-primary"><Zap className="h-6 w-6" /></div><h3 className="text-xl font-black uppercase tracking-tight">Auto-Scheduler</h3></div>
                         
                         <div className="space-y-6">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Match (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
                             <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Break (Min)</Label><Input type="number" value={genBreakLength} onChange={e => setGenBreakLength(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
-                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Max Games Per Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
+                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Max/Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
+                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Max/Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
                           </div>
 
                           <div className="space-y-4">

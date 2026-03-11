@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -390,7 +389,7 @@ export default function FeedPage() {
             <CardContent className="p-6 relative z-10 space-y-3">
               <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
                 <Link href="/coaches-corner" className="w-full">
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center w-full justify-between">
                     <div className="flex items-center gap-3">
                       <PenTool className="h-4 w-4 text-primary" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Coaches Corner</span>
@@ -401,7 +400,7 @@ export default function FeedPage() {
               </Button>
               <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
                 <Link href="/leagues" className="w-full">
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center w-full justify-between">
                     <div className="flex items-center gap-3">
                       <Shield className="h-4 w-4 text-primary" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Leagues Hub</span>
@@ -412,7 +411,7 @@ export default function FeedPage() {
               </Button>
               <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
                 <Link href="/facilities" className="w-full">
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center w-full justify-between">
                     <div className="flex items-center gap-3">
                       <MapPin className="h-4 w-4 text-primary" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Facilities</span>
@@ -423,7 +422,7 @@ export default function FeedPage() {
               </Button>
               <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
                 <Link href="/equipment" className="w-full">
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center w-full justify-between">
                     <div className="flex items-center gap-3">
                       <Package className="h-4 w-4 text-primary" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Equipment</span>
