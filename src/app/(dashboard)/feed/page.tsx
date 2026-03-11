@@ -99,9 +99,9 @@ export default function FeedPage() {
   const db = useFirestore();
   const router = useRouter();
   
-  const postsQ = useMemoFirebase(() => activeTeam ? query(collection(db, 'teams', activeTeam.id, 'feedPosts'), orderBy('createdAt', 'desc'), limit(20)) : null, [db, activeTeam?.id]);
-  const eventsQ = useMemoFirebase(() => activeTeam ? query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc'), limit(3)) : null, [db, activeTeam?.id]);
-  const gamesQ = useMemoFirebase(() => activeTeam ? query(collection(db, 'teams', activeTeam.id, 'games'), orderBy('date', 'desc'), limit(10)) : null, [db, activeTeam?.id]);
+  const postsQ = useMemoFirebase(() => activeTeam?.id ? query(collection(db, 'teams', activeTeam.id, 'feedPosts'), orderBy('createdAt', 'desc'), limit(20)) : null, [db, activeTeam?.id]);
+  const eventsQ = useMemoFirebase(() => activeTeam?.id ? query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc'), limit(3)) : null, [db, activeTeam?.id]);
+  const gamesQ = useMemoFirebase(() => activeTeam?.id ? query(collection(db, 'teams', activeTeam.id, 'games'), orderBy('date', 'desc'), limit(10)) : null, [db, activeTeam?.id]);
 
   const { data: posts } = useCollection(postsQ);
   const { data: events } = useCollection(eventsQ);
@@ -287,21 +287,6 @@ export default function FeedPage() {
           </Card>
         )}
 
-        {!canPost && isStaff && (
-          <Card className="rounded-3xl lg:rounded-[3rem] border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-primary/5 border-2 border-dashed border-primary/20">
-            <CardContent className="p-8 lg:p-10 flex flex-col items-center text-center space-y-4">
-              <div className="bg-white w-14 h-14 lg:w-16 lg:h-16 rounded-2xl lg:rounded-[1.5rem] flex items-center justify-center shadow-lg relative">
-                <LayoutDashboard className="h-6 w-6 lg:h-8 lg:w-8 text-primary" />
-                <div className="absolute -top-2 -right-2 bg-black text-white p-1 rounded-full border-2 border-background shadow-md"><Lock className="h-3 w-3" /></div>
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg lg:text-xl font-black tracking-tight">Staff Broadcasts Only</h3>
-                <p className="text-muted-foreground font-bold text-[10px] lg:text-sm uppercase tracking-widest max-w-[280px]">Only coaching staff and squad leadership can post high-priority broadcasts to the live feed.</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="space-y-6 lg:space-y-8">
           {posts?.map((post) => (
             <Card key={post.id} className={cn("rounded-3xl lg:rounded-[2.5rem] border-none shadow-md overflow-hidden ring-1 ring-black/5 group", post.type === 'system' ? 'bg-muted/30 ring-primary/10' : '')}>
@@ -411,7 +396,7 @@ export default function FeedPage() {
                   <span className="text-[10px] font-black uppercase tracking-widest">Leagues Hub</span>
                 </div>
                 <ChevronRight className="h-3 w-3 opacity-40" />
-              </Button>
+              </Link>
               <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 hover:text-white px-4 border border-white/5">
                 <Link href="/facilities" className="flex items-center w-full">
                   <div className="flex items-center gap-3">

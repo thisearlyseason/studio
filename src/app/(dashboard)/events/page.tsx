@@ -300,11 +300,11 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
               <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1">
                 <div className="px-6 py-6 border-b bg-muted/30 sticky top-0 z-20 backdrop-blur-md">
                   <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit overflow-x-auto scrollbar-none">
-                    {event.isTournament && <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Schedule</TabsTrigger>}
-                    <TabsTrigger value="roster" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Roster</TabsTrigger>
-                    {event.isTournament && <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Compliance</TabsTrigger>}
-                    {event.isTournament && isAdmin && <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-primary data-[state=active]:text-white">Public Portals</TabsTrigger>}
-                    {isAdmin && <TabsTrigger value="manage" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-primary data-[state=active]:text-white">Manage Hub</TabsTrigger>}
+                    {event.isTournament && <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black text-white">Schedule</TabsTrigger>}
+                    <TabsTrigger value="roster" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black text-white">Roster</TabsTrigger>
+                    {event.isTournament && <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black text-white">Compliance</TabsTrigger>}
+                    {event.isTournament && isAdmin && <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-primary text-white">Public Portals</TabsTrigger>}
+                    {isAdmin && <TabsTrigger value="manage" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-primary text-white">Manage Hub</TabsTrigger>}
                   </TabsList>
                 </div>
                 <div className="p-10">
@@ -520,9 +520,11 @@ export default function EventsPage() {
     const normalizeTime = (t: string) => {
       if (!t || t === 'TBD' || t.trim() === '') return '12:00';
       // If time includes AM/PM, convert to 24h for standard ISO constructor
-      if (t.includes('M')) {
-        const timePart = t.split(' ')[0];
-        const period = t.split(' ')[1]?.toUpperCase();
+      const upperT = t.toUpperCase();
+      if (upperT.includes('M')) {
+        const parts = t.trim().split(/\s+/);
+        const timePart = parts[0];
+        const period = parts[1]?.toUpperCase() || (upperT.includes('PM') ? 'PM' : 'AM');
         let [h, m] = timePart.split(':').map(Number);
         if (period === 'PM' && h !== 12) h += 12;
         if (period === 'AM' && h === 12) h = 0;
@@ -537,7 +539,6 @@ export default function EventsPage() {
     };
 
     const startTimeISO = normalizeTime(newTime);
-    const endTimeISO = newEndTime ? normalizeTime(newEndTime) : null;
 
     try {
       const payload: any = { 
