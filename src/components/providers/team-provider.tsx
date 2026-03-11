@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useRef } from 'react';
-import { useUser, useFirebase, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirebase, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { 
   collection, 
   query, 
@@ -18,14 +17,12 @@ import {
   updateDoc,
   orderBy,
   increment,
-  collectionGroup,
   arrayUnion,
   getDoc,
   deleteField
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { seedGuestDemoTeam } from '@/lib/db-seeder';
 
 export type UserRole = "parent" | "adult_player" | "coach" | "admin";

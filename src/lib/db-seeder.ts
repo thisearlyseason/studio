@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -7,13 +6,7 @@ import {
   collection, 
   getDocs, 
   writeBatch,
-  query,
-  where,
-  deleteDoc,
-  setDoc,
-  updateDoc,
-  addDoc,
-  getDoc
+  setDoc
 } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -79,6 +72,7 @@ export async function seedSubscriptionData(db: Firestore) {
     if (plansSnapshot.empty) {
       const batch = writeBatch(db);
 
+      // Unified Pro Features for all non-free plans
       const proFeaturesMap = {
         schedule_basic: true, schedule_elite: true, tournament_basic: true, tournament_elite: true,
         basic_roster: true, full_roster_details: true, attendance_tracking: true, 

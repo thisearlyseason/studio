@@ -22,10 +22,10 @@ import {
   Filter, 
   LayoutGrid, 
   List, 
-  Trophy, 
-  Zap, 
   MapPin, 
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Trophy,
+  Zap
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
