@@ -71,7 +71,7 @@ export function useCollection<T = any>(
 
     // 3. Strict Guard: Prevent uninitialized or root-level listing requests
     const trimmedPath = (path || '').trim();
-    if (!isCollectionGroup && (!trimmedPath || trimmedPath === '/' || trimmedPath === '')) {
+    if (!isCollectionGroup && (!trimmedPath || trimmedPath === '/' || trimmedPath === '' || trimmedPath === '//')) {
       setData(null);
       setIsLoading(false);
       setError(null);
@@ -94,7 +94,7 @@ export function useCollection<T = any>(
       },
       (err: FirestoreError) => {
         // 4. Final Guard: Suppress permission errors for root paths that should never have fired
-        if (!trimmedPath || trimmedPath === '/' || trimmedPath === '') {
+        if (!trimmedPath || trimmedPath === '/' || trimmedPath === '' || trimmedPath === '//') {
           setIsLoading(false);
           return;
         }
