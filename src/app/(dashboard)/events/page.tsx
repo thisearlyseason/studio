@@ -285,7 +285,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   <TabsContent value="bracket" className="mt-0 space-y-10">
                     {Object.entries(groupedGames).map(([groupTitle, games]) => (
                       <div key={groupTitle} className="space-y-6">
-                        <Badge className="bg-black text-white font-black uppercase text-[10px] px-4 h-7">{groupTitle}</Badge>
+                        <Badge className="bg-primary text-white font-black uppercase text-[10px] px-4 h-7">{groupTitle}</Badge>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {games.map((game) => (
                             <button key={game.id} onClick={() => isAdmin && setEditingGame(game)} className="w-full p-5 bg-white rounded-3xl border shadow-sm transition-all text-left relative overflow-hidden group ring-1 ring-black/5 active:scale-95">
@@ -475,8 +475,8 @@ export default function EventsPage() {
   };
 
   const handleCreateEvent = async () => { 
-    if (!newTitle || !newDate || !newTime || !newEndTime) {
-      toast({ title: "Incomplete Data", description: "All fields including End Time are required.", variant: "destructive" });
+    if (!newTitle || !newDate || !newTime) {
+      toast({ title: "Incomplete Data", description: "Required fields: Title, Date, and Start Time.", variant: "destructive" });
       return; 
     }
     
@@ -493,7 +493,7 @@ export default function EventsPage() {
         eventType: isTournamentMode ? 'tournament' : eventType,
         date: eventDate.toISOString(), 
         startTime: newTime, 
-        endTime: newEndTime, 
+        endTime: newEndTime || 'TBD', 
         location: newLocation, 
         facilityId: newFacilityId === 'manual' ? null : newFacilityId,
         fieldId: newFieldId === 'manual' ? null : newFieldId,
@@ -555,7 +555,7 @@ export default function EventsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Date *</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Time Block *</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Time Block</Label>
                       <div className="flex gap-2">
                         <Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" />
                         <Input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" />
@@ -588,7 +588,7 @@ export default function EventsPage() {
               </div>
             </div>
           </div>
-          <div className="p-8 bg-background border-t shrink-0 flex justify-center"><Button className="w-full max-w-4xl h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleCreateEvent}>Commit Broadcast</Button></div>
+          <div className="p-8 bg-background border-t shrink-0 flex justify-center"><Button className="w-full max-w-4xl h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleCreateEvent}>Commit Event</Button></div>
         </DialogContent>
       </Dialog>
 
