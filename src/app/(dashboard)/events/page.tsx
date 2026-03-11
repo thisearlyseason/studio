@@ -274,7 +274,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
           for (let i = 0; i < poolTeams.length; i++) {
             for (let j = i + 1; j < poolTeams.length; j++) {
               const displayTime = format(parse(poolTime, 'HH:mm', new Date()), 'h:mm a');
-              games.push({ id: `gen_p${poolChar}_${Date.now()}_${i}_${j}`, team1: poolTeams[i], team2: poolTeams[j], score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: displayTime, isCompleted: false, pool: poolChar });
+              games.push({ id: `gen_p${poolChar}_${Date.now()}_${i}_${j}`, team1: poolTeams[i], team2: poolTeams[j], score1: 0, score2: 0, date: currentDay.toISOString().split('T')[0], time: poolTime, isCompleted: false, pool: poolChar });
               const [h, m] = poolTime.split(':').map(Number);
               const next = addMinutes(new Date(2000, 0, 1, h, m), parseInt(genMatchLength) + 10);
               poolTime = format(next, 'HH:mm');
