@@ -31,8 +31,12 @@ service cloud.firestore {
      * @description High-priority ownership rule for user profiles.
      * Essential for demo users who have a UID but no email verification.
      */
-    match /users/{userId}/{document=**} {
+    match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
+      
+      match /{document=**} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
     }
 
     match /plans/{planId} {

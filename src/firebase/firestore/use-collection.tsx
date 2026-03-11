@@ -66,10 +66,10 @@ export function useCollection<T = any>(
     let isCollectionGroup = false;
     try {
       // @ts-ignore - internal property access for defensive path checking
-      isCollectionGroup = memoizedTargetRefOrQuery._query?.path?.isEmpty?.() || false;
+      isCollectionGroup = (memoizedTargetRefOrQuery as any)._query?.path?.isEmpty?.() || false;
       
       // @ts-ignore - type exists on internal query
-      if (memoizedTargetRefOrQuery.type === 'collection') {
+      if ((memoizedTargetRefOrQuery as any).type === 'collection') {
         path = (memoizedTargetRefOrQuery as CollectionReference).path;
       } else {
         const internalQuery = memoizedTargetRefOrQuery as unknown as InternalQuery;
