@@ -35,7 +35,8 @@ import {
   CreditCard,
   Circle,
   Lock,
-  Sparkles
+  Sparkles,
+  ClipboardList
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -98,6 +99,25 @@ export default function LeagueRegistrationAdminPage() {
   const handleRemoveField = (fieldId: string) => {
     const updatedSchema = formSchema.filter(f => f.id !== fieldId);
     handleSaveConfig({ form_schema: updatedSchema, form_version: (config?.form_version || 0) + 1 });
+  };
+
+  const handleCopyPortalUrl = async () => {
+    try {
+      const url = `${window.location.origin}/register/league/${leagueId}`;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link Synchronized", description: "Portal URL copied to clipboard." });
+      } else {
+        throw new Error("Clipboard API unavailable");
+      }
+    } catch (err) {
+      console.warn("Clipboard access denied", err);
+      toast({ 
+        title: "Copy Failed", 
+        description: "Browser restricted clipboard access. Please manually copy the registration URL.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleExportCSV = () => {
@@ -347,11 +367,7 @@ export default function LeagueRegistrationAdminPage() {
                   <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60">Portal Active</p>
                   <p className="text-xs font-bold truncate">/register/league/{leagueId}</p>
                 </div>
-                <Button className="w-full h-12 rounded-xl bg-white text-primary font-black uppercase text-[10px] tracking-widest shadow-xl" onClick={() => {
-                  const url = `${window.location.origin}/register/league/${leagueId}`;
-                  navigator.clipboard.writeText(url);
-                  toast({ title: "Link Synchronized", description: "Url copied to clipboard." });
-                }}>Copy Portal URL</Button>
+                <Button className="w-full h-12 rounded-xl bg-white text-primary font-black uppercase text-[10px] tracking-widest shadow-xl" onClick={handleCopyPortalUrl}>Copy Portal URL</Button>
               </CardContent>
             </Card>
 

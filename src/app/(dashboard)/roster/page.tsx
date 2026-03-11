@@ -223,9 +223,22 @@ export default function RosterPage() {
     }
   };
 
-  const copyTeamCode = () => {
-    navigator.clipboard.writeText(activeTeam.code);
-    toast({ title: "Code Copied", description: "Team code copied to clipboard." });
+  const copyTeamCode = async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(activeTeam.code);
+        toast({ title: "Code Copied", description: "Team code copied to clipboard." });
+      } else {
+        throw new Error("Clipboard API unavailable");
+      }
+    } catch (err) {
+      console.warn("Clipboard access denied", err);
+      toast({ 
+        title: "Copy Failed", 
+        description: `Browser restricted clipboard access. Your squad code is ${activeTeam.code}.`, 
+        variant: "destructive" 
+      });
+    }
   };
 
   const calculateAge = (dob?: string) => {

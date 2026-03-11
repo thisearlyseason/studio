@@ -310,15 +310,15 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, hasAt
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
-        toast({ title: "Link Copied" });
+        toast({ title: "Link Synchronized", description: "URL copied to clipboard." });
       } else {
-        throw new Error("Clipboard API unavailable");
+        throw new Error("Clipboard context invalid");
       }
     } catch (err) {
       console.warn("Clipboard access denied", err);
       toast({ 
         title: "Copy Failed", 
-        description: "Your browser restricted clipboard access. Please manually copy the URL.", 
+        description: "Browser restricted clipboard access. Please manually copy the URL.", 
         variant: "destructive" 
       });
     }

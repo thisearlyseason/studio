@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trophy, CheckCircle2, ShieldCheck, Loader2, Info, ArrowRight, ShieldAlert, Zap, Lock, AlertCircle, Clock, MapPin, X } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 export default function PublicScorekeeperPage() {
   const { teamId, eventId, gameId } = useParams();
@@ -62,9 +63,14 @@ export default function PublicScorekeeperPage() {
     if (!selectedTeam || !score1 || !score2 || isSubmitting) return;
     setIsSubmitting(true);
     const isTeam1 = selectedTeam === game.team1;
-    await submitMatchScore(teamId as string, eventId as string, gameId as string, isTeam1, parseInt(score1), parseInt(score2));
-    setIsSubmitting(false);
-    setIsSubmitted(true);
+    try {
+      await submitMatchScore(teamId as string, eventId as string, gameId as string, isTeam1, parseInt(score1), parseInt(score2));
+      setIsSubmitted(true);
+    } catch (err) {
+      toast({ title: "Submission Error", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSubmitted) {
