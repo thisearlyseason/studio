@@ -928,25 +928,6 @@ export default function EventsPage() {
     }
   };
 
-  const handleCopyLink = async (text: string) => {
-    if (!text) return;
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        toast({ title: "Link Copied" });
-      } else {
-        throw new Error("Clipboard API unavailable");
-      }
-    } catch (err) {
-      console.warn("Clipboard access denied", err);
-      toast({ 
-        title: "Copy Failed", 
-        description: "Your browser restricted clipboard access.", 
-        variant: "destructive" 
-      });
-    }
-  };
-
   return (
     <div className="space-y-10 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

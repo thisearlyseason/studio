@@ -78,15 +78,18 @@ export default function MasterCalendarPage() {
 
   // Aggregate fetch for all squad events using collectionGroup
   const eventsQuery = useMemoFirebase(() => {
-    if (!db || teams.length === 0) return null;
+    // SECURITY GUARD: Ensure we don't query before team data is synchronized
+    if (!db || teams.length === 0 || !user?.id) return null;
+    
     const teamIds = teams.map(t => t.id);
     
+    // collectionGroup queries require specific wildcard match in firestore.rules
     return query(
       collectionGroup(db, 'events'),
       where('teamId', 'in', teamIds.slice(0, 30)),
       orderBy('date', 'asc')
     );
-  }, [db, teams]);
+  }, [db, teams, user?.id]);
 
   const { data: rawEvents, isLoading } = useCollection<TeamEvent>(eventsQuery);
   const allEvents = useMemo(() => rawEvents || [], [rawEvents]);
