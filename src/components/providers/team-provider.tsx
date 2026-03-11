@@ -279,6 +279,8 @@ export type TeamEvent = {
   teamAgreements?: Record<string, { agreed: boolean; captainName: string; timestamp: string }>;
   coOrganizers?: Array<{ id: string; name: string; avatar: string }>;
   lastUpdated?: string;
+  facilityIds?: string[];
+  fieldIds?: string[];
   facilityId?: string;
   fieldId?: string;
 };
@@ -755,11 +757,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
     addEvent: async (p: any) => { 
       if (!activeTeam) return false; 
-      if (p.facilityId && p.fieldId) {
-        const available = await value.checkFieldAvailability(p.facilityId, p.fieldId, p.date, p.startTime, p.endTime || 'TBD');
-        if (!available) {
-          toast({ title: "Conflict Detected", description: "This field is already booked for the selected time.", variant: "destructive" });
-          return false;
+      if (p.facilityIds && p.fieldIds) {
+        // Multi-field check
+        for (const fullId of p.fieldIds) {
+          const [facId, fieldName] = fullId.split(':');
+          const available = await value.checkFieldAvailability(facId, fieldName, p.date, p.startTime, p.endTime || 'TBD');
+          if (!available) {
+            toast({ title: "Conflict Detected", description: `Field ${fieldName} is already booked.`, variant: "destructive" });
+            return false;
+          }
         }
       }
       await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean(p));
@@ -767,11 +773,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
     updateEvent: async (id: string, u: any) => { 
       if (!activeTeam) return false; 
-      if (u.facilityId && u.fieldId) {
-        const available = await value.checkFieldAvailability(u.facilityId, u.fieldId, u.date, u.startTime, u.endTime || 'TBD', id);
-        if (!available) {
-          toast({ title: "Conflict Detected", description: "This field is already booked for the selected time.", variant: "destructive" });
-          return false;
+      if (u.facilityIds && u.fieldIds) {
+        for (const fullId of u.fieldIds) {
+          const [facId, fieldName] = fullId.split(':');
+          const available = await value.checkFieldAvailability(facId, fieldName, u.date, u.startTime, u.endTime || 'TBD', id);
+          if (!available) {
+            toast({ title: "Conflict Detected", description: `Field ${fieldName} is already booked.`, variant: "destructive" });
+            return false;
+          }
         }
       }
       await updateDoc(doc(db, 'teams', activeTeam.id, 'events', id), clean(u)); 
@@ -940,7 +949,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     addField: async (facilityId: string, name: string) => { await addDoc(collection(db, 'facilities', facilityId, 'fields'), clean({ facilityId, name })); },
     deleteField: async (facilityId: string, fieldId: string) => { await deleteDoc(doc(db, 'facilities', facilityId, 'fields', fieldId)); },
     checkFieldAvailability: async (facilityId: string, fieldId: string, date: string, startTime: string, endTime: string, currentEventId?: string) => {
-      const q = query(collectionGroup(db, 'events'), where('facilityId', '==', facilityId), where('fieldId', '==', fieldId));
+      const q = query(collectionGroup(db, 'events'), where('fieldIds', 'array-contains', `${facilityId}:${fieldId}`));
       const snap = await getDocs(q);
       const newStart = parseTimeToMinutes(startTime);
       const newEnd = endTime && endTime !== 'TBD' ? parseTimeToMinutes(endTime) : newStart + 90;

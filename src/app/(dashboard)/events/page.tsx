@@ -490,18 +490,25 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                               <div className="bg-muted p-2 rounded-xl"><Users className="h-5 w-5" /></div>
                               <span className="font-black text-sm uppercase">{team}</span>
                             </div>
-                            {event.teamAgreements?.[team] ? (
-                              <Badge className="bg-green-100 text-green-700 border-none font-black text-[8px] px-3 h-6 flex items-center gap-2"><CheckCircle2 className="h-3 w-3" /> VERIFIED SIGNATURE</Badge>
-                            ) : (
-                              <Badge variant="outline" className="border-amber-500/20 text-amber-600 font-black text-[8px] px-3 h-6">PENDING EXECUTION</Badge>
-                            )}
+                            <div className="flex items-center gap-3">
+                              {event.teamAgreements?.[team] ? (
+                                <Badge className="bg-green-100 text-green-700 border-none font-black text-[8px] px-3 h-6 flex items-center gap-2"><CheckCircle2 className="h-3 w-3" /> VERIFIED SIGNATURE</Badge>
+                              ) : (
+                                <>
+                                  <Badge variant="outline" className="border-amber-500/20 text-amber-600 font-black text-[8px] px-3 h-6">PENDING EXECUTION</Badge>
+                                  {isAdmin && (
+                                    <Button variant="ghost" size="sm" className="h-6 px-2 text-[8px] font-black uppercase border" onClick={() => signTeamTournamentWaiver(event.teamId, event.id, team)}>Manual Mark</Button>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
                     </Card>
                   </TabsContent>
                   <TabsContent value="portals" className="mt-0 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <Card className="rounded-[2rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden group">
                         <CardHeader className="bg-primary/5 p-6 border-b"><div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle></div></CardHeader>
                         <CardContent className="p-6 space-y-4">
@@ -514,6 +521,13 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                         <CardContent className="p-6 space-y-4">
                           <p className="text-xs font-medium text-muted-foreground italic">Share with field marshals to log results.</p>
                           <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => copyToClipboard(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`)}><Copy className="h-4 w-4" /></Button></div>
+                        </CardContent>
+                      </Card>
+                      <Card className="rounded-[2rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden group">
+                        <CardHeader className="bg-amber-500 text-white p-6 border-b"><div className="flex items-center gap-3"><Signature className="h-5 w-5 text-white" /><CardTitle className="text-sm font-black uppercase">Signature Portal</CardTitle></div></CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                          <p className="text-xs font-medium text-muted-foreground italic">Share with coaches to sign the waiver.</p>
+                          <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-10 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => copyToClipboard(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`)}><Copy className="h-4 w-4" /></Button></div>
                         </CardContent>
                       </Card>
                     </div>
@@ -609,6 +623,7 @@ export default function EventsPage() {
   const [newEndTime, setNewEndTime] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [newTournamentTeams, setNewTournamentTeams] = useState('');
+  const [newWaiverText, setNewWaiverText] = useState('');
   const [selectedFacilityIds, setSelectedFacilityIds] = useState<string[]>([]);
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
   const [newDescription, setNewDescription] = useState('');
@@ -647,6 +662,7 @@ export default function EventsPage() {
     setNewEndTime(event.endTime || ''); 
     setNewLocation(event.location); 
     setNewTournamentTeams(event.tournamentTeams?.join(', ') || '');
+    setNewWaiverText(event.teamWaiverText || '');
     setSelectedFacilityIds(event.facilityIds || (event.facilityId ? [event.facilityId] : [])); 
     setSelectedFieldIds(event.fieldIds || (event.fieldId ? [event.fieldId] : [])); 
     setNewDescription(event.description); 
@@ -674,6 +690,7 @@ export default function EventsPage() {
         description: newDescription, 
         isTournament: isTournamentMode, 
         tournamentTeams: newTournamentTeams.split(',').map(t => t.trim()).filter(t => !!t),
+        teamWaiverText: newWaiverText,
         lastUpdated: new Date().toISOString() 
       }; 
 
@@ -686,7 +703,7 @@ export default function EventsPage() {
     setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewEndTime('');
     setNewLocation(''); setSelectedFacilityIds([]); setSelectedFieldIds([]);
     setNewDescription(''); setEventType('game'); setEditingEvent(null);
-    setNewTournamentTeams('');
+    setNewTournamentTeams(''); setNewWaiverText('');
   };
 
   const toggleFacility = (fid: string) => {
@@ -818,14 +835,25 @@ export default function EventsPage() {
                 </div>
 
                 {isTournamentMode && (
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Participating Squads (Comma Separated)</Label>
-                    <Textarea 
-                      placeholder="e.g. Westside Warriors, Eastside Elite, Northside Knights..." 
-                      value={newTournamentTeams} 
-                      onChange={e => setNewTournamentTeams(e.target.value)}
-                      className="rounded-xl min-h-[80px] border-2 font-bold"
-                    />
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Participating Squads (Comma Separated)</Label>
+                      <Textarea 
+                        placeholder="e.g. Westside Warriors, Eastside Elite, Northside Knights..." 
+                        value={newTournamentTeams} 
+                        onChange={e => setNewTournamentTeams(e.target.value)}
+                        className="rounded-xl min-h-[80px] border-2 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Tournament Waiver Text</Label>
+                      <Textarea 
+                        placeholder="Define the participation terms, liability, and safety protocols..." 
+                        value={newWaiverText} 
+                        onChange={e => setNewWaiverText(e.target.value)}
+                        className="rounded-xl min-h-[120px] border-2 font-medium bg-muted/10"
+                      />
+                    </div>
                   </div>
                 )}
 
