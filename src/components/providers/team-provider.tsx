@@ -434,7 +434,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   const hasStartedSeeding = useRef<string | null>(null);
 
-  const plansQuery = useMemoFirebase(() => db ? collection(db, 'plans') : null, [db]);
+  // DEFENSIVE: All subscriptions wait for auth resolution to prevent root-level listing errors
+  const plansQuery = useMemoFirebase(() => (db && firebaseUser) ? collection(db, 'plans') : null, [db, firebaseUser]);
   const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
   const plans = plansData || [];
 
@@ -497,13 +498,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [searchParams, firebaseUser?.uid, db, isSeedingDemo]);
 
   const teamsQuery = useMemoFirebase(() => {
-    if (!firebaseUser || !db) return null;
+    if (!firebaseUser?.uid || !db) return null;
     return query(collection(db, 'users', firebaseUser.uid, 'teamMemberships'));
   }, [firebaseUser?.uid, db]);
 
   const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
   
-  // STABILITY GUARD: Ensure the teams array is strictly memoized to prevent query recalculation assertion failures
   const teams = useMemo(() => {
     if (!teamsData) return [];
     return teamsData.map(m => ({
@@ -530,14 +530,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [teams, activeTeamId]);
 
   const membersQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db) return null;
+    if (!activeTeam?.id || activeTeam.id === '' || !db) return null;
     return query(collection(db, 'teams', activeTeam.id, 'members'));
   }, [activeTeam?.id, db]);
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
   const members = useMemo(() => membersData || [], [membersData]);
 
   const alertsQuery = useMemoFirebase(() => {
-    if (!activeTeam?.id || !db) return null;
+    if (!activeTeam?.id || activeTeam.id === '' || !db) return null;
     return query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10));
   }, [activeTeam?.id, db]);
   const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
