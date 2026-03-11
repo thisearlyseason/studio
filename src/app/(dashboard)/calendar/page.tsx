@@ -72,6 +72,7 @@ export default function MasterCalendarPage() {
 
   // Aggregate fetch for all squad events using collectionGroup
   const eventsQuery = useMemoFirebase(() => {
+    // Defensive Guard: Ensure auth and teams are present before querying.
     if (!db || !authUser?.uid || !teamIdsString) return null;
     
     const teamIds = teamIdsString.split(',').filter(id => !!id);

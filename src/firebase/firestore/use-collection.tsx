@@ -75,9 +75,12 @@ export function useCollection<T = any>(
         // Extraction logic for path-specific error reporting
         let path: string = '/';
         try {
-          path = targetRefOrQuery.type === 'collection'
-            ? (targetRefOrQuery as CollectionReference).path
-            : (targetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString() || '/';
+          if (targetRefOrQuery.type === 'collection') {
+            path = (targetRefOrQuery as CollectionReference).path;
+          } else {
+            const internal = targetRefOrQuery as unknown as InternalQuery;
+            path = internal._query?.path?.canonicalString() || internal._query?.path?.toString() || '/';
+          }
         } catch (e) {
           // Fallback if path extraction fails
         }

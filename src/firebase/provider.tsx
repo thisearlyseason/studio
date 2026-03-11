@@ -55,6 +55,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       return;
     }
 
+    // Auth Initialization Guard: Use a one-time listener to resolve state
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => {
@@ -84,8 +85,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     };
   }, [firebaseApp, firestore, auth, user, isUserLoading, userError]);
 
-  // Defensive Guard: Delay rendering until auth is resolved to prevent invalid queries
-  // This ensures user.uid is available for hooks that depend on it.
+  // Defensive Guard: Strictly delay rendering until auth is resolved to prevent invalid queries.
   if (isUserLoading) {
     return null; 
   }
