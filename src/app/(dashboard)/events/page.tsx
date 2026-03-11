@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -75,17 +74,30 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
 const normalizeTime = (t: string) => {
   if (!t || t === 'TBD') return '12:00';
   if (t.toUpperCase().includes('M')) {
-    const parts = t.trim().split(/\s+/);
-    const timePart = parts[0];
-    const period = parts[1]?.toUpperCase() || (t.toUpperCase().includes('PM') ? 'PM' : 'AM');
-    let [hStr, mStr] = timePart.split(':');
-    let h = parseInt(hStr);
-    let m = parseInt(mStr) || 0;
-    if (period === 'PM' && h !== 12) h += 12;
-    if (period === 'AM' && h === 12) h = 0;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    try {
+      const parts = t.trim().split(/\s+/);
+      const timePart = parts[0];
+      const period = parts[1]?.toUpperCase() || (t.toUpperCase().includes('PM') ? 'PM' : 'AM');
+      let [hStr, mStr] = timePart.split(':');
+      let h = parseInt(hStr);
+      let m = parseInt(mStr) || 0;
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    } catch (e) {
+      return '12:00';
+    }
   }
   return t.includes(':') ? t : '12:00';
+};
+
+const formatDateRange = (start: string | Date, end?: string | Date) => {
+  const startDate = new Date(start);
+  if (!end) return format(startDate, 'MMM dd');
+  const endDate = new Date(end);
+  if (isSameDay(startDate, endDate)) return format(startDate, 'MMM dd');
+  if (startDate.getMonth() === endDate.getMonth()) return `${format(startDate, 'MMM d')}-${format(endDate, 'd')}`;
+  return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
 };
 
 function calculateTournamentStandings(teams: string[], games: TournamentGame[]) {
@@ -119,15 +131,6 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
   return Object.values(standings).sort((a, b) => b.points - a.points || b.wins - a.wins);
 }
 
-const formatDateRange = (start: string | Date, end?: string | Date) => {
-  const startDate = new Date(start);
-  if (!end) return format(startDate, 'MMM dd');
-  const endDate = new Date(end);
-  if (isSameDay(startDate, endDate)) return format(startDate, 'MMM dd');
-  if (startDate.getMonth() === endDate.getMonth()) return `${format(startDate, 'MMM d')}-${format(endDate, 'd')}`;
-  return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
-};
-
 interface EventDetailDialogProps {
   event: TeamEvent;
   updateRSVP: (id: string, status: string, gameId?: string) => void;
@@ -151,7 +154,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   const [tempWaiver, setTempWaiver] = useState(event.teamWaiverText || '');
   const [baseUrl, setBaseUrl] = useState('');
 
-  // Manual Match State
   const [manualMatch, setManualMatch] = useState({ team1: '', team2: '', date: format(new Date(event.date), 'yyyy-MM-dd'), time: '12:00', location: '' });
 
   useEffect(() => {
@@ -494,8 +496,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               {editingGame && (
                 <div className="space-y-6 py-2">
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase truncate">{editingGame.team1}</Label><Input type="number" value={editingGame.score1} onChange={e => setEditingGame({...editingGame, score1: parseInt(e.target.value) || 0})} className="h-12 rounded-xl font-black text-xl text-center" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase truncate">{editingGame.team2}</Label><Input type="number" value={editingGame.score2} onChange={e => setEditingGame({...editingGame, score2: parseInt(e.target.value) || 0})} className="h-12 rounded-xl font-black text-xl text-center" /></div>
+                    <div className="space-y-2"><Label className="text-xs font-black uppercase truncate">{editingGame.team1}</Label><Input type="number" value={editingGame.score1} onChange={e => setEditingGame({...editingGame, score1: parseInt(e.target.value) || 0})} className="h-12 rounded-xl font-black text-xl text-center" /></div>
+                    <div className="space-y-2"><Label className="text-xs font-black uppercase truncate">{editingGame.team2}</Label><Input type="number" value={editingGame.score2} onChange={e => setEditingGame({...editingGame, score2: parseInt(e.target.value) || 0})} className="h-12 rounded-xl font-black text-xl text-center" /></div>
                   </div>
                   <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border"><p className="text-[10px] font-black uppercase">Mark Final</p><Checkbox checked={editingGame.isCompleted} onCheckedChange={v => setEditingGame({...editingGame, isCompleted: !!v})} className="h-6 w-6 rounded-lg border-2" /></div>
                 </div>
@@ -525,6 +527,7 @@ export default function EventsPage() {
   
   const [newTitle, setNewTitle] = useState('');
   const [newDate, setNewDate] = useState('');
+  const [newEndDate, setNewEndDate] = useState('');
   const [newTime, setNewTime] = useState('');
   const [newEndTime, setNewEndTime] = useState('');
   const [newLocation, setNewLocation] = useState('');
@@ -561,6 +564,7 @@ export default function EventsPage() {
     setNewTitle(event.title); 
     setEventType(event.eventType || 'game'); 
     setNewDate(format(new Date(event.date), 'yyyy-MM-dd')); 
+    setNewEndDate(event.endDate ? format(new Date(event.endDate), 'yyyy-MM-dd') : '');
     setNewTime(event.startTime); 
     setNewEndTime(event.endTime || ''); 
     setNewLocation(event.location); 
@@ -582,6 +586,7 @@ export default function EventsPage() {
         title: newTitle, 
         eventType: isTournamentMode ? 'tournament' : eventType, 
         date: eventDate.toISOString(), 
+        endDate: isTournamentMode && newEndDate ? new Date(newEndDate).toISOString() : null,
         startTime: newTime, 
         endTime: newEndTime || 'TBD', 
         location: newLocation, 
@@ -592,17 +597,23 @@ export default function EventsPage() {
         lastUpdated: new Date().toISOString() 
       }; 
       const success = editingEvent ? await updateEvent(editingEvent.id, payload) : await addEvent(payload); 
-      if (success) { setIsCreateOpen(false); setEditingEvent(null); }
+      if (success) { setIsCreateOpen(false); setEditingEvent(null); resetForm(); }
     } catch (e) { toast({ title: "Itinerary Error", variant: "destructive" }); }
+  };
+
+  const resetForm = () => {
+    setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewEndTime('');
+    setNewLocation(''); setNewFacilityId('manual'); setNewFieldId('manual');
+    setNewDescription(''); setEventType('game'); setEditingEvent(null);
   };
 
   return (
     <div className="space-y-10 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Squad Itinerary</Badge><h1 className="text-4xl font-black uppercase tracking-tight">Schedule Hub</h1></div>
-        {isStaff && ( <div className="flex gap-2"><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs" onClick={() => { setIsTournamentMode(false); setIsCreateOpen(true); }}>+ New Activity</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs bg-black text-white" onClick={() => { setIsTournamentMode(true); setIsCreateOpen(true); }}>+ Tournament</Button></div> )}
+        {isStaff && ( <div className="flex gap-2"><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs" onClick={() => { setIsTournamentMode(false); resetForm(); setIsCreateOpen(true); }}>+ New Activity</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs bg-black text-white" onClick={() => { setIsTournamentMode(true); resetForm(); setIsCreateOpen(true); }}>+ Elite Tournament</Button></div> )}
       </div>
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <Dialog open={isCreateOpen} onOpenChange={(o) => { if(!o) resetForm(); setIsCreateOpen(o); }}>
         <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col lg:flex-row min-h-full">
@@ -627,6 +638,12 @@ export default function EventsPage() {
                       <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Date *</Label>
                       <Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" />
                     </div>
+                    {isTournamentMode && (
+                      <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">End Date</Label>
+                        <Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" />
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Time Block</Label>
                       <div className="flex flex-col gap-3">
