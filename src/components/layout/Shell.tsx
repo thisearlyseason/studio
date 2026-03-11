@@ -220,7 +220,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     }
     const stored = localStorage.getItem('squad_seen_alerts_ids');
     if (!stored) {
-      setHasUnreadAlerts(alerts.length > 0);
+      setHasUnreadAlerts(alerts?.length > 0);
       return;
     }
     try {

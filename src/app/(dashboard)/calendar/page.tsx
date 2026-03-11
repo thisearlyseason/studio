@@ -77,6 +77,8 @@ export default function MasterCalendarPage() {
     const teamIds = teamIdsString.split(',').filter(id => !!id);
     if (teamIds.length === 0) return null;
     
+    // We remove the server-side orderBy to avoid requiring a composite index immediately.
+    // Sorting is handled on the client side for maximum stability.
     return query(
       collectionGroup(db, 'events'),
       where('teamId', 'in', teamIds.slice(0, 30))
@@ -87,6 +89,7 @@ export default function MasterCalendarPage() {
   const allEvents = rawEvents || [];
 
   const filteredEvents = useMemo(() => {
+    // Perform robust chronological sorting on the client side
     const sorted = [...allEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return sorted.filter(event => {
