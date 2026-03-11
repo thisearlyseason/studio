@@ -39,7 +39,7 @@ import {
   Settings,
   LayoutGrid,
   Circle,
-  Calendar
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { 
   Dialog, 

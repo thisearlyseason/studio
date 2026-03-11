@@ -20,7 +20,8 @@ import {
   increment,
   collectionGroup,
   arrayUnion,
-  getDoc
+  getDoc,
+  deleteField
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -1051,10 +1052,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       
       const qty = assignment.quantity;
       await updateDoc(ref, {
-        [`assignments.${userId}`]: deleteDoc as any, 
         availableQuantity: increment(qty)
       });
-      const { deleteField } = await import('firebase/firestore');
       await updateDoc(ref, { [`assignments.${userId}`]: deleteField() });
     },
     addScoutingReport: async (report: Partial<ScoutingReport>) => {
