@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -72,14 +71,15 @@ export default function MasterCalendarPage() {
   const teamIdsString = useMemo(() => teams.map(t => t.id).sort().join(','), [teams]);
 
   // Aggregate fetch for all squad events using collectionGroup
-  // FIX: Removed server-side orderBy to avoid complex composite index requirements for collection groups.
   const eventsQuery = useMemoFirebase(() => {
     // SECURITY GUARD: Ensure we don't query before user AND team data is synchronized
+    // CRITICAL: Prevent root-level queries (/documents/) by returning null if params are missing.
     if (!db || !authUser?.uid || !teamIdsString) return null;
     
     const teamIds = teamIdsString.split(',').filter(id => !!id);
     if (teamIds.length === 0) return null;
     
+    // COLLECTION_GROUP index for 'events' on field 'teamId' is required.
     return query(
       collectionGroup(db, 'events'),
       where('teamId', 'in', teamIds.slice(0, 30))
@@ -90,7 +90,7 @@ export default function MasterCalendarPage() {
   const allEvents = rawEvents || [];
 
   const filteredEvents = useMemo(() => {
-    // FIX: Client-side sorting by date to maintain performance while bypassing composite index requirements.
+    // FIX: Client-side sorting by date to maintain performance while bypassing complex composite index requirements.
     const sorted = [...allEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return sorted.filter(event => {
@@ -320,7 +320,7 @@ export default function MasterCalendarPage() {
                                 <div className="h-12 w-12 rounded-xl bg-muted/30 flex items-center justify-center shrink-0 border">
                                   <Avatar className="h-8 w-8 rounded-lg">
                                     <AvatarImage src={team?.teamLogoUrl} />
-                                    <AvatarFallback className="font-black text-[10px] bg-white">{team?.name?.[0]}</AvatarFallback>
+                                    <AvatarFallback className="font-black text-10px bg-white">{team?.name?.[0]}</AvatarFallback>
                                   </Avatar>
                                 </div>
                                 <div className="min-w-0 flex-1">

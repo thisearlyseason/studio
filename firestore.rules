@@ -20,6 +20,7 @@ service cloud.firestore {
     }
 
     function isDemoTeam(tid) {
+      // Robust string slice comparison for anonymous guest sessions
       return tid != null && tid.size() >= 5 && tid[0:5] == 'demo_';
     }
 
@@ -43,7 +44,7 @@ service cloud.firestore {
       );
     }
 
-    // --- COLLECTION GROUP RULES (Must be top-level for aggregation queries) ---
+    // --- COLLECTION GROUP RULES (Must be top-level for static authorization of aggregated queries) ---
     match /{path=**}/events/{eventId} {
       allow read: if isSignedIn();
     }
@@ -187,6 +188,7 @@ service cloud.firestore {
       }
 
       match /alerts/{alertId} {
+        // High priority rule for real-time broadcasts
         allow read: if isSignedIn() && (isDemoTeam(teamId) || isSuperAdmin() || exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)));
         allow write: if isTeamAdmin(teamId);
       }

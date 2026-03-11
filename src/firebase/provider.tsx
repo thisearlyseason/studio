@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -86,6 +85,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [firebaseApp, firestore, auth, user, isUserLoading, userError]);
 
   // Defensive Guard: Delay rendering until auth is resolved to prevent invalid queries
+  // This ensures user.uid is available for hooks that depend on it.
   if (isUserLoading) {
     return null; 
   }
