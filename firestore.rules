@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -87,36 +88,36 @@ service cloud.firestore {
         resource.data.createdBy == request.auth.uid
       );
 
-      // Subcollections are generally accessible to signed in users for coordination
+      // Subcollections
       match /events/{eventId} {
-        allow read, write: if isSignedIn();
+        allow read, write, list: if isSignedIn();
       }
 
       match /members/{memberId} {
-        allow read, write: if isSignedIn();
+        allow read, write, list: if isSignedIn();
       }
       
       match /drills/{drillId} {
-        allow read, write: if isSignedIn();
+        allow read, write, list: if isSignedIn();
       }
       
       match /files/{fileId} {
-        allow read, write: if isSignedIn();
+        allow read, write, list: if isSignedIn();
       }
       
       match /games/{gameId} {
-        allow read, write: if isSignedIn();
+        allow read, write, list: if isSignedIn();
       }
       
       match /feedPosts/{postId} {
-        allow read, write: if isSignedIn();
+        allow read, write, list: if isSignedIn();
         match /comments/{commentId} {
-          allow read, write: if isSignedIn();
+          allow read, write, list: if isSignedIn();
         }
       }
 
       match /{document=**} {
-        allow read, write: if isSignedIn();
+        allow read, write, list: if isSignedIn();
       }
     }
 
