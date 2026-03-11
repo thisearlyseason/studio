@@ -50,7 +50,7 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
 
 export default function MasterCalendarPage() {
   const { user: authUser } = useUser();
-  const { teams, user, purchasePro } = useTeam();
+  const { teams, purchasePro } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -73,12 +73,12 @@ export default function MasterCalendarPage() {
   // Aggregate fetch for all squad events using collectionGroup
   const eventsQuery = useMemoFirebase(() => {
     // SECURITY GUARD: Ensure we don't query before user AND team data is synchronized
+    // This prevents unauthorized root-level (/documents/) queries
     if (!db || !authUser?.uid || !teamIdsString) return null;
     
     const teamIds = teamIdsString.split(',').filter(id => !!id);
     if (teamIds.length === 0) return null;
     
-    // collectionGroup queries require specific wildcard match in firestore.rules
     return query(
       collectionGroup(db, 'events'),
       where('teamId', 'in', teamIds.slice(0, 30)),
