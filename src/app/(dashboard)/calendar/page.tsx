@@ -42,11 +42,11 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const EVENT_TYPE_COLORS: Record<EventType, string> = {
-  game: 'bg-primary border-primary',
-  practice: 'bg-emerald-600 border-emerald-600',
-  meeting: 'bg-amber-500 border-amber-500',
-  tournament: 'bg-black border-black',
-  other: 'bg-slate-600 border-slate-600',
+  game: 'bg-primary border-primary text-white',
+  practice: 'bg-emerald-600 border-emerald-600 text-white',
+  meeting: 'bg-amber-500 border-amber-500 text-white',
+  tournament: 'bg-black border-black text-white',
+  other: 'bg-slate-600 border-slate-600 text-white',
 };
 
 export default function MasterCalendarPage() {
@@ -278,7 +278,7 @@ export default function MasterCalendarPage() {
                             className={cn(
                               "w-full text-left p-1.5 rounded-lg border-l-4 text-[9px] font-black uppercase tracking-tight truncate hover:scale-[1.02] transition-transform",
                               typeColor,
-                              "bg-muted/30"
+                              "bg-muted/30 text-foreground"
                             )}
                             onClick={() => router.push(`/events`)}
                           >

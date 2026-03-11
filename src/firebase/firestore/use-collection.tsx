@@ -72,7 +72,7 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (err: FirestoreError) => {
+      async (err: FirestoreError) => {
         // Extraction logic for path-specific error reporting
         let path: string = '/';
         try {
