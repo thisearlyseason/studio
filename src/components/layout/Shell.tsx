@@ -64,7 +64,8 @@ import {
   SidebarMenuButton, 
   SidebarMenuItem, 
   SidebarProvider,
-  SidebarSeparator
+  SidebarSeparator,
+  SidebarTrigger
 } from "@/components/ui/sidebar";
 import BrandLogo from '@/components/BrandLogo';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -279,13 +280,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
           <div className="flex flex-col flex-1 h-screen overflow-hidden">
             <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between">
-              <div className="hidden md:block">
-                <h2 className={cn(
-                  "text-xl lg:text-2xl font-black uppercase tracking-tighter",
-                  "text-foreground"
-                )}>
-                  {pathname === '/dashboard' ? 'Strategic Command' : coordinationTabs.find(t => t.href === pathname)?.name || adminTabs.find(t => t.href === pathname)?.name || 'Dashboard'}
-                </h2>
+              <div className="flex items-center gap-4">
+                <div className="md:hidden"><SidebarTrigger /></div>
+                <div className="hidden md:block">
+                  <h2 className={cn(
+                    "text-xl lg:text-2xl font-black uppercase tracking-tighter",
+                    "text-foreground"
+                  )}>
+                    {pathname === '/dashboard' ? 'Strategic Command' : coordinationTabs.find(t => t.href === pathname)?.name || adminTabs.find(t => t.href === pathname)?.name || 'Dashboard'}
+                  </h2>
+                </div>
               </div>
               <div className="md:hidden"><BrandLogo variant="light-background" className="h-6 w-28" /></div>
               <div className="flex items-center gap-3">
