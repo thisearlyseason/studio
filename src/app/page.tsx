@@ -197,7 +197,7 @@ export default function LandingPage() {
           <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-medium leading-relaxed">
             The all-in-one tactical platform for elite sports organizations. Coordinate rosters, automate brackets, and verify performance.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 max-w-md mx-auto sm:max-w-none">
             {user ? (
               <Link href="/dashboard" className="w-full sm:w-auto">
                 <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full sm:w-auto">
@@ -213,7 +213,7 @@ export default function LandingPage() {
             )}
             <Dialog open={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" variant="outline" className="h-16 px-6 sm:px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-fit sm:w-auto">
+                <Button size="lg" variant="outline" className="h-16 px-6 sm:px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full sm:w-auto">
                   Experience Demo
                 </Button>
               </DialogTrigger>
@@ -508,7 +508,7 @@ export default function LandingPage() {
                   <p className="text-[9px] font-black uppercase text-muted-foreground">Institutional</p>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Recruitment Portal</li>
-                    <li className="flex items-center gap-2 text-[10px) font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Fee Management</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Fee Management</li>
                     <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Staff Notes</li>
                   </ul>
                 </div>
