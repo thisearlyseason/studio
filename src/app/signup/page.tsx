@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, Suspense } from 'react';
@@ -11,7 +12,7 @@ import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { User, Baby, ArrowRight, Check, ShieldCheck, Trophy } from 'lucide-react';
+import { User, Baby, ArrowRight, Check, ShieldCheck, Trophy, ChevronLeft } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 
@@ -81,6 +82,15 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Back Button */}
+      <div className="absolute top-6 left-6 z-30">
+        <Link href="/">
+          <Button variant="ghost" className="text-white hover:bg-white/10 font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-full border border-white/10 backdrop-blur-sm">
+            <ChevronLeft className="mr-2 h-4 w-4" /> Back to Home
+          </Button>
+        </Link>
+      </div>
+
       <BrandLogo variant="dark-background" className="h-12 w-40 mb-8" />
       
       <Card className="w-full max-w-md rounded-[2.5rem] bg-white/95 backdrop-blur-md shadow-2xl border-none overflow-hidden">

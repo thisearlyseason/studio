@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import BrandLogo from '@/components/BrandLogo';
 import Image from 'next/image';
-import { Sparkles, Trophy, Users, Zap, Loader2, Table as TableIcon, User, Baby, ChevronRight, ShieldAlert } from 'lucide-react';
+import { Sparkles, Trophy, Users, Zap, Loader2, Table as TableIcon, User, Baby, ChevronRight, ChevronLeft, ShieldAlert } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -81,6 +81,15 @@ export default function LoginPage() {
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
       
+      {/* Back Button */}
+      <div className="absolute top-6 left-6 z-30">
+        <Link href="/">
+          <Button variant="ghost" className="text-white hover:bg-white/10 font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-full border border-white/10 backdrop-blur-sm">
+            <ChevronLeft className="mr-2 h-4 w-4" /> Back to Home
+          </Button>
+        </Link>
+      </div>
+
       <div className="relative z-20 mb-8 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-1000">
         <BrandLogo variant="dark-background" className="h-16 w-48 drop-shadow-2xl" priority />
       </div>
