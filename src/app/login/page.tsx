@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -69,7 +70,7 @@ export default function LoginPage() {
 
   const DEMO_LIST = [
     { id: 'starter_squad', name: 'Starter Demo', icon: Users, desc: 'Grassroots essentials' },
-    { id: 'squad_organization', name: 'Elite Team Demo', icon: Zap, desc: 'Advanced coordination & analytics' },
+    { id: 'elite_teams', name: 'Elite Team Demo', icon: Zap, desc: 'Advanced coordination & analytics' },
     { id: 'player_demo', name: 'Player Demo', icon: User, desc: 'Individual teammate view' },
     { id: 'parent_demo', name: 'Parent Demo', icon: Baby, desc: 'Guardian safety view' }
   ];

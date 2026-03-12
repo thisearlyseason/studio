@@ -52,7 +52,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 
 export default function PricingPage() {
-  const { purchasePro, user, plans, isPlansLoading, proQuotaStatus } = useTeam();
+  const { purchasePro, user, plans, isPlansLoading } = useTeam();
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
@@ -67,8 +67,7 @@ export default function PricingPage() {
   });
 
   const getPrice = (planId: string) => {
-    const plan = plans.find(p => p.id === planId);
-    if (!plan) return '$--';
+    // Return hardcoded promotional rates to ensure visibility regardless of load state
     if (planId === 'starter_squad') return '$0';
     if (planId === 'squad_pro') return billingCycle === 'annual' ? '$199' : '$19.99';
     if (planId === 'elite_teams') return billingCycle === 'annual' ? '$1,100' : '$110';
@@ -79,21 +78,11 @@ export default function PricingPage() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // In a real app, this would call a server action or API
     await new Promise(r => setTimeout(r, 1500));
     setIsContactOpen(false);
     setIsSubmitting(false);
     toast({ title: "Inquiry Received", description: "Our tactical experts will reach out shortly." });
   };
-
-  if (isPlansLoading && plans.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Syncing Subscription Catalog...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-12 pb-20 max-w-7xl mx-auto px-4 md:px-6">
@@ -126,7 +115,7 @@ export default function PricingPage() {
             <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">GRASSROOTS</Badge>
             <div className="space-y-1">
               <CardTitle className="text-2xl font-black uppercase tracking-tight">Starter</CardTitle>
-              <span className="text-4xl font-black tracking-tighter">$0</span>
+              <span className="text-4xl font-black tracking-tighter">{getPrice('starter_squad')}</span>
             </div>
             <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">Basic coordination for unlimited teams.</CardDescription>
           </CardHeader>
@@ -137,12 +126,12 @@ export default function PricingPage() {
                 <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Basic Scheduling</li>
                 <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Tactical Chats</li>
                 <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Score Tracking</li>
-                <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Basic Playbook</li>
+                <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Playbook Hub</li>
               </ul>
             </div>
           </CardContent>
           <CardFooter className="p-8 pt-0">
-            <Button variant="outline" disabled className="w-full h-12 rounded-xl font-black uppercase opacity-50 text-xs">Free Tier</Button>
+            <Button variant="outline" disabled className="w-full h-12 rounded-xl font-black uppercase opacity-50 text-xs">Free Tier Active</Button>
           </CardFooter>
         </Card>
 
