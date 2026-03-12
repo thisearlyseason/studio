@@ -46,8 +46,9 @@ export default function ClubManagementPage() {
   const [newTeamName, setNewTeamName] = useState('');
   const [initialCoach, setInitialCoach] = useState('');
 
+  // TACTICAL FIX: A Club Manager's roster consists of all Pro teams they own.
   const clubTeams = useMemo(() => {
-    return teams.filter(t => t.createdBy === user?.id && t.planId === 'squad_organization');
+    return teams.filter(t => t.ownerUserId === user?.id && t.isPro);
   }, [teams, user?.id]);
 
   const filteredTeams = useMemo(() => {
@@ -71,8 +72,17 @@ export default function ClubManagementPage() {
     if (!newTeamName.trim()) return;
     setIsCreating(true);
     try {
-      // Align with canonical squad_organization plan ID
-      const tid = await createNewTeam(newTeamName, 'Coach', `Official club squad managed by ${user?.name}`, 'squad_organization');
+      /**
+       * TACTICAL ALIGNMENT: Match TeamProvider.createNewTeam signature:
+       * (name, type, pos, description, planId)
+       */
+      const tid = await createNewTeam(
+        newTeamName, 
+        'adult', 
+        'Coach', 
+        `Official club squad managed by ${user?.name}`, 
+        'squad_pro'
+      );
       
       setIsCreating(false);
       setNewTeamName('');

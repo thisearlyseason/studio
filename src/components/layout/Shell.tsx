@@ -205,15 +205,26 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-72 p-2 rounded-2xl shadow-2xl">
                   <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground p-3">My Squads</DropdownMenuLabel>
-                  <ScrollArea className="h-[200px]">
+                  <ScrollArea className="h-[300px]">
                     {teams.map(team => (
                       <DropdownMenuItem key={team.id} onClick={() => setActiveTeam(team)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer", activeTeam?.id === team.id ? "bg-primary/5 text-primary" : "")}>
                         <Avatar className="h-8 w-8 rounded-lg shrink-0">
                           <AvatarImage src={team.teamLogoUrl} />
                           <AvatarFallback className="font-black text-[10px]">{team.name?.[0] || 'T'}</AvatarFallback>
                         </Avatar>
-                        <span className="font-bold text-sm truncate">{team.name}</span>
-                        {activeTeam?.id === team.id && <CheckCircle2 className="h-4 w-4 ml-auto" />}
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="font-bold text-sm truncate">{team.name}</span>
+                          {team.isPro ? (
+                            <Badge className="w-fit h-4 text-[7px] font-black uppercase bg-primary text-white border-none mt-0.5">
+                              <Zap className="h-2 w-2 mr-1 fill-current" /> ELITE PRO
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="w-fit h-4 text-[7px] font-black uppercase border-muted-foreground/30 text-muted-foreground mt-0.5">
+                              STARTER
+                            </Badge>
+                          )}
+                        </div>
+                        {activeTeam?.id === team.id && <CheckCircle2 className="h-4 w-4 ml-auto text-primary" />}
                       </DropdownMenuItem>
                     ))}
                   </ScrollArea>
