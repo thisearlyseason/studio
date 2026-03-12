@@ -14,10 +14,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isSuperAdmin() {
+    function isHouseholdParent(householdId) {
       return isSignedIn() && (
-        request.auth.token.email == 'thisearlyseason@gmail.com' || 
-        request.auth.token.email == 'test@gmail.com'
+        request.auth.uid == householdId || 
+        request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.parentIds
       );
     }
 
@@ -26,12 +26,33 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if isOwner(userId);
       
-      match /teamMemberships/{membershipId} {
-        allow read, write: if isOwner(userId);
-      }
-      
       match /{document=**} {
         allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /households/{householdId} {
+      allow read, write: if isOwner(householdId) || isHouseholdParent(householdId);
+    }
+
+    match /players/{playerId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        resource == null || 
+        resource.data.parentId == request.auth.uid
+      );
+    }
+
+    match /teams/{teamId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.members[request.auth.uid] == 'admin' || 
+        resource.data.ownerUserId == request.auth.uid
+      );
+
+      match /{allSubcollections=**} {
+        allow read, write: if isSignedIn();
       }
     }
 
@@ -41,84 +62,6 @@ service cloud.firestore {
 
     match /features/{featureId} {
       allow read: if isSignedIn();
-    }
-
-    match /leads/{leadId} {
-      allow create: if true;
-    }
-
-    match /facilities/{facilityId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (
-        resource.data.clubId == request.auth.uid || 
-        isSuperAdmin()
-      );
-      
-      match /fields/{fieldId} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /leagues/{leagueId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (
-        resource.data.creatorId == request.auth.uid || 
-        isSuperAdmin()
-      );
-      
-      match /{document=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /teams/{teamId} {
-      // Allow get/list for members, owners, or demo guest teams
-      allow get, list: if isSignedIn() && (
-        resource == null || 
-        resource.data.members[request.auth.uid] != null || 
-        resource.data.ownerUserId == request.auth.uid ||
-        resource.data.createdBy == request.auth.uid ||
-        teamId.startsWith('demo_guest_')
-      );
-      
-      allow create: if isSignedIn();
-      
-      allow update, delete: if isSignedIn() && (
-        resource.data.members[request.auth.uid] == 'admin' || 
-        resource.data.ownerUserId == request.auth.uid ||
-        resource.data.createdBy == request.auth.uid
-      );
-
-      // Subcollections: Hardened for recursive access across all features
-      match /events/{eventId} { allow read, write: if isSignedIn(); }
-      match /feedPosts/{postId} { allow read, write: if isSignedIn(); }
-      match /groupChats/{chatId} { allow read, write: if isSignedIn(); }
-      match /members/{memberId} { allow read, write: if isSignedIn(); }
-      match /games/{gameId} { allow read, write: if isSignedIn(); }
-      match /drills/{drillId} { allow read, write: if isSignedIn(); }
-      match /files/{fileId} { allow read, write: if isSignedIn(); }
-      match /volunteers/{volId} { allow read, write: if isSignedIn(); }
-      match /fundraising/{fundId} { allow read, write: if isSignedIn(); }
-      match /equipment/{eqId} { allow read, write: if isSignedIn(); }
-      match /scouting/{scoutId} { allow read, write: if isSignedIn(); }
-      match /documents/{docId} { allow read, write: if isSignedIn(); }
-
-      match /{allSubcollections=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    // --- COLLECTION GROUP RULES ---
-
-    match /{path=**}/events/{eventId} {
-      allow read, list: if isSignedIn();
-    }
-
-    match /{path=**}/registrationEntries/{entryId} {
-      allow read, list: if isSignedIn() && (
-        resource.data.assigned_team_owner_id == request.auth.uid ||
-        resource.data.assigned_team_id == null
-      );
     }
   }
 }
