@@ -58,7 +58,6 @@ import {
   MessageSquare,
   Megaphone,
   HandHelping,
-  PiggyBank,
   CheckCircle,
   Users
 } from 'lucide-react';
@@ -83,7 +82,7 @@ export default function HowToGuidePage() {
   const { user } = useUser();
   const [selectedType, setSelectedAccountType] = useState<AccountType | null>(null);
 
-  // FOUNDATIONAL SECTIONS (STARTER)
+  // 1. STARTER SECTIONS (Foundational)
   const SECTIONS_STARTER: ManualSection[] = [
     {
       title: "1. Squad Deployment & Recruitment",
@@ -99,24 +98,24 @@ export default function HowToGuidePage() {
       icon: CalendarDays,
       steps: [
         { step: "Create Activity", detail: "In 'Schedule', use '+ New Activity' to log Match Days, Training, or Meetings. Set location and times." },
-        { step: "Calendar View", detail: "Use the 'Calendar' tab for a unified chronological view of all squad commitments." },
-        { step: "Monitor RSVPs", detail: "Click any event to see who is 'Going', 'Maybe', or 'Declined' in real-time." }
+        { step: "Calendar View", detail: "Use the 'Calendar' tab for a unified chronological view of all squad commitments across all your teams." },
+        { step: "Monitor RSVPs", detail: "Click any event to see who is 'Going', 'Maybe', or 'Declined' in real-time. Crucial for match-day planning." }
       ]
     },
     {
       title: "3. Communication & Social",
       icon: MessageCircle,
       steps: [
-        { step: "Squad Feed", detail: "Use the 'Feed' to view system updates and coordination notes. Note: Posting and polls are Pro features." },
-        { step: "Tactical Chats", detail: "Open 'Chats' to establish secure messaging groups for specific squad units or travel planning." }
+        { step: "Squad Feed", detail: "Use the 'Feed' to view system updates and coordination notes. Note: Posting and polls are unlocked in Pro." },
+        { step: "Tactical Chats", detail: "Open 'Chats' to establish secure messaging groups for specific squad units, travel planning, or parent coordination." }
       ]
     },
     {
       title: "4. Performance Tracking",
       icon: Trophy,
       steps: [
-        { step: "Scorekeeping", detail: "Visit the 'Scorekeeping' hub after matches. Enter 'Us vs Them' scores to update the season Win/Loss record." },
-        { step: "Manual Itineraries", detail: "Add 'Tournament' events to create multi-day calendar blocks for championships." }
+        { step: "Scorekeeping", detail: "Visit the 'Scorekeeping' hub after matches. Enter 'Us vs Them' scores to update the season Win/Loss ledger." },
+        { step: "Manual Itineraries", detail: "Add 'Tournament' events to create multi-day calendar blocks for championships. Pro unlocks automated brackets." }
       ]
     },
     {
@@ -124,19 +123,19 @@ export default function HowToGuidePage() {
       icon: Dumbbell,
       steps: [
         { step: "Archive Drills", detail: "In 'Playbook', add execution protocols with instructions and external video links for squad study." },
-        { step: "Resource Repository", detail: "Upload PDFs or images to the 'Library' for administrative access (maps, rules, handbooks)." }
+        { step: "Resource Repository", detail: "Upload PDFs or images to the 'Library' for administrative access (maps, rules, handbooks, etc)." }
       ]
     }
   ];
 
-  // PRO SECTIONS
+  // 2. PRO SECTIONS (Elite Verification & Automation)
   const SECTIONS_PRO: ManualSection[] = [
     {
       title: "6. Activating Elite Status",
       icon: Zap,
       steps: [
         { step: "Provision Seat", detail: "After upgrading, visit 'Team Profile' and use 'Override Tier' to attach the Pro seat to your primary squad." },
-        { step: "Unlock Modules", detail: "Verify the 'ELITE PRO' badge in your team switcher. Advanced film, analytics, and tournament tools are now live." }
+        { step: "Unlock Modules", detail: "Verify the 'ELITE PRO' badge in your switcher. Advanced film, analytics, and tournament tools are now live." }
       ]
     },
     {
@@ -145,7 +144,8 @@ export default function HowToGuidePage() {
       steps: [
         { step: "Roster Enrollment", detail: "Create a Tournament event. In 'Deploy', enter participating squad names to initialize the engine." },
         { step: "Auto-Scheduler", detail: "Define match lengths and breaks. Tap 'Deploy Complex Itinerary' to auto-generate pairings across fields." },
-        { step: "Portal Distribution", detail: "In 'Portals', share the Spectator Hub with fans and the Scorekeeper Hub with field marshals for live updates." }
+        { step: "Portal Distribution", detail: "In 'Portals', share the Spectator Hub with fans and the Scorekeeper Hub with field marshals for live updates." },
+        { step: "Compliance Execution", detail: "Use 'Coaches Corner' to upload waivers. Track digital signatures in the Compliance Ledger." }
       ]
     },
     {
@@ -161,7 +161,7 @@ export default function HowToGuidePage() {
       title: "9. Roster Fees & Governance",
       icon: DollarSign,
       steps: [
-        { step: "Post Fees", detail: "Attach uniform or tournament dues to player profiles in the Roster hub. Track 'Paid' vs 'Owed' status." },
+        { step: "Post Fees", detail: "Attach uniform or tournament dues to player profiles in the Roster hub. Track 'Paid' vs 'Owed' status automatically." },
         { step: "Staff Evaluations", detail: "Use private 'Staff Notes' in the Roster hub to log performance reviews visible only to coaches." }
       ]
     },
@@ -169,13 +169,13 @@ export default function HowToGuidePage() {
       title: "10. High-Priority Command",
       icon: Megaphone,
       steps: [
-        { step: "Broadcast Alerts", detail: "Use the Megaphone icon to send urgent, team-wide popups for last-minute venue changes or safety news." },
-        { step: "Advanced Trajectory", detail: "In Scorekeeping, visualize average PPG, Win Trends, and opponent patterns via interactive charts." }
+        { step: "Broadcast Alerts", detail: "Use the Megaphone icon to send urgent, full-screen team-wide alerts for last-minute venue changes or safety." },
+        { step: "Advanced Trajectory", detail: "In Scorekeeping, visualize PPG, Win Trends, and opponent scouting patterns via interactive charts." }
       ]
     }
   ];
 
-  // ELITE SECTIONS
+  // 3. ELITE SECTIONS (Institutional & Multi-Team)
   const SECTIONS_ELITE: ManualSection[] = [
     {
       title: "11. Institutional Command",
@@ -216,25 +216,25 @@ export default function HowToGuidePage() {
     starter: {
       label: "Starter (Free)",
       desc: "Essential coordination for grassroots squads. Master the core coordination engine.",
-      highlights: ["Unlimited Starter Teams", "Tactical Chat", "Basic Scheduling", "Manual Scorekeeping", "Playbook Basics", "Resource Library"],
+      highlights: ["Unlimited Teams", "Tactical Chat", "Basic Scheduling", "Manual Scorekeeping", "Playbook Basics", "Library"],
       sections: SECTIONS_STARTER
     },
     pro: {
       label: "Squad Pro",
-      desc: "Full coordination for elite squads. Foundations + advanced verification and automation.",
-      highlights: ["Everything in Starter", "Elite Auto-Scheduler", "75% Film Verification", "Broadcast Alerts", "Digital Signatures", "Advanced Stats"],
+      desc: "Full coordination for elite squads. Foundational protocols + advanced verification and automation.",
+      highlights: ["Everything in Starter", "Auto-Scheduler", "75% Film Verification", "Broadcast Alerts", "Digital Signatures", "Advanced Stats"],
       sections: [...SECTIONS_STARTER, ...SECTIONS_PRO]
     },
     elite: {
       label: "Elite Org (Team/League)",
-      desc: "Institutional infrastructure. Complete tactical suite for multi-team organizations.",
+      desc: "Institutional infrastructure. The complete tactical suite for multi-team organizations.",
       highlights: ["Everything in Pro", "Multi-Team Club Hub", "Public Recruitment Portals", "Form Architect", "Facility Conflict Mgmt", "Equipment Vault"],
       sections: [...SECTIONS_STARTER, ...SECTIONS_PRO, ...SECTIONS_ELITE]
     },
     player: {
       label: "Individual Athlete",
       desc: "Stay coordinated, compliant, and ready for match day. Your personal performance dashboard.",
-      highlights: ["Join Squads", "RSVP Mandate", "Film Compliance", "Digital Vault", "Tactical Engagement"],
+      highlights: ["Join via Code", "RSVP Mandate", "Film Compliance", "Digital Vault", "Tactical Feed"],
       sections: [
         {
           title: "1. Squad Enrollment",
@@ -248,7 +248,7 @@ export default function HowToGuidePage() {
           title: "2. Availability Protocol",
           icon: Target,
           steps: [
-            { step: "Mandatory RSVP", detail: "Mark your status for every game or practice. This is critical for tactical planning." },
+            { step: "Mandatory RSVP", detail: "Mark your status for every game or practice. This is critical for tactical planning and rosters." },
             { step: "Unified Calendar", detail: "View an aggregated schedule of every commitment across all squads you belong to." }
           ]
         },
@@ -328,7 +328,7 @@ export default function HowToGuidePage() {
             <section className="text-center space-y-6">
               <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] px-4 h-7">Master Manual</Badge>
               <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-none uppercase">The Tactical <span className="text-primary italic">Manual.</span></h1>
-              <p className="text-xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">Select your account perspective for granular, cumulative operational guidance.</p>
+              <p className="text-xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">Select your account perspective for exhaustive, cumulative operational guidance.</p>
             </section>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -355,7 +355,7 @@ export default function HowToGuidePage() {
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">{data.desc}</p>
                       </div>
                       <div className="pt-4 flex items-center text-primary font-black text-[10px] uppercase tracking-widest gap-2">
-                        Open Hub Manual <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                        Open Exhaustive Manual <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </CardContent>
                   </Card>
