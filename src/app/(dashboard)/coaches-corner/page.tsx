@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTeam, TeamDocument, Member, DocumentSignature, RegistrationFormField, LeagueRegistrationConfig, RegistrationEntry } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, where, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, getDocs, setDoc, deleteDoc, collectionGroup } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,11 +143,12 @@ export default function CoachesCornerPage() {
   const protocolsQuery = useMemoFirebase(() => (db && activeTeam) ? collection(db, 'teams', activeTeam.id, 'registration') : null, [db, activeTeam?.id]);
   const { data: protocols } = useCollection<LeagueRegistrationConfig>(protocolsQuery);
 
-  const entriesQuery = useMemoFirebase(() => (db && activeTeam) ? collectionGroup(db, 'registrationEntries') : null, [db]);
+  const entriesQuery = useMemoFirebase(() => (db && activeTeam) ? collectionGroup(db, 'registrationEntries') : null, [db, activeTeam?.id]);
   const { data: allEntries } = useCollection<RegistrationEntry>(entriesQuery);
 
   const teamEntries = useMemo(() => {
     if (!allEntries || !activeTeam) return [];
+    // Filter global entries to find those belonging to this team's protocols
     return allEntries.filter(e => e.assigned_team_id === activeTeam.id || (e.protocol_id && protocols?.find(p => p.id === e.protocol_id)));
   }, [allEntries, activeTeam, protocols]);
 
