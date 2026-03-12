@@ -129,50 +129,16 @@ const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boo
 });
 SidebarItem.displayName = "SidebarItem";
 
-const SEEN_ALERTS_KEY = 'squad_seen_alerts_ids';
-
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { 
     activeTeam, setActiveTeam, teams, user, isPro, 
-    isClubManager, isStaff, isParent, isPlayer, hasFeature, alerts
+    isClubManager, isStaff, isParent, isPlayer, hasFeature, alerts,
+    unreadAlertsCount
   } = useTeam();
 
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
-
-  // Unread Alerts Calculation Logic
-  useEffect(() => {
-    const calculateUnread = () => {
-      const stored = localStorage.getItem(SEEN_ALERTS_KEY);
-      let seenIds: string[] = [];
-      if (stored) {
-        try { seenIds = JSON.parse(stored); } catch (e) {}
-      }
-
-      const myAlerts = (alerts || []).filter(alert => {
-        if (alert.audience === 'everyone') return true;
-        if (alert.audience === 'coaches' && isStaff) return true;
-        if (alert.audience === 'players' && isPlayer) return true;
-        if (alert.audience === 'parents' && isParent) return true;
-        return false;
-      });
-
-      const unread = myAlerts.filter(a => !seenIds.includes(a.id)).length;
-      setUnreadAlertsCount(unread);
-    };
-
-    calculateUnread();
-    // Listen for local storage changes
-    window.addEventListener('storage', calculateUnread);
-    const interval = setInterval(calculateUnread, 2000); 
-    
-    return () => {
-      window.removeEventListener('storage', calculateUnread);
-      clearInterval(interval);
-    };
-  }, [alerts, isStaff, isParent, isPlayer]);
 
   const filteredCoordTabs = coordinationTabs.filter(tab => {
     if (tab.gate === 'staff_or_parent') return isStaff || isParent;

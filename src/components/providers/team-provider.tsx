@@ -363,6 +363,10 @@ interface TeamContextType {
   householdEvents: TeamEvent[];
   householdBalance: number;
   alerts: TeamAlert[];
+  unreadAlertsCount: number;
+  markAlertAsSeen: (id: string) => void;
+  markAllAlertsAsSeen: () => void;
+  seenAlertIds: string[];
   plans: any[];
   isPlansLoading: boolean;
   proQuotaStatus: { current: number; limit: number; remaining: number; exceeded: boolean };
@@ -471,6 +475,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [household, setHousehold] = useState<Household | null>(null);
   const [householdEvents, setHouseholdEvents] = useState<TeamEvent[]>([]);
   const [householdBalance, setHouseholdBalance] = useState(0);
+  const [seenAlertIds, setSeenAlertIds] = useState<string[]>([]);
 
   const plansQuery = useMemoFirebase(() => (db && isAuthResolved && firebaseUser) ? collection(db, 'plans') : null, [db, isAuthResolved, firebaseUser]);
   const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
@@ -500,6 +505,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [firebaseUser?.uid, db, isAuthResolved]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('squad_seen_alerts_ids');
+      if (stored) {
+        try { setSeenAlertIds(JSON.parse(stored)); } catch (e) {}
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (!firebaseUser?.uid || !db || !isAuthResolved || userProfile?.role !== 'parent') return;
     const q = query(collection(db, 'players'), where('parentId', '==', firebaseUser.uid));
     return onSnapshot(q, (snap) => {
@@ -516,7 +530,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     name: m.name || m.teamName || 'Squad'
   })), [teamsData]);
 
-  // Ensure activeTeamId is initialized to the first team if none is selected
   useEffect(() => {
     if (teams.length > 0 && !activeTeamId) {
       setActiveTeamId(teams[0].id);
@@ -540,6 +553,36 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
   const alerts = useMemo(() => alertsData || [], [alertsData]);
+
+  const unreadAlertsCount = useMemo(() => {
+    if (!userProfile || !alertsData) return 0;
+    const myAlerts = (alertsData || []).filter(alert => {
+      if (alert.audience === 'everyone') return true;
+      if (alert.audience === 'coaches' && (activeTeam?.role === 'Admin')) return true;
+      if (alert.audience === 'players' && (userProfile.role === 'adult_player')) return true;
+      if (alert.audience === 'parents' && (userProfile.role === 'parent')) return true;
+      return false;
+    });
+    return myAlerts.filter(a => !seenAlertIds.includes(a.id)).length;
+  }, [alertsData, seenAlertIds, userProfile, activeTeam?.role]);
+
+  const markAlertAsSeen = useCallback((id: string) => {
+    setSeenAlertIds(prev => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      localStorage.setItem('squad_seen_alerts_ids', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const markAllAlertsAsSeen = useCallback(() => {
+    const allIds = (alertsData || []).map(a => a.id);
+    setSeenAlertIds(prev => {
+      const updated = Array.from(new Set([...prev, ...allIds]));
+      localStorage.setItem('squad_seen_alerts_ids', JSON.stringify(updated));
+      return updated;
+    });
+  }, [alertsData]);
 
   const proQuotaStatus = useMemo(() => {
     const limitCount = userProfile?.proTeamLimit ?? 0;
@@ -584,6 +627,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isStaff: activeTeam?.role === 'Admin', isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
     isSuperAdmin, isClubManager: ['elite_teams', 'elite_league', 'squad_organization'].includes(userProfile?.activePlanId || ''), household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus,
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true), hasFeature, alerts,
+    unreadAlertsCount, markAlertAsSeen, markAllAlertsAsSeen, seenAlertIds,
     formatTime: (date: string | Date) => { try { return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return 'TBD'; } },
     
     createNewTeam: async (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => {
