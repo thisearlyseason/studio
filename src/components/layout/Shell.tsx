@@ -136,7 +136,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { 
     activeTeam, setActiveTeam, teams, user, isPro, 
-    isClubManager, isStaff, isParent, hasFeature, alerts
+    isClubManager, isStaff, isParent, isPlayer, hasFeature, alerts
   } = useTeam();
 
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -154,7 +154,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       const myAlerts = (alerts || []).filter(alert => {
         if (alert.audience === 'everyone') return true;
         if (alert.audience === 'coaches' && isStaff) return true;
-        if (alert.audience === 'players' && hasFeature('player_mode')) return true; // simplified role check for shell
+        if (alert.audience === 'players' && isPlayer) return true;
         if (alert.audience === 'parents' && isParent) return true;
         return false;
       });
@@ -164,15 +164,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     };
 
     calculateUnread();
-    // Listen for local storage changes (triggered by AlertsHistoryDialog or AlertOverlay)
+    // Listen for local storage changes
     window.addEventListener('storage', calculateUnread);
-    const interval = setInterval(calculateUnread, 2000); // Periodic check for real-time updates
+    const interval = setInterval(calculateUnread, 2000); 
     
     return () => {
       window.removeEventListener('storage', calculateUnread);
       clearInterval(interval);
     };
-  }, [alerts, isStaff, isParent, hasFeature]);
+  }, [alerts, isStaff, isParent, isPlayer]);
 
   const filteredCoordTabs = coordinationTabs.filter(tab => {
     if (tab.gate === 'staff_or_parent') return isStaff || isParent;

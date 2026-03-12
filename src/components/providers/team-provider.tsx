@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -470,7 +471,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [household, setHousehold] = useState<Household | null>(null);
   const [householdEvents, setHouseholdEvents] = useState<TeamEvent[]>([]);
   const [householdBalance, setHouseholdBalance] = useState(0);
-  const [alerts, setAlerts] = useState<TeamAlert[]>([]);
 
   const plansQuery = useMemoFirebase(() => (db && isAuthResolved && firebaseUser) ? collection(db, 'plans') : null, [db, isAuthResolved, firebaseUser]);
   const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
@@ -500,14 +500,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [firebaseUser?.uid, db, isAuthResolved]);
 
   useEffect(() => {
-    if (!firebaseUser?.uid || !db || !isAuthResolved || !activeTeamId) return;
-    const q = query(collection(db, 'teams', activeTeamId, 'alerts'), orderBy('createdAt', 'desc'), limit(10));
-    return onSnapshot(q, (snap) => {
-      setAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeamAlert)));
-    });
-  }, [activeTeamId, db, isAuthResolved, firebaseUser?.uid]);
-
-  useEffect(() => {
     if (!firebaseUser?.uid || !db || !isAuthResolved || userProfile?.role !== 'parent') return;
     const q = query(collection(db, 'players'), where('parentId', '==', firebaseUser.uid));
     return onSnapshot(q, (snap) => {
@@ -524,6 +516,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     name: m.name || m.teamName || 'Squad'
   })), [teamsData]);
 
+  // Ensure activeTeamId is initialized to the first team if none is selected
+  useEffect(() => {
+    if (teams.length > 0 && !activeTeamId) {
+      setActiveTeamId(teams[0].id);
+    }
+  }, [teams, activeTeamId]);
+
   const hasFeature = useCallback((featureId: string) => {
     if (isSuperAdmin) return true;
     const team = teams.find(t => t.id === activeTeamId) || teams[0];
@@ -537,6 +536,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const membersQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'members')) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
   const members = useMemo(() => membersData || [], [membersData]);
+
+  const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
+  const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
+  const alerts = useMemo(() => alertsData || [], [alertsData]);
 
   const proQuotaStatus = useMemo(() => {
     const limitCount = userProfile?.proTeamLimit ?? 0;
