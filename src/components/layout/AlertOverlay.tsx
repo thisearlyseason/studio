@@ -63,6 +63,7 @@ export function AlertOverlay() {
   useEffect(() => {
     if (!hasInitialized || myAlerts.length === 0) return;
 
+    // Find the newest alert that hasn't been seen yet
     const unseenAlert = myAlerts.find(a => !seenIds.includes(a.id));
     if (unseenAlert && !isAlertOpen) {
       setCurrentAlertId(unseenAlert.id);
@@ -94,7 +95,7 @@ export function AlertOverlay() {
         setIsAlertOpen(false);
       }
     }}>
-      <DialogContent className="sm:max-w-md border-t-4 border-t-primary rounded-3xl overflow-hidden">
+      <DialogContent className="sm:max-w-md border-t-4 border-t-primary rounded-[2.5rem] overflow-hidden shadow-2xl">
         <DialogTitle className="sr-only">Priority Broadcast: {latestAlert.title}</DialogTitle>
         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
           <Megaphone className="h-32 w-32 -rotate-12" />
@@ -104,16 +105,16 @@ export function AlertOverlay() {
             <div className="bg-primary/10 p-2 rounded-xl text-primary animate-bounce">
               <Bell className="h-6 w-6" />
             </div>
-            <div className="text-[10px] font-black uppercase text-primary tracking-[0.2em]">High Priority Alert</div>
+            <div className="text-[10px] font-black uppercase text-primary tracking-[0.2em]">High Priority Broadcast</div>
           </div>
-          <DialogTitle className="text-2xl font-black leading-tight tracking-tight">
+          <DialogTitle className="text-2xl font-black leading-tight tracking-tight uppercase">
             {latestAlert.title}
           </DialogTitle>
-          <DialogDescription className="text-base font-medium pt-2 text-foreground/80 leading-relaxed">
-            {latestAlert.message}
+          <DialogDescription className="text-base font-bold pt-2 text-foreground/80 leading-relaxed italic">
+            "{latestAlert.message}"
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="mt-4">
+        <DialogFooter className="mt-6">
           <Button className="w-full rounded-2xl h-14 text-lg font-black shadow-xl shadow-primary/20" onClick={handleUnderstood}>
             Understood
           </Button>
@@ -149,41 +150,44 @@ export function AlertsHistoryDialog({ children }: { children: React.ReactNode })
     const allIds = myAlerts.map(a => a.id);
     localStorage.setItem(SEEN_ALERTS_KEY, JSON.stringify(allIds));
     setSeenIds(allIds);
+    // Force a visual update
+    window.dispatchEvent(new Event('storage'));
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
         <DialogTitle className="sr-only">Squad Alert Inbox</DialogTitle>
-        <DialogHeader className="p-6 pb-2">
+        <div className="h-2 bg-primary w-full" />
+        <DialogHeader className="p-8 pb-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-primary" />
-              <DialogTitle className="text-xl font-black uppercase tracking-tight">Alerts</DialogTitle>
+            <div className="flex items-center gap-3">
+              <History className="h-6 w-6 text-primary" />
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Alerts History</DialogTitle>
             </div>
-            <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest h-7" onClick={markAllAsSeen}>
+            <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest h-8 px-3 hover:bg-primary/5 text-primary" onClick={markAllAsSeen}>
               Mark all read
             </Button>
           </div>
         </DialogHeader>
-        <ScrollArea className="max-h-[400px] px-6 pb-6">
+        <ScrollArea className="max-h-[450px] px-8 pb-8">
           <div className="space-y-4 pt-4">
             {myAlerts.length > 0 ? myAlerts.map((alert) => (
-              <div key={alert.id} className="group relative p-4 rounded-2xl bg-muted/30 border-2 border-transparent hover:border-primary/10 transition-all">
+              <div key={alert.id} className="group relative p-5 rounded-2xl bg-muted/30 border-2 border-transparent hover:border-primary/10 transition-all">
                 {!seenIds.includes(alert.id) && (
-                  <div className="absolute top-4 right-4 h-2 w-2 bg-primary rounded-full animate-pulse" />
+                  <div className="absolute top-5 right-5 h-2 w-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(255,0,0,0.5)]" />
                 )}
-                <div className="flex items-start gap-3">
-                  <div className="bg-white p-2 rounded-xl shadow-sm border shrink-0">
-                    <Megaphone className="h-4 w-4 text-primary" />
+                <div className="flex items-start gap-4">
+                  <div className="bg-white p-2.5 rounded-xl shadow-sm border shrink-0">
+                    <Megaphone className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h4 className="font-black text-sm tracking-tight leading-tight uppercase truncate">{alert.title}</h4>
-                      <Badge variant="outline" className="text-[7px] font-black uppercase px-1 h-4 border-primary/20 text-primary">{alert.audience}</Badge>
+                      <Badge variant="outline" className="text-[7px] font-black uppercase px-1.5 h-4 border-primary/20 text-primary">{alert.audience}</Badge>
                     </div>
-                    <p className="text-xs font-medium text-muted-foreground leading-relaxed">{alert.message}</p>
+                    <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">"{alert.message}"</p>
                     <div className="flex items-center gap-1.5 mt-3 opacity-50">
                       <Clock className="h-3 w-3" />
                       <span className="text-[9px] font-black uppercase tracking-widest">{formatDistanceToNow(new Date(alert.createdAt))} ago</span>
@@ -192,9 +196,9 @@ export function AlertsHistoryDialog({ children }: { children: React.ReactNode })
                 </div>
               </div>
             )) : (
-              <div className="text-center py-12 opacity-30">
-                <Bell className="h-10 w-10 mx-auto mb-2" />
-                <p className="text-xs font-black uppercase">No active alerts</p>
+              <div className="text-center py-16 opacity-30">
+                <Bell className="h-12 w-12 mx-auto mb-4" />
+                <p className="text-sm font-black uppercase tracking-widest">No active alerts found.</p>
               </div>
             )}
           </div>
@@ -218,8 +222,8 @@ export function CreateAlertButton() {
 
   if (!canAlert) {
     return (
-      <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-primary/20 text-primary/40 opacity-50 relative" onClick={purchasePro}>
-        <Megaphone className="h-4 w-4" />
+      <Button variant="outline" size="icon" className="h-10 w-10 md:h-11 md:w-11 rounded-full border-primary/20 text-primary/40 opacity-50 relative" onClick={purchasePro}>
+        <Megaphone className="h-5 w-5 md:h-4 md:w-4" />
         <Lock className="absolute -top-1 -right-1 h-3 w-3 bg-black text-white p-0.5 rounded-full border-2 border-background" />
       </Button>
     );
@@ -237,7 +241,7 @@ export function CreateAlertButton() {
   return (
     <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-10 w-10 md:h-9 md:w-9 rounded-full border-primary/20 text-primary hover:bg-primary/5 shadow-sm">
+        <Button variant="outline" size="icon" className="h-10 w-10 md:h-11 md:w-11 rounded-full border-primary/20 text-primary hover:bg-primary/5 shadow-sm transition-all active:scale-95">
           <Megaphone className="h-5 w-5 md:h-4 md:w-4" />
         </Button>
       </DialogTrigger>
@@ -263,15 +267,15 @@ export function CreateAlertButton() {
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Headline</Label>
-              <Input placeholder="e.g. Schedule Conflict Resolved" value={title} onChange={e => setTitle(e.target.value)} className="rounded-xl h-12 border-2 font-black" />
+              <Input placeholder="e.g. Venue Conflict Resolved" value={title} onChange={e => setTitle(e.target.value)} className="rounded-xl h-12 border-2 font-black" />
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Tactical Brief</Label>
-              <Textarea placeholder="Context for the squad..." value={message} onChange={e => setMessage(e.target.value)} className="rounded-xl min-h-[100px] border-2 font-medium" />
+              <Textarea placeholder="Define the urgent context..." value={message} onChange={e => setMessage(e.target.value)} className="rounded-xl min-h-[100px] border-2 font-medium" />
             </div>
           </div>
           <DialogFooter>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleCreate} disabled={!title || !message}>Dispatch Alert</Button>
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleCreate} disabled={!title || !message}>Dispatch Broadcast</Button>
           </DialogFooter>
         </div>
       </DialogContent>

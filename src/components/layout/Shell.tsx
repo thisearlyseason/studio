@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -129,15 +129,50 @@ const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boo
 });
 SidebarItem.displayName = "SidebarItem";
 
+const SEEN_ALERTS_KEY = 'squad_seen_alerts_ids';
+
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { 
     activeTeam, setActiveTeam, teams, user, isPro, 
-    isClubManager, isStaff, isParent, hasFeature
+    isClubManager, isStaff, isParent, hasFeature, alerts
   } = useTeam();
 
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
+
+  // Unread Alerts Calculation Logic
+  useEffect(() => {
+    const calculateUnread = () => {
+      const stored = localStorage.getItem(SEEN_ALERTS_KEY);
+      let seenIds: string[] = [];
+      if (stored) {
+        try { seenIds = JSON.parse(stored); } catch (e) {}
+      }
+
+      const myAlerts = (alerts || []).filter(alert => {
+        if (alert.audience === 'everyone') return true;
+        if (alert.audience === 'coaches' && isStaff) return true;
+        if (alert.audience === 'players' && hasFeature('player_mode')) return true; // simplified role check for shell
+        if (alert.audience === 'parents' && isParent) return true;
+        return false;
+      });
+
+      const unread = myAlerts.filter(a => !seenIds.includes(a.id)).length;
+      setUnreadAlertsCount(unread);
+    };
+
+    calculateUnread();
+    // Listen for local storage changes (triggered by AlertsHistoryDialog or AlertOverlay)
+    window.addEventListener('storage', calculateUnread);
+    const interval = setInterval(calculateUnread, 2000); // Periodic check for real-time updates
+    
+    return () => {
+      window.removeEventListener('storage', calculateUnread);
+      clearInterval(interval);
+    };
+  }, [alerts, isStaff, isParent, hasFeature]);
 
   const filteredCoordTabs = coordinationTabs.filter(tab => {
     if (tab.gate === 'staff_or_parent') return isStaff || isParent;
@@ -320,8 +355,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2 md:gap-3">
                 {isStaff && <CreateAlertButton />}
                 <AlertsHistoryDialog>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 md:h-10 md:w-10 rounded-2xl hover:bg-primary/5 text-foreground relative">
+                  <Button variant="ghost" size="icon" className="h-10 w-10 md:h-11 md:w-11 rounded-2xl hover:bg-primary/5 text-foreground relative transition-all active:scale-95">
                     <Bell className="h-5 w-5" />
+                    {unreadAlertsCount > 0 && (
+                      <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-primary rounded-full border-2 border-background animate-pulse shadow-[0_0_8px_rgba(255,0,0,0.5)]" />
+                    )}
                   </Button>
                 </AlertsHistoryDialog>
                 <Link href="/settings" className="hidden sm:block">
@@ -334,6 +372,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </header>
             
             <main className="flex-1 overflow-y-auto p-4 md:p-10 max-w-7xl mx-auto w-full custom-scrollbar pb-32 md:pb-10">
+              <AlertOverlay />
               {children}
             </main>
 
@@ -366,9 +405,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 <Sheet open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
                   <SheetTrigger asChild>
                     <button 
-                      className="flex flex-col items-center justify-center w-14 h-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
+                      className="flex flex-col items-center justify-center w-14 h-12 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all relative"
                     >
                       <Menu className="h-5 w-5 stroke-[2.5]" />
+                      {unreadAlertsCount > 0 && (
+                        <span className="absolute top-2 right-3 h-2 w-2 bg-primary rounded-full border border-white" />
+                      )}
                       <span className="text-[7px] font-black uppercase tracking-tighter mt-0.5">More</span>
                     </button>
                   </SheetTrigger>
