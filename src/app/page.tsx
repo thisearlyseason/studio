@@ -334,7 +334,7 @@ export default function LandingPage() {
                 <div className="space-y-3">
                   <Package className="h-8 w-8 text-primary" />
                   <h5 className="text-lg font-black uppercase">Fleet & Asset Vault</h5>
-                  <p className="text-xs text-white/60 leading-relaxed font-medium">Professional inventory management for uniforms, kits, and facilities with conflict resolution.</p>
+                  <p className="text-xs text-white/60 leading-relaxed font-medium">Professional inventory management for uniforms, balls, and medical kits with conflict resolution.</p>
                 </div>
                 <div className="space-y-3">
                   <ShieldAlert className="h-8 w-8 text-primary" />

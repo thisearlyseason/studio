@@ -73,10 +73,10 @@ export default function DashboardLayout({
       window.location.href = `/login?reason=${encodeURIComponent(reason)}`;
     };
 
-    // 2. Start high-precision heartbeat
+    // 2. Start heartbeat
     heartbeatInterval.current = setInterval(checkSession, 5000);
 
-    // 3. Immediate reset if they leave (best effort)
+    // 3. Immediate reset if they leave
     const handleExit = () => {
       sessionStorage.removeItem(DEMO_START_KEY);
     };
@@ -100,7 +100,6 @@ export default function DashboardLayout({
       const seed = async () => {
         await seedSubscriptionData(db);
         await seedGuestDemoTeam(db, user.uid, demoPlanId);
-        // Ensure landing on dashboard after seeding
         window.location.href = '/dashboard'; 
       };
       seed();

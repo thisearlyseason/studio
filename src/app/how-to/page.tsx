@@ -86,7 +86,7 @@ export default function HowToGuidePage() {
   const { user } = useUser();
   const [selectedType, setSelectedAccountType] = useState<AccountType | null>(null);
 
-  // --- REUSABLE TACTICAL BLOCKS ---
+  // --- COMPREHENSIVE TACTICAL MODULES ---
 
   const BLOCK_DEPLOYMENT = {
     title: "1. Squad Deployment & Recruitment",
@@ -185,41 +185,39 @@ export default function HowToGuidePage() {
     ]
   };
 
-  const BLOCK_CLUB_HUB = {
-    title: "11. Institutional Club Hub",
-    icon: Building,
-    steps: [
-      { step: "Fiscal Pulse", detail: <>Access the <strong>Club Hub</strong> to audit aggregated dues collection across all squads in your entire organization.</> },
-      { step: "Fleet Management", detail: <>Manage equipment and facility assets from a master ledger. Resolve scheduling conflicts across 20+ squads instantly.</> },
-      { step: "Staff Directory", detail: <>Manage personnel and coach assignments from a central directory. Provision Pro seats to specific squads as needed.</> }
-    ]
-  };
-
-  const BLOCK_PUBLIC_RECRUITMENT = {
-    title: "12. Public Recruitment Hub",
-    icon: ClipboardList,
-    steps: [
-      { step: "Form Architect", detail: <>Build custom registration forms with logic for jersey sizes, medical history, and digital waivers.</> },
-      { step: "Public Portal", detail: <>Share your <strong>Portal URL</strong>. New recruits can apply without an account. Review and approve submissions in the <strong>Ledger</strong>.</> },
-      { step: "Squad Assignment", detail: <>Directly deploy approved applicants to specific squads in your organization with one tap.</> }
-    ]
-  };
-
   const BLOCK_SCOUTING_AI = {
-    title: "13. AI Scouting Analyst",
+    title: "11. AI Scouting Assistant",
     icon: BrainCircuit,
     steps: [
-      { step: "Raw Observations", detail: <>In the <strong>Scouting</strong> tab, enter raw match notes about an opponent's tendencies or recent results.</> },
+      { step: "Log Observations", detail: <>In the <strong>Scouting</strong> tab, enter raw match notes about an opponent's tendencies.</> },
       { step: "Generate Brief", detail: <>Tap <strong>Generate AI Brief</strong> to have our Tactical Analyst structure your notes into <strong>Strengths, Weaknesses, and Keys to Victory</strong>.</> }
     ]
   };
 
+  const BLOCK_CLUB_HUB = {
+    title: "12. Institutional Club Hub",
+    icon: Building,
+    steps: [
+      { step: "Fiscal Pulse", detail: <>Access the <strong>Club Hub</strong> to audit aggregated dues collection across all squads in your entire organization.</> },
+      { step: "Conflict Audit", detail: <>Use the master ledger to resolve scheduling overlaps across 20+ squads instantly.</> }
+    ]
+  };
+
+  const BLOCK_PUBLIC_RECRUITMENT = {
+    title: "13. Public Recruitment Portal",
+    icon: ClipboardList,
+    steps: [
+      { step: "Form Architect", detail: <>Build custom registration forms with logic for jersey sizes, medical history, and digital waivers.</> },
+      { step: "Public Portal", detail: <>Share your <strong>Portal URL</strong>. Review and approve submissions in the <strong>Ledger</strong>, then deploy them to specific squads.</> }
+    ]
+  };
+
   const BLOCK_LOGISTICS_FLEET = {
-    title: "14. Fleet & Facility Logistics",
+    title: "14. Fleet & Asset Vault",
     icon: MapPin,
     steps: [
-      { step: "Resource Booking", detail: <>Enroll facilities and specific fields in the <strong>Facilities</strong> hub. Assign them to events to block off time globally.</> },
-      { step: "Inventory Vault", detail: <>Track uniforms, balls, and medical kits in <strong>Equipment</strong>. Log assignments to specific players and track return status.</> }
+      { step: "Resource Booking", detail: <>Enroll facilities and fields in the <strong>Facilities</strong> hub. Assign them to events to block off time globally.</> },
+      { step: "Inventory Vault", detail: <>Track uniforms and medical kits in <strong>Equipment</strong>. Log assignments to players and track return status.</> }
     ]
   };
 
@@ -227,9 +225,9 @@ export default function HowToGuidePage() {
     title: "Athlete Operational Hub",
     icon: User,
     steps: [
-      { step: "Recruiting Portfolio", detail: <>In the Roster hub, tap <strong>Generate Scouting Pack</strong> to export a certified tactical resume for recruiters and scouts.</> },
-      { step: "The RSVP Mandate", detail: <>Check your <strong>Dashboard</strong> itinerary daily. Submit your RSVP status for all games and training to ensure match-day eligibility.</> },
-      { step: "Compliance Tasks", detail: <>Watch assigned film in the Playbook. Sign digital waivers in the <strong>Library</strong> to maintain a <strong>Cleared</strong> status.</> }
+      { step: "Recruiting Portfolio", detail: <>In the Roster hub, tap <strong>Generate Scouting Pack</strong> to export a certified tactical resume for recruiters.</> },
+      { step: "RSVP Mandate", detail: <>Submit your RSVP status for all games and training to ensure match-day eligibility.</> },
+      { step: "Compliance Tasks", detail: <>Watch assigned film in the Playbook. Sign digital waivers in the <strong>Library</strong> to maintain <strong>Cleared</strong> status.</> }
     ]
   };
 
