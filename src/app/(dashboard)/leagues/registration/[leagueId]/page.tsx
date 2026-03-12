@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationEntry, RegistrationFormField } from '@/components/providers/team-provider';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
@@ -78,7 +78,45 @@ export default function LeagueRegistrationAdminPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'accepted'>('all');
 
-  const formSchema = config?.form_schema || [
+  // Debounce State
+  const [localConfig, setLocalConfig] = useState<Partial<LeagueRegistrationConfig> | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (config && !localConfig) {
+      setLocalConfig(config);
+    }
+  }, [config, localConfig]);
+
+  const handleUpdateConfig = (updates: Partial<LeagueRegistrationConfig>, immediate = false) => {
+    if (!leagueId || !localConfig) return;
+    
+    // 1. Update local state immediately for smooth typing
+    const updated = { ...localConfig, ...updates } as LeagueRegistrationConfig;
+    setLocalConfig(updated);
+
+    // 2. Clear existing timeout
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    const performSync = async () => {
+      try {
+        await saveLeagueRegistrationConfig(leagueId as string, updated);
+      } catch (e) {
+        console.error("Config sync failure", e);
+      }
+    };
+
+    if (immediate) {
+      performSync();
+    } else {
+      // 3. Debounce the sync call
+      syncTimeoutRef.current = setTimeout(performSync, 1500);
+    }
+  };
+
+  const formSchema = localConfig?.form_schema || [
     { id: 'name', type: 'short_text', label: 'Full Name', required: true },
     { id: 'email', type: 'short_text', label: 'Email Address', required: true }
   ];
@@ -89,17 +127,14 @@ export default function LeagueRegistrationAdminPage() {
     return entries.filter(e => e.status === filterStatus);
   }, [entries, filterStatus]);
 
-  const handleSaveConfig = async (updates: Partial<LeagueRegistrationConfig>) => {
-    setIsProcessing(true);
-    await saveLeagueRegistrationConfig(leagueId as string, updates);
-    setIsProcessing(false);
-  };
-
   const handleAddField = () => {
-    if (!editingField?.label || !editingField?.type) return;
-    const newField = { ...editingField, id: editingField.id || `f_${Date.now()}` } as RegistrationFormField;
+    if (!editingField?.label || !editingField?.type || !localConfig) return;
+    const newField = { ...editingField, id: `f_${Date.now()}` } as RegistrationFormField;
     const updatedSchema = [...formSchema, newField];
-    handleSaveConfig({ form_schema: updatedSchema, form_version: (config?.form_version || 0) + 1 });
+    handleUpdateConfig({ 
+      form_schema: updatedSchema, 
+      form_version: (localConfig.form_version || 0) + 1 
+    }, true); // Structural changes sync immediately
     setEditingField(null);
   };
 
@@ -232,15 +267,15 @@ export default function LeagueRegistrationAdminPage() {
                     <div className="bg-primary p-3 rounded-2xl text-white shadow-lg shadow-primary/20"><Globe className="h-6 w-6" /></div>
                     <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Public Protocol</CardTitle><CardDescription className="font-bold text-primary text-[10px] uppercase tracking-widest">Global Signup Visibility</CardDescription></div>
                   </div>
-                  <Switch checked={config?.is_active || false} onCheckedChange={(v) => handleSaveConfig({ is_active: v })} />
+                  <Switch checked={localConfig?.is_active || false} onCheckedChange={(v) => handleUpdateConfig({ is_active: v }, true)} />
                 </div>
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Signup Title</Label><Input value={config?.title || ''} onChange={e => handleSaveConfig({ title: e.target.value })} className="h-12 rounded-xl font-bold border-2" /></div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Registration Fee</Label><Input value={config?.registration_cost || ''} onChange={e => handleSaveConfig({ registration_cost: e.target.value })} className="h-12 rounded-xl font-black border-2 text-primary" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Signup Title</Label><Input value={localConfig?.title || ''} onChange={e => handleUpdateConfig({ title: e.target.value })} className="h-12 rounded-xl font-bold border-2" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Registration Fee</Label><Input value={localConfig?.registration_cost || ''} onChange={e => handleUpdateConfig({ registration_cost: e.target.value })} className="h-12 rounded-xl font-black border-2 text-primary" /></div>
                 </div>
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Protocol Brief</Label><Textarea value={config?.description || ''} onChange={e => handleSaveConfig({ description: e.target.value })} className="rounded-xl min-h-[100px] border-2 font-medium" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Protocol Brief</Label><Textarea value={localConfig?.description || ''} onChange={e => handleUpdateConfig({ description: e.target.value })} className="rounded-xl min-h-[100px] border-2 font-medium" /></div>
               </CardContent>
             </Card>
 
@@ -272,7 +307,7 @@ export default function LeagueRegistrationAdminPage() {
                 <div className="divide-y">{formSchema.map((field, i) => (
                   <div key={field.id} className="p-6 flex items-center justify-between group hover:bg-muted/10 transition-colors">
                     <div className="flex items-center gap-4"><div className="text-[10px] font-black text-muted-foreground w-6">{i + 1}</div><div><p className="font-black text-sm uppercase">{field.label}</p><p className="text-[9px] font-bold text-muted-foreground uppercase">{field.type.replace(/_/g, ' ')}</p></div></div>
-                    {i > 1 && <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleSaveConfig({ form_schema: formSchema.filter(f => f.id !== field.id) })}><Trash2 className="h-4 w-4" /></Button>}
+                    {i > 1 && <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleUpdateConfig({ form_schema: formSchema.filter(f => f.id !== field.id) }, true)}><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 ))}</div>
               </CardContent>
