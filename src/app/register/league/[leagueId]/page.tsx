@@ -49,8 +49,6 @@ export default function PublicLeagueRegistrationPage() {
   const db = useFirestore();
 
   const configRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string, 'registration', protocolId) : null, [db, leagueId, protocolId]);
-  
-  // Fallback check for team-specific protocols if league fails
   const teamProtoRef = useMemoFirebase(() => db ? doc(db, 'teams', leagueId as string, 'registration', protocolId) : null, [db, leagueId, protocolId]);
   
   const { data: leagueConfig, isLoading: isLeagueLoading } = useDoc<LeagueRegistrationConfig>(configRef);
@@ -59,7 +57,6 @@ export default function PublicLeagueRegistrationPage() {
   const config = useMemo(() => leagueConfig || teamConfig, [leagueConfig, teamConfig]);
   const targetType = useMemo(() => teamConfig ? 'teams' : 'leagues', [teamConfig]);
   
-  // WAIT UNTIL BOTH ATTEMPTS RESOLVE
   const isLoading = isLeagueLoading || isTeamLoading;
 
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -112,7 +109,7 @@ export default function PublicLeagueRegistrationPage() {
           <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 mb-8">Submission Successful</p>
           <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 text-left">
             <p className="text-[10px] font-black uppercase text-primary">Next Steps</p>
-            <p className="text-sm font-bold mt-1">The squad coordinator has been notified. You will be contacted once your application has been reviewed.</p>
+            <p className="text-sm font-bold mt-1">The squad coordinator has been notified. You will be contacted once your application has been reviewed and assigned.</p>
           </div>
           <Button variant="ghost" className="mt-8 font-black uppercase text-xs" onClick={() => window.location.reload()}>Submit Another</Button>
         </Card>
@@ -127,7 +124,7 @@ export default function PublicLeagueRegistrationPage() {
           <XCircle className="h-16 w-16 text-destructive mx-auto mb-6 opacity-20" />
           <h2 className="text-2xl font-black uppercase tracking-tight">Portal Inactive</h2>
           <p className="text-muted-foreground font-medium mt-2 leading-relaxed">
-            Registration for this squad is currently closed or the link is invalid. Please contact the squad coordinator for details.
+            Registration for this squad or league is currently closed. Please contact the coordinator for details.
           </p>
         </Card>
       </div>
@@ -145,27 +142,25 @@ export default function PublicLeagueRegistrationPage() {
           <div className="space-y-3">
             <Badge className="bg-primary text-white border-none font-black uppercase tracking-widest text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Official Recruitment</Badge>
             <h1 className="text-4xl lg:text-5xl font-black tracking-tighter uppercase leading-[0.9]">{config.title}</h1>
-            <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Squad Enrollment Portal</p>
+            <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Official Enrollment Hub</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
-            <div className="bg-white/50 backdrop-blur-sm p-6 rounded-3xl border-2 border-white shadow-xl space-y-4">
-              <p className="text-sm font-medium leading-relaxed text-foreground/80">{config.description}</p>
-            </div>
+          <div className="bg-white/50 backdrop-blur-sm p-6 rounded-3xl border-2 border-white shadow-xl space-y-4">
+            <p className="text-sm font-medium leading-relaxed text-foreground/80">{config.description}</p>
+          </div>
 
-            {config.registration_cost && config.registration_cost !== '0' && (
-              <div className="bg-primary text-white p-6 rounded-3xl shadow-xl shadow-primary/20 flex items-center justify-between group overflow-hidden relative">
-                <DollarSign className="absolute -right-2 -bottom-2 h-20 w-20 opacity-10 -rotate-12" />
-                <div className="relative z-10">
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Registration Fee</p>
-                  <p className="text-4xl font-black tracking-tighter">${config.registration_cost}</p>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm relative z-10">
-                  <CreditCard className="h-6 w-6" />
-                </div>
+          {config.registration_cost && config.registration_cost !== '0' && (
+            <div className="bg-primary text-white p-6 rounded-3xl shadow-xl shadow-primary/20 flex items-center justify-between group overflow-hidden relative">
+              <DollarSign className="absolute -right-2 -bottom-2 h-20 w-20 opacity-10 -rotate-12" />
+              <div className="relative z-10">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Registration Fee</p>
+                <p className="text-4xl font-black tracking-tighter">${config.registration_cost}</p>
               </div>
-            )}
-          </div>
+              <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm relative z-10">
+                <CreditCard className="h-6 w-6" />
+              </div>
+            </div>
+          )}
 
           <div className="bg-primary/5 p-6 rounded-3xl border-2 border-primary/10 space-y-4">
             <div className="flex items-center gap-2">
@@ -173,7 +168,7 @@ export default function PublicLeagueRegistrationPage() {
               <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Logistics</h4>
             </div>
             <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
-              Once submitted, your application enters the squad review pool. Assignments are managed by official coordinators and approved by the head coach.
+              Your application enters the secure recruitment pool. Assignments are managed by official coordinators and verified by organization leadership.
             </p>
           </div>
         </div>
@@ -188,13 +183,13 @@ export default function PublicLeagueRegistrationPage() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl font-black uppercase tracking-tight leading-none">Enrollment Data</CardTitle>
-                  <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-1">Version {config.form_version || 1}.0</CardDescription>
+                  <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-1">Official Data Payload</CardDescription>
                 </div>
               </div>
             </CardHeader>
             
             <CardContent className="p-8 lg:p-10 space-y-8">
-              {formSchema.length > 0 ? formSchema.map(field => (
+              {formSchema.map(field => (
                 <div key={field.id} className="space-y-3">
                   {field.type === 'header' ? (
                     <div className="pt-4 border-b pb-2">
@@ -207,7 +202,6 @@ export default function PublicLeagueRegistrationPage() {
                         <Label className="text-[10px] font-black uppercase tracking-widest">
                           {field.label} {field.required && <span className="text-primary">*</span>}
                         </Label>
-                        {field.description && <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter">{field.description}</p>}
                       </div>
 
                       {field.type === 'short_text' && (
@@ -233,9 +227,9 @@ export default function PublicLeagueRegistrationPage() {
                           required={field.required} 
                           onValueChange={v => handleInputChange(field.id, v)}
                         >
-                          <SelectTrigger className="h-12 rounded-xl border-2 font-bold bg-muted/10"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-12 rounded-xl border-2 font-bold bg-muted/10"><SelectValue placeholder="Select choice..." /></SelectTrigger>
                           <SelectContent className="rounded-xl">
-                            {field.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                            {field.options?.map(opt => <SelectItem key={opt} value={opt} className="font-bold">{opt}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       )}
@@ -248,11 +242,11 @@ export default function PublicLeagueRegistrationPage() {
                         >
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="yes" id={`${field.id}_yes`} />
-                            <Label htmlFor={`${field.id}_yes`} className="font-black text-xs uppercase">Affirmative</Label>
+                            <Label htmlFor={`${field.id}_yes`} className="font-black text-xs uppercase cursor-pointer">Yes</Label>
                           </div>
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="no" id={`${field.id}_no`} />
-                            <Label htmlFor={`${field.id}_no`} className="font-black text-xs uppercase">Negative</Label>
+                            <Label htmlFor={`${field.id}_no`} className="font-black text-xs uppercase cursor-pointer">No</Label>
                           </div>
                         </RadioGroup>
                       )}
@@ -264,13 +258,14 @@ export default function PublicLeagueRegistrationPage() {
                             return (
                               <div key={opt} className="flex items-center space-x-3">
                                 <Checkbox 
+                                  id={`${field.id}_${opt}`}
                                   checked={current.includes(opt)} 
                                   onCheckedChange={(v) => {
                                     const next = v ? [...current, opt] : current.filter((o: string) => o !== opt);
                                     handleInputChange(field.id, next);
                                   }} 
                                 />
-                                <Label className="text-[10px] font-black uppercase tracking-tight">{opt}</Label>
+                                <Label htmlFor={`${field.id}_${opt}`} className="text-[10px] font-black uppercase tracking-tight cursor-pointer">{opt}</Label>
                               </div>
                             );
                           })}
@@ -307,11 +302,7 @@ export default function PublicLeagueRegistrationPage() {
                     </>
                   )}
                 </div>
-              )) : (
-                <div className="text-center py-12 opacity-30">
-                  <p className="text-sm font-black uppercase">Standard Enrollment Enabled</p>
-                </div>
-              )}
+              ))}
 
               {config.waiver_text && (
                 <div className="space-y-6 pt-8 border-t">
@@ -319,7 +310,7 @@ export default function PublicLeagueRegistrationPage() {
                   <ScrollArea className="h-40 p-4 rounded-2xl bg-muted/10 border-2 font-medium text-xs leading-relaxed">
                     {config.waiver_text}
                   </ScrollArea>
-                  <div className="flex items-center space-x-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                  <div className="flex items-center space-x-3 p-4 bg-primary/5 rounded-2xl border border-primary/10 group cursor-pointer" onClick={() => setWaiverAgreed(!waiverAgreed)}>
                     <Checkbox id="waiver_agree" checked={waiverAgreed} onCheckedChange={v => setWaiverAgreed(!!v)} />
                     <Label htmlFor="waiver_agree" className="text-[10px] font-black uppercase tracking-tight cursor-pointer leading-tight">
                       I verify that I have read and accept all participation terms.
@@ -331,7 +322,8 @@ export default function PublicLeagueRegistrationPage() {
                       placeholder="Type your name to sign..." 
                       value={signature} 
                       onChange={e => setSignature(e.target.value)} 
-                      className="h-12 rounded-xl border-2 font-mono italic text-center" 
+                      className="h-14 rounded-xl border-2 font-mono italic text-center text-xl bg-muted/10 focus:bg-white" 
+                      required
                     />
                   </div>
                 </div>
@@ -351,7 +343,7 @@ export default function PublicLeagueRegistrationPage() {
         </Card>
       </div>
 
-      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] mt-12 opacity-40">SquadForge Institutional Enrollment v1.0</p>
+      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] mt-12 opacity-40">SquadForge Institutional Enrollment v1.0 • thesquad.pro</p>
     </div>
   );
 }

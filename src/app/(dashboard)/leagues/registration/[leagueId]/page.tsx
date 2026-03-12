@@ -40,7 +40,9 @@ import {
   Target,
   ArrowRight,
   Filter,
-  UserPlus
+  UserPlus,
+  Copy,
+  FileSignature
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -91,19 +93,19 @@ export default function LeagueRegistrationAdminPage() {
   const handleUpdateConfig = (updates: Partial<LeagueRegistrationConfig>, immediate = false) => {
     if (!leagueId) return;
     
-    // Fallback to existing config or empty defaults to ensure inputs aren't blocked
     const base = localConfig || config || {
       id: 'config',
-      title: '',
-      description: '',
+      title: 'New League Pipeline',
+      description: 'Registration for our upcoming season.',
       registration_cost: '0',
-      payment_instructions: 'Standard instructions.',
+      payment_instructions: 'Pay via the squad hub.',
       is_active: false,
       form_schema: [
         { id: 'name', type: 'short_text', label: 'Full Name', required: true },
         { id: 'email', type: 'short_text', label: 'Email Address', required: true }
       ],
-      form_version: 1
+      form_version: 1,
+      waiver_text: ''
     };
 
     const updated = { ...base, ...updates } as LeagueRegistrationConfig;
@@ -128,10 +130,7 @@ export default function LeagueRegistrationAdminPage() {
     }
   };
 
-  const formSchema = localConfig?.form_schema || config?.form_schema || [
-    { id: 'name', type: 'short_text', label: 'Full Name', required: true },
-    { id: 'email', type: 'short_text', label: 'Email Address', required: true }
-  ];
+  const formSchema = localConfig?.form_schema || config?.form_schema || [];
 
   const filteredEntries = useMemo(() => {
     if (!entries) return [];
@@ -212,8 +211,7 @@ export default function LeagueRegistrationAdminPage() {
                     <th className="px-4 py-5">Submitted</th>
                     <th className="px-4 py-5 text-center">Payment</th>
                     <th className="px-4 py-5">Status</th>
-                    <th className="px-4 py-5">Assignment</th>
-                    <th className="px-8 py-5 text-right">Actions</th>
+                    <th className="px-4 py-5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -228,32 +226,52 @@ export default function LeagueRegistrationAdminPage() {
                         <button onClick={() => toggleRegistrationPaymentStatus(leagueId as string, entry.id, !entry.payment_received)} className={cn("inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all", entry.payment_received ? "bg-green-500 text-white shadow-lg" : "bg-muted text-muted-foreground/30")}><DollarSign className="h-4 w-4" /></button>
                       </td>
                       <td className="px-4 py-6"><Badge className={cn("border-none font-black text-[8px] uppercase px-2 h-5", entry.status === 'pending' ? "bg-amber-100 text-amber-700" : entry.status === 'assigned' ? "bg-primary text-white" : entry.status === 'accepted' ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground")}>{entry.status}</Badge></td>
-                      <td className="px-4 py-6">
-                        <div className="flex flex-col gap-1">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground leading-none">{entry.assigned_team_id ? 'Assigned' : 'Unassigned Pool'}</p>
-                          <p className="text-xs font-black text-primary truncate max-w-[100px]">{entry.assigned_team_id?.slice(-6) || '-'}</p>
-                        </div>
-                      </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
                           <Dialog>
                             <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border hover:bg-primary hover:text-white transition-all"><UserPlus className="h-4 w-4" /></Button></DialogTrigger>
-                            <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
-                              <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Deploy Recruit</DialogTitle></DialogHeader>
-                              <div className="space-y-6 py-4">
-                                <div className="p-4 bg-muted/30 rounded-2xl border-2 border-dashed space-y-2">
-                                  <p className="text-[10px] font-black uppercase text-muted-foreground">Form Highlights</p>
-                                  {formSchema.slice(0, 3).map(f => <p key={f.id} className="text-xs font-bold">{f.label}: <span className="text-primary">{entry.answers[f.id] || 'N/A'}</span></p>)}
+                            <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-2xl">
+                              <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Review & Dispatch</DialogTitle></DialogHeader>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
+                                <div className="space-y-4">
+                                  <p className="text-[10px] font-black uppercase text-muted-foreground">Form Responses</p>
+                                  <ScrollArea className="h-[250px] pr-4">
+                                    <div className="space-y-4">
+                                      {Object.entries(entry.answers).map(([key, val]) => (
+                                        <div key={key} className="space-y-1">
+                                          <p className="text-[8px] font-black uppercase opacity-40">{key.replace(/_/g, ' ')}</p>
+                                          <p className="text-sm font-bold">{val.toString()}</p>
+                                        </div>
+                                      ))}
+                                      {entry.waiver_signed_text && (
+                                        <div className="pt-4 border-t border-muted-foreground/10 space-y-1">
+                                          <p className="text-[8px] font-black uppercase text-green-600">Signed Digitally</p>
+                                          <p className="text-xs font-mono italic">"{entry.waiver_signed_text}"</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </ScrollArea>
                                 </div>
-                                <div className="space-y-2">
-                                  <Label className="text-[10px] font-black uppercase ml-1">Select Target Squad</Label>
-                                  <Select value={entry.assigned_team_id || 'unassigned'} onValueChange={(tid) => assignEntryToTeam(leagueId as string, entry.id, tid === 'unassigned' ? null : tid)}>
-                                    <SelectTrigger className="h-12 rounded-xl border-2 font-black"><SelectValue placeholder="Move to squad..." /></SelectTrigger>
-                                    <SelectContent className="rounded-xl">
-                                      <SelectItem value="unassigned">Unassigned Pool</SelectItem>
-                                      {Object.entries(activeTeam?.leagueIds || {}).map(([id, t]) => <SelectItem key={id} value={id}>Squad {id.slice(-6)}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
+                                <div className="space-y-6">
+                                  <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase ml-1">Dispatch to Squad</Label>
+                                    <Select value={entry.assigned_team_id || 'unassigned'} onValueChange={(tid) => assignEntryToTeam(leagueId as string, entry.id, tid === 'unassigned' ? null : tid)}>
+                                      <SelectTrigger className="h-14 rounded-xl border-2 font-black"><SelectValue placeholder="Move to squad..." /></SelectTrigger>
+                                      <SelectContent className="rounded-xl">
+                                        <SelectItem value="unassigned">Unassigned Pool</SelectItem>
+                                        {Object.entries(activeTeam?.leagueIds || {}).map(([id, t]) => <SelectItem key={id} value={id}>Squad {id.slice(-6)}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed space-y-4">
+                                    <div className="flex items-center gap-2">
+                                      <Info className="h-4 w-4 text-primary" />
+                                      <p className="text-[10px] font-black uppercase text-primary">Deployment Note</p>
+                                    </div>
+                                    <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">
+                                      Assigning a recruit to a squad allows that squad's coach to review and officially enroll them into their active roster.
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
                               <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={() => toast({ title: "Recruit Dispatched" })}>Commit Deployment</Button></DialogFooter>
@@ -277,7 +295,7 @@ export default function LeagueRegistrationAdminPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary p-3 rounded-2xl text-white shadow-lg shadow-primary/20"><Globe className="h-6 w-6" /></div>
-                    <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Public Protocol</CardTitle><CardDescription className="font-bold text-primary text-[10px] uppercase tracking-widest">Global Signup Visibility</CardDescription></div>
+                    <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Pipeline Logistics</CardTitle><CardDescription className="font-bold text-primary text-[10px] uppercase tracking-widest">Global Signup Visibility</CardDescription></div>
                   </div>
                   <Switch checked={localConfig?.is_active || config?.is_active || false} onCheckedChange={(v) => handleUpdateConfig({ is_active: v }, true)} />
                 </div>
@@ -285,7 +303,7 @@ export default function LeagueRegistrationAdminPage() {
               <CardContent className="p-8 space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Signup Title</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Signup Headline</Label>
                     <Input 
                       value={localConfig?.title ?? config?.title ?? ''} 
                       onChange={e => handleUpdateConfig({ title: e.target.value })} 
@@ -293,8 +311,9 @@ export default function LeagueRegistrationAdminPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Registration Fee</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Registration Fee ($)</Label>
                     <Input 
+                      type="number"
                       value={localConfig?.registration_cost ?? config?.registration_cost ?? ''} 
                       onChange={e => handleUpdateConfig({ registration_cost: e.target.value })} 
                       className="h-12 rounded-xl font-black border-2 text-primary" 
@@ -302,7 +321,7 @@ export default function LeagueRegistrationAdminPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Protocol Brief</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Brief</Label>
                   <Textarea 
                     value={localConfig?.description ?? config?.description ?? ''} 
                     onChange={e => handleUpdateConfig({ description: e.target.value })} 
@@ -317,19 +336,38 @@ export default function LeagueRegistrationAdminPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary p-3 rounded-2xl text-white shadow-lg shadow-primary/20"><LayoutGrid className="h-6 w-6" /></div>
-                    <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Field Architect</CardTitle><CardDescription className="font-bold text-white/60 text-[10px] uppercase tracking-widest">Recruit Data Payload</CardDescription></div>
+                    <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Field Architect</CardTitle><CardDescription className="font-bold text-white/60 text-[10px] uppercase tracking-widest">Applicant Data Payload</CardDescription></div>
                   </div>
                   <Dialog>
                     <DialogTrigger asChild><Button variant="secondary" className="rounded-full h-10 px-6 font-black uppercase text-[10px]" onClick={() => setEditingField({ type: 'short_text', label: '', required: true })}><Plus className="h-4 w-4 mr-2" /> Add Field</Button></DialogTrigger>
-                    <DialogContent className="rounded-3xl border-none shadow-2xl p-8"><DialogHeader><DialogTitle className="text-2xl font-black uppercase">New Data Field</DialogTitle></DialogHeader>
+                    <DialogContent className="rounded-3xl border-none shadow-2xl p-8"><DialogHeader><DialogTitle className="text-2xl font-black uppercase">New Data Segment</DialogTitle></DialogHeader>
                       <div className="space-y-4 py-4">
-                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Field Label</Label><Input value={editingField?.label || ''} onChange={e => setEditingField({ ...editingField, label: e.target.value })} className="h-12 rounded-xl" /></div>
-                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Type</Label>
+                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Segment Label</Label><Input value={editingField?.label || ''} onChange={e => setEditingField({ ...editingField, label: e.target.value })} className="h-12 rounded-xl" /></div>
+                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Input Type</Label>
                           <Select value={editingField?.type} onValueChange={(v: any) => setEditingField({ ...editingField, type: v })}>
                             <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent className="rounded-xl"><SelectItem value="short_text">Short Text</SelectItem><SelectItem value="long_text">Long Text</SelectItem><SelectItem value="dropdown">Dropdown Selection</SelectItem><SelectItem value="header">Section Header</SelectItem></SelectContent>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="short_text">Short Text</SelectItem>
+                              <SelectItem value="long_text">Long Text Block</SelectItem>
+                              <SelectItem value="dropdown">Dropdown Selection</SelectItem>
+                              <SelectItem value="checkbox">Checkbox Group</SelectItem>
+                              <SelectItem value="yes_no">Yes / No Toggle</SelectItem>
+                              <SelectItem value="image">Image Attachment</SelectItem>
+                              <SelectItem value="header">Section Header</SelectItem>
+                            </SelectContent>
                           </Select>
                         </div>
+                        {['dropdown', 'checkbox'].includes(editingField?.type || '') && (
+                          <div className="space-y-2 animate-in slide-in-from-top-2">
+                            <Label className="text-[10px] uppercase font-black">Selection Options (Comma Separated)</Label>
+                            <Input 
+                              placeholder="e.g. Small, Medium, Large" 
+                              value={editingField?.options?.join(', ') || ''} 
+                              onChange={e => setEditingField({...editingField, options: e.target.value.split(',').map(o => o.trim())})} 
+                              className="h-12 rounded-xl border-primary/20"
+                            />
+                          </div>
+                        )}
                       </div>
                       <DialogFooter><Button className="w-full h-14 rounded-2xl font-black shadow-xl" onClick={handleAddField}>Add to Protocol</Button></DialogFooter>
                     </DialogContent>
@@ -339,23 +377,62 @@ export default function LeagueRegistrationAdminPage() {
               <CardContent className="p-0">
                 <div className="divide-y">{formSchema.map((field, i) => (
                   <div key={field.id} className="p-6 flex items-center justify-between group hover:bg-muted/10 transition-colors">
-                    <div className="flex items-center gap-4"><div className="text-[10px] font-black text-muted-foreground w-6">{i + 1}</div><div><p className="font-black text-sm uppercase">{field.label}</p><p className="text-[9px] font-bold text-muted-foreground uppercase">{field.type.replace(/_/g, ' ')}</p></div></div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-[10px] font-black text-muted-foreground w-6">{i + 1}</div>
+                      <div>
+                        <p className="font-black text-sm uppercase">{field.label}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">{field.type.replace(/_/g, ' ')} {field.options && `(${field.options.length} options)`}</p>
+                      </div>
+                    </div>
                     {i > 1 && <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleUpdateConfig({ form_schema: formSchema.filter(f => f.id !== field.id) }, true)}><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 ))}</div>
               </CardContent>
             </Card>
+
+            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden ring-1 ring-black/5 bg-white">
+              <CardHeader className="bg-muted/30 border-b p-8">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary/10 p-3 rounded-2xl text-primary"><FileSignature className="h-6 w-6" /></div>
+                  <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Institutional Waiver</CardTitle><CardDescription className="font-bold text-muted-foreground text-[10px] uppercase tracking-widest">Digital Signature Mandate</CardDescription></div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 space-y-4">
+                <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Applicants must digitally sign this text before submitting their enrollment.</p>
+                <Textarea 
+                  placeholder="Define liability terms, medical releases, and conduct codes..." 
+                  value={localConfig?.waiver_text ?? config?.waiver_text ?? ''} 
+                  onChange={e => handleUpdateConfig({ waiver_text: e.target.value })} 
+                  className="min-h-[200px] rounded-2xl border-2 font-medium bg-muted/10" 
+                />
+              </CardContent>
+            </Card>
           </div>
 
           <aside className="space-y-6">
-            <Card className="rounded-[2rem] border-none shadow-xl bg-primary text-white overflow-hidden">
+            <Card className="rounded-[2rem] border-none shadow-xl bg-primary text-white overflow-hidden group">
               <CardContent className="p-8 space-y-6">
-                <Share2 className="h-8 w-8 text-white/40 mb-2" />
-                <h3 className="text-xl font-black tracking-tight uppercase leading-none">Portal URL</h3>
-                <div className="bg-white/10 p-4 rounded-2xl border border-white/10 text-center"><p className="text-[8px] font-black uppercase opacity-60">Active Link</p><p className="text-[10px] font-bold truncate">/register/league/{leagueId}</p></div>
-                <Button className="w-full h-12 rounded-xl bg-white text-primary font-black uppercase text-[10px] shadow-xl" onClick={handleCopyPortalUrl}>Copy Portal URL</Button>
+                <div className="bg-white/20 p-4 rounded-2xl w-fit group-hover:scale-110 transition-transform"><Share2 className="h-8 w-8 text-white" /></div>
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black tracking-tight uppercase leading-none">Portal Access</h3>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Recruitment Link</p>
+                </div>
+                <div className="bg-white/10 p-4 rounded-2xl border border-white/10 text-center"><p className="text-[8px] font-black uppercase opacity-60 mb-1">Public Link</p><p className="text-[10px] font-bold truncate">/register/league/{leagueId}</p></div>
+                <Button className="w-full h-14 rounded-2xl bg-white text-primary font-black uppercase text-xs shadow-xl active:scale-95 transition-all" onClick={handleCopyPortalUrl}>
+                  <Copy className="h-4 w-4 mr-2" /> Copy Portal Link
+                </Button>
               </CardContent>
             </Card>
+
+            <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-4">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Strategic Enrollment</h4>
+              </div>
+              <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
+                All data collected via this protocol is funneled into your master Recruit Pool for tactical review and squad deployment.
+              </p>
+            </div>
           </aside>
         </div>
       )}
