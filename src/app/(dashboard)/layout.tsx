@@ -59,6 +59,10 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!mounted || isSeedingDemo || isTeamsLoading || !user || isDemoInitializing) return;
 
+    // Check if a demo is being seeded via query param to prevent redirect away from dashboard
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('seed_demo')) return;
+
     const isSetupPage = pathname === '/dashboard' ||
                         pathname === '/teams/new' || 
                         pathname === '/teams/join' || 

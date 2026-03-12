@@ -146,7 +146,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     isActive={pathname === '/dashboard'} 
                     className={cn(
                       "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                      pathname === '/dashboard' ? "bg-primary text-white shadow-lg hover:bg-primary hover:text-white" : "bg-primary/5 text-primary hover:bg-primary/10"
+                      pathname === '/dashboard' ? "!bg-primary !text-white shadow-lg hover:bg-primary" : "bg-primary/5 text-primary hover:bg-primary/10"
                     )}
                   >
                     <Link href="/dashboard"><Layout className="h-5 w-5 mr-3" />Dashboard</Link>
@@ -160,7 +160,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       isActive={pathname === '/family'} 
                       className={cn(
                         "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                        pathname === '/family' ? "bg-primary text-white shadow-lg hover:bg-primary hover:text-white" : "bg-primary/5 text-primary hover:bg-primary/10"
+                        pathname === '/family' ? "!bg-primary !text-white shadow-lg hover:bg-primary" : "bg-primary/5 text-primary hover:bg-primary/10"
                       )}
                     >
                       <Link href="/family"><Baby className="h-5 w-5 mr-3" />Family Hub</Link>
@@ -175,7 +175,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       isActive={pathname === '/club'} 
                       className={cn(
                         "h-12 px-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest",
-                        pathname === '/club' ? "bg-black text-white shadow-lg hover:bg-black hover:text-white" : "bg-primary/5 text-primary hover:bg-primary/10"
+                        pathname === '/club' ? "!bg-black !text-white shadow-lg hover:bg-black" : "bg-primary/5 text-primary hover:bg-primary/10"
                       )}
                     >
                       <Link href="/club"><Building className="h-5 w-5 mr-3" />Club Hub</Link>

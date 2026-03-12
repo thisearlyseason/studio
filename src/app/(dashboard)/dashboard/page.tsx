@@ -23,7 +23,8 @@ import {
   TrendingUp,
   AlertCircle,
   FileText,
-  Building
+  Building,
+  ArrowRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
