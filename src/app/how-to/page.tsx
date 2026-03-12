@@ -61,7 +61,9 @@ import {
   BrainCircuit,
   Wand2,
   GraduationCap,
-  Award
+  Award,
+  CircleCheck,
+  RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -76,7 +78,7 @@ type AccountType = 'starter' | 'pro' | 'elite' | 'player' | 'parent';
 interface ManualSection {
   title: string;
   icon: any;
-  steps: Array<{ step: string; detail: string }>;
+  steps: Array<{ step: string; detail: React.ReactNode }>;
 }
 
 export default function HowToGuidePage() {
@@ -84,143 +86,200 @@ export default function HowToGuidePage() {
   const { user } = useUser();
   const [selectedType, setSelectedAccountType] = useState<AccountType | null>(null);
 
-  // --- REUSABLE INSTRUCTION BLOCKS ---
+  // --- REUSABLE TACTICAL BLOCKS ---
 
-  const BLOCK_SQUAD_SETUP = {
+  const BLOCK_DEPLOYMENT = {
     title: "1. Squad Deployment & Recruitment",
     icon: UserPlus,
     steps: [
-      { step: "Launch Team", detail: "Start at the Dashboard and select 'New Squad'. Choose your tier (Starter or Pro) to initialize the coordination hub." },
-      { step: "Retrieve Join Code", detail: "Navigate to 'Team Profile' to find your unique 6-digit Squad Code. This is the only way for others to join." },
-      { step: "Invite Members", detail: "Share the code via text or email. Teammates use the 'Recruitment Hub' to enroll themselves instantly." }
+      { step: "Launch Team", detail: <>Start at the Dashboard and select <strong>New Squad</strong>. Choose your tier to initialize the coordination hub.</> },
+      { step: "Retrieve Join Code", detail: <>Navigate to <strong>Team Profile</strong> to find your unique 6-digit Squad Code. This is the primary key for enrollment.</> },
+      { step: "Invite Members", detail: <>Share the code via text or email. Teammates use the <strong>Recruitment Hub</strong> to enroll themselves instantly.</> }
     ]
   };
 
   const BLOCK_SCHEDULING = {
-    title: "2. Strategic Scheduling & RSVPs",
+    title: "2. Strategic Scheduling",
     icon: CalendarDays,
     steps: [
-      { step: "Create Activity", detail: "In 'Schedule', use '+ New Activity' to log Match Days, Training, or Meetings. Set location and times." },
-      { step: "Calendar View", detail: "Use the 'Calendar' tab for a unified chronological view of all squad commitments across all your teams." },
-      { step: "Monitor RSVPs", detail: "Click any event to see who is 'Going', 'Maybe', or 'Declined' in real-time. Crucial for match-day planning." }
+      { step: "Create Activity", detail: <>In the <strong>Schedule</strong> hub, use <strong>+ New Activity</strong> to log Match Days, Training, or Tactical Meetings. Set location and precise start times.</> },
+      { step: "Calendar View", detail: <>Use the <strong>Calendar</strong> tab for a unified chronological view of all squad commitments across multiple teams.</> },
+      { step: "RSVP Monitoring", detail: <>Click any event to see who is <strong>Going</strong>, <strong>Maybe</strong>, or <strong>Declined</strong> in real-time. Crucial for match-day logistics.</> }
     ]
   };
 
-  const BLOCK_COMMS = {
-    title: "3. Communication & Social Feed",
+  const BLOCK_COMMUNICATION = {
+    title: "3. Communication & Live Chats",
     icon: MessageCircle,
     steps: [
-      { step: "Squad Feed", detail: "Use the 'Feed' to view system updates and coordination notes. Note: Posting and polls are unlocked in Pro." },
-      { step: "Tactical Chats", detail: "Open 'Chats' to establish secure messaging groups for specific squad units or travel planning." },
-      { step: "Broadcast Alerts", detail: "Coaches can use the Megaphone icon to send urgent, full-screen team-wide alerts for venue changes." }
+      { step: "Tactical Chats", detail: <>Open the <strong>Chats</strong> hub to establish secure messaging groups. Create channels for specific squad units (e.g., Defensive Unit) or travel planning.</> },
+      { step: "Live Feed", detail: <>Use the <strong>Feed</strong> to view system updates and broadcasts. Pro/Elite users can post polls and media to spark squad engagement.</> },
+      { step: "Member Messaging", detail: <>Directly message any coach or opponent via the <strong>Leagues</strong> directory to coordinate match logistics.</> }
     ]
   };
 
-  const BLOCK_PERFORMANCE = {
-    title: "4. Result Ledgers & Tournaments",
+  const BLOCK_SCOREKEEPING = {
+    title: "4. Performance & Result Ledger",
     icon: Trophy,
     steps: [
-      { step: "Scorekeeping", detail: "Visit the 'Scorekeeping' hub after matches. Enter 'Us vs Them' scores to update the season Win/Loss record." },
-      { step: "Manual Itineraries", detail: "Add 'Tournament' events to create multi-day calendar blocks for championships. Pro unlocks automated brackets." }
+      { step: "Record Match", detail: <>Visit <strong>Scorekeeping</strong> after matches. Enter <strong>Us vs Them</strong> scores to update the season Win/Loss record instantly.</> },
+      { step: "Manual Itineraries", detail: <>Add <strong>Tournament</strong> events to create multi-day calendar blocks. This serves as a manual schedule for championship weekend.</> },
+      { step: "Standing Sync", detail: <>League matches automatically update the <strong>Leagues</strong> leaderboard once the result is posted to the ledger.</> }
     ]
   };
 
-  const BLOCK_RESOURCES = {
-    title: "5. Playbook, Film & Library",
+  const BLOCK_PLAYBOOK = {
+    title: "5. Playbook & Study Film",
     icon: Dumbbell,
     steps: [
-      { step: "Archive Drills", detail: "In 'Playbook', add execution protocols with instructions and external video links for squad study." },
-      { step: "Film Study", detail: "Upload match film to the Playbook. Teammates must watch 75% of the video to be marked compliant in the roster." },
-      { step: "Resource Repository", detail: "Upload PDFs or images to the 'Library' for administrative access (maps, rules, handbooks)." }
+      { step: "Archive Drills", detail: <>In the <strong>Playbook</strong>, add execution protocols with instructions and external video links for squad study.</> },
+      { step: "Film Study", detail: <>Upload match film to the Playbook hub. Pro tiers enable high-speed 10GB media storage for detailed game analysis.</> },
+      { step: "Tactical Repository", detail: <>Use the <strong>Library</strong> to upload PDFs (maps, handbooks, rules) for immediate administrative access.</> }
+    ]
+  };
+
+  const BLOCK_ELITE_ACTIVATION = {
+    title: "6. Activating Elite Status",
+    icon: Zap,
+    steps: [
+      { step: "Provision Seat", detail: <>After upgrading, visit <strong>Team Profile</strong> and use <strong>Override Tier</strong> to attach the Pro seat to your primary squad.</> },
+      { step: "Unlock Modules", detail: <>Verify the <strong>ELITE PRO</strong> badge in your team switcher. Advanced film study, analytics, and tournament tools are now live.</> }
+    ]
+  };
+
+  const BLOCK_TOURNAMENT_ENGINE = {
+    title: "7. The Elite Tournament Engine",
+    icon: Table,
+    steps: [
+      { step: "Roster Enrollment", detail: <>Create a Tournament. In the <strong>Deploy</strong> tab, enter participating squad names to initialize the bracket engine.</> },
+      { step: "Auto-Scheduler", detail: <>Define match lengths and breaks. Tap <strong>Deploy Complex Itinerary</strong> to auto-generate pairings across available fields.</> },
+      { step: "Portal Distribution", detail: <>In <strong>Portals</strong>, share the <strong>Spectator Hub</strong> with fans and the <strong>Scorekeeper Hub</strong> with marshals for live updates.</> }
+    ]
+  };
+
+  const BLOCK_FILM_COMPLIANCE = {
+    title: "8. Film Watch Verification",
+    icon: Video,
+    steps: [
+      { step: "The 75% Rule", detail: <>The system tracks precise watch time. Teammates must watch <strong>75% of the video</strong> to be marked as <strong>Compliant</strong> in your roster ledger.</> },
+      { step: "Audit Ledger", detail: <>View the Roster to see who has completed their film study. A <strong>Checkmark</strong> appears once the watch threshold is met.</> }
+    ]
+  };
+
+  const BLOCK_FEES_GOVERNANCE = {
+    title: "9. Roster Fees & Governance",
+    icon: DollarSign,
+    steps: [
+      { step: "Post Dues", detail: <>In the Roster hub, attach uniform or tournament fees to player profiles. Track <strong>Paid</strong> vs <strong>Owed</strong> status automatically.</> },
+      { step: "Staff Evaluations", detail: <>Use <strong>Private Staff Notes</strong> in the Roster to log tactical performance reviews visible only to your coaching staff.</> },
+      { step: "Digital Signatures", detail: <>Upload protocols to <strong>Coaches Corner</strong>. The system collects and archives verified digital signatures from every member.</> }
+    ]
+  };
+
+  const BLOCK_HIGH_PRIORITY = {
+    title: "10. High-Priority Command",
+    icon: Megaphone,
+    steps: [
+      { step: "Broadcast Alerts", detail: <>Use the <strong>Megaphone</strong> icon to send urgent, full-screen team-wide popups for last-minute venue changes or safety news.</> },
+      { step: "Advanced Trajectory", detail: <>In <strong>Scorekeeping</strong>, visualize PPG, Win Trends, and opponent scouting patterns via interactive Pro charts.</> }
+    ]
+  };
+
+  const BLOCK_CLUB_HUB = {
+    title: "11. Institutional Club Hub",
+    icon: Building,
+    steps: [
+      { step: "Fiscal Pulse", detail: <>Access the <strong>Club Hub</strong> to audit aggregated dues collection across all squads in your entire organization.</> },
+      { step: "Fleet Management", detail: <>Manage equipment and facility assets from a master ledger. Resolve scheduling conflicts across 20+ squads instantly.</> },
+      { step: "Staff Directory", detail: <>Manage personnel and coach assignments from a central directory. Provision Pro seats to specific squads as needed.</> }
+    ]
+  };
+
+  const BLOCK_PUBLIC_RECRUITMENT = {
+    title: "12. Public Recruitment Hub",
+    icon: ClipboardList,
+    steps: [
+      { step: "Form Architect", detail: <>Build custom registration forms with logic for jersey sizes, medical history, and digital waivers.</> },
+      { step: "Public Portal", detail: <>Share your <strong>Portal URL</strong>. New recruits can apply without an account. Review and approve submissions in the <strong>Ledger</strong>.</> },
+      { step: "Squad Assignment", detail: <>Directly deploy approved applicants to specific squads in your organization with one tap.</> }
     ]
   };
 
   const BLOCK_SCOUTING_AI = {
-    title: "6. AI Scouting Intelligence",
+    title: "13. AI Scouting Analyst",
     icon: BrainCircuit,
     steps: [
-      { step: "Draft Observation", detail: "In the Scouting hub, enter raw notes about an opponent's recent performance or tendencies." },
-      { step: "Generate Brief", detail: "Tap 'Generate AI Brief' to have the analyzer structure your notes into Strengths, Weaknesses, and Keys to Victory." },
-      { step: "Publish Intel", detail: "Commit the report to the squad hub so all players can study the match-up before game day." }
+      { step: "Raw Observations", detail: <>In the <strong>Scouting</strong> tab, enter raw match notes about an opponent's tendencies or recent results.</> },
+      { step: "Generate Brief", detail: <>Tap <strong>Generate AI Brief</strong> to have our Tactical Analyst structure your notes into <strong>Strengths, Weaknesses, and Keys to Victory</strong>.</> }
     ]
   };
 
-  const BLOCK_CLUB_AUDIT = {
-    title: "7. Institutional Club Command",
-    icon: Building,
+  const BLOCK_LOGISTICS_FLEET = {
+    title: "14. Fleet & Facility Logistics",
+    icon: MapPin,
     steps: [
-      { step: "Fiscal Pulse", detail: "Use the Club Hub to audit aggregated dues collection across all your organization's teams." },
-      { step: "Staff Directory", detail: "Manage personnel across every squad from a single master directory. Assign Pro seats to specific coaches." },
-      { step: "Facility Audit", detail: "View organization-wide field bookings to resolve scheduling conflicts before they occur." }
+      { step: "Resource Booking", detail: <>Enroll facilities and specific fields in the <strong>Facilities</strong> hub. Assign them to events to block off time globally.</> },
+      { step: "Inventory Vault", detail: <>Track uniforms, balls, and medical kits in <strong>Equipment</strong>. Log assignments to specific players and track return status.</> }
     ]
   };
 
-  const BLOCK_RECRUITMENT = {
-    title: "8. Public Recruitment Hub",
-    icon: ClipboardList,
+  const BLOCK_PLAYER_HUB = {
+    title: "Athlete Operational Hub",
+    icon: User,
     steps: [
-      { step: "Form Architect", detail: "Build custom registration forms with logic for sizes, medical history, and digital waivers." },
-      { step: "Public Portal", detail: "Share your unique Portal URL. New recruits can apply without needing an initial account." },
-      { step: "Ledger Approval", detail: "Review submissions in the Ledger. Approve applicants and assign them directly to your club's squads." }
+      { step: "Recruiting Portfolio", detail: <>In the Roster hub, tap <strong>Generate Scouting Pack</strong> to export a certified tactical resume for recruiters and scouts.</> },
+      { step: "The RSVP Mandate", detail: <>Check your <strong>Dashboard</strong> itinerary daily. Submit your RSVP status for all games and training to ensure match-day eligibility.</> },
+      { step: "Compliance Tasks", detail: <>Watch assigned film in the Playbook. Sign digital waivers in the <strong>Library</strong> to maintain a <strong>Cleared</strong> status.</> }
+    ]
+  };
+
+  const BLOCK_PARENT_HUB = {
+    title: "Guardian Safety Hub",
+    icon: Baby,
+    steps: [
+      { step: "Household Command", detail: <>Add children in the <strong>Family Hub</strong>. They link to your account for unified scheduling and consolidated billing.</> },
+      { step: "Fiscal Audit", detail: <>View your <strong>Household Balance</strong> on the dashboard to track aggregated dues across all active squads.</> },
+      { step: "Volunteer Board", detail: <>Visit the <strong>Volunteer Hub</strong> to claim concessions or hospitality shifts. Track your verified hours for the season.</> }
     ]
   };
 
   const MANUAL_CONTENT: Record<AccountType, { label: string; desc: string; highlights: string[]; sections: ManualSection[] }> = {
     starter: {
       label: "Starter (Free)",
-      desc: "Essential coordination for grassroots squads. Master the core coordination engine.",
-      highlights: ["Unlimited Teams", "Tactical Chat", "Basic Scheduling", "Manual Scorekeeping", "Playbook Basics", "Library"],
-      sections: [BLOCK_SQUAD_SETUP, BLOCK_SCHEDULING, BLOCK_COMMS, BLOCK_PERFORMANCE, BLOCK_RESOURCES]
+      desc: "Foundational coordination for grassroots squads. Master the core coordination engine.",
+      highlights: ["Unlimited Teams", "Tactical Chats", "Match Scheduling", "Manual Scorekeeping", "Playbook Drills", "Library Repository"],
+      sections: [BLOCK_DEPLOYMENT, BLOCK_SCHEDULING, BLOCK_COMMUNICATION, BLOCK_SCOREKEEPING, BLOCK_PLAYBOOK]
     },
     pro: {
       label: "Squad Pro",
       desc: "Full coordination for elite squads. Advanced verification and AI-driven scout analysis.",
-      highlights: ["Everything in Starter", "Auto-Scheduler", "75% Film Rule", "AI Scouting", "Digital Signatures", "Advanced Stats"],
-      sections: [BLOCK_SQUAD_SETUP, BLOCK_SCHEDULING, BLOCK_COMMS, BLOCK_PERFORMANCE, BLOCK_RESOURCES, BLOCK_SCOUTING_AI]
+      highlights: ["Everything in Starter", "Elite Auto-Scheduler", "75% Film Watch Rule", "Digital Waivers", "High-Priority Alerts", "AI Scouting"],
+      sections: [BLOCK_DEPLOYMENT, BLOCK_SCHEDULING, BLOCK_COMMUNICATION, BLOCK_SCOREKEEPING, BLOCK_PLAYBOOK, BLOCK_ELITE_ACTIVATION, BLOCK_TOURNAMENT_ENGINE, BLOCK_FILM_COMPLIANCE, BLOCK_FEES_GOVERNANCE, BLOCK_HIGH_PRIORITY, BLOCK_SCOUTING_AI]
     },
     elite: {
       label: "Elite Org (Team/League)",
       desc: "Institutional infrastructure. Complete tactical suite for multi-team organizations.",
-      highlights: ["Multi-Team Club Hub", "Public Recruitment", "Fiscal Audit", "Facility Conflicts", "Staff Directory", "AI Strategy"],
-      sections: [BLOCK_SQUAD_SETUP, BLOCK_SCHEDULING, BLOCK_COMMS, BLOCK_PERFORMANCE, BLOCK_RESOURCES, BLOCK_SCOUTING_AI, BLOCK_CLUB_AUDIT, BLOCK_RECRUITMENT]
+      highlights: ["Everything in Pro", "Master Club Hub", "Public Recruitment", "Form Architect", "Facility Management", "Equipment Vault"],
+      sections: [BLOCK_DEPLOYMENT, BLOCK_SCHEDULING, BLOCK_COMMUNICATION, BLOCK_SCOREKEEPING, BLOCK_PLAYBOOK, BLOCK_ELITE_ACTIVATION, BLOCK_TOURNAMENT_ENGINE, BLOCK_FILM_COMPLIANCE, BLOCK_FEES_GOVERNANCE, BLOCK_HIGH_PRIORITY, BLOCK_SCOUTING_AI, BLOCK_CLUB_HUB, BLOCK_PUBLIC_RECRUITMENT, BLOCK_LOGISTICS_FLEET]
     },
     player: {
       label: "Individual Athlete",
-      desc: "Stay coordinated and ready. Your personal recruitment portfolio and performance hub.",
-      highlights: ["Join via Code", "Recruiting Portfolio", "RSVP Mandate", "Film Compliance", "Digital Vault"],
-      sections: [
-        {
-          title: "1. Recruitment & Enrollment",
-          icon: UserPlus,
-          steps: [
-            { step: "Join via Code", detail: "Enter the 6-digit code from your coach in the 'Recruitment Hub' to join your team's tactical board." },
-            { step: "Professional Portfolio", detail: "In the Roster hub, tap 'Generate Scouting Pack' to export your certified tactical resume for recruiters." }
-          ]
-        },
-        {
-          title: "2. Compliance & Film Study",
-          icon: Video,
-          steps: [
-            { step: "The 75% Rule", detail: "Watch 75% of assigned film or drills in the Playbook to be marked 'Compliant' in your coach's ledger." },
-            { step: "Digital Signatures", detail: "Execute pending waivers in the 'Library' hub to ensure eligibility for upcoming series." }
-          ]
-        }
-      ]
+      desc: "Stay coordinated and ready. Manage your personal recruitment portfolio and performance hub.",
+      highlights: ["Join via Code", "Recruiting Portfolio", "Film Compliance", "Digital Vault", "RSVP Mandate", "Scoreboard"],
+      sections: [BLOCK_PLAYER_HUB, BLOCK_COMMUNICATION, BLOCK_SCOREKEEPING, BLOCK_PLAYBOOK]
     },
     parent: {
       label: "Parent / Guardian",
       desc: "Unified household safety and fiscal command for multiple minor players.",
-      highlights: ["Household Pulse", "Fiscal Audit", "Minor Registration", "Unified Calendar", "Volunteer Board"],
-      sections: [
-        {
-          title: "1. Household Hub",
-          icon: Baby,
-          steps: [
-            { step: "Register Minors", detail: "Add children in 'Family Hub'. They link to your account for unified scheduling and payment tracking." },
-            { step: "Fiscal Audit", detail: "View the 'Household Balance' on your dashboard to see aggregated dues across all active squads." }
-          ]
-        }
-      ]
+      highlights: ["Household Command", "Fiscal Audit", "Minor Registration", "Unified Calendar", "Volunteer Board", "Fundraising"],
+      sections: [BLOCK_PARENT_HUB, BLOCK_SCHEDULING, BLOCK_COMMUNICATION, {
+        title: "2. Community & Fundraising",
+        icon: HandHelping,
+        steps: [
+          { step: "Volunteer Hub", detail: <>Claim assignments for concessions or hospitality. Track your verified hours for the season.</> },
+          { step: "Fundraising Ops", detail: <>Participate in squad capital campaigns. Log contributions and track goal progress.</> }
+        ]
+      }]
     }
   };
 
@@ -248,14 +307,14 @@ export default function HowToGuidePage() {
           <div className="space-y-16 animate-in fade-in duration-700">
             <section className="text-center space-y-6">
               <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] px-4 h-7">Tactical Manual</Badge>
-              <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-none uppercase">The Operational <span className="text-primary italic">Manual.</span></h1>
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-none uppercase">Operational <span className="text-primary italic">Manual.</span></h1>
               <p className="text-xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">Select your account perspective for exhaustive coordination guidance.</p>
             </section>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {(Object.keys(MANUAL_CONTENT) as AccountType[]).map((type) => {
                 const data = MANUAL_CONTENT[type];
-                const Icon = type === 'starter' ? Users : type === 'pro' ? Zap : type === 'elite' ? Building : type === 'player' ? User : Baby;
+                const Icon = type === 'starter' ? Users2 : type === 'pro' ? Zap : type === 'elite' ? Building : type === 'player' ? User : Baby;
                 
                 return (
                   <Card 
@@ -273,7 +332,7 @@ export default function HowToGuidePage() {
                       </div>
                       <div className="space-y-1">
                         <h3 className="text-xl font-black uppercase tracking-tight group-hover:text-primary transition-colors">{data.label}</h3>
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">{data.desc}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">{data.desc}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -286,7 +345,7 @@ export default function HowToGuidePage() {
             <section className="space-y-6 border-b pb-8">
               <div className="flex items-center gap-4">
                 <div className="bg-primary/10 p-4 rounded-3xl text-primary shadow-inner">
-                  {selectedType === 'starter' && <Users className="h-8 w-8" />}
+                  {selectedType === 'starter' && <Users2 className="h-8 w-8" />}
                   {selectedType === 'pro' && <Zap className="h-8 w-8" />}
                   {selectedType === 'elite' && <Building className="h-8 w-8" />}
                   {selectedType === 'player' && <User className="h-8 w-8" />}
@@ -299,7 +358,7 @@ export default function HowToGuidePage() {
               </div>
 
               <div className="bg-muted/30 p-6 rounded-[2rem] border-2 border-dashed">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-4 ml-1">Key Tier Capabilities</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-4 ml-1">Tactical Capability Matrix</p>
                 <div className="flex flex-wrap gap-2">
                   {MANUAL_CONTENT[selectedType].highlights.map((h, i) => (
                     <Badge key={i} className="bg-white text-black border-none shadow-sm font-black uppercase text-[10px] h-8 px-4">

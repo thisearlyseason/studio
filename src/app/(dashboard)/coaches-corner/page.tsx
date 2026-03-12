@@ -24,7 +24,7 @@ import {
   Search,
   Filter,
   ShieldCheck,
-  ClipboardCheck,
+  ClipboardList,
   Eye,
   Loader2,
   HardDrive,
@@ -204,7 +204,7 @@ export default function CoachesCornerPage() {
         <div className="flex flex-wrap gap-2">
           <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="h-12 px-6 rounded-xl font-black uppercase text-[10px] border-2 border-primary/20 text-primary hover:bg-primary/5 hover:text-black transition-colors">
+              <Button variant="outline" className="h-12 px-6 rounded-xl font-black uppercase text-[10px] border-2 border-primary/20 text-primary hover:bg-primary hover:text-black transition-colors">
                 <RotateCcw className="h-4 w-4 mr-2" /> Reset Season
               </Button>
             </DialogTrigger>
