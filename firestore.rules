@@ -61,6 +61,17 @@ service cloud.firestore {
         isSuperAdmin()
       );
 
+      // Allow public access to registration protocols for recruitment
+      match /registration/{protocolId} {
+        allow read: if true;
+      }
+
+      // Allow public creation of registration entries
+      match /registrationEntries/{entryId} {
+        allow create: if true;
+        allow read, write: if isSignedIn();
+      }
+
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
@@ -88,6 +99,17 @@ service cloud.firestore {
         isSuperAdmin()
       );
       
+      // Allow public access to registration protocols for recruitment
+      match /registration/{protocolId} {
+        allow read: if true;
+      }
+
+      // Allow public creation of registration entries
+      match /registrationEntries/{entryId} {
+        allow create: if true;
+        allow read, write: if isSignedIn();
+      }
+
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
@@ -104,6 +126,7 @@ service cloud.firestore {
     // Support for collectionGroup queries used in search/global views
     match /{path=**}/registrationEntries/{entryId} {
       allow read: if isSignedIn();
+      allow create: if true;
       allow write: if isSignedIn();
     }
     

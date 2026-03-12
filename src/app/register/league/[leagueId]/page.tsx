@@ -57,7 +57,9 @@ export default function PublicLeagueRegistrationPage() {
   const { data: teamConfig, isLoading: isTeamLoading } = useDoc<LeagueRegistrationConfig>(teamProtoRef);
 
   const config = useMemo(() => leagueConfig || teamConfig, [leagueConfig, teamConfig]);
-  const isLoading = isLeagueLoading && isTeamLoading;
+  
+  // WAIT UNTIL BOTH ATTEMPTS RESOLVE
+  const isLoading = isLeagueLoading || isTeamLoading;
 
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,43 +107,6 @@ export default function PublicLeagueRegistrationPage() {
           <h2 className="text-2xl font-black uppercase tracking-tight">Portal Inactive</h2>
           <p className="text-muted-foreground font-medium mt-2 leading-relaxed">
             Registration for this squad is currently closed or the link is invalid. Please contact the squad coordinator for details.
-          </p>
-        </Card>
-      </div>
-    );
-  }
-
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-6">
-        <BrandLogo variant="light-background" className="h-10 w-40 mb-10" />
-        <Card className="max-w-md w-full text-center p-10 rounded-[3rem] border-none shadow-2xl bg-white animate-in zoom-in-95 duration-500">
-          <div className="bg-green-100 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-8">
-            <CheckCircle2 className="h-10 w-10 text-green-600" />
-          </div>
-          <h2 className="text-3xl font-black uppercase tracking-tighter leading-tight">Registration Successful</h2>
-          <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 mb-8">Recruit review in progress</p>
-          
-          <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 space-y-4 text-left">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-5 w-5 text-primary" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Settlement Protocol</p>
-              </div>
-              {config.registration_cost && (
-                <Badge className="bg-primary text-white font-black text-xs h-6">${config.registration_cost}</Badge>
-              )}
-            </div>
-            <div className="space-y-3">
-              <p className="text-xs font-black text-primary uppercase tracking-widest">Status: Pending Verification</p>
-              <p className="text-xs font-medium text-foreground/80 leading-relaxed italic">
-                {config.payment_instructions || 'Please coordinate with the squad organizer regarding the registration fee.'}
-              </p>
-            </div>
-          </div>
-          
-          <p className="text-xs font-medium text-muted-foreground mt-8">
-            Your application has been received. Our coaching staff will review your file and confirm assignment shortly.
           </p>
         </Card>
       </div>
@@ -196,7 +161,7 @@ export default function PublicLeagueRegistrationPage() {
           <div className="h-2 bg-primary w-full" />
           <form onSubmit={handleSubmit}>
             <CardHeader className="p-8 lg:p-10 pb-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="bg-muted p-3 rounded-2xl">
                   <ShieldCheck className="h-6 w-6 text-primary" />
                 </div>
