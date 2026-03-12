@@ -41,11 +41,11 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!mounted || !userProfile?.isDemo || !user) return;
 
-    // 1. Establish or retrieve session start
-    let startTime = localStorage.getItem(DEMO_START_KEY);
+    // 1. Establish session start in sessionStorage (clears when tab closes)
+    let startTime = sessionStorage.getItem(DEMO_START_KEY);
     if (!startTime) {
       startTime = Date.now().toString();
-      localStorage.setItem(DEMO_START_KEY, startTime);
+      sessionStorage.setItem(DEMO_START_KEY, startTime);
     }
 
     const checkSession = () => {
@@ -68,18 +68,17 @@ export default function DashboardLayout({
 
     const handleEndDemo = async (reason: string) => {
       if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
-      localStorage.removeItem(DEMO_START_KEY);
+      sessionStorage.removeItem(DEMO_START_KEY);
       await signOut(auth);
       window.location.href = `/login?reason=${encodeURIComponent(reason)}`;
     };
 
-    // 2. Start heartbeat
+    // 2. Start high-precision heartbeat
     heartbeatInterval.current = setInterval(checkSession, 5000);
 
-    // 3. Exit listener (if they leave the page/close tab)
+    // 3. Immediate reset if they leave (best effort)
     const handleExit = () => {
-      // For a hard reset on close, we'd clear storage here
-      // But standard heartbeat is usually preferred for guest persistence
+      sessionStorage.removeItem(DEMO_START_KEY);
     };
     window.addEventListener('beforeunload', handleExit);
 

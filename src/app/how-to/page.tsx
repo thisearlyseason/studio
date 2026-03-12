@@ -390,7 +390,7 @@ export default function HowToGuidePage() {
                           </div>
                           <div className="space-y-2 pt-1">
                             <h4 className="font-black text-lg uppercase tracking-tight text-primary">{s.step}</h4>
-                            <p className="text-base font-medium leading-relaxed text-muted-foreground">{s.detail}</p>
+                            <div className="text-base font-medium leading-relaxed text-muted-foreground">{s.detail}</div>
                           </div>
                         </div>
                       ))}
