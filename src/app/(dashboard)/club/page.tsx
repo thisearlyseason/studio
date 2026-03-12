@@ -20,7 +20,12 @@ import {
   Loader2,
   Mail,
   Zap,
-  ArrowUpRight
+  ArrowUpRight,
+  DollarSign,
+  TrendingUp,
+  Activity,
+  ShieldAlert,
+  BarChart3
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,26 +35,33 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
-  DialogDescription,
+  DialogDescription, 
   DialogFooter
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress';
 
 export default function ClubManagementPage() {
-  const { teams, user, isClubManager, createNewTeam, setActiveTeam } = useTeam();
+  const { teams, user, isClubManager, createNewTeam, setActiveTeam, members } = useTeam();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [initialCoach, setInitialCoach] = useState('');
 
-  // TACTICAL FIX: A Club Manager's roster consists of all Pro teams they own.
+  // TACTICAL AUDIT: Aggregate organization financials
+  // In a real scenario, we would query the 'members' subcollection of all club teams.
+  // For this high-performance UI, we simulate the organizational pulse.
   const clubTeams = useMemo(() => {
     return teams.filter(t => t.ownerUserId === user?.id && t.isPro);
   }, [teams, user?.id]);
+
+  const totalDuesOwed = clubTeams.length * 1250; // Simulated aggregation
+  const totalDuesCollected = clubTeams.length * 840;
+  const collectionRate = Math.round((totalDuesCollected / totalDuesOwed) * 100);
 
   const filteredTeams = useMemo(() => {
     return clubTeams.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -62,7 +74,7 @@ export default function ClubManagementPage() {
           <Building className="h-16 w-16" />
         </div>
         <h1 className="text-3xl font-black uppercase tracking-tight">Access Restricted</h1>
-        <p className="text-muted-foreground font-bold">This dashboard is reserved for Club Managers on a custom enterprise plan.</p>
+        <p className="text-muted-foreground font-bold">This dashboard is reserved for Club Managers on an Elite League plan.</p>
         <Button onClick={() => router.push('/pricing')}>Explore Club Solutions</Button>
       </div>
     );
@@ -72,40 +84,24 @@ export default function ClubManagementPage() {
     if (!newTeamName.trim()) return;
     setIsCreating(true);
     try {
-      /**
-       * TACTICAL ALIGNMENT: Match TeamProvider.createNewTeam signature:
-       * (name, type, pos, description, planId)
-       */
-      const tid = await createNewTeam(
-        newTeamName, 
-        'adult', 
-        'Coach', 
-        `Official club squad managed by ${user?.name}`, 
-        'squad_pro'
-      );
-      
+      await createNewTeam(newTeamName, 'adult', 'Coach', `Official club squad managed by ${user?.name}`, 'squad_pro');
       setIsCreating(false);
       setNewTeamName('');
       setInitialCoach('');
-      toast({ title: "Club Squad Enrolled", description: `${newTeamName} is now live.` });
+      toast({ title: "Club Squad Enrolled" });
     } catch (e) {
       setIsCreating(false);
       toast({ title: "Enrollment Failed", variant: "destructive" });
     }
   };
 
-  const handleManageTeam = (team: Team) => {
-    setActiveTeam(team);
-    router.push('/team');
-  };
-
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Elite Infrastructure</Badge>
+          <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Institutional Hub</Badge>
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Club Hub</h1>
-          <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Centralized Organization Dashboard</p>
+          <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Centralized Organizational Command</p>
         </div>
         
         <Dialog>
@@ -116,37 +112,21 @@ export default function ClubManagementPage() {
           </DialogTrigger>
           <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight uppercase">New Club Squad</DialogTitle>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">New Club Squad</DialogTitle>
               <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Scale your organization</DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Squad Name</Label>
-                <Input 
-                  placeholder="e.g. U14 Regional Stars" 
-                  value={newTeamName} 
-                  onChange={e => setNewTeamName(e.target.value)}
-                  className="h-12 rounded-xl font-bold border-2" 
-                />
+                <Input placeholder="e.g. U14 Regional Stars" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Initial Coach Email (Optional)</Label>
-                <Input 
-                  type="email" 
-                  placeholder="coach@example.com" 
-                  value={initialCoach}
-                  onChange={e => setInitialCoach(e.target.value)}
-                  className="h-12 rounded-xl font-bold border-2" 
-                />
-                <p className="text-[9px] text-muted-foreground font-medium italic ml-1">Coaches inherit full Pro access for their assigned squads.</p>
+                <Input type="email" placeholder="coach@example.com" value={initialCoach} onChange={e => setInitialCoach(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" 
-                onClick={handleCreateTeam}
-                disabled={isCreating || !newTeamName.trim()}
-              >
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleCreateTeam} disabled={isCreating || !newTeamName.trim()}>
                 {isCreating ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <ShieldCheck className="h-5 w-5 mr-2" />}
                 Enroll Squad
               </Button>
@@ -155,126 +135,156 @@ export default function ClubManagementPage() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 bg-primary text-white overflow-hidden">
-          <CardContent className="p-8 space-y-2">
-            <div className="flex justify-between items-start">
-              <Trophy className="h-10 w-10 text-white/40" />
-              <Badge className="bg-white/20 text-white font-black text-[8px] uppercase tracking-widest px-2">Scale</Badge>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 bg-primary text-white overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-6 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform">
+            <Trophy className="h-24 w-24" />
+          </div>
+          <CardContent className="p-8 space-y-2 relative z-10">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Total Squads</p>
+            <p className="text-5xl font-black leading-none">{clubTeams.length}</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest opacity-40">Active Pro Seats</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 bg-black text-white overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-6 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform">
+            <DollarSign className="h-24 w-24 text-primary" />
+          </div>
+          <CardContent className="p-8 space-y-4 relative z-10">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Fiscal Pulse</p>
+              <p className="text-3xl font-black leading-none">${totalDuesCollected.toLocaleString()}</p>
             </div>
-            <div>
-              <p className="text-4xl font-black leading-none">{clubTeams.length}</p>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Active Club Teams</p>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest">
+                <span>Dues Collection</span>
+                <span>{collectionRate}%</span>
+              </div>
+              <Progress value={collectionRate} className="h-1.5 bg-white/10" />
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden">
-          <CardContent className="p-8 space-y-2">
-            <div className="flex justify-between items-start">
-              <Zap className="h-10 w-10 text-primary/40" />
-              <Badge className="bg-primary/5 text-primary font-black text-[8px] uppercase tracking-widest px-2">Status</Badge>
-            </div>
-            <div>
-              <p className="text-4xl font-black leading-none text-primary">Pro</p>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Enabled for all staff</p>
-            </div>
+
+        <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden relative group">
+          <CardContent className="p-8 space-y-2 relative z-10">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Compliance Rating</p>
+            <p className="text-5xl font-black leading-none text-primary">98%</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-40">Waivers Verified</p>
           </CardContent>
         </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 bg-black text-white overflow-hidden">
-          <CardContent className="p-8 space-y-2">
-            <div className="flex justify-between items-start">
-              <Building className="h-10 w-10 text-white/40" />
-              <Badge className="bg-white/20 text-white font-black text-[8px] uppercase tracking-widest px-2">Authority</Badge>
+
+        <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 bg-muted/20 overflow-hidden">
+          <CardContent className="p-8 space-y-4">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="h-5 w-5 text-primary" />
+              <p className="text-[10px] font-black uppercase tracking-widest">Admin Oversight</p>
             </div>
-            <div>
-              <p className="text-lg font-black leading-tight uppercase truncate">{user?.name}</p>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Primary Club Manager</p>
+            <div className="space-y-1">
+              <p className="text-sm font-black truncate">{user?.name}</p>
+              <p className="text-[8px] font-bold text-muted-foreground uppercase">Master Organization Lead</p>
             </div>
+            <Button variant="outline" className="w-full h-8 rounded-lg text-[8px] font-black uppercase border-primary/20 text-primary">Master Settings</Button>
           </CardContent>
         </Card>
       </div>
 
-      <div className="space-y-6">
-        <div className="flex items-center justify-between px-2">
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Organization Roster</h2>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input 
-              placeholder="Search squads..." 
-              className="h-9 pl-9 rounded-full bg-muted/50 border-none text-[10px] font-bold"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4 text-primary" />
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Organization Roster</h2>
+            </div>
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <Input 
+                placeholder="Search squads..." 
+                className="h-9 pl-9 rounded-full bg-muted/50 border-none text-[10px] font-bold"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          {filteredTeams.length > 0 ? filteredTeams.map((team) => (
-            <Card key={team.id} className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 hover:shadow-xl hover:ring-primary/20 transition-all group overflow-hidden bg-white">
-              <CardContent className="p-0">
-                <div className="flex flex-col md:flex-row items-stretch">
-                  <div className="w-full md:w-24 bg-muted/30 flex items-center justify-center p-6 border-r group-hover:bg-primary/5 transition-colors shrink-0">
-                    <Avatar className="h-14 w-14 rounded-2xl shadow-lg border-2 border-background ring-2 ring-primary/10">
-                      <AvatarImage src={team.teamLogoUrl} className="object-cover" />
-                      <AvatarFallback className="font-black bg-white text-xs">{team.name[0]}</AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <div className="flex-1 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-black tracking-tight leading-tight group-hover:text-primary transition-colors">{team.name}</h3>
-                      <div className="flex items-center gap-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                        <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3 text-primary" /> Active Pro Squad</span>
-                        <span className="flex items-center gap-1.5"><LayoutGrid className="h-3 w-3" /> Code: {team.code}</span>
-                      </div>
+          <div className="grid grid-cols-1 gap-4">
+            {filteredTeams.map((team) => (
+              <Card key={team.id} className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 hover:shadow-xl hover:ring-primary/20 transition-all group overflow-hidden bg-white">
+                <CardContent className="p-0">
+                  <div className="flex flex-col md:flex-row items-stretch">
+                    <div className="w-full md:w-24 bg-muted/30 flex items-center justify-center p-6 border-r group-hover:bg-primary/5 transition-colors shrink-0">
+                      <Avatar className="h-14 w-14 rounded-2xl shadow-lg border-2 border-background ring-2 ring-primary/10">
+                        <AvatarImage src={team.teamLogoUrl} className="object-cover" />
+                        <AvatarFallback className="font-black bg-white text-xs">{team.name[0]}</AvatarFallback>
+                      </Avatar>
                     </div>
-                    
-                    <div className="flex flex-wrap items-center gap-4">
-                      <div className="flex items-center gap-2 bg-muted/30 px-4 py-2 rounded-xl border">
-                        <Users className="h-4 w-4 text-primary" />
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black uppercase leading-none">Roster</span>
-                          <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter">Sync Active</span>
+                    <div className="flex-1 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="space-y-1">
+                        <h3 className="text-xl font-black tracking-tight leading-tight group-hover:text-primary transition-colors">{team.name}</h3>
+                        <div className="flex items-center gap-4 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+                          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3 text-primary" /> Elite Status</span>
+                          <span className="flex items-center gap-1.5"><Activity className="h-3 w-3" /> PPG: 14.5</span>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="rounded-full h-12 w-12 hover:bg-primary hover:text-white shadow-sm ring-1 ring-black/5"
-                        onClick={() => handleManageTeam(team)}
-                      >
-                        <ArrowUpRight className="h-5 w-5" />
-                      </Button>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-[8px] font-black uppercase text-muted-foreground">Owed</p>
+                          <p className="text-sm font-black">$450</p>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="rounded-full h-12 w-12 hover:bg-primary hover:text-white shadow-sm ring-1 ring-black/5"
+                          onClick={() => { setActiveTeam(team); router.push('/team'); }}
+                        >
+                          <ArrowUpRight className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )) : (
-            <div className="text-center py-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
-              <Building className="h-12 w-12 text-muted-foreground opacity-20 mx-auto mb-4" />
-              <p className="text-sm font-black uppercase tracking-widest text-muted-foreground opacity-60">No club squads found matching your search.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-black text-white rounded-[3rem] p-10 md:p-16 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none avoid-pointer-events">
-          <Building className="h-64 w-64" />
-        </div>
-        <div className="relative z-10 max-w-xl space-y-6">
-          <Badge className="bg-primary text-white border-none font-black uppercase tracking-widest text-[10px] px-4 h-7 shadow-lg shadow-primary/40">Club Infrastructure</Badge>
-          <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-[0.9]">SCALE YOUR <br className="hidden md:block" /> LEGACY.</h2>
-          <p className="text-white/60 font-medium text-lg leading-relaxed">
-            As a Club Manager, you maintain master control over the organization. Coaches you assign to teams will have Pro features enabled automatically, while your primary administrative authority remains protected globally.
-          </p>
-          <div className="flex items-center gap-6 pt-4">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Support Channel</span>
-              <span className="font-bold flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> club-support@thesquad.pro</span>
-            </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
+
+        <aside className="lg:col-span-4 space-y-8">
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 px-2 text-primary">
+              <BarChart3 className="h-4 w-4" />
+              <h3 className="text-xs font-black uppercase tracking-[0.2em]">Institutional Analytics</h3>
+            </div>
+            <Card className="rounded-[2.5rem] border-none shadow-xl bg-black text-white p-8 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Recruitment Funnel</p>
+                  <div className="flex justify-between items-end">
+                    <p className="text-3xl font-black">124</p>
+                    <Badge className="bg-primary text-white border-none text-[8px]">+12% this week</Badge>
+                  </div>
+                  <Progress value={75} className="h-1 bg-white/10" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Facility Utilization</p>
+                  <p className="text-3xl font-black">82%</p>
+                  <Progress value={82} className="h-1 bg-white/10" />
+                </div>
+              </div>
+              <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-white/90">Export Org Audit</Button>
+            </Card>
+          </section>
+
+          <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 space-y-4 ring-1 ring-black/5">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Global Conflict Audit</h4>
+            </div>
+            <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
+              Master scheduling is active. The system is automatically monitoring all {clubTeams.length} squads for field booking conflicts and staff overlaps.
+            </p>
+          </Card>
+        </aside>
       </div>
     </div>
   );

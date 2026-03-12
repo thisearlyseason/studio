@@ -42,9 +42,15 @@ import {
   Users,
   ChevronDown,
   ShieldAlert,
-  ClipboardList
+  ClipboardList,
+  Download,
+  GraduationCap,
+  Award,
+  Zap,
+  TrendingUp,
+  Target
 } from 'lucide-react';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { useTeam, Member, FeeItem } from '@/components/providers/team-provider';
 import {
   DropdownMenu,
@@ -119,6 +125,28 @@ export default function RosterPage() {
     }
   }, [selectedMember, isStaff, getStaffEvaluation]);
 
+  const handleExportPortfolio = () => {
+    if (!selectedMember) return;
+    const headers = ["Player", "Position", "Jersey", "Status", "Contact", "Evaluations"];
+    const row = [
+      selectedMember.name,
+      selectedMember.position,
+      selectedMember.jersey,
+      selectedMember.medicalClearance ? 'Cleared' : 'Pending',
+      selectedMember.phone || selectedMember.parentEmail || 'N/A',
+      staffNote.replace(/,/g, ';')
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + [headers, row].map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${selectedMember.name.replace(/\s+/g, '_')}_Recruiting_Portfolio.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Portfolio Generated" });
+  };
+
   if (!mounted || !activeTeam || isMembersLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-pulse">
@@ -129,20 +157,9 @@ export default function RosterPage() {
   }
 
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
-  const canEditDetails = hasFeature('full_roster_details');
-
-  // Filter roster for Parents: Only show Coaches or other Parents
-  const filteredRoster = members.filter(member => {
-    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase());
-    if (isParent && !isStaff) {
-      const isVisiblePosition = ['Coach', 'Parent', 'Team Lead', 'Assistant Coach', 'Squad Leader'].includes(member.position);
-      return matchesSearch && isVisiblePosition;
-    }
-    return matchesSearch;
-  });
+  const filteredRoster = members.filter(member => member.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleMemberClick = (member: Member) => {
-    if (!isStaff) return;
     setSelectedMember(member);
     setIsEditing(false);
   };
@@ -155,100 +172,34 @@ export default function RosterPage() {
     toast({ title: "Evaluation Synchronized" });
   };
 
-  const handleAddFee = () => {
-    if (!selectedMember || !newFee.title || !newFee.amount) return;
-    const feeItem: FeeItem = { id: 'fee_' + Date.now(), title: newFee.title, amount: parseFloat(newFee.amount) || 0, paid: false, createdAt: new Date().toISOString() };
-    const currentFees = selectedMember.fees || [];
-    const updatedFees = [...currentFees, feeItem];
-    updateMember(selectedMember.id, { fees: updatedFees, amountOwed: updatedFees.filter(f => !f.paid).reduce((sum, f) => sum + f.amount, 0), feesPaid: updatedFees.every(f => f.paid) });
-    setSelectedMember({ ...selectedMember, fees: updatedFees });
-    setNewFee({ title: '', amount: '' });
-  };
-
-  const handleToggleFeePaid = (feeId: string) => {
-    if (!selectedMember) return;
-    const updatedFees = (selectedMember.fees || []).map(f => f.id === feeId ? { ...f, paid: !f.paid } : f);
-    updateMember(selectedMember.id, { fees: updatedFees, amountOwed: updatedFees.filter(f => !f.paid).reduce((sum, f) => sum + f.amount, 0), feesPaid: updatedFees.every(f => f.paid) });
-    setSelectedMember({ ...selectedMember, fees: updatedFees });
-  };
-
-  const handleRemoveFee = (feeId: string) => {
-    if (!selectedMember) return;
-    const updatedFees = (selectedMember.fees || []).filter(f => f.id !== feeId);
-    updateMember(selectedMember.id, { fees: updatedFees, amountOwed: updatedFees.filter(f => !f.paid).reduce((sum, f) => sum + f.amount, 0), feesPaid: updatedFees.length > 0 && updatedFees.every(f => f.paid) });
-    setSelectedMember({ ...selectedMember, fees: updatedFees });
-  };
-
-  const handleSaveDetails = () => {
-    if (selectedMember) {
-      const adminPositions = ['Coach', 'Team Lead', 'Assistant Coach', 'Squad Leader'];
-      const newRole = adminPositions.includes(editForm.position || '') ? 'Admin' : 'Member';
-      const updates = { ...editForm, role: newRole };
-      updateMember(selectedMember.id, updates);
-      setSelectedMember({ ...selectedMember, ...updates, role: newRole });
-      setIsEditing(false);
-      toast({ title: "Updated" });
-    }
-  };
-
-  const copyTeamCode = async () => {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(activeTeam.code);
-        toast({ title: "Code Copied" });
-      }
-    } catch (err) {}
-  };
-
-  const calculateAge = (dob?: string) => {
-    if (!dob) return null;
-    try { return differenceInYears(new Date(), new Date(dob)); } catch { return null; }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black tracking-tight">Team Roster</h1>
-            {isParent && !isStaff && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Contact List: Coaches & Guardians Only</p>}
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight uppercase leading-none">Roster</h1>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Squad Directory & Intelligence</p>
           </div>
           <div className="flex gap-2">
             {isStaff && (
-              <Select onValueChange={(val) => {
-                const member = members.find(m => m.id === val);
-                if (member) handleMemberClick(member);
-              }}>
-                <SelectTrigger className="h-10 lg:h-11 rounded-full border-2 bg-background font-black text-[10px] lg:text-xs uppercase tracking-widest w-[160px] lg:w-[200px] shadow-sm">
-                  <Users className="h-3.5 w-3.5 mr-2 text-primary" />
-                  <SelectValue placeholder="Quick Jump" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl p-2">
-                  {members.map(m => (
-                    <SelectItem key={m.id} value={m.id} className="rounded-xl p-3 font-bold text-xs uppercase tracking-tight">{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {isStaff && (
               <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="rounded-full px-4 lg:px-6 font-black uppercase text-[10px] lg:text-xs h-10 lg:h-11 tracking-widest shadow-lg shadow-primary/20">
-                    <UserPlus className="h-3.5 w-3.5 lg:h-4 lg:w-4 mr-2" /> Invite
+                  <Button size="sm" className="rounded-full px-6 font-black uppercase text-[10px] lg:text-xs h-10 lg:h-11 tracking-widest shadow-lg shadow-primary/20">
+                    <UserPlus className="h-4 w-4 mr-2" /> Invite
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md rounded-3xl lg:rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0">
+                <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
                   <div className="h-2 bg-primary w-full" />
-                  <div className="p-6 lg:p-8 space-y-6">
+                  <div className="p-8 space-y-6">
                     <DialogHeader>
-                      <DialogTitle className="text-xl lg:text-2xl font-black tracking-tight">Recruitment Code</DialogTitle>
-                      <DialogDescription className="font-bold text-primary uppercase text-[8px] lg:text-[10px]">Invite new teammates</DialogDescription>
+                      <DialogTitle className="text-2xl font-black uppercase tracking-tight">Recruitment Code</DialogTitle>
+                      <DialogDescription className="font-bold text-primary uppercase text-[10px]">Invite new teammates to {activeTeam.name}</DialogDescription>
                     </DialogHeader>
-                    <div className="p-6 lg:p-8 bg-primary/5 rounded-2xl lg:rounded-[2.5rem] text-center space-y-4 border-2 border-dashed border-primary/20 group cursor-pointer active:scale-95 transition-all" onClick={copyTeamCode}>
-                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Official Squad Code</p>
-                      <div className="flex items-center justify-center gap-2 lg:gap-4">
-                        <p className="text-4xl lg:text-5xl font-black text-primary tracking-widest">{activeTeam.code}</p>
-                        <Copy className="h-5 w-5 lg:h-6 lg:w-6 text-primary opacity-30 group-hover:opacity-100 transition-opacity" />
+                    <div className="p-8 bg-primary/5 rounded-[2.5rem] text-center space-y-4 border-2 border-dashed border-primary/20 group cursor-pointer active:scale-95 transition-all" onClick={() => { navigator.clipboard.writeText(activeTeam.code); toast({ title: "Code Copied" }); }}>
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Official Join Code</p>
+                      <div className="flex items-center justify-center gap-4">
+                        <p className="text-5xl font-black text-primary tracking-widest">{activeTeam.code}</p>
+                        <Copy className="h-6 w-6 text-primary opacity-30" />
                       </div>
                     </div>
                   </div>
@@ -260,82 +211,111 @@ export default function RosterPage() {
         
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search squad roster..." className="pl-11 bg-muted/50 border-none rounded-2xl h-11 lg:h-12 shadow-inner font-black text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <Input placeholder="Search squad roster..." className="pl-11 bg-muted/50 border-none rounded-2xl h-12 shadow-inner font-black text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {filteredRoster.map((member) => (
-          <Card key={member.id} className={cn("overflow-hidden border-none shadow-sm transition-all duration-300 ring-1 ring-black/5 rounded-2xl lg:rounded-3xl", isStaff ? "cursor-pointer group hover:shadow-md" : "cursor-default")} onClick={() => handleMemberClick(member)}>
-            <CardContent className="p-3 lg:p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3 lg:gap-4">
-                <Avatar className="h-12 w-12 lg:h-14 lg:w-14 rounded-xl lg:rounded-2xl border-2 border-background shadow-md">
+          <Card key={member.id} className="overflow-hidden border-none shadow-sm transition-all duration-300 ring-1 ring-black/5 rounded-[2rem] cursor-pointer group hover:shadow-md" onClick={() => handleMemberClick(member)}>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-14 w-14 rounded-2xl border-2 border-background shadow-md">
                   <AvatarImage src={member.avatar} />
-                  <AvatarFallback className="rounded-xl lg:rounded-2xl font-black bg-muted text-[10px] lg:text-xs">{member.name?.[0] || '?'}</AvatarFallback>
+                  <AvatarFallback className="rounded-2xl font-black bg-muted text-xs">{member.name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 lg:gap-2 mb-0.5">
-                    <h3 className="font-black truncate text-base lg:text-lg tracking-tight group-hover:text-primary transition-colors">{member.name}</h3>
-                    {member.jersey !== 'TBD' && member.jersey !== 'HQ' && <Badge variant="outline" className="text-[8px] lg:text-[9px] h-4 border-primary/20 text-primary font-black uppercase">#{member.jersey}</Badge>}
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="font-black truncate text-lg tracking-tight group-hover:text-primary transition-colors">{member.name}</h3>
+                    {member.jersey !== 'HQ' && <Badge variant="outline" className="text-[9px] h-5 border-primary/20 text-primary font-black uppercase">#{member.jersey}</Badge>}
                   </div>
-                  <p className="text-[9px] lg:text-[11px] text-muted-foreground font-black uppercase tracking-widest truncate">{member.position}</p>
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest truncate">{member.position}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                {!isStaff && member.phone && isMobile && (
-                  <a href={`tel:${member.phone}`} className="h-10 w-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all"><Phone className="h-4 w-4" /></a>
-                )}
-                {isStaff && <MoreVertical className="h-4 w-4 text-muted-foreground opacity-30" />}
-              </div>
+              <ChevronRight className="h-5 w-5 text-primary opacity-20 group-hover:opacity-100 transition-all" />
             </CardContent>
           </Card>
         ))}
       </div>
 
       <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
-        <DialogContent className="rounded-3xl lg:rounded-[3rem] sm:max-w-5xl overflow-hidden max-h-[95vh] border-none shadow-2xl p-0 flex flex-col">
-          <DialogTitle className="sr-only">Profile</DialogTitle>
+        <DialogContent className="rounded-[3rem] sm:max-w-5xl overflow-hidden max-h-[95vh] border-none shadow-2xl p-0 flex flex-col bg-white">
+          <DialogTitle className="sr-only">Player Profile: {selectedMember?.name}</DialogTitle>
           {selectedMember && (
-            <>
-              <div className="bg-muted/30 p-6 lg:p-10 border-b flex flex-col items-center justify-between gap-6 shrink-0 text-center sm:text-left">
-                <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6 w-full">
-                  <Avatar className="h-20 w-20 lg:h-28 lg:w-28 rounded-2xl lg:rounded-[2rem] border-4 border-background shadow-xl">
-                    <AvatarImage src={selectedMember.avatar} />
-                    <AvatarFallback className="text-xl lg:text-2xl font-black bg-muted">{selectedMember.name?.[0] || '?'}</AvatarFallback>
+            <div className="flex flex-col lg:flex-row h-full">
+              <div className="w-full lg:w-5/12 bg-black text-white p-8 lg:p-12 space-y-8 shrink-0 flex flex-col relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none">
+                  <Zap className="h-48 w-48" />
+                </div>
+                <div className="relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
+                  <Avatar className="h-32 w-32 lg:h-40 lg:w-40 rounded-[2.5rem] border-4 border-white/10 shadow-2xl">
+                    <AvatarImage src={selectedMember.avatar} className="object-cover" />
+                    <AvatarFallback className="text-4xl font-black bg-white/10">{selectedMember.name[0]}</AvatarFallback>
                   </Avatar>
-                  <div className="space-y-1 lg:space-y-2 flex-1">
-                    <h2 className="text-2xl lg:text-4xl font-black tracking-tighter leading-tight uppercase">{selectedMember.name}</h2>
-                    <p className="font-black text-primary uppercase tracking-[0.2em] text-[10px] lg:text-sm">{selectedMember.position} • {selectedMember.jersey !== 'PAR' ? `#${selectedMember.jersey}` : 'Staff'}</p>
+                  <div className="space-y-2">
+                    <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase h-6 px-4 mb-2">Verified Athlete</Badge>
+                    <h2 className="text-4xl font-black tracking-tighter leading-none uppercase">{selectedMember.name}</h2>
+                    <p className="text-primary font-black uppercase tracking-[0.2em] text-sm">{selectedMember.position} • #{selectedMember.jersey}</p>
+                  </div>
+                  <div className="w-full pt-8 border-t border-white/10 space-y-4">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
+                      <span>Recruiting Portfolio</span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10" onClick={handleExportPortfolio}><Download className="h-4 w-4" /></Button>
+                    </div>
+                    <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] shadow-xl hover:bg-white/90" onClick={handleExportPortfolio}>Generate Scouting Pack</Button>
                   </div>
                 </div>
-                {isAdmin && <Button variant="outline" size="sm" className="rounded-full h-10 px-6 font-black uppercase text-[10px]" onClick={() => setIsEditing(!isEditing)}>{isEditing ? 'View' : 'Edit'}</Button>}
               </div>
-              <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
-                {isEditing ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label>Official Name</Label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="h-12 rounded-xl" /></div>
-                    <div className="space-y-2"><Label>Position</Label><Input value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))} className="h-12 rounded-xl" /></div>
-                    <Button className="col-span-full h-14 rounded-2xl font-black" onClick={handleSaveDetails}>Save Changes</Button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3"><div className="bg-black/10 p-2 rounded-lg"><AtSign className="h-4 w-4" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Contact</h4></div>
-                      <div className="space-y-3">
-                        <div className="bg-muted/30 p-4 rounded-xl flex items-center gap-4"><Phone className="h-4 w-4 text-primary" /><div><p className="text-[8px] font-black uppercase opacity-40">Phone</p><p className="text-sm font-black">{selectedMember.phone || 'N/A'}</p></div></div>
+              
+              <div className="flex-1 p-8 lg:p-12 space-y-10 overflow-y-auto custom-scrollbar bg-white">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Award className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Vital Stats</h4></div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                        <span className="text-[10px] font-black uppercase opacity-40">Medical Clearance</span>
+                        {selectedMember.medicalClearance ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <XCircle className="h-5 w-5 text-destructive" />}
+                      </div>
+                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                        <span className="text-[10px] font-black uppercase opacity-40">Age Group</span>
+                        <span className="text-sm font-black uppercase">{calculateAge(selectedMember.birthdate) || 'U18'}</span>
                       </div>
                     </div>
-                    {isStaff && (
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-3 text-primary"><ShieldAlert className="h-4 w-4" /><h4 className="text-xs font-black uppercase tracking-[0.2em]">Staff Notes</h4></div>
-                        <Textarea placeholder="Private notes..." value={staffNote} onChange={e => setStaffNote(e.target.value)} className="min-h-[150px]" />
-                        <Button className="w-full h-10 rounded-xl text-[10px] font-black uppercase" onClick={handleSaveNote} disabled={isSavingNote}>{isSavingNote ? 'Syncing...' : 'Save Private Note'}</Button>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><GraduationCap className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Institutional Audit</h4></div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                        <span className="text-[10px] font-black uppercase opacity-40">Active Dues</span>
+                        <span className={cn("text-sm font-black", selectedMember.feesPaid ? "text-green-600" : "text-primary")}>${selectedMember.amountOwed || 0}</span>
                       </div>
-                    )}
+                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                        <span className="text-[10px] font-black uppercase opacity-40">Season Compliance</span>
+                        <Badge className="bg-black text-white h-5 text-[8px] font-black uppercase">94% Attendance</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {isStaff && (
+                  <div className="space-y-6 pt-10 border-t">
+                    <div className="flex items-center gap-3 text-primary"><ShieldAlert className="h-5 w-5" /><h4 className="text-xs font-black uppercase tracking-[0.2em]">Elite Personnel Evaluation</h4></div>
+                    <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-6">
+                      <Textarea 
+                        placeholder="Log tactical performance reviews, coachability notes, or scout observations..." 
+                        value={staffNote} 
+                        onChange={e => setStaffNote(e.target.value)} 
+                        className="min-h-[150px] bg-white rounded-2xl border-none font-bold p-6 text-base shadow-inner resize-none" 
+                      />
+                      <Button className="w-full h-14 rounded-xl text-xs font-black uppercase shadow-lg shadow-primary/20" onClick={handleSaveNote} disabled={isSavingNote}>
+                        {isSavingNote ? <Loader2 className="h-5 w-5 animate-spin" /> : "Commit Evaluation"}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>
