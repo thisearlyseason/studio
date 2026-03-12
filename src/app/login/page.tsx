@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import BrandLogo from '@/components/BrandLogo';
 import Image from 'next/image';
-import { Sparkles, Trophy, Users, Zap, Loader2, Table as TableIcon, User, Baby } from 'lucide-react';
+import { Sparkles, Trophy, Users, Zap, Loader2, Table as TableIcon, User, Baby, ChevronRight } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -164,7 +164,7 @@ export default function LoginPage() {
               <Button 
                 key={demo.id} 
                 variant="outline" 
-                className="h-20 rounded-[1.5rem] bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/40 transition-all flex items-center justify-between px-6 backdrop-blur-md group"
+                className="h-20 rounded-[1.5rem] bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/40 hover:text-white transition-all flex items-center justify-between px-6 backdrop-blur-md group"
                 onClick={() => handleLaunchDemo(demo.id)}
                 disabled={isLoading || isDemoLoading}
               >
@@ -177,7 +177,7 @@ export default function LoginPage() {
                     <p className="text-[10px] font-bold text-white/50 uppercase tracking-tighter">{demo.desc}</p>
                   </div>
                 </div>
-                {isDemoLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                {isDemoLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ChevronRight className="h-5 w-5 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
               </Button>
             ))}
           </div>

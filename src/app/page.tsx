@@ -212,7 +212,7 @@ export default function LandingPage() {
                       <Button 
                         key={demo.id} 
                         variant="outline" 
-                        className="h-24 rounded-[1.5rem] bg-muted/30 border-2 border-transparent hover:border-primary/20 hover:bg-white transition-all flex items-center justify-between px-6 group"
+                        className="h-24 rounded-[1.5rem] bg-muted/30 border-2 border-transparent hover:border-primary/20 hover:bg-white hover:text-foreground transition-all flex items-center justify-between px-6 group"
                         onClick={() => handleLaunchDemo(demo.id)}
                         disabled={isDemoLoading}
                       >
