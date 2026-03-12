@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -1041,7 +1040,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
 
     addRegistration: async (teamId: string, eventId: string, data: any) => {
-      await addDoc(collection(db, 'teams', teamId, 'events', eventId, 'registrations'), clean({ ...data, createdAt: new Date().toISOString() }));
+      await addDoc(collection(db, teamId, 'events', eventId, 'registrations'), clean({ ...data, createdAt: new Date().toISOString() }));
       return true;
     },
 
