@@ -109,6 +109,18 @@ export async function seedDemoData(db: Firestore, teamId: string, demoTier: stri
     }));
   }
 
+  // Seeding Games (for Dashboard win %)
+  const opponents = ['Tigers', 'Lions', 'Hawks', 'Bears', 'Wolves'];
+  for (let i = 0; i < opponents.length; i++) {
+    const gid = `demo_game_${teamId}_${i}`;
+    const result = i < 3 ? 'Win' : 'Loss';
+    batch.set(doc(db, 'teams', teamId, 'games', gid), clean({
+      id: gid, opponent: opponents[i], date: new Date(now.getTime() - (86400000 * (i+1))).toISOString(),
+      myScore: result === 'Win' ? 12 : 8, opponentScore: result === 'Win' ? 8 : 12,
+      result, location: 'Central Arena', notes: 'Tactical objectives achieved.'
+    }));
+  }
+
   // Seeding Events
   batch.set(doc(db, 'teams', teamId, 'events', `demo_evt_${teamId}_1`), clean({
     id: `demo_evt_${teamId}_1`, teamId, title: 'Championship Match', eventType: 'game', date: new Date(now.getTime() + 86400000).toISOString(),
@@ -153,25 +165,26 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   // User Profile
   batch.set(doc(db, 'users', userId), clean({
-    id: userId, fullName: isParentDemo ? 'Guest Parent' : 'Guest User', email: `${userRole}@thesquad.pro`,
+    id: userId, fullName: isParentDemo ? 'Guest Parent' : (isPlayerDemo ? 'Guest Athlete' : 'Guest Coach'), email: `${userRole}@thesquad.pro`,
     role: userRole, activePlanId: actualPlanId, proTeamLimit: 1, createdAt: nowStr, isDemo: true
   }), { merge: true });
 
   // Team
   batch.set(doc(db, 'teams', teamId), clean({
     id: teamId, teamName: 'Demo Elite Squad', teamCode: teamId.slice(-6).toUpperCase(),
-    createdBy: 'system', ownerUserId: 'system', isPro: true, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true
+    createdBy: 'system', ownerUserId: 'system', isPro: true, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
+    parentCommentsEnabled: true, parentChatEnabled: true
   }));
 
   // Membership
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), clean({
     teamId, teamName: 'Demo Elite Squad', teamCode: teamId.slice(-6).toUpperCase(), role,
-    isPro: true, planId: actualPlanId, isDemo: true, joinedAt: nowStr
+    isPro: true, planId: actualPlanId, isDemo: true, joinedAt: nowStr, ownerUserId: 'system'
   }));
 
   // Member
   batch.set(doc(db, 'teams', teamId, 'members', userId), clean({
-    id: userId, userId, teamId, name: isParentDemo ? 'Guest Parent' : 'Guest User',
+    id: userId, userId, teamId, name: isParentDemo ? 'Guest Parent' : (isPlayerDemo ? 'Guest Athlete' : 'Guest Coach'),
     role, position, jersey: isParentDemo ? 'HQ' : '22', joinedAt: nowStr, isDemo: true
   }));
 
@@ -188,7 +201,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     // Child as team member
     batch.set(doc(db, 'teams', teamId, 'members', childId), clean({
       id: childId, userId: 'none', playerId: childId, teamId, name: 'Junior Guest',
-      role: 'Member', position: 'Player', jersey: '10', joinedAt: nowStr, isMinor: true
+      role: 'Member', position: 'Player', jersey: '10', joinedAt: nowStr, isMinor: true,
+      amountOwed: 75, feesPaid: false
     }));
   }
 

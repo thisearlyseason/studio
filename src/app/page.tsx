@@ -22,7 +22,13 @@ import {
   ClipboardList,
   ShieldCheck,
   Infinity,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  User,
+  Baby,
+  Table as TableIcon,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,12 +40,36 @@ import BrandLogo from '@/components/BrandLogo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { useUser } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
+import { signInAnonymously, signOut } from 'firebase/auth';
+import { toast } from '@/hooks/use-toast';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+
+const DEMO_OPTIONS = [
+  { id: 'starter_squad', name: 'Starter Demo', icon: Users, desc: 'Grassroots essentials' },
+  { id: 'squad_pro', name: 'Elite Squad Demo', icon: Zap, desc: 'Advanced analytics & strategy' },
+  { id: 'player_demo', name: 'Player Demo', icon: User, desc: 'Individual teammate view' },
+  { id: 'parent_demo', name: 'Parent Demo', icon: Baby, desc: 'Guardian safety view' },
+  { id: 'tournament_pro', name: 'Tournament Demo', icon: TableIcon, desc: 'Brackets & Live Scores' },
+  { id: 'squad_organization', name: 'Club Demo', icon: Trophy, desc: 'Multi-team organization' }
+];
 
 export default function LandingPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isDemoDialogOpen, setIsDemoDialogOpen] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  
   const { user, isUserLoading } = useUser();
+  const auth = useAuth();
   const router = useRouter();
 
   const sportsImages = PlaceHolderImages
@@ -67,6 +97,22 @@ export default function LandingPage() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, [sportsImages.length]);
+
+  const handleLaunchDemo = async (planId: string) => {
+    setIsDemoLoading(true);
+    try {
+      await signOut(auth);
+      await signInAnonymously(auth);
+      router.push(`/dashboard?seed_demo=${planId}`);
+    } catch (error: any) {
+      toast({
+        title: "Demo Launch Failed",
+        description: "Please try again later.",
+        variant: "destructive"
+      });
+      setIsDemoLoading(false);
+    }
+  };
 
   if (user) return null;
 
@@ -143,11 +189,49 @@ export default function LandingPage() {
                 Start Your Squad <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/login#demos">
-              <Button size="lg" variant="outline" className="h-16 px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full sm:w-auto">
-                See the Demo
-              </Button>
-            </Link>
+            <Dialog open={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg" variant="outline" className="h-16 px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full sm:w-auto">
+                  See the Demo
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
+                <div className="h-2 bg-primary w-full" />
+                <div className="p-8 lg:p-12 space-y-8">
+                  <div className="text-center space-y-2">
+                    <DialogTitle className="text-4xl font-black uppercase tracking-tight">Interactive Demos</DialogTitle>
+                    <DialogDescription className="text-base font-bold text-primary uppercase tracking-widest">Select your tactical perspective</DialogDescription>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {DEMO_OPTIONS.map((demo) => (
+                      <Button 
+                        key={demo.id} 
+                        variant="outline" 
+                        className="h-24 rounded-[1.5rem] bg-muted/30 border-2 border-transparent hover:border-primary/20 hover:bg-white transition-all flex items-center justify-between px-6 group"
+                        onClick={() => handleLaunchDemo(demo.id)}
+                        disabled={isDemoLoading}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="bg-white p-3 rounded-2xl group-hover:bg-primary group-hover:text-white transition-colors shadow-sm">
+                            <demo.icon className="h-6 w-6" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-black text-sm uppercase tracking-widest">{demo.name}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">{demo.desc}</p>
+                          </div>
+                        </div>
+                        {isDemoLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ChevronRight className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />}
+                      </Button>
+                    ))}
+                  </div>
+
+                  <p className="text-[10px] text-center text-muted-foreground font-black uppercase tracking-[0.2em] pt-4">
+                    No account required • Instant guest deployment
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
