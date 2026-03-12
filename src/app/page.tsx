@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -29,7 +28,15 @@ import {
   Table as TableIcon,
   Sparkles,
   Loader2,
-  Check
+  Check,
+  Activity,
+  CreditCard,
+  ShieldAlert,
+  Smartphone,
+  Layout,
+  Terminal,
+  MousePointer2,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -71,9 +78,12 @@ export default function LandingPage() {
   const auth = useAuth();
   const router = useRouter();
 
-  const sportsImages = PlaceHolderImages
-    .filter(img => img.id.startsWith('sport-'))
-    .map(img => img.imageUrl);
+  const sportsImages = [
+    "https://images.unsplash.com/photo-1508088062105-17d61307629d?auto=format&fit=crop&q=80&w=1200",
+    "https://images.unsplash.com/photo-1504450758481-7338eba7524a?auto=format&fit=crop&q=80&w=1200",
+    "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1200",
+    "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&q=80&w=1200"
+  ];
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -130,8 +140,8 @@ export default function LandingPage() {
 
           <div className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-widest">
             <a href="#features" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Features</a>
+            <a href="#roles" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Roles</a>
             <a href="#pricing" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Pricing</a>
-            <a href="#contact" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Contact</a>
           </div>
 
           <div className="flex items-center gap-4">
@@ -163,7 +173,7 @@ export default function LandingPage() {
               alt="Sports Background" 
               fill
               className="object-cover scale-105"
-              data-ai-hint="sports background"
+              data-ai-hint="stadium crowd"
               priority={idx === 0}
             />
             <div className="absolute inset-0 bg-black/60 bg-gradient-to-b from-black/40 via-transparent to-black/80" />
@@ -172,13 +182,13 @@ export default function LandingPage() {
 
         <div className="container relative z-10 px-6 text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
           <Badge className="bg-primary/20 backdrop-blur-md text-primary-foreground border-primary/30 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em] animate-pulse">
-            The Ultimate Team Hub
+            Institutional Team Infrastructure
           </Badge>
           <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-[0.9] max-w-4xl mx-auto drop-shadow-2xl">
-            COORDINATE <br className="hidden md:block" /> LIKE <span className="text-primary italic">PROS.</span>
+            DOMINATE <br className="hidden md:block" /> YOUR <span className="text-primary italic">SEASON.</span>
           </h1>
           <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-medium leading-relaxed">
-            Unite your squad, manage schedules, and dominate the season with the all-in-one platform for competitive teams.
+            The all-in-one tactical platform for elite sports organizations. Coordinate rosters, automate brackets, and verify performance.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             {user ? (
@@ -190,22 +200,22 @@ export default function LandingPage() {
             ) : (
               <Link href="/signup">
                 <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full sm:w-auto">
-                  Start Your Squad <ArrowRight className="ml-2 h-5 w-5" />
+                  Deploy Your Squad <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             )}
             <Dialog open={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="lg" variant="outline" className="h-16 px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full sm:w-auto">
-                  See the Demo
+                  Experience Demo
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 lg:p-12 space-y-8">
                   <div className="text-center space-y-2">
-                    <DialogTitle className="text-4xl font-black uppercase tracking-tight">Interactive Demos</DialogTitle>
-                    <DialogDescription className="text-base font-bold text-primary uppercase tracking-widest">Select your tactical perspective</DialogDescription>
+                    <DialogTitle className="text-4xl font-black uppercase tracking-tight">Tactical Perspectives</DialogTitle>
+                    <DialogDescription className="text-base font-bold text-primary uppercase tracking-widest">Select your role to begin</DialogDescription>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -230,30 +240,9 @@ export default function LandingPage() {
                       </Button>
                     ))}
                   </div>
-
-                  <p className="text-[10px] text-center text-muted-foreground font-black uppercase tracking-[0.2em] pt-4">
-                    No account required • Instant guest deployment
-                  </p>
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
-
-        <div className="absolute bottom-12 left-0 right-0 hidden md:block">
-          <div className="container mx-auto px-6 flex justify-center gap-20 text-white">
-            <div className="text-center">
-              <p className="text-3xl font-black">2.5k+</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Active Teams</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-black">50k+</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Scheduled Games</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-black">99.9%</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Coordination Rate</p>
-            </div>
           </div>
         </div>
       </section>
@@ -262,98 +251,106 @@ export default function LandingPage() {
         <div className="container mx-auto px-6">
           <div className="text-center space-y-4 mb-24 max-w-3xl mx-auto">
             <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black px-4 py-1 uppercase tracking-widest text-[10px]">
-              The Suite
+              Institutional Suite
             </Badge>
             <h3 className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9]">
-              BUILT FOR <br /> <span className="text-primary italic">CHAMPIONS.</span>
+              PROFESSIONAL <br /> <span className="text-primary italic">INFRASTRUCTURE.</span>
             </h3>
             <p className="text-muted-foreground font-medium text-lg pt-4 leading-relaxed">
-              Ditch the fragmented group chats. The Squad provides a unified, high-performance platform for elite coordination.
+              The Squad provides the foundational protocols and advanced modules required to scale from a single team to an entire league.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {[
-              { 
-                title: "RECRUITMENT HUB", 
-                desc: "Automated player enrollment with custom forms and coach assignment logic.", 
-                img: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&q=80&w=800",
-                hint: "team meeting"
-              },
-              { 
-                title: "TACTICAL CHATS", 
-                desc: "Secure, role-based discussions for strategy, positions, and events.", 
-                img: "https://images.unsplash.com/photo-1612768875331-0447b960fa40?auto=format&fit=crop&q=80&w=800",
-                hint: "basketball player"
-              },
-              { 
-                title: "GAME SCHEDULING", 
-                desc: "Real-time RSVP tracking and match day logistics for the entire squad.", 
-                img: "https://images.unsplash.com/photo-1508088062105-17d61307629d?auto=format&fit=crop&q=80&w=800",
-                hint: "soccer match"
-              },
-              { 
-                title: "SCORE TRACKING", 
-                desc: "Visualize your trajectory with automated win/loss and performance tracking.", 
-                img: "https://images.unsplash.com/photo-1711045676217-c3d73143071c?auto=format&fit=crop&q=80&w=800",
-                hint: "baseball game"
-              },
-              { 
-                title: "LIVE FEED", 
-                desc: "A high-priority broadcast hub for squad updates, media, and alerts.", 
-                img: "https://images.unsplash.com/photo-1614743653196-d969b45200b9?auto=format&fit=crop&q=80&w=1080",
-                hint: "tennis player"
-              },
-              { 
-                title: "PLAYBOOK & FILM", 
-                desc: "Centralized hub for video study with automated watch verification and tactical notes.", 
-                img: "https://images.unsplash.com/photo-1486128105845-91daff43f404?auto=format&fit=crop&q=80&w=800",
-                hint: "video analysis"
-              }
-            ].map((feature, i) => (
-              <div 
-                key={i} 
-                className="group relative h-[450px] rounded-[2.5rem] overflow-hidden shadow-2xl transition-all duration-700 hover:scale-[1.02] cursor-default"
-              >
-                <Image 
-                  src={feature.img} 
-                  alt={feature.title}
-                  fill
-                  className="object-cover transition-transform duration-1000 group-hover:scale-110"
-                  data-ai-hint={feature.hint}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                
-                <CardContent className="absolute bottom-0 p-8 space-y-4 w-full">
-                  <Badge className="bg-primary text-white border-none font-black px-3 py-1 uppercase tracking-widest text-[9px]">
-                    ELITE COORDINATION
-                  </Badge>
-                  <h4 className="text-3xl font-black text-white tracking-tighter leading-none">
-                    {feature.title}
-                  </h4>
-                  <p className="text-white/70 font-medium text-sm leading-relaxed max-w-[240px] opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    {feature.desc}
-                  </p>
-                  <div className="pt-2">
-                    <div className="h-1 w-12 bg-primary group-hover:w-full transition-all duration-700 ease-in-out" />
-                  </div>
-                </CardContent>
+            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:bg-black hover:text-white transition-all duration-500">
+              <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
+                <TableIcon className="h-8 w-8 text-white" />
               </div>
-            ))}
+              <h4 className="text-2xl font-black uppercase tracking-tight">Elite Tournament Hub</h4>
+              <p className="text-sm font-medium leading-relaxed opacity-70">
+                Automated bracket generation with a **Public Spectator URL** and mobile **Scorekeeper Portal** for real-time standings.
+              </p>
+              <ul className="space-y-3 pt-4">
+                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Live Standings</li>
+                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Public Result Feed</li>
+              </ul>
+            </Card>
+
+            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:bg-black hover:text-white transition-all duration-500">
+              <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
+                <Video className="h-8 w-8 text-white" />
+              </div>
+              <h4 className="text-2xl font-black uppercase tracking-tight">Film Watch Verification</h4>
+              <p className="text-sm font-medium leading-relaxed opacity-70">
+                The **75% Watch Rule** ensures teammates actually study the playbook. Monitor compliance in your master roster ledger.
+              </p>
+              <ul className="space-y-3 pt-4">
+                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> 10GB Pro Storage</li>
+                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Verified Compliance</li>
+              </ul>
+            </Card>
+
+            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:bg-black hover:text-white transition-all duration-500">
+              <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
+                <ClipboardList className="h-8 w-8 text-white" />
+              </div>
+              <h4 className="text-2xl font-black uppercase tracking-tight">Recruitment Engine</h4>
+              <p className="text-sm font-medium leading-relaxed opacity-70">
+                Custom **Form Architect** for public registration. Collect sizes, medical waivers, and fees with automated coach assignment logic.
+              </p>
+              <ul className="space-y-3 pt-4">
+                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Digital Signatures</li>
+                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Auto-Assignment</li>
+              </ul>
+            </Card>
           </div>
         </div>
       </section>
 
-      <section id="pricing" className="py-24 bg-muted/30 relative">
+      <section id="roles" className="py-24 bg-black text-white overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-20 opacity-5 -rotate-12 pointer-events-none">
+          <ShieldCheck className="h-96 w-96" />
+        </div>
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="max-w-3xl space-y-6 mb-16">
+            <Badge className="bg-primary text-white border-none font-black px-4 h-7 uppercase tracking-widest text-[10px]">
+              Tactical Perspectives
+            </Badge>
+            <h3 className="text-4xl md:text-6xl font-black tracking-tight leading-none uppercase">Specialized <br /> Operational <span className="text-primary italic">Interfaces.</span></h3>
+            <p className="text-white/60 font-medium text-lg leading-relaxed">
+              Every member of the organization receives a tailored dashboard optimized for their specific objectives.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-6 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition-all">
+              <Trophy className="h-10 w-10 text-primary" />
+              <h5 className="text-2xl font-black uppercase">Coaches Hub</h5>
+              <p className="text-sm font-medium text-white/60">Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts and track performance metrics.</p>
+            </div>
+            <div className="space-y-6 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition-all">
+              <Baby className="h-10 w-10 text-primary" />
+              <h5 className="text-2xl font-black uppercase">Parent command</h5>
+              <p className="text-sm font-medium text-white/60">Manage multiple children from one unified hub. Track household balances, verify RSVPs, and claim volunteer shifts.</p>
+            </div>
+            <div className="space-y-6 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition-all">
+              <User className="h-10 w-10 text-primary" />
+              <h5 className="text-2xl font-black uppercase">Athlete View</h5>
+              <p className="text-sm font-medium text-white/60">A personal performance dashboard. Sign waivers, watch study film, and stay coordinated with real-time squad chat.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="py-32 bg-muted/30 relative">
         <div className="container mx-auto px-6">
           <div className="text-center space-y-4 mb-16">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Simple, transparent pricing</h2>
-            <h3 className="text-4xl md:text-5xl font-black tracking-tight">Institutional Operational Tiers</h3>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Transparent Institutional Tiers</h2>
+            <h3 className="text-4xl md:text-5xl font-black tracking-tight">Scale Your Organization</h3>
             <div className="flex flex-col items-center gap-2 pt-2">
-              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Prices listed in USD</p>
               <div className="flex items-center gap-2 text-primary font-black uppercase tracking-widest text-[10px] bg-white px-4 py-2 rounded-full border border-primary/10 shadow-sm">
                 <AlertCircle className="h-3 w-3" />
-                <span>Limited Introductory Pricing • Subject to Change</span>
+                <span>Limited Introductory Pricing • Competitive Advantage Locked</span>
               </div>
             </div>
           </div>
@@ -375,7 +372,7 @@ export default function LandingPage() {
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Scheduling</li>
                     <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Tactical Chats</li>
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Score Tracking</li>
+                    <li className="flex items-center gap-2 text-[10px) font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Score Tracking</li>
                   </ul>
                 </div>
               </CardContent>
@@ -390,7 +387,7 @@ export default function LandingPage() {
             <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden flex flex-col bg-black text-white ring-4 ring-primary relative scale-105 z-10">
               <div className="absolute top-0 right-0 p-4 opacity-10 -rotate-12 pointer-events-none"><Zap className="h-20 w-20" /></div>
               <CardHeader className="p-8 pb-4 space-y-4">
-                <Badge className="bg-primary text-white border-none font-black text-[8px] px-3 h-5 uppercase w-fit">BEST VALUE</Badge>
+                <Badge className="bg-primary text-white border-none font-black text-[8px] px-3 h-5 uppercase w-fit">ELITE SQUAD</Badge>
                 <div className="space-y-1">
                   <CardTitle className="text-2xl font-black uppercase tracking-tight">Squad Pro</CardTitle>
                   <div className="flex items-baseline gap-1">
@@ -398,21 +395,21 @@ export default function LandingPage() {
                     <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
                   </div>
                 </div>
-                <CardDescription className="text-[10px] font-bold text-white/60 uppercase">Elite coordination for one squad.</CardDescription>
+                <CardDescription className="text-[10px] font-bold text-white/60 uppercase">Championship tools for one team.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 flex-1 space-y-6">
                 <div className="pt-4 border-t border-white/10 space-y-3">
-                  <p className="text-[9px] font-black uppercase text-white/40">Pro Features</p>
+                  <p className="text-[9px] font-black uppercase text-white/40">Everything in Starter +</p>
                   <ul className="space-y-2">
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Bracket Engine</li>
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Film Study</li>
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Compliance</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> 75% Watch Rule</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Auto-Brackets</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Digital Waivers</li>
                   </ul>
                 </div>
               </CardContent>
               <CardFooter className="p-8 pt-0">
                 <Link href="/signup" className="w-full">
-                  <Button className="w-full h-12 rounded-xl font-black shadow-xl bg-white text-black hover:bg-white/90 text-xs">Upgrade Now</Button>
+                  <Button className="w-full h-12 rounded-xl font-black shadow-xl bg-white text-black hover:bg-white/90 text-xs">Upgrade Squad</Button>
                 </Link>
               </CardFooter>
             </Card>
@@ -420,7 +417,7 @@ export default function LandingPage() {
             {/* Elite Teams */}
             <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden flex flex-col bg-white ring-1 ring-black/5">
               <CardHeader className="p-8 pb-4 space-y-4">
-                <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">CLUB</Badge>
+                <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">ORGANIZATION</Badge>
                 <div className="space-y-1">
                   <CardTitle className="text-2xl font-black uppercase tracking-tight">Elite Teams</CardTitle>
                   <div className="flex items-baseline gap-1">
@@ -428,15 +425,15 @@ export default function LandingPage() {
                     <span className="text-[10px] font-black uppercase opacity-60 text-muted-foreground">/mo</span>
                   </div>
                 </div>
-                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">Up to 8 Pro Teams + Hub.</CardDescription>
+                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">8 Pro Teams + Master Club Hub.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 flex-1 space-y-6">
                 <div className="pt-4 border-t space-y-3">
                   <p className="text-[9px] font-black uppercase text-muted-foreground">Institutional</p>
                   <ul className="space-y-2">
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Club Hub</li>
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Portal Architect</li>
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Multi-Seat Mgmt</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Recruitment Portal</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Fee Management</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Staff Notes</li>
                   </ul>
                 </div>
               </CardContent>
@@ -450,7 +447,7 @@ export default function LandingPage() {
             {/* Elite League */}
             <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden flex flex-col bg-white ring-1 ring-black/5">
               <CardHeader className="p-8 pb-4 space-y-4">
-                <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">LEAGUE</Badge>
+                <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">INSTITUTIONAL</Badge>
                 <div className="space-y-1">
                   <CardTitle className="text-2xl font-black uppercase tracking-tight">Elite League</CardTitle>
                   <div className="flex items-baseline gap-1">
@@ -458,15 +455,15 @@ export default function LandingPage() {
                     <span className="text-[10px] font-black uppercase opacity-60 text-muted-foreground">/mo</span>
                   </div>
                 </div>
-                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">20 Pro Teams + Support.</CardDescription>
+                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">20 Pro Teams + Public Hubs.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 flex-1 space-y-6">
                 <div className="pt-4 border-t space-y-3">
-                  <p className="text-[9px] font-black uppercase text-muted-foreground">Master Strategy</p>
+                  <p className="text-[9px] font-black uppercase text-muted-foreground">Full Infrastructure</p>
                   <ul className="space-y-2">
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> League Series</li>
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Conflict Res.</li>
-                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Institutional SLA</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Conflict Mgmt</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Public Spectator Link</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Custom Domain</li>
                   </ul>
                 </div>
               </CardContent>
@@ -486,9 +483,9 @@ export default function LandingPage() {
             <div className="space-y-8">
               <div className="space-y-4">
                 <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Get in touch</h2>
-                <h3 className="text-4xl md:text-5xl font-black tracking-tight">Need a custom plan <br />for your organization?</h3>
+                <h3 className="text-4xl md:text-5xl font-black tracking-tight">Institutional Scale <br />Custom Solutions.</h3>
                 <p className="text-muted-foreground font-medium text-lg leading-relaxed">
-                  We offer enterprise-grade solutions for sports leagues and multi-team organizations. Connect with our coordination experts today.
+                  We offer enterprise-grade configurations for national leagues and professional clubs. Connect with our strategic analysts.
                 </p>
               </div>
 
@@ -497,19 +494,13 @@ export default function LandingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <Mail className="h-5 w-5" />
                   </div>
-                  <span className="font-bold text-foreground">team@thesquad.pro</span>
+                  <span className="font-bold text-foreground">operations@thesquad.pro</span>
                 </div>
                 <div className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                    <MapPin className="h-5 w-5" />
+                    <Smartphone className="h-5 w-5" />
                   </div>
-                  <span className="font-bold text-foreground">Worldwide</span>
-                </div>
-                <div className="flex items-center gap-4 group">
-                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                    <Infinity className="h-5 w-5" />
-                  </div>
-                  <span className="font-bold text-foreground">Unlimited Starter Support</span>
+                  <span className="font-bold text-foreground">Global Tactical Support</span>
                 </div>
               </div>
             </div>
@@ -527,15 +518,15 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest">Team/League Name</Label>
-                  <Input placeholder="Westside Warriors" className="h-12 rounded-xl bg-muted/50 border-none" />
+                  <Label className="text-xs font-black uppercase tracking-widest">Organization</Label>
+                  <Input placeholder="State Varsity League" className="h-12 rounded-xl bg-muted/50 border-none" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest">How can we help?</Label>
-                  <Textarea placeholder="Tell us about your organization..." className="min-h-[120px] rounded-xl bg-muted/50 border-none resize-none" />
+                  <Label className="text-xs font-black uppercase tracking-widest">Inquiry</Label>
+                  <Textarea placeholder="Define your institutional needs..." className="min-h-[120px] rounded-xl bg-muted/50 border-none resize-none" />
                 </div>
                 <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
-                  Send Inquiry
+                  Contact Tactical Ops
                 </Button>
               </form>
             </Card>
