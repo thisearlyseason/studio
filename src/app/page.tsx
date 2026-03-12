@@ -30,6 +30,7 @@ import {
   Sparkles,
   Loader2,
   Check,
+  X,
   Activity,
   CreditCard,
   ShieldAlert,
@@ -149,6 +150,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-widest">
             <a href="#features" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Features</a>
             <a href="#roles" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Roles</a>
+            <a href="#comparison" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Compare</a>
             <a href="#pricing" className={cn("hover:text-primary transition-colors", isScrolled ? "text-muted-foreground" : "text-white/80")}>Pricing</a>
           </div>
 
@@ -200,21 +202,21 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 max-w-md mx-auto sm:max-w-none">
             {user ? (
-              <Link href="/dashboard" className="w-full sm:w-auto">
-                <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full sm:w-auto">
+              <Link href="/dashboard" className="w-full">
+                <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
                   Go to Dashboard <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             ) : (
-              <Link href="/signup" className="w-full sm:w-auto">
-                <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full sm:w-auto">
+              <Link href="/signup" className="w-full">
+                <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
                   Deploy Your Squad <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             )}
             <Dialog open={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" variant="outline" className="h-16 px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="h-16 px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full">
                   Experience Demo
                 </Button>
               </DialogTrigger>
@@ -275,7 +277,7 @@ export default function LandingPage() {
               <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
                 <TableIcon className="h-8 w-8 text-white" />
               </div>
-              <h4 className="text-2xl font-black uppercase tracking-tight">Elite Tournament Hub</h4>
+              <h4 className="text-2xl font-black uppercase tracking-tight">Elite Tournament Engine</h4>
               <p className="text-sm font-medium leading-relaxed opacity-70">
                 Automated bracket generation with a <strong>Public Spectator URL</strong> and mobile <strong>Scorekeeper Portal</strong> for real-time standings.
               </p>
@@ -312,6 +314,81 @@ export default function LandingPage() {
                 <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Auto-Assignment</li>
               </ul>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      <section id="comparison" className="py-32 bg-white relative">
+        <div className="container mx-auto px-6">
+          <div className="text-center space-y-4 mb-24 max-w-3xl mx-auto">
+            <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black px-4 py-1 uppercase tracking-widest text-[10px]">Market Intelligence</Badge>
+            <h3 className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9]">COMPETITIVE <br /> <span className="text-primary italic">ADVANTAGE.</span></h3>
+            <p className="text-muted-foreground font-medium text-lg pt-4 leading-relaxed">
+              Legacy tools are for hobbyists. The Squad is built for organizations that demand absolute operational visibility and high-performance metrics.
+            </p>
+          </div>
+
+          <div className="relative overflow-x-auto rounded-[3rem] border-2 shadow-2xl bg-white">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-black text-white">
+                  <th className="py-8 px-8 text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Capabilities</th>
+                  <th className="py-8 px-8 text-center bg-primary">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="font-black text-xs tracking-tighter">THE SQUAD</span>
+                      <Badge className="bg-white text-primary border-none font-black text-[7px] h-4">PLATFORM OF CHOICE</Badge>
+                    </div>
+                  </th>
+                  <th className="py-8 px-8 text-center text-[10px] font-black uppercase tracking-widest opacity-40">TeamSnap</th>
+                  <th className="py-8 px-8 text-center text-[10px] font-black uppercase tracking-widest opacity-40">Hudl</th>
+                  <th className="py-8 px-8 text-center text-[10px] font-black uppercase tracking-widest opacity-40">TeamReach</th>
+                  <th className="py-8 px-8 text-center text-[10px] font-black uppercase tracking-widest opacity-40">GameChanger</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {[
+                  { feature: "AI Scouting Analyst", squad: true, tsnap: false, hudl: false, treach: false, gchanger: false, note: "Built-in GenAI tactical analysis" },
+                  { feature: "75% Film Watch Rule", squad: true, tsnap: false, hudl: false, treach: false, gchanger: false, note: "Verified compliance monitoring" },
+                  { feature: "Auto-Brackets + Public Hub", squad: true, tsnap: "Partial", hudl: false, treach: false, gchanger: "Scores Only", note: "One-click championship series" },
+                  { feature: "Form Architect (Recruitment)", squad: true, tsnap: "Add-on", hudl: false, treach: false, gchanger: false, note: "Custom data entry + waivers" },
+                  { feature: "Institutional Fiscal Audit", squad: true, tsnap: "Partial", hudl: false, treach: false, gchanger: false, note: "Club-wide dues aggregation" },
+                  { feature: "Encrypted Tactical Chat", squad: true, tsnap: true, hudl: true, treach: true, gchanger: true, note: "Foundational comms" },
+                  { feature: "Attendance & RSVPs", squad: true, tsnap: true, hudl: true, treach: true, gchanger: true, note: "Standard coordination" },
+                ].map((row, idx) => (
+                  <tr key={idx} className="group hover:bg-muted/10 transition-colors">
+                    <td className="py-6 px-8">
+                      <p className="font-black text-sm uppercase tracking-tight leading-none mb-1">{row.feature}</p>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{row.note}</p>
+                    </td>
+                    <td className="py-6 px-8 bg-primary/5 border-x-2 border-primary/10">
+                      <div className="flex justify-center">
+                        <div className="bg-primary text-white p-1 rounded-full"><Check className="h-4 w-4 stroke-[4px]" /></div>
+                      </div>
+                    </td>
+                    <td className="py-6 px-8 text-center">
+                      <div className="flex justify-center">
+                        {row.tsnap === true ? <Check className="h-4 w-4 opacity-20" /> : (row.tsnap === false ? <X className="h-4 w-4 opacity-10" /> : <span className="text-[8px] font-black uppercase text-muted-foreground leading-none">{row.tsnap}</span>)}
+                      </div>
+                    </td>
+                    <td className="py-6 px-8 text-center">
+                      <div className="flex justify-center">
+                        {row.hudl === true ? <Check className="h-4 w-4 opacity-20" /> : (row.hudl === false ? <X className="h-4 w-4 opacity-10" /> : <span className="text-[8px] font-black uppercase text-muted-foreground leading-none">{row.hudl}</span>)}
+                      </div>
+                    </td>
+                    <td className="py-6 px-8 text-center">
+                      <div className="flex justify-center">
+                        {row.treach === true ? <Check className="h-4 w-4 opacity-20" /> : (row.treach === false ? <X className="h-4 w-4 opacity-10" /> : <span className="text-[8px] font-black uppercase text-muted-foreground leading-none">{row.treach}</span>)}
+                      </div>
+                    </td>
+                    <td className="py-6 px-8 text-center">
+                      <div className="flex justify-center">
+                        {row.gchanger === true ? <Check className="h-4 w-4 opacity-20" /> : (row.gchanger === false ? <X className="h-4 w-4 opacity-10" /> : <span className="text-[8px] font-black uppercase text-muted-foreground leading-none">{row.gchanger}</span>)}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
