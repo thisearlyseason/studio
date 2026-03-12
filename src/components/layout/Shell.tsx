@@ -136,7 +136,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full bg-background">
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar collapsible="none" className="hidden md:flex border-r bg-muted/20 w-72 shrink-0 h-screen sticky top-0">
+          <Sidebar className="border-r bg-muted/20 w-72 shrink-0">
             <SidebarHeader className="p-6">
               <BrandLogo variant="light-background" className="h-10 w-44 justify-start mb-10" priority />
               

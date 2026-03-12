@@ -221,7 +221,7 @@ export default function HowToGuidePage() {
       { step: "Join via Code", detail: <>Enter the 6-digit <strong>Squad Code</strong> in the <strong>Recruitment Hub</strong> to link your profile to your team.</> },
       { step: "Recruiting Portfolio", detail: <>In your <strong>Roster</strong> profile, tap <strong>Generate Scouting Pack</strong> to export a certified tactical resume.</> },
       { step: "RSVP Mandate", detail: <>Check the <strong>Schedule</strong> daily. Submit your RSVP status for all games and training.</> },
-      { step: "Film Compliance", detail: <>Visit <strong>Playbook &rarr; Game Play</strong>. Watch at least <strong>75% of assigned film</strong> to satisfy compliance requirements.</> }
+      { step: "Film Compliance", detail: <>Visit <strong>Playbook &rarr; Game Play</strong>. Watch at least <strong>75% of assigned film</strong> to satisfy your coach's compliance requirement.</> }
     ]
   };
 
