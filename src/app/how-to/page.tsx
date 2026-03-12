@@ -46,7 +46,7 @@ import {
   ArrowRight,
   User,
   Baby,
-  Table as TableIcon,
+  Table,
   Target,
   Activity,
   DollarSign,
@@ -83,145 +83,153 @@ export default function HowToGuidePage() {
   const { user } = useUser();
   const [selectedType, setSelectedAccountType] = useState<AccountType | null>(null);
 
+  // FOUNDATIONAL SECTIONS (STARTER)
+  const SECTIONS_STARTER: ManualSection[] = [
+    {
+      title: "1. Squad Deployment & Recruitment",
+      icon: UserPlus,
+      steps: [
+        { step: "Launch Team", detail: "Start at the Dashboard and select 'New Squad'. Choose the 'Starter Squad' tier for a permanent zero-cost hub." },
+        { step: "Retrieve Join Code", detail: "Navigate to 'Team Profile' to find your unique 6-digit Squad Code. This is the only way for others to join." },
+        { step: "Invite Members", detail: "Share the code via text or email. Teammates use the 'Recruitment Hub' to enroll themselves instantly." }
+      ]
+    },
+    {
+      title: "2. Strategic Scheduling",
+      icon: CalendarDays,
+      steps: [
+        { step: "Create Activity", detail: "In 'Schedule', use '+ New Activity' to log Match Days, Training, or Meetings. Set location and times." },
+        { step: "Calendar View", detail: "Use the 'Calendar' tab for a unified chronological view of all squad commitments." },
+        { step: "Monitor RSVPs", detail: "Click any event to see who is 'Going', 'Maybe', or 'Declined' in real-time." }
+      ]
+    },
+    {
+      title: "3. Communication & Social",
+      icon: MessageCircle,
+      steps: [
+        { step: "Squad Feed", detail: "Use the 'Feed' to view system updates and coordination notes. Note: Posting and polls are Pro features." },
+        { step: "Tactical Chats", detail: "Open 'Chats' to establish secure messaging groups for specific squad units or travel planning." }
+      ]
+    },
+    {
+      title: "4. Performance Tracking",
+      icon: Trophy,
+      steps: [
+        { step: "Scorekeeping", detail: "Visit the 'Scorekeeping' hub after matches. Enter 'Us vs Them' scores to update the season Win/Loss record." },
+        { step: "Manual Itineraries", detail: "Add 'Tournament' events to create multi-day calendar blocks for championships." }
+      ]
+    },
+    {
+      title: "5. Playbook & Library",
+      icon: Dumbbell,
+      steps: [
+        { step: "Archive Drills", detail: "In 'Playbook', add execution protocols with instructions and external video links for squad study." },
+        { step: "Resource Repository", detail: "Upload PDFs or images to the 'Library' for administrative access (maps, rules, handbooks)." }
+      ]
+    }
+  ];
+
+  // PRO SECTIONS
+  const SECTIONS_PRO: ManualSection[] = [
+    {
+      title: "6. Activating Elite Status",
+      icon: Zap,
+      steps: [
+        { step: "Provision Seat", detail: "After upgrading, visit 'Team Profile' and use 'Override Tier' to attach the Pro seat to your primary squad." },
+        { step: "Unlock Modules", detail: "Verify the 'ELITE PRO' badge in your team switcher. Advanced film, analytics, and tournament tools are now live." }
+      ]
+    },
+    {
+      title: "7. The Elite Tournament Engine",
+      icon: Table,
+      steps: [
+        { step: "Roster Enrollment", detail: "Create a Tournament event. In 'Deploy', enter participating squad names to initialize the engine." },
+        { step: "Auto-Scheduler", detail: "Define match lengths and breaks. Tap 'Deploy Complex Itinerary' to auto-generate pairings across fields." },
+        { step: "Portal Distribution", detail: "In 'Portals', share the Spectator Hub with fans and the Scorekeeper Hub with field marshals for live updates." }
+      ]
+    },
+    {
+      title: "8. Film Study Compliance",
+      icon: Video,
+      steps: [
+        { step: "Media Archiving", detail: "Upload MP4 match film or drills to the Playbook. Pro includes 10GB of high-speed media storage." },
+        { step: "The 75% Rule", detail: "The system tracks watch time. Teammates must watch 75% of the video to be marked as 'Compliant' in your ledger." },
+        { step: "Tactical Discussion", detail: "Add time-stamped comments to film study sessions to spark strategy discussions." }
+      ]
+    },
+    {
+      title: "9. Roster Fees & Governance",
+      icon: DollarSign,
+      steps: [
+        { step: "Post Fees", detail: "Attach uniform or tournament dues to player profiles in the Roster hub. Track 'Paid' vs 'Owed' status." },
+        { step: "Staff Evaluations", detail: "Use private 'Staff Notes' in the Roster hub to log performance reviews visible only to coaches." }
+      ]
+    },
+    {
+      title: "10. High-Priority Command",
+      icon: Megaphone,
+      steps: [
+        { step: "Broadcast Alerts", detail: "Use the Megaphone icon to send urgent, team-wide popups for last-minute venue changes or safety news." },
+        { step: "Advanced Trajectory", detail: "In Scorekeeping, visualize average PPG, Win Trends, and opponent patterns via interactive charts." }
+      ]
+    }
+  ];
+
+  // ELITE SECTIONS
+  const SECTIONS_ELITE: ManualSection[] = [
+    {
+      title: "11. Institutional Command",
+      icon: Building,
+      steps: [
+        { step: "Organization Setup", detail: "Use the 'Club Hub' to create multiple squads under one master organizational umbrella." },
+        { step: "Seat Provisioning", detail: "Assign your 8 or 20 Pro seats to specific head coaches while retaining master administrative oversight." }
+      ]
+    },
+    {
+      title: "12. The Recruitment Hub",
+      icon: ClipboardList,
+      steps: [
+        { step: "Form Architect", detail: "In 'Leagues > Registration', build a custom form with logic for sizes, medical info, and document uploads." },
+        { step: "Public Portal Deployment", detail: "Share your unique Portal URL publicly. New players can apply to join without needing an initial account." },
+        { step: "Ledger Review", detail: "Review applications in the 'Ledger'. Approve recruits and assign them directly to your organization's squads." }
+      ]
+    },
+    {
+      title: "13. Facility & Logistics Mastery",
+      icon: MapPin,
+      steps: [
+        { step: "Register Venues", detail: "In 'Facilities', log every venue and field. System prevents double-booking across all your organization's teams." },
+        { step: "Asset Management", detail: "Use 'Equipment' to log uniform and kit inventory. Assign items to players and track seasonal recovery." }
+      ]
+    },
+    {
+      title: "14. League Governance",
+      icon: ShieldCheck,
+      steps: [
+        { step: "Establish Standings", detail: "Create official League Hubs to link multiple squads into a single leaderboard with points logic." },
+        { step: "Cross-Coach Comms", detail: "Use the 'Coach Directory' to establish tactical chats with opposing managers for match-day coordination." }
+      ]
+    }
+  ];
+
   const MANUAL_CONTENT: Record<AccountType, { label: string; desc: string; highlights: string[]; sections: ManualSection[] }> = {
     starter: {
       label: "Starter (Free)",
       desc: "Essential coordination for grassroots squads. Master the core coordination engine.",
       highlights: ["Unlimited Starter Teams", "Tactical Chat", "Basic Scheduling", "Manual Scorekeeping", "Playbook Basics", "Resource Library"],
-      sections: [
-        {
-          title: "1. Squad Deployment & Recruitment",
-          icon: UserPlus,
-          steps: [
-            { step: "Launch Team", detail: "Start at the Dashboard and select 'New Squad'. Choose the 'Starter Squad' tier for a permanent zero-cost hub." },
-            { step: "Retreive Join Code", detail: "Navigate to 'Team Profile' to find your unique 6-digit Squad Code. This is the only way for others to join." },
-            { step: "Invite Members", detail: "Share the code via text or email. Teammates use the 'Recruitment Hub' to enroll themselves instantly." }
-          ]
-        },
-        {
-          title: "2. Strategic Scheduling",
-          icon: CalendarDays,
-          steps: [
-            { step: "Create Activity", detail: "In 'Schedule', use '+ New Activity' to log Match Days, Training, or Meetings. Set location and times." },
-            { step: "Calendar View", detail: "Use the 'Calendar' tab for a unified chronological view of all squad commitments." },
-            { step: "Monitor RSVPs", detail: "Click any event to see who is 'Going', 'Maybe', or 'Declined' in real-time." }
-          ]
-        },
-        {
-          title: "3. Communication & Social",
-          icon: MessageCircle,
-          steps: [
-            { step: "Squad Feed", detail: "Use the 'Feed' to view system updates and coordination notes. Note: Posting and polls are Pro features." },
-            { step: "Tactical Chats", detail: "Open 'Chats' to establish secure messaging groups for specific squad units or travel planning." }
-          ]
-        },
-        {
-          title: "4. Performance Tracking",
-          icon: Trophy,
-          steps: [
-            { step: "Scorekeeping", detail: "Visit the 'Scorekeeping' hub after matches. Enter 'Us vs Them' scores to update the season Win/Loss record." },
-            { step: "Manual Itineraries", detail: "Add 'Tournament' events to create multi-day calendar blocks for championships." }
-          ]
-        },
-        {
-          title: "5. Playbook & Library",
-          icon: Dumbbell,
-          steps: [
-            { step: "Archive Drills", detail: "In 'Playbook', add execution protocols with instructions and external video links for squad study." },
-            { step: "Resource Repository", detail: "Upload PDFs or images to the 'Library' for administrative access (maps, rules, handbooks)." }
-          ]
-        }
-      ]
+      sections: SECTIONS_STARTER
     },
     pro: {
       label: "Squad Pro",
-      desc: "Full coordination for elite squads. Everything in Starter + advanced verification and automation.",
+      desc: "Full coordination for elite squads. Foundations + advanced verification and automation.",
       highlights: ["Everything in Starter", "Elite Auto-Scheduler", "75% Film Verification", "Broadcast Alerts", "Digital Signatures", "Advanced Stats"],
-      sections: [
-        {
-          title: "1. Activating Elite Status",
-          icon: Zap,
-          steps: [
-            { step: "Provision Seat", detail: "After upgrading, visit 'Team Profile' and use 'Override Tier' to attach the Pro seat to your primary squad." },
-            { step: "Unlock Modules", detail: "Verify the 'ELITE PRO' badge in your team switcher. Advanced film, analytics, and tournament tools are now live." }
-          ]
-        },
-        {
-          title: "2. The Elite Tournament Engine",
-          icon: TableIcon,
-          steps: [
-            { step: "Roster Enrollment", detail: "Create a Tournament event. In 'Deploy', enter participating squad names to initialize the engine." },
-            { step: "Auto-Scheduler", detail: "Define match lengths and breaks. Tap 'Deploy Complex Itinerary' to auto-generate pairings across fields." },
-            { step: "Portal Distribution", detail: "In 'Portals', share the Spectator Hub with fans and the Scorekeeper Hub with field marshals for live updates." },
-            { step: "Compliance Execution", detail: "Use 'Coaches Corner' to upload waivers. Track digital signatures in the Compliance Ledger." }
-          ]
-        },
-        {
-          title: "3. Film Study Compliance",
-          icon: Video,
-          steps: [
-            { step: "Media Archiving", detail: "Upload MP4 match film or drills to the Playbook. Pro includes 10GB of high-speed media storage." },
-            { step: "The 75% Rule", detail: "The system tracks watch time. Teammates must watch 75% of the video to be marked as 'Compliant' in your ledger." },
-            { step: "Tactical Discussion", detail: "Add time-stamped comments to film study sessions to spark strategy discussions." }
-          ]
-        },
-        {
-          title: "4. Roster Fees & Governance",
-          icon: DollarSign,
-          steps: [
-            { step: "Post Fees", detail: "Attach uniform or tournament dues to player profiles. Track 'Paid' vs 'Owed' status automatically." },
-            { step: "Staff Evaluations", detail: "Use private 'Staff Notes' in the Roster hub to log performance reviews visible only to coaches." }
-          ]
-        },
-        {
-          title: "5. High-Priority Command",
-          icon: Megaphone,
-          steps: [
-            { step: "Broadcast Alerts", detail: "Use the Megaphone icon to send urgent, full-screen team-wide alerts for venue changes or safety." },
-            { step: "Advanced Trajectory", detail: "In Scorekeeping, visualize PPG, Win Trends, and opponent scouting patterns via interactive charts." }
-          ]
-        }
-      ]
+      sections: [...SECTIONS_STARTER, ...SECTIONS_PRO]
     },
     elite: {
       label: "Elite Org (Team/League)",
-      desc: "Institutional infrastructure. Everything in Pro + multi-team management and public recruitment portals.",
+      desc: "Institutional infrastructure. Complete tactical suite for multi-team organizations.",
       highlights: ["Everything in Pro", "Multi-Team Club Hub", "Public Recruitment Portals", "Form Architect", "Facility Conflict Mgmt", "Equipment Vault"],
-      sections: [
-        {
-          title: "1. Institutional Command",
-          icon: Building,
-          steps: [
-            { step: "Organization Setup", detail: "Use the 'Club Hub' to create multiple squads under one master organizational umbrella." },
-            { step: "Seat Provisioning", detail: "Assign your 8 or 20 Pro seats to specific head coaches while retaining master administrative oversight." }
-          ]
-        },
-        {
-          title: "2. The Recruitment Hub",
-          icon: ClipboardList,
-          steps: [
-            { step: "Form Architect", detail: "In 'Leagues > Registration', build a custom form with logic for sizes, medical info, and document uploads." },
-            { step: "Public Portal Deployment", detail: "Share your unique Portal URL publicly. New players can apply to join without an account." },
-            { step: "Ledger Review", detail: "Review applications in the 'Ledger'. Approve recruits and assign them directly to your organization's squads." }
-          ]
-        },
-        {
-          title: "3. Facility & Logistics Mastery",
-          icon: MapPin,
-          steps: [
-            { step: "Register Venues", detail: "In 'Facilities', log every venue and field. System prevents double-booking across all your organization's teams." },
-            { step: "Asset Management", detail: "Use 'Equipment' to log uniform and kit inventory. Assign items to players and track seasonal recovery." }
-          ]
-        },
-        {
-          title: "4. League Governance",
-          icon: ShieldCheck,
-          steps: [
-            { step: "Establish Standings", detail: "Create official League Hubs to link multiple squads into a single leaderboard with points logic." },
-            { step: "Cross-Coach Comms", detail: "Use the 'Coach Directory' to establish tactical chats with opposing managers for match-day coordination." }
-          ]
-        }
-      ]
+      sections: [...SECTIONS_STARTER, ...SECTIONS_PRO, ...SECTIONS_ELITE]
     },
     player: {
       label: "Individual Athlete",
@@ -373,7 +381,7 @@ export default function HowToGuidePage() {
               </div>
 
               <div className="bg-muted/30 p-6 rounded-[2rem] border-2 border-dashed">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-4 ml-1">Key Capability Matrix</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-4 ml-1">Tactical Capability Matrix</p>
                 <div className="flex flex-wrap gap-2">
                   {MANUAL_CONTENT[selectedType].highlights.map((h, i) => (
                     <Badge key={i} className="bg-white text-black border-none shadow-sm font-black uppercase text-[10px] h-8 px-4">
