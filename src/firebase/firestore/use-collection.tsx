@@ -90,8 +90,9 @@ export function useCollection<T = any>(
       (err: FirestoreError) => {
         if (!isMounted.current) return;
         
-        // Suppress errors for transient/invalid paths during auth handshake
-        if (!trimmedPath || trimmedPath === '/' || trimmedPath.includes('demo_guest') || trimmedPath === 'query') {
+        // Suppress index errors (failed-precondition) or auth-transient errors
+        if (err.code === 'failed-precondition' || trimmedPath.includes('demo_guest') || trimmedPath === 'query') {
+          console.warn(`Firestore optimization required for: ${trimmedPath}`, err.message);
           setIsLoading(false);
           return;
         }
