@@ -226,6 +226,7 @@ interface TeamContextType {
   votePoll: (chatId: string, msgId: string, optIdx: number) => Promise<void>;
   createChat: (name: string, members: string[]) => Promise<string>;
   formatTime: (date: string | Date) => string;
+  resetSquadData: (categories: string[]) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -486,6 +487,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (!activeTeam || !firebaseUser) return '';
       const ref = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), clean({ name, memberIds: [...ms, firebaseUser.uid], createdBy: firebaseUser.uid, createdAt: new Date().toISOString() }));
       return ref.id;
+    },
+    resetSquadData: async (categories: string[]) => {
+      if (!activeTeam || !db) return;
+      const batch = writeBatch(db);
+      
+      for (const cat of categories) {
+        let collPath = '';
+        if (cat === 'games') collPath = `teams/${activeTeam.id}/games`;
+        if (cat === 'events') collPath = `teams/${activeTeam.id}/events`;
+        if (cat === 'scouting') collPath = `teams/${activeTeam.id}/scouting`;
+        if (cat === 'feed') collPath = `teams/${activeTeam.id}/feedPosts`;
+        
+        if (collPath) {
+          const snap = await getDocs(collection(db, collPath));
+          snap.docs.forEach(d => batch.delete(d.ref));
+        }
+      }
+      
+      await batch.commit();
+      toast({ title: "Season Reset Complete", description: "Operational data purged successfully." });
     }
   };
 
