@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -17,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { 
   Select, 
   SelectContent, 
@@ -36,7 +36,7 @@ const DISMISSED_ALERTS_KEY = 'squad_dismissed_alerts_ids';
  * respecting the target audience.
  */
 export function AlertOverlay() {
-  const { alerts = [], user, isStaff, isPlayer, isParent } = useTeam();
+  const { alerts = [], isStaff, isPlayer, isParent } = useTeam();
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<string[]>([]);
