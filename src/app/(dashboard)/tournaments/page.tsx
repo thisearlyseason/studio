@@ -10,7 +10,7 @@ import {
   Plus, 
   MapPin, 
   Calendar as CalendarIcon, 
-  ChevronRight, 
+  ChevronLeft, 
   Clock, 
   ShieldCheck,
   Zap,
@@ -57,18 +57,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTeam, TeamEvent, TournamentGame, Member } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, where, doc, parse } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format, isPast, isSameDay, addMinutes, eachDayOfInterval, parse as parseDate } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 
-/**
- * Tactical Point Logic:
- * Win: +1
- * Loss: -1
- * Tie: 0
- */
 function calculateTournamentStandings(teams: string[], games: TournamentGame[]) {
   const standings = teams.reduce((acc, team) => {
     acc[team] = { name: team, wins: 0, losses: 0, ties: 0, points: 0 };
