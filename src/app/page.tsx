@@ -199,23 +199,23 @@ export default function LandingPage() {
           <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-medium leading-relaxed">
             The all-in-one tactical platform for elite sports organizations. Coordinate rosters, automate brackets, and verify performance.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 max-w-md mx-auto sm:max-w-none">
+          <div className="flex flex-col items-center justify-center gap-3 pt-4 w-full max-w-xs mx-auto">
             {user ? (
               <Link href="/dashboard" className="w-full">
-                <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
-                  Go to Dashboard <ArrowRight className="ml-2 h-5 w-5" />
+                <Button size="lg" className="h-12 px-8 rounded-full text-sm font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
+                  Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             ) : (
               <Link href="/signup" className="w-full">
-                <Button size="lg" className="h-16 px-10 rounded-full text-lg font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
-                  Deploy Your Squad <ArrowRight className="ml-2 h-5 w-5" />
+                <Button size="lg" className="h-12 px-8 rounded-full text-sm font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
+                  Deploy Your Squad <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             )}
             <Dialog open={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" variant="outline" className="h-16 px-10 rounded-full text-lg font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full">
+                <Button size="lg" variant="outline" className="h-12 px-8 rounded-full text-sm font-black bg-white/10 border-white/20 text-white backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all w-full">
                   Experience Demo
                 </Button>
               </DialogTrigger>
