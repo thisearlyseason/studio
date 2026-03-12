@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -49,14 +50,23 @@ export function useCollection<T = any>(
       if ((memoizedTargetRefOrQuery as any).type === 'collection') {
         path = (memoizedTargetRefOrQuery as CollectionReference).path;
       } else {
-        // Query path access is more complex in v9+, we use a safer check
+        // Safe query path detection
         path = (memoizedTargetRefOrQuery as any)._query?.path?.canonicalString() || 'query';
       }
     } catch (e) {}
 
     const trimmedPath = (path || '').trim();
-    // CRITICAL FIX: Explicitly block root paths and the 'query' fallback string
-    if (!trimmedPath || trimmedPath === '/' || trimmedPath === '//' || trimmedPath.includes('//') || trimmedPath === 'query') {
+    
+    // CRITICAL GUARD: Explicitly block root paths, generic 'query' identifiers, or uninitialized segments
+    if (
+      !trimmedPath || 
+      trimmedPath === '/' || 
+      trimmedPath === '//' || 
+      trimmedPath.includes('//') || 
+      trimmedPath === 'query' || 
+      trimmedPath === 'collection' ||
+      trimmedPath.includes('undefined')
+    ) {
       setData(null);
       setIsLoading(false);
       return;

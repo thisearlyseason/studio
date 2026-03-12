@@ -74,8 +74,9 @@ service cloud.firestore {
         isSuperAdmin()
       );
       
-      match /{allSubcollections=**} {
-        allow read, write: if isSignedIn();
+      match /fields/{fieldId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
       }
     }
 
