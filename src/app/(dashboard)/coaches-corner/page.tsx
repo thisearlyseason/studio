@@ -34,7 +34,8 @@ import {
   Table as TableIcon,
   Activity,
   AlertTriangle,
-  Target
+  Target,
+  Trophy
 } from 'lucide-react';
 import { 
   Dialog, 
