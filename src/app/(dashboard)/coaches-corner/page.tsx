@@ -36,7 +36,8 @@ import {
   AlertTriangle,
   Target,
   Trophy,
-  Building
+  Building,
+  Info
 } from 'lucide-react';
 import { 
   Dialog, 
