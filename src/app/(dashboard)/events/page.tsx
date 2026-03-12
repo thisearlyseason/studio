@@ -690,7 +690,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     </TabsContent>
                   </div>
                 </ScrollArea>
-              </Tabs>
+              </div>
             </div>
           </div>
         </div>
@@ -865,7 +865,10 @@ export default function EventsPage() {
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="flex flex-col lg:flex-row min-h-full">
               <div className="w-full lg:w-5/12 bg-muted/30 p-10 space-y-8 lg:border-r shrink-0">
-                <DialogHeader><DialogTitle className="text-3xl font-black uppercase tracking-tight">{editingEvent ? "Update" : (isTournamentMode ? "Launch Tournament" : "Launch Activity")}</DialogTitle></DialogHeader>
+                <DialogHeader className="relative pr-10">
+                  <DialogTitle className="text-3xl font-black uppercase tracking-tight">{editingEvent ? "Update" : (isTournamentMode ? "Launch Tournament" : "Launch Activity")}</DialogTitle>
+                  <Button variant="ghost" size="icon" className="absolute top-0 right-0 rounded-full h-8 w-8 hover:bg-black/5" onClick={() => setIsCreateOpen(false)}><X className="h-5 w-5" /></Button>
+                </DialogHeader>
                 <div className="space-y-6">
                   {!isTournamentMode && ( 
                     <div className="space-y-1.5">
@@ -917,18 +920,13 @@ export default function EventsPage() {
                   
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Selected Facilities</p>
-                      <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                        {facilities?.map(f => (
-                          <div key={f.id} className={cn("flex items-center space-x-3 p-3 rounded-xl border transition-all cursor-pointer", selectedFacilityIds.includes(f.id) ? "bg-white border-primary shadow-sm" : "bg-white/50 border-transparent hover:bg-white")} onClick={() => toggleFacility(f.id)}>
-                            <Checkbox checked={selectedFacilityIds.includes(f.id)} onCheckedChange={() => toggleFacility(f.id)} />
-                            <div className="min-w-0">
-                              <p className="text-xs font-black uppercase truncate">{f.name}</p>
-                              <p className="text-[8px] font-medium opacity-60 truncate">{f.address}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Selected Venue</p>
+                      <Select value={selectedFacilityIds[0] || ""} onValueChange={v => toggleFacility(v)}>
+                        <SelectTrigger className="h-12 rounded-xl border-2 bg-white font-bold"><SelectValue placeholder="Choose facility..." /></SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {facilities?.map(f => <SelectItem key={f.id} value={f.id} className="font-bold">{f.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {selectedFacilityIds.length > 0 && (
@@ -1019,7 +1017,10 @@ export default function EventsPage() {
               </div>
             </div>
           </div>
-          <div className="p-8 bg-background border-t shrink-0 flex justify-center relative z-20"><Button className="w-full max-w-4xl h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleCreateEvent}>{isTournamentMode ? "Launch Tournament" : "Commit Activity"}</Button></div>
+          <div className="p-8 bg-background border-t shrink-0 flex items-center justify-center gap-4 relative z-20">
+            <Button variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs border-2" onClick={() => setIsCreateOpen(false)}>Cancel & Close</Button>
+            <Button className="flex-1 max-w-2xl h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleCreateEvent}>{isTournamentMode ? "Launch Tournament" : "Commit Activity"}</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
