@@ -281,6 +281,7 @@ export type RegistrationFormField = {
 };
 
 export type LeagueRegistrationConfig = {
+  id: string;
   title: string;
   description: string;
   registration_cost: string;
@@ -288,6 +289,7 @@ export type LeagueRegistrationConfig = {
   is_active: boolean;
   form_schema: RegistrationFormField[];
   form_version: number;
+  waiver_text?: string;
 };
 
 export type RegistrationEntry = {
@@ -300,6 +302,8 @@ export type RegistrationEntry = {
   payment_received?: boolean;
   created_at: string;
   form_version: number;
+  protocol_id: string;
+  waiver_signed_text?: string;
 };
 
 export type TournamentGame = {
@@ -404,7 +408,7 @@ interface TeamContextType {
   acceptLeagueInvite: (inviteId: string, leagueId: string) => Promise<void>;
   manuallyAddTeamToLeague: (leagueId: string, teamName: string, coachEmail?: string, logoUrl?: string) => Promise<void>;
   saveLeagueRegistrationConfig: (leagueId: string, updates: Partial<LeagueRegistrationConfig>) => Promise<void>;
-  submitRegistrationEntry: (leagueId: string, answers: any, version: number) => Promise<void>;
+  submitRegistrationEntry: (leagueId: string, protocolId: string, answers: any, version: number, signature?: string) => Promise<void>;
   assignEntryToTeam: (leagueId: string, entryId: string, teamId: string | null) => Promise<void>;
   toggleRegistrationPaymentStatus: (leagueId: string, entryId: string, paid: boolean) => Promise<void>;
   respondToAssignment: (leagueId: string, entryId: string, status: 'accepted' | 'declined') => Promise<void>;
@@ -930,12 +934,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
 
     saveLeagueRegistrationConfig: async (leagueId: string, updates: Partial<LeagueRegistrationConfig>) => {
-      await setDoc(doc(db, 'leagues', leagueId, 'registration', 'config'), clean(updates), { merge: true });
-      toast({ title: "Portal Config Synchronized" });
+      const protocolId = updates.id || `proto_${Date.now()}`;
+      await setDoc(doc(db, 'leagues', leagueId, 'registration', protocolId), clean({ ...updates, id: protocolId }), { merge: true });
+      toast({ title: "Protocol Config Synchronized" });
     },
 
-    submitRegistrationEntry: async (leagueId: string, answers: any, version: number) => {
-      await addDoc(collection(db, 'leagues', leagueId, 'registrationEntries'), clean({ league_id: leagueId, answers, status: 'pending', created_at: new Date().toISOString(), form_version: version }));
+    submitRegistrationEntry: async (leagueId: string, protocolId: string, answers: any, version: number, signature?: string) => {
+      await addDoc(collection(db, 'leagues', leagueId, 'registrationEntries'), clean({ 
+        league_id: leagueId, 
+        protocol_id: protocolId,
+        answers, 
+        status: 'pending', 
+        created_at: new Date().toISOString(), 
+        form_version: version,
+        waiver_signed_text: signature 
+      }));
     },
 
     assignEntryToTeam: async (leagueId: string, entryId: string, teamId: string | null) => {

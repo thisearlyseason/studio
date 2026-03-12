@@ -351,8 +351,9 @@ export default function LandingPage() {
                   { feature: "Auto-Brackets + Public Hub", squad: true, tsnap: "Partial", hudl: false, treach: false, gchanger: "Basic", note: "One-click championship series" },
                   { feature: "Form Architect (Recruitment)", squad: true, tsnap: "Add-on", hudl: false, treach: false, gchanger: false, note: "Custom data entry + waivers" },
                   { feature: "Institutional Fiscal Audit", squad: true, tsnap: "Partial", hudl: false, treach: false, gchanger: false, note: "Club-wide dues aggregation" },
-                  { feature: "Encrypted Tactical Chat", squad: true, tsnap: true, hudl: true, treach: true, gchanger: true, note: "Foundational comms" },
-                  { feature: "Attendance & RSVPs", squad: true, tsnap: true, hudl: true, treach: true, gchanger: true, note: "Standard coordination" },
+                  { feature: "Team Chat & Groups", squad: true, tsnap: true, hudl: true, treach: true, gchanger: true, note: "Universal comms" },
+                  { feature: "Schedule & RSVPs", squad: true, tsnap: true, hudl: true, treach: true, gchanger: true, note: "Foundation coordination" },
+                  { feature: "Mobile Hub Access", squad: true, tsnap: true, hudl: true, treach: true, gchanger: true, note: "Anywhere operations" },
                 ].map((row, idx) => (
                   <tr key={idx} className="group hover:bg-muted/10 transition-colors">
                     <td className="py-6 px-8">

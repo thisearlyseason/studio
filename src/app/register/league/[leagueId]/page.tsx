@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationFormField } from '@/components/providers/team-provider';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -26,7 +26,8 @@ import {
   ArrowRight,
   XCircle,
   Plus,
-  DollarSign
+  DollarSign,
+  Signature
 } from 'lucide-react';
 import { 
   Select, 
@@ -42,23 +43,39 @@ import { toast } from '@/hooks/use-toast';
 
 export default function PublicLeagueRegistrationPage() {
   const { leagueId } = useParams();
+  const searchParams = useSearchParams();
+  const protocolId = searchParams.get('protocol') || 'config';
   const { submitRegistrationEntry } = useTeam();
   const db = useFirestore();
 
-  const configRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string, 'registration', 'config') : null, [db, leagueId]);
-  const { data: config, isLoading } = useDoc<LeagueRegistrationConfig>(configRef);
+  const configRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string, 'registration', protocolId) : null, [db, leagueId, protocolId]);
+  
+  // Fallback check for team-specific protocols if league fails
+  const teamProtoRef = useMemoFirebase(() => db ? doc(db, 'teams', leagueId as string, 'registration', protocolId) : null, [db, leagueId, protocolId]);
+  
+  const { data: leagueConfig, isLoading: isLeagueLoading } = useDoc<LeagueRegistrationConfig>(configRef);
+  const { data: teamConfig, isLoading: isTeamLoading } = useDoc<LeagueRegistrationConfig>(teamProtoRef);
+
+  const config = useMemo(() => leagueConfig || teamConfig, [leagueConfig, teamConfig]);
+  const isLoading = isLeagueLoading && isTeamLoading;
 
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [waiverAgreed, setWaiverAgreed] = useState(false);
+  const [signature, setSignature] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!config || isSubmitting) return;
+    if (config.waiver_text && (!waiverAgreed || !signature.trim())) {
+      toast({ title: "Compliance Required", description: "Please sign the institutional waiver.", variant: "destructive" });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      await submitRegistrationEntry(leagueId as string, answers, config.form_version || 0);
+      await submitRegistrationEntry(leagueId as string, config.id, answers, config.form_version || 0, signature);
       setIsSuccess(true);
     } catch (error) {
       toast({ title: "Submission Failed", description: "Please verify connectivity and try again.", variant: "destructive" });
@@ -87,7 +104,7 @@ export default function PublicLeagueRegistrationPage() {
           <XCircle className="h-16 w-16 text-destructive mx-auto mb-6 opacity-20" />
           <h2 className="text-2xl font-black uppercase tracking-tight">Portal Inactive</h2>
           <p className="text-muted-foreground font-medium mt-2 leading-relaxed">
-            Registration for this league is currently closed or the link is invalid. Please contact the league organizer for details.
+            Registration for this squad is currently closed or the link is invalid. Please contact the squad coordinator for details.
           </p>
         </Card>
       </div>
@@ -103,7 +120,7 @@ export default function PublicLeagueRegistrationPage() {
             <CheckCircle2 className="h-10 w-10 text-green-600" />
           </div>
           <h2 className="text-3xl font-black uppercase tracking-tighter leading-tight">Registration Successful</h2>
-          <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 mb-8">Roster review in progress</p>
+          <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 mb-8">Recruit review in progress</p>
           
           <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 space-y-4 text-left">
             <div className="flex justify-between items-start">
@@ -112,19 +129,19 @@ export default function PublicLeagueRegistrationPage() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">Settlement Protocol</p>
               </div>
               {config.registration_cost && (
-                <Badge className="bg-primary text-white font-black text-xs h-6">{config.registration_cost}</Badge>
+                <Badge className="bg-primary text-white font-black text-xs h-6">${config.registration_cost}</Badge>
               )}
             </div>
             <div className="space-y-3">
-              <p className="text-xs font-black text-primary uppercase tracking-widest">Action Required: Payment due ASAP</p>
+              <p className="text-xs font-black text-primary uppercase tracking-widest">Status: Pending Verification</p>
               <p className="text-xs font-medium text-foreground/80 leading-relaxed italic">
-                {config.payment_instructions || 'Please coordinate with the league organizer regarding the registration fee.'}
+                {config.payment_instructions || 'Please coordinate with the squad organizer regarding the registration fee.'}
               </p>
             </div>
           </div>
           
           <p className="text-xs font-medium text-muted-foreground mt-8">
-            Your application has been received. Please ensure payment is settled promptly to finalize your squad enrollment.
+            Your application has been received. Our coaching staff will review your file and confirm assignment shortly.
           </p>
         </Card>
       </div>
@@ -142,7 +159,7 @@ export default function PublicLeagueRegistrationPage() {
           <div className="space-y-3">
             <Badge className="bg-primary text-white border-none font-black uppercase tracking-widest text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Official Recruitment</Badge>
             <h1 className="text-4xl lg:text-5xl font-black tracking-tighter uppercase leading-[0.9]">{config.title}</h1>
-            <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">League Enrollment Portal</p>
+            <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Squad Enrollment Portal</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -150,12 +167,12 @@ export default function PublicLeagueRegistrationPage() {
               <p className="text-sm font-medium leading-relaxed text-foreground/80">{config.description}</p>
             </div>
 
-            {config.registration_cost && (
+            {config.registration_cost && config.registration_cost !== '0' && (
               <div className="bg-primary text-white p-6 rounded-3xl shadow-xl shadow-primary/20 flex items-center justify-between group overflow-hidden relative">
                 <DollarSign className="absolute -right-2 -bottom-2 h-20 w-20 opacity-10 -rotate-12" />
                 <div className="relative z-10">
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Registration Fee</p>
-                  <p className="text-4xl font-black tracking-tighter">{config.registration_cost}</p>
+                  <p className="text-4xl font-black tracking-tighter">${config.registration_cost}</p>
                 </div>
                 <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm relative z-10">
                   <CreditCard className="h-6 w-6" />
@@ -170,7 +187,7 @@ export default function PublicLeagueRegistrationPage() {
               <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Logistics</h4>
             </div>
             <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
-              Once submitted, your application enters the squad review pool. Assignments are managed by official league coordinators and approved by head coaches.
+              Once submitted, your application enters the squad review pool. Assignments are managed by official coordinators and approved by the head coach.
             </p>
           </div>
         </div>
@@ -309,6 +326,30 @@ export default function PublicLeagueRegistrationPage() {
                   <p className="text-sm font-black uppercase">Standard Enrollment Enabled</p>
                 </div>
               )}
+
+              {config.waiver_text && (
+                <div className="space-y-6 pt-8 border-t">
+                  <div className="flex items-center gap-3"><Signature className="h-6 w-6 text-primary" /><h4 className="text-lg font-black uppercase tracking-tight">Institutional Waiver</h4></div>
+                  <ScrollArea className="h-40 p-4 rounded-2xl bg-muted/10 border-2 font-medium text-xs leading-relaxed">
+                    {config.waiver_text}
+                  </ScrollArea>
+                  <div className="flex items-center space-x-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                    <Checkbox id="waiver_agree" checked={waiverAgreed} onCheckedChange={v => setWaiverAgreed(!!v)} />
+                    <Label htmlFor="waiver_agree" className="text-[10px] font-black uppercase tracking-tight cursor-pointer leading-tight">
+                      I verify that I have read and accept all participation terms.
+                    </Label>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Digital Signature (Legal Name)</Label>
+                    <Input 
+                      placeholder="Type your name to sign..." 
+                      value={signature} 
+                      onChange={e => setSignature(e.target.value)} 
+                      className="h-12 rounded-xl border-2 font-mono italic text-center" 
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
 
             <CardFooter className="p-8 lg:p-10 pt-0">
@@ -317,7 +358,7 @@ export default function PublicLeagueRegistrationPage() {
                 className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : "Send In Registration"}
+                {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : "Dispatch Application"}
               </Button>
             </CardFooter>
           </form>
