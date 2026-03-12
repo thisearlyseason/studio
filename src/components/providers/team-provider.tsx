@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
-import { useFirebase, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useFirebase, useFirestore, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { 
   collection, 
   query, 
