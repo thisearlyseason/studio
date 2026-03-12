@@ -32,7 +32,7 @@ import {
   Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -367,7 +367,7 @@ export default function LandingPage() {
                   <CardTitle className="text-2xl font-black uppercase tracking-tight">Starter</CardTitle>
                   <span className="text-4xl font-black tracking-tighter">$0</span>
                 </div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Foundational coordination hub.</p>
+                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">Foundational coordination hub.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 flex-1 space-y-6">
                 <div className="pt-4 border-t space-y-3">
@@ -381,7 +381,7 @@ export default function LandingPage() {
               </CardContent>
               <CardFooter className="p-8 pt-0">
                 <Link href="/signup" className="w-full">
-                  <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-xs">Join Free</Button>
+                  <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-xs border-2">Join Free</Button>
                 </Link>
               </CardFooter>
             </Card>
@@ -398,7 +398,7 @@ export default function LandingPage() {
                     <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
                   </div>
                 </div>
-                <p className="text-[10px] font-bold text-white/60 uppercase">Elite coordination for one squad.</p>
+                <CardDescription className="text-[10px] font-bold text-white/60 uppercase">Elite coordination for one squad.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 flex-1 space-y-6">
                 <div className="pt-4 border-t border-white/10 space-y-3">
@@ -425,10 +425,10 @@ export default function LandingPage() {
                   <CardTitle className="text-2xl font-black uppercase tracking-tight">Elite Teams</CardTitle>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-black tracking-tighter text-primary">$110</span>
-                    <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
+                    <span className="text-[10px] font-black uppercase opacity-60 text-muted-foreground">/mo</span>
                   </div>
                 </div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Up to 8 Pro Teams + Hub.</p>
+                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">Up to 8 Pro Teams + Hub.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 flex-1 space-y-6">
                 <div className="pt-4 border-t space-y-3">
@@ -455,10 +455,10 @@ export default function LandingPage() {
                   <CardTitle className="text-2xl font-black uppercase tracking-tight">Elite League</CardTitle>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-black tracking-tighter text-primary">$279</span>
-                    <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
+                    <span className="text-[10px] font-black uppercase opacity-60 text-muted-foreground">/mo</span>
                   </div>
                 </div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">20 Pro Teams + Support.</p>
+                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase">20 Pro Teams + Support.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 flex-1 space-y-6">
                 <div className="pt-4 border-t space-y-3">
