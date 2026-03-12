@@ -32,14 +32,14 @@ import {
   X,
   Info,
   CheckCircle2,
-  CalendarDays
+  CalendarDays,
+  Users
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTeam, TeamEvent, EventType, Member } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collectionGroup, query, where } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -171,9 +171,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
 
 export default function MasterCalendarPage() {
   const { user: authUser } = useUser();
-  const { teams, activeTeam, householdEvents, isParent } = useTeam();
-  const db = useFirestore();
-  const router = useRouter();
+  const { teams, householdEvents, isParent } = useTeam();
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
@@ -183,32 +181,22 @@ export default function MasterCalendarPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeDetailedEvent, setActiveDetailedEvent] = useState<TeamEvent | null>(null);
 
-  // 1. Unified Itinerary Discovery
+  // 1. Unified Itinerary Source
+  // We use householdEvents from the TeamProvider which is already aggregated and real-time.
+  const allEvents = householdEvents;
+
   const discoveryTeamIds = useMemo(() => {
     return Array.from(new Set([
       ...teams.map(t => t.id),
-      ...householdEvents.map(e => e.teamId)
+      ...allEvents.map(e => e.teamId)
     ]));
-  }, [teams, householdEvents]);
+  }, [teams, allEvents]);
 
   useEffect(() => {
     if (discoveryTeamIds.length > 0 && selectedTeamIds.length === 0) {
       setSelectedTeamIds(discoveryTeamIds);
     }
   }, [discoveryTeamIds, selectedTeamIds.length]);
-
-  const teamIdsString = useMemo(() => discoveryTeamIds.sort().join(','), [discoveryTeamIds]);
-
-  const eventsQuery = useMemoFirebase(() => {
-    if (!db || !authUser?.uid || !teamIdsString) return null;
-    const teamIds = teamIdsString.split(',').filter(id => !!id);
-    if (teamIds.length === 0) return null;
-    return query(collectionGroup(db, 'events'), where('teamId', 'in', teamIds.slice(0, 30)));
-  }, [db, teamIdsString, authUser?.uid]);
-
-  const { data: rawEvents, isLoading } = useCollection<TeamEvent>(eventsQuery);
-  
-  const allEvents = useMemo(() => rawEvents || [], [rawEvents]);
 
   const filteredEvents = useMemo(() => {
     const sorted = [...allEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -365,7 +353,6 @@ export default function MasterCalendarPage() {
                 })}
               </div>
               
-              {/* Selected Day Agenda Section */}
               <div className="p-8 border-t bg-muted/5 space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

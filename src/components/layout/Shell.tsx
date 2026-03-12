@@ -136,13 +136,29 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <BrandLogo variant="light-background" className="h-10 w-44 justify-start mb-10" priority />
               
               {isParent && (
-                <Button asChild className={cn("w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest mb-6", pathname === '/family' ? "bg-primary text-white" : "bg-primary/5 text-primary")}>
+                <Button 
+                  asChild 
+                  className={cn(
+                    "w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest mb-6 transition-all", 
+                    pathname === '/family' 
+                      ? "bg-primary text-white shadow-lg hover:bg-primary/90 hover:text-white" 
+                      : "bg-primary/5 text-primary hover:bg-primary/10"
+                  )}
+                >
                   <Link href="/family"><Baby className="h-5 w-5" />Family Hub</Link>
                 </Button>
               )}
 
               {isClubManager && (
-                <Button asChild className={cn("w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest mb-6", pathname === '/club' ? "bg-black text-white" : "bg-primary/5 text-primary")}>
+                <Button 
+                  asChild 
+                  className={cn(
+                    "w-full h-12 rounded-2xl justify-start gap-3 font-black text-xs uppercase tracking-widest mb-6 transition-all", 
+                    pathname === '/club' 
+                      ? "bg-black text-white shadow-lg hover:bg-black/90 hover:text-white" 
+                      : "bg-primary/5 text-primary hover:bg-primary/10"
+                  )}
+                >
                   <Link href="/club"><Building className="h-5 w-5" />Club Hub</Link>
                 </Button>
               )}
