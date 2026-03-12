@@ -538,7 +538,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
     isStaff: activeTeam?.role === 'Admin', isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
-    isSuperAdmin, isClubManager: !!userProfile?.activePlanId?.includes('squad_organization'), household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus,
+    isSuperAdmin, isClubManager: ['elite_teams', 'elite_league', 'squad_organization'].includes(userProfile?.activePlanId || ''), household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus,
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true), hasFeature, alerts: [],
     formatTime: (date: string | Date) => { try { return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return 'TBD'; } },
     

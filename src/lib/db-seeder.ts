@@ -84,8 +84,10 @@ export async function seedSubscriptionData(db: Firestore) {
 
       const plans = [
         { id: 'starter_squad', name: 'Starter Squad', description: 'Essential coordination for growing teams.', priceDisplay: '$0', billingType: 'free', features: starterFeatures, proTeamLimit: 0 },
-        { id: 'squad_pro', name: 'Squad Pro', description: 'Full coordination for elite squads.', priceDisplay: '$12.99', billingType: 'monthly', features: proFeaturesMap, proTeamLimit: 1 },
-        { id: 'squad_organization', name: 'Club Custom', description: 'Enterprise solutions for leagues.', priceDisplay: 'Custom', billingType: 'manual', features: proFeaturesMap, proTeamLimit: 100 }
+        { id: 'squad_pro', name: 'Squad Pro', description: 'Full coordination for elite squads.', priceDisplay: '$19.99', billingType: 'monthly', features: proFeaturesMap, proTeamLimit: 1 },
+        { id: 'elite_teams', name: 'Elite Teams', description: 'Club Hub for up to 8 squads.', priceDisplay: '$110', billingType: 'monthly', features: proFeaturesMap, proTeamLimit: 8 },
+        { id: 'elite_league', name: 'Elite League', description: 'Institutional scale for 20 squads.', priceDisplay: '$279', billingType: 'monthly', features: proFeaturesMap, proTeamLimit: 20 },
+        { id: 'squad_organization', name: 'Custom', description: 'Enterprise solutions for leagues.', priceDisplay: 'Custom', billingType: 'manual', features: proFeaturesMap, proTeamLimit: 100 }
       ];
 
       plans.forEach((p) => batch.set(doc(db, 'plans', p.id), p));
@@ -166,7 +168,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   // User Profile
   batch.set(doc(db, 'users', userId), clean({
     id: userId, fullName: isParentDemo ? 'Guest Parent' : (isPlayerDemo ? 'Guest Athlete' : 'Guest Coach'), email: `${userRole}@thesquad.pro`,
-    role: userRole, activePlanId: actualPlanId, proTeamLimit: 1, createdAt: nowStr, isDemo: true
+    role: userRole, activePlanId: actualPlanId, proTeamLimit: (actualPlanId === 'elite_teams' ? 8 : (actualPlanId === 'elite_league' ? 20 : 1)), createdAt: nowStr, isDemo: true
   }), { merge: true });
 
   // Team
