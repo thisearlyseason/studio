@@ -153,7 +153,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // Scheduler Config
   const [genMatchLength, setGenMatchLength] = useState('60');
   const [genBreakLength, setGenBreakLength] = useState('15');
   const [maxGamesPerDay, setMaxGamesPerDay] = useState('10');
@@ -513,12 +512,12 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                                       )}
                                       <div className="grid grid-cols-7 items-center gap-4 text-center mt-10">
                                         <div className="col-span-3 space-y-2">
-                                          <p className="font-black text-sm uppercase truncate leading-tight">{game.team1}</p>
+                                          <p className="font-black text-xs uppercase truncate leading-tight">{game.team1}</p>
                                           <p className="text-5xl font-black tracking-tighter">{game.score1}</p>
                                         </div>
                                         <div className="col-span-1 opacity-20 font-black text-xs">VS</div>
                                         <div className="col-span-3 space-y-2">
-                                          <p className="font-black text-sm uppercase truncate leading-tight">{game.team2}</p>
+                                          <p className="font-black text-xs uppercase truncate leading-tight">{game.team2}</p>
                                           <p className="text-5xl font-black tracking-tighter">{game.score2}</p>
                                         </div>
                                       </div>
@@ -551,14 +550,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                           </div>
                         </div>
                         <div className="space-y-4">
-                          <div className="flex items-center gap-2 px-1 text-amber-600"><HelpCircle className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest">Maybe ({attendanceGroups.maybe.length})</span></div>
-                          <div className="space-y-2">
-                            {attendanceGroups.maybe.map(m => (
-                              <div key={m.id} className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-2xl">
-                                <Avatar className="h-8 w-8 rounded-lg border shadow-sm"><AvatarImage src={m.avatar} /><AvatarFallback className="font-black text-[10px]">{m.name[0]}</AvatarFallback></Avatar>
-                                <span className="text-xs font-black uppercase truncate">{m.name}</span>
-                              </div>
-                            ))}
+                          <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-2xl">
+                            <Avatar className="h-8 w-8 rounded-lg border shadow-sm"><AvatarImage src={user?.avatar} /><AvatarFallback className="font-black text-[10px]">{user?.name?.[0]}</AvatarFallback></Avatar>
+                            <span className="text-xs font-black uppercase truncate">{user?.name}</span>
                           </div>
                         </div>
                         <div className="space-y-4">
@@ -729,7 +723,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     </TabsContent>
                   </div>
                 </ScrollArea>
-              </div>
+              </Tabs>
             </div>
           </div>
         </div>
@@ -750,7 +744,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               <DialogFooter>
                 <div className="flex flex-col w-full gap-3">
                   <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={async () => { const updatedGames = (event.tournamentGames || []).map(g => g.id === editingGame?.id ? editingGame : g); await updateEvent(event.id, { tournamentGames: updatedGames }); setEditingGame(null); }}>Commit Results</Button>
-                  <Button variant="ghost" className="w-full text-destructive text-[10px] font-black uppercase" onClick={async () => { const updatedGames = (event.tournamentGames || []).filter(g => g.id !== editingGame?.id); await updateEvent(event.id, { tournamentGames: updatedGames }); setEditingGame(null); }}>Delete Matchup</Button>
+                  <Button variant="ghost" className="w-full text-destructive font-black uppercase text-[10px]" onClick={async () => { const updatedGames = (event.tournamentGames || []).filter(g => g.id !== editingGame?.id); await updateEvent(event.id, { tournamentGames: updatedGames }); setEditingGame(null); }}>Delete Matchup</Button>
                 </div>
               </DialogFooter>
             </div>
