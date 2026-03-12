@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -36,7 +37,13 @@ import {
   Layout,
   Terminal,
   MousePointer2,
-  Lock
+  Lock,
+  BrainCircuit,
+  Package,
+  DollarSign,
+  PenTool,
+  Search,
+  Building
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -45,7 +52,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import BrandLogo from '@/components/BrandLogo';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { useUser, useAuth } from '@/firebase';
@@ -268,7 +274,7 @@ export default function LandingPage() {
               </div>
               <h4 className="text-2xl font-black uppercase tracking-tight">Elite Tournament Hub</h4>
               <p className="text-sm font-medium leading-relaxed opacity-70">
-                Automated bracket generation with a **Public Spectator URL** and mobile **Scorekeeper Portal** for real-time standings.
+                Automated bracket generation with a <strong>Public Spectator URL</strong> and mobile <strong>Scorekeeper Portal</strong> for real-time standings.
               </p>
               <ul className="space-y-3 pt-4">
                 <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Live Standings</li>
@@ -282,7 +288,7 @@ export default function LandingPage() {
               </div>
               <h4 className="text-2xl font-black uppercase tracking-tight">Film Watch Verification</h4>
               <p className="text-sm font-medium leading-relaxed opacity-70">
-                The **75% Watch Rule** ensures teammates actually study the playbook. Monitor compliance in your master roster ledger.
+                The <strong>75% Watch Rule</strong> ensures teammates actually study the playbook. Monitor compliance in your master roster ledger.
               </p>
               <ul className="space-y-3 pt-4">
                 <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> 10GB Pro Storage</li>
@@ -296,7 +302,7 @@ export default function LandingPage() {
               </div>
               <h4 className="text-2xl font-black uppercase tracking-tight">Recruitment Engine</h4>
               <p className="text-sm font-medium leading-relaxed opacity-70">
-                Custom **Form Architect** for public registration. Collect sizes, medical waivers, and fees with automated coach assignment logic.
+                Custom <strong>Form Architect</strong> for public registration. Collect sizes, medical waivers, and fees with automated coach assignment logic.
               </p>
               <ul className="space-y-3 pt-4">
                 <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Digital Signatures</li>
@@ -307,37 +313,105 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="roles" className="py-24 bg-black text-white overflow-hidden relative">
-        <div className="absolute top-0 right-0 p-20 opacity-5 -rotate-12 pointer-events-none">
-          <ShieldCheck className="h-96 w-96" />
-        </div>
+      <section className="py-32 bg-black text-white overflow-hidden relative">
         <div className="container mx-auto px-6 relative z-10">
-          <div className="max-w-3xl space-y-6 mb-16">
-            <Badge className="bg-primary text-white border-none font-black px-4 h-7 uppercase tracking-widest text-[10px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div className="space-y-8">
+              <Badge className="bg-primary text-white border-none font-black px-4 h-7 uppercase tracking-widest text-[10px]">Strategic Advantages</Badge>
+              <h3 className="text-4xl md:text-6xl font-black tracking-tight leading-none uppercase">CHAMPIONSHIP <br /> <span className="text-primary italic">OPERATIONS.</span></h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <BrainCircuit className="h-8 w-8 text-primary" />
+                  <h5 className="text-lg font-black uppercase">AI Scouting Analyst</h5>
+                  <p className="text-xs text-white/60 leading-relaxed font-medium">Generate structured opponent intelligence from raw match notes using our integrated GenAI flow.</p>
+                </div>
+                <div className="space-y-3">
+                  <Building className="h-8 w-8 text-primary" />
+                  <h5 className="text-lg font-black uppercase">Institutional Hub</h5>
+                  <p className="text-xs text-white/60 leading-relaxed font-medium">Centralized command for clubs managing 20+ squads with aggregated fiscal auditing.</p>
+                </div>
+                <div className="space-y-3">
+                  <Package className="h-8 w-8 text-primary" />
+                  <h5 className="text-lg font-black uppercase">Fleet & Asset Vault</h5>
+                  <p className="text-xs text-white/60 leading-relaxed font-medium">Professional inventory management for uniforms, kits, and facilities with conflict resolution.</p>
+                </div>
+                <div className="space-y-3">
+                  <ShieldAlert className="h-8 w-8 text-primary" />
+                  <h5 className="text-lg font-black uppercase">Staff Evaluations</h5>
+                  <p className="text-xs text-white/60 leading-relaxed font-medium">Private, staff-only tactical reviews and recruiting portfolios for every verified athlete.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 blur-[120px] rounded-full" />
+              <Card className="relative z-10 rounded-[3rem] border-white/10 bg-white/5 backdrop-blur-xl p-8 lg:p-12 shadow-2xl overflow-hidden">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20"><Activity className="h-5 w-5 text-white" /></div>
+                      <span className="font-black uppercase tracking-widest text-xs">Live Tactical Feed</span>
+                    </div>
+                    <Badge variant="outline" className="border-white/20 text-white font-black text-[8px] px-2 h-5">ENCRYPTED</Badge>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-muted/20 shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-2 w-24 bg-white/20 rounded-full" />
+                        <div className="h-2 w-full bg-white/10 rounded-full" />
+                      </div>
+                    </div>
+                    <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20 flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-primary/40 shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-2 w-32 bg-primary/40 rounded-full" />
+                        <div className="h-2 w-3/4 bg-primary/20 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Active Coordination Hub</p>
+                    <div className="flex -space-x-2">
+                      {[1,2,3,4].map(i => <div key={i} className="h-6 w-6 rounded-full border-2 border-black bg-muted/40" />)}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="roles" className="py-32 bg-white relative overflow-hidden">
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="max-w-3xl space-y-6 mb-16 mx-auto text-center">
+            <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black px-4 h-7 uppercase tracking-widest text-[10px]">
               Tactical Perspectives
             </Badge>
             <h3 className="text-4xl md:text-6xl font-black tracking-tight leading-none uppercase">Specialized <br /> Operational <span className="text-primary italic">Interfaces.</span></h3>
-            <p className="text-white/60 font-medium text-lg leading-relaxed">
+            <p className="text-muted-foreground font-medium text-lg leading-relaxed">
               Every member of the organization receives a tailored dashboard optimized for their specific objectives.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="space-y-6 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition-all">
-              <Trophy className="h-10 w-10 text-primary" />
-              <h5 className="text-2xl font-black uppercase">Coaches Hub</h5>
-              <p className="text-sm font-medium text-white/60">Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts and track performance metrics.</p>
-            </div>
-            <div className="space-y-6 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition-all">
-              <Baby className="h-10 w-10 text-primary" />
-              <h5 className="text-2xl font-black uppercase">Parent command</h5>
-              <p className="text-sm font-medium text-white/60">Manage multiple children from one unified hub. Track household balances, verify RSVPs, and claim volunteer shifts.</p>
-            </div>
-            <div className="space-y-6 p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition-all">
-              <User className="h-10 w-10 text-primary" />
-              <h5 className="text-2xl font-black uppercase">Athlete View</h5>
-              <p className="text-sm font-medium text-white/60">A personal performance dashboard. Sign waivers, watch study film, and stay coordinated with real-time squad chat.</p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:translate-y-[-8px] transition-all duration-500">
+              <Trophy className="h-12 w-12 text-primary" />
+              <h5 className="text-2xl font-black uppercase tracking-tight">Coaches Hub</h5>
+              <p className="text-sm font-medium text-muted-foreground leading-relaxed">Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts and track performance metrics via AI scouting.</p>
+            </Card>
+            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:translate-y-[-8px] transition-all duration-500">
+              <Baby className="h-12 w-12 text-primary" />
+              <h5 className="text-2xl font-black uppercase tracking-tight">Guardian Hub</h5>
+              <p className="text-sm font-medium text-muted-foreground leading-relaxed">Manage multiple children from one unified hub. Track consolidated household balances, verify RSVPs, and claim shifts.</p>
+            </Card>
+            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:translate-y-[-8px] transition-all duration-500">
+              <User className="h-12 w-12 text-primary" />
+              <h5 className="text-2xl font-black uppercase tracking-tight">Athlete View</h5>
+              <p className="text-sm font-medium text-muted-foreground leading-relaxed">A personal performance dashboard. Sign waivers, watch study film, and manage your professional recruiting portfolio resume.</p>
+            </Card>
           </div>
         </div>
       </section>
@@ -372,7 +446,7 @@ export default function LandingPage() {
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Scheduling</li>
                     <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Tactical Chats</li>
-                    <li className="flex items-center gap-2 text-[10px) font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Score Tracking</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Score Tracking</li>
                   </ul>
                 </div>
               </CardContent>

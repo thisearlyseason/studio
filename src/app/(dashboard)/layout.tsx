@@ -3,15 +3,20 @@
 
 import Shell from '@/components/layout/Shell';
 import { AlertOverlay } from '@/components/layout/AlertOverlay';
-import { useUser } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { RevenueCatPaywall } from '@/components/RevenueCatPaywall';
 import { QuotaResolutionOverlay } from '@/components/layout/QuotaResolutionOverlay';
 import { useTeam } from '@/components/providers/team-provider';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Timer, ShieldAlert } from 'lucide-react';
 import { seedGuestDemoTeam, seedSubscriptionData } from '@/lib/db-seeder';
 import { useFirestore } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { toast } from '@/hooks/use-toast';
+
+const DEMO_TIMEOUT_MS = 15 * 60 * 1000; // 15 Minutes
+const DEMO_START_KEY = 'squad_demo_start_time';
 
 export default function DashboardLayout({
   children,
@@ -19,16 +24,70 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isUserLoading } = useUser();
+  const auth = useAuth();
   const { teams, isTeamsLoading, isSeedingDemo, user: userProfile, setActiveTeam } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [isDemoInitializing, setIsDemoInitializing] = useState(false);
+  const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // --- DEMO HEARTBEAT LOGIC ---
+  useEffect(() => {
+    if (!mounted || !userProfile?.isDemo || !user) return;
+
+    // 1. Establish or retrieve session start
+    let startTime = localStorage.getItem(DEMO_START_KEY);
+    if (!startTime) {
+      startTime = Date.now().toString();
+      localStorage.setItem(DEMO_START_KEY, startTime);
+    }
+
+    const checkSession = () => {
+      const elapsed = Date.now() - parseInt(startTime!);
+      const remaining = DEMO_TIMEOUT_MS - elapsed;
+
+      // 60-second warning
+      if (remaining <= 60000 && remaining > 55000) {
+        toast({
+          title: "Session Expiring",
+          description: "Guest tactical access ends in 60 seconds.",
+          variant: "destructive"
+        });
+      }
+
+      if (remaining <= 0) {
+        handleEndDemo("Session Expired");
+      }
+    };
+
+    const handleEndDemo = async (reason: string) => {
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+      localStorage.removeItem(DEMO_START_KEY);
+      await signOut(auth);
+      window.location.href = `/login?reason=${encodeURIComponent(reason)}`;
+    };
+
+    // 2. Start heartbeat
+    heartbeatInterval.current = setInterval(checkSession, 5000);
+
+    // 3. Exit listener (if they leave the page/close tab)
+    const handleExit = () => {
+      // For a hard reset on close, we'd clear storage here
+      // But standard heartbeat is usually preferred for guest persistence
+    };
+    window.addEventListener('beforeunload', handleExit);
+
+    return () => {
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+      window.removeEventListener('beforeunload', handleExit);
+    };
+  }, [mounted, userProfile?.isDemo, user, auth]);
 
   // Handle Demo Seeding
   useEffect(() => {
@@ -59,7 +118,6 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!mounted || isSeedingDemo || isTeamsLoading || !user || isDemoInitializing) return;
 
-    // Check if a demo is being seeded via query param to prevent redirect away from dashboard
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('seed_demo')) return;
 
@@ -110,6 +168,14 @@ export default function DashboardLayout({
       <RevenueCatPaywall />
       <QuotaResolutionOverlay />
       <Shell>{children}</Shell>
+      {userProfile?.isDemo && (
+        <div className="fixed bottom-6 right-6 z-[100] pointer-events-none">
+          <Badge className="bg-black/80 backdrop-blur-md text-white border-primary/20 h-10 px-4 rounded-full flex items-center gap-2 shadow-2xl animate-in slide-in-from-bottom-4">
+            <Timer className="h-4 w-4 text-primary animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Guest Tactical Mode Active</span>
+          </Badge>
+        </div>
+      )}
     </>
   );
 }
