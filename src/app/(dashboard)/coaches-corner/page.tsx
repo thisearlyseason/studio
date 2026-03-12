@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useTeam, TeamDocument, Member, DocumentSignature, RegistrationFormField, LeagueRegistrationConfig, RegistrationEntry } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, where, doc, getDocs, setDoc, deleteDoc, collectionGroup } from 'firebase/firestore';
@@ -139,6 +139,7 @@ export default function CoachesCornerPage() {
   // Registration Builder State
   const [editingField, setEditingField] = useState<Partial<RegistrationFormField> | null>(null);
   const [activeProtocol, setActiveProtocol] = useState<LeagueRegistrationConfig | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const protocolsQuery = useMemoFirebase(() => (db && activeTeam) ? collection(db, 'teams', activeTeam.id, 'registration') : null, [db, activeTeam?.id]);
   const { data: protocols } = useCollection<LeagueRegistrationConfig>(protocolsQuery);
@@ -148,7 +149,6 @@ export default function CoachesCornerPage() {
 
   const teamEntries = useMemo(() => {
     if (!allEntries || !activeTeam) return [];
-    // Filter global entries to find those belonging to this team's protocols
     return allEntries.filter(e => e.assigned_team_id === activeTeam.id || (e.protocol_id && protocols?.find(p => p.id === e.protocol_id)));
   }, [allEntries, activeTeam, protocols]);
 
@@ -182,19 +182,43 @@ export default function CoachesCornerPage() {
     toast({ title: "Protocol Established" });
   };
 
-  const handleSaveActiveProtocol = async (updates: Partial<LeagueRegistrationConfig>) => {
+  const handleSaveActiveProtocol = (updates: Partial<LeagueRegistrationConfig>, immediate = false) => {
     if (!activeTeam || !activeProtocol) return;
+    
+    // 1. Update local UI state immediately
     const updated = { ...activeProtocol, ...updates };
-    await setDoc(doc(db, 'teams', activeTeam.id, 'registration', activeProtocol.id), updated, { merge: true });
     setActiveProtocol(updated);
-    toast({ title: "Pipeline Synchronized" });
+
+    // 2. Clear existing sync timeout
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    const performSync = async () => {
+      try {
+        await setDoc(doc(db, 'teams', activeTeam.id, 'registration', updated.id), updated, { merge: true });
+        toast({ title: "Pipeline Synchronized" });
+      } catch (e) {
+        console.error("Pipeline sync failure", e);
+      }
+    };
+
+    if (immediate) {
+      performSync();
+    } else {
+      // 3. Debounce the network request (1.5 seconds)
+      syncTimeoutRef.current = setTimeout(performSync, 1500);
+    }
   };
 
   const handleAddField = () => {
     if (!editingField?.label || !editingField?.type || !activeProtocol) return;
     const currentSchema = activeProtocol.form_schema || [];
     const newField = { ...editingField, id: `f_${Date.now()}` } as RegistrationFormField;
-    handleSaveActiveProtocol({ form_schema: [...currentSchema, newField], form_version: (activeProtocol.form_version || 0) + 1 });
+    handleSaveActiveProtocol({ 
+      form_schema: [...currentSchema, newField], 
+      form_version: (activeProtocol.form_version || 0) + 1 
+    }, true); // Use immediate sync for structural changes
     setEditingField(null);
   };
 
@@ -404,7 +428,10 @@ export default function CoachesCornerPage() {
                   <div className="flex items-center gap-2 px-2 text-primary"><Target className="h-4 w-4" /><h3 className="text-xs font-black uppercase tracking-widest">Active Pipelines</h3></div>
                   <div className="space-y-2">
                     {protocols?.map(p => (
-                      <Card key={p.id} className={cn("rounded-2xl border-none shadow-sm transition-all cursor-pointer ring-1 ring-black/5", activeProtocol?.id === p.id ? "bg-primary text-white" : "bg-white hover:ring-primary/20")} onClick={() => setActiveProtocol(p)}>
+                      <Card key={p.id} className={cn("rounded-2xl border-none shadow-sm transition-all cursor-pointer ring-1 ring-black/5", activeProtocol?.id === p.id ? "bg-primary text-white" : "bg-white hover:ring-primary/20")} onClick={() => { 
+                        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+                        setActiveProtocol(p); 
+                      }}>
                         <CardContent className="p-4 flex items-center justify-between">
                           <div className="min-w-0">
                             <p className="font-black text-sm uppercase truncate">{p.title}</p>
@@ -429,7 +456,7 @@ export default function CoachesCornerPage() {
                           </div>
                           <div className="flex items-center gap-3 bg-muted/30 p-2 rounded-xl border">
                             <Label className="text-[10px] font-black uppercase tracking-widest">Live</Label>
-                            <Switch checked={activeProtocol.is_active} onCheckedChange={v => handleSaveActiveProtocol({ is_active: v })} />
+                            <Switch checked={activeProtocol.is_active} onCheckedChange={v => handleSaveActiveProtocol({ is_active: v }, true)} />
                           </div>
                         </div>
 
@@ -482,7 +509,7 @@ export default function CoachesCornerPage() {
                                   <div className="text-[10px] font-black text-muted-foreground w-6">{i + 1}</div>
                                   <div><p className="font-black text-sm uppercase tracking-tight">{field.label}</p><p className="text-[8px] font-bold text-muted-foreground uppercase">{field.type.replace(/_/g, ' ')}</p></div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleSaveActiveProtocol({ form_schema: activeProtocol.form_schema.filter(f => f.id !== field.id) })}><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleSaveActiveProtocol({ form_schema: activeProtocol.form_schema.filter(f => f.id !== field.id) }, true)}><Trash2 className="h-4 w-4" /></Button>
                               </div>
                             ))}
                           </div>
