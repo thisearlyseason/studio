@@ -20,7 +20,8 @@ import {
   Package,
   Shield,
   ChevronRight,
-  ArrowUpRight
+  ArrowUpRight,
+  Terminal
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ export default function TeamProfilePage() {
     if (!db || !authUser?.uid || !activeTeam?.id || !isStaff || !hasFeature('league_registration')) return null;
     
     const constraints = [
-      where('assigned_team_id', '==', activeTeam.id), 
+      where('assigned_team_id', '==', activeTeam.id),
       where('status', '==', 'assigned')
     ];
     
@@ -352,9 +353,9 @@ export default function TeamProfilePage() {
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Allow parents to participate in live feed discussions</p>
                     </div>
                   </div>
-                  <Switch 
-                    checked={activeTeam.parentCommentsEnabled} 
-                    onCheckedChange={(v) => updateTeamDetails({ parentCommentsEnabled: v })} 
+                  <Switch
+                    checked={activeTeam.parentCommentsEnabled}
+                    onCheckedChange={(v) => updateTeamDetails({ parentCommentsEnabled: v })}
                   />
                 </div>
 
@@ -366,9 +367,9 @@ export default function TeamProfilePage() {
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Allow parents to start private chats with other parents</p>
                     </div>
                   </div>
-                  <Switch 
-                    checked={activeTeam.parentChatEnabled} 
-                    onCheckedChange={(v) => updateTeamDetails({ parentChatEnabled: v })} 
+                  <Switch
+                    checked={activeTeam.parentChatEnabled}
+                    onCheckedChange={(v) => updateTeamDetails({ parentChatEnabled: v })}
                   />
                 </div>
               </CardContent>
@@ -421,7 +422,18 @@ export default function TeamProfilePage() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Joining Code</p>
                 <p className="text-4xl font-black tracking-[0.2em]">{activeTeam.code}</p>
               </div>
-              <Button variant="secondary" className="w-full h-12 rounded-xl font-black bg-white text-primary" onClick={async () => { try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(activeTeam.code); toast({ title: "Copied!" }); } else { throw new Error("Blocked"); } } catch (e) { toast({ title: "Copy Failed", description: activeTeam.code }); } }}>
+              <Button variant="secondary" className="w-full h-12 rounded-xl font-black bg-white text-primary" onClick={async () => {
+                try {
+                  if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(activeTeam.code);
+                    toast({ title: "Copied!" });
+                  } else {
+                    throw new Error("Blocked");
+                  }
+                } catch (e) {
+                  toast({ title: "Copy Failed", description: activeTeam.code });
+                }
+              }}>
                 Copy Join Link
               </Button>
             </CardContent>
