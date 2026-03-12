@@ -24,7 +24,7 @@ import {
   collectionGroup
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export type UserRole = "parent" | "adult_player" | "coach" | "admin";
 
@@ -152,6 +152,69 @@ export type TeamAlert = {
   createdBy: string;
 };
 
+export type Facility = {
+  id: string;
+  name: string;
+  address: string;
+  clubId: string;
+  notes?: string;
+};
+
+export type Field = {
+  id: string;
+  facilityId: string;
+  name: string;
+};
+
+export type League = {
+  id: string;
+  name: string;
+  creatorId: string;
+  createdAt: string;
+  sport?: string;
+  teams: Record<string, any>;
+};
+
+export type LeagueInvite = {
+  id: string;
+  leagueId: string;
+  leagueName: string;
+  invitedEmail: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+};
+
+export type RegistrationEntry = {
+  id: string;
+  league_id: string;
+  answers: Record<string, any>;
+  status: 'pending' | 'assigned' | 'accepted' | 'declined';
+  created_at: string;
+  payment_received?: boolean;
+  assigned_team_id?: string | null;
+  assigned_team_owner_id?: string;
+};
+
+export type LeagueRegistrationConfig = {
+  league_id: string;
+  is_active: boolean;
+  title: string;
+  description: string;
+  registration_cost: string;
+  payment_instructions: string;
+  form_schema: RegistrationFormField[];
+  form_version: number;
+};
+
+export type RegistrationFormField = {
+  id: string;
+  type: 'short_text' | 'long_text' | 'dropdown' | 'checkbox' | 'yes_no' | 'image' | 'header';
+  label: string;
+  required: boolean;
+  options?: string[];
+  description?: string;
+};
+
 interface TeamContextType {
   user: UserProfile | null;
   activeTeam: Team | null;
@@ -240,6 +303,10 @@ interface TeamContextType {
   deleteChat: (chatId: string) => Promise<void>;
   hideChatForUser: (chatId: string) => Promise<void>;
   resolveQuota: (selectedIds: string[]) => Promise<void>;
+  addFacility: (data: any) => Promise<void>;
+  deleteFacility: (id: string) => Promise<void>;
+  addField: (facilityId: string, name: string) => Promise<void>;
+  deleteField: (facilityId: string, fieldId: string) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -286,7 +353,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!team) return false;
     const plan = plans.find(p => p.id === (team.planId || 'starter_squad'));
     return !!plan?.features?.[featureId];
-  }, [isSuperAdmin, activeTeamId, plans, plansData]);
+  }, [isSuperAdmin, activeTeamId, plans, teamsData]);
 
   // Sync User
   useEffect(() => {
@@ -618,7 +685,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (status === 'accepted') {
         const e = await getDoc(doc(db, 'leagues', lid, 'registrationEntries', eid));
         const answers = e.data()?.answers || {};
-        await addDoc(collection(db, 'teams', activeTeam.id, 'members'), clean({ id: `reg_${eid}`, name: answers.name || answers.fullName, role: 'Member', position: answers.position || 'Player', jersey: 'TBD', avatar: '', joinedAt: new Date().toISOString() }));
+        await addDoc(collection(db, 'teams', activeTeam.id, 'members'), clean({ id: `reg_${eid}`, userId: answers.userId || '', name: answers.name || answers.fullName, role: 'Member', position: answers.position || 'Player', jersey: 'TBD', avatar: '', joinedAt: new Date().toISOString() }));
       }
     },
     addVolunteerOpportunity: async (data: any) => {
@@ -661,7 +728,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
     hideChatForUser: async (cid: string) => {
       if (!activeTeam || !firebaseUser) return;
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cid), { [`memberIds`]: arrayUnion() }); // Logic varies, usually filter out
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cid), { [`memberIds`]: arrayUnion() });
     },
     resolveQuota: async (ids: string[]) => {
       if (!firebaseUser) return;
@@ -674,6 +741,19 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         }
       });
       await batch.commit();
+    },
+    addFacility: async (data: any) => {
+      if (!firebaseUser) return;
+      await addDoc(collection(db, 'facilities'), clean({ ...data, clubId: firebaseUser.uid }));
+    },
+    deleteFacility: async (id: string) => {
+      await deleteDoc(doc(db, 'facilities', id));
+    },
+    addField: async (facilityId: string, name: string) => {
+      await addDoc(collection(db, 'facilities', facilityId, 'fields'), clean({ facilityId, name }));
+    },
+    deleteField: async (facilityId: string, fieldId: string) => {
+      await deleteDoc(doc(db, 'facilities', facilityId, 'fields', fieldId));
     }
   };
 

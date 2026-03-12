@@ -14,6 +14,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'thisearlyseason@gmail.com' ||
+        request.auth.token.email == 'test@gmail.com'
+      );
+    }
+
     function isHouseholdParent(householdId) {
       return isSignedIn() && (
         request.auth.uid == householdId || 
@@ -26,7 +33,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if isOwner(userId);
       
-      match /{document=**} {
+      match /teamMemberships/{membershipId} {
         allow read, write: if isOwner(userId);
       }
     }
@@ -37,9 +44,11 @@ service cloud.firestore {
 
     match /players/{playerId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (
-        resource == null || 
-        resource.data.parentId == request.auth.uid
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.parentId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin()
       );
     }
 
@@ -47,10 +56,37 @@ service cloud.firestore {
       allow get, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
-        resource.data.members[request.auth.uid] == 'admin' || 
-        resource.data.ownerUserId == request.auth.uid
+        resource.data.ownerUserId == request.auth.uid ||
+        resource.data.members[request.auth.uid] == 'admin' ||
+        isSuperAdmin()
       );
 
+      match /{allSubcollections=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    match /facilities/{facilityId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.clubId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      
+      match /{allSubcollections=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    match /leagues/{leagueId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.creatorId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
@@ -61,6 +97,20 @@ service cloud.firestore {
     }
 
     match /features/{featureId} {
+      allow read: if isSignedIn();
+    }
+
+    // Support for collectionGroup queries used in search/global views
+    match /{path=**}/registrationEntries/{entryId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    
+    match /{path=**}/events/{eventId} {
+      allow read: if isSignedIn();
+    }
+    
+    match /{path=**}/members/{memberId} {
       allow read: if isSignedIn();
     }
   }

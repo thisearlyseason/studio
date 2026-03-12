@@ -7,45 +7,17 @@
       "type": "object",
       "description": "Represents a user's profile information within the application, managing personal details and global notification preferences.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity."
-        },
-        "fullName": {
-          "type": "string",
-          "description": "The user's full name."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address, used for login.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "The user's optional phone number."
-        },
-        "avatarUrl": {
-          "type": "string",
-          "description": "URL to the user's profile avatar image.",
-          "format": "uri"
-        },
-        "notificationsEnabled": {
-          "type": "boolean",
-          "description": "Indicates whether the user has globally enabled push notifications."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user's profile was created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "avatarUrl": { "type": "string", "format": "uri" },
+        "notificationsEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "activePlanId": { "type": "string" },
+        "proTeamLimit": { "type": "number" }
       },
-      "required": [
-        "id",
-        "fullName",
-        "email",
-        "notificationsEnabled",
-        "createdAt"
-      ]
+      "required": ["id", "fullName", "email", "notificationsEnabled", "createdAt"]
     },
     "Household": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -65,272 +37,72 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Team",
       "type": "object",
-      "description": "Represents a sports team that users can create, join, and manage within the application.",
+      "description": "Represents a sports team that users can create, join, and manage.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Team entity."
-        },
-        "teamName": {
-          "type": "string",
-          "description": "The name of the team."
-        },
-        "sport": {
-          "type": "string",
-          "description": "The sport associated with the team (e.g., 'Basketball', 'Soccer')."
-        },
-        "teamLogoUrl": {
-          "type": "string",
-          "description": "URL to the team's logo image.",
-          "format": "uri"
-        },
-        "teamCode": {
-          "type": "string",
-          "description": "A unique 6-character alphanumeric code for joining the team."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the team was created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "teamName": { "type": "string" },
+        "sport": { "type": "string" },
+        "teamLogoUrl": { "type": "string", "format": "uri" },
+        "teamCode": { "type": "string" },
+        "planId": { "type": "string" },
+        "isPro": { "type": "boolean" },
+        "ownerUserId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "teamName",
-        "teamCode",
-        "createdAt"
-      ]
+      "required": ["id", "teamName", "teamCode", "createdAt"]
     },
-    "TeamMembership": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "TeamMembership",
+    "Facility": {
+      "title": "Facility",
       "type": "object",
-      "description": "Links a user to a specific team, defining their role and team-specific details like position and jersey number. (Relationship: UserProfile 1:N TeamMembership, Team 1:N TeamMembership)",
+      "description": "An athletic venue with multiple fields or courts.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the TeamMembership entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the UserProfile. (Relationship: UserProfile 1:N TeamMembership)"
-        },
-        "teamId": {
-          "type": "string",
-          "description": "Reference to the Team. (Relationship: Team 1:N TeamMembership)"
-        },
-        "role": {
-          "type": "string",
-          "description": "The user's role within the team, either 'Admin' or 'Member'.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "position": {
-          "type": "string",
-          "description": "The user's position within the team (e.g., 'Forward', 'Guard')."
-        },
-        "jerseyNumber": {
-          "type": "number",
-          "description": "The user's jersey number for the team."
-        },
-        "joinedAt": {
-          "type": "string",
-          "description": "Timestamp when the user joined the team.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "teamId",
-        "role",
-        "joinedAt"
-      ]
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "clubId": { "type": "string" },
+        "notes": { "type": "string" }
+      }
     },
-    "Post": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Post",
+    "League": {
+      "title": "League",
       "type": "object",
-      "description": "Represents an activity feed post within a team, which can include text, an image, or a link to an event. (Relationship: Team 1:N Post, UserProfile 1:N Post, Event 0:1 Post)",
+      "description": "A competitive organization hosting multiple teams.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Post entity."
-        },
-        "teamId": {
-          "type": "string",
-          "description": "Reference to the Team this post belongs to. (Relationship: Team 1:N Post)"
-        },
-        "authorId": {
-          "type": "string",
-          "description": "Reference to the UserProfile who authored the post. (Relationship: UserProfile 1:N Post)"
-        },
-        "content": {
-          "type": "string",
-          "description": "The textual content of the post."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of an optional single image attached to the post.",
-          "format": "uri"
-        },
-        "linkedEventId": {
-          "type": "string",
-          "description": "Optional reference to an Event associated with the post. (Relationship: Event 0:1 Post)"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the post was created.",
-          "format": "date-time"
-        },
-        "isSystemPost": {
-          "type": "boolean",
-          "description": "Indicates if the post was automatically generated by the system (e.g., event created, member joined)."
-        }
-      },
-      "required": [
-        "id",
-        "teamId",
-        "authorId",
-        "content",
-        "createdAt",
-        "isSystemPost"
-      ]
-    },
-    "Comment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Comment",
-      "type": "object",
-      "description": "Represents a comment made on a team feed post. (Relationship: Post 1:N Comment, UserProfile 1:N Comment)",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Comment entity."
-        },
-        "postId": {
-          "type": "string",
-          "description": "Reference to the Post this comment belongs to. (Relationship: Post 1:N Comment)"
-        },
-        "authorId": {
-          "type": "string",
-          "description": "Reference to the UserProfile who authored the comment. (Relationship: UserProfile 1:N Comment)"
-        },
-        "content": {
-          "type": "string",
-          "description": "The textual content of the comment."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the comment was created.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "postId",
-        "authorId",
-        "content",
-        "createdAt"
-      ]
-    },
-    "Event": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Event",
-      "type": "object",
-      "description": "Represents a scheduled event for a team, created and managed by admins. (Relationship: Team 1:N Event, UserProfile 1:N Event)",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Event entity."
-        },
-        "teamId": {
-          "type": "string",
-          "description": "Reference to the Team this event belongs to. (Relationship: Team 1:N Event)"
-        },
-        "title": {
-          "type": "string",
-          "description": "The title of the event."
-        },
-        "date": {
-          "type": "string",
-          "description": "The date of the event.",
-          "format": "date"
-        },
-        "startTime": {
-          "type": "string",
-          "description": "The start time of the event (e.g., '18:00')."
-        },
-        "endTime": {
-          "type": "string",
-          "description": "The optional end time of the event (e.g., '20:00')."
-        },
-        "location": {
-          "type": "string",
-          "description": "The location where the event will take place."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the event."
-        },
-        "createdBy": {
-          "type": "string",
-          "description": "Reference to the UserProfile who created the event. (Relationship: UserProfile 1:N Event)"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the event was created.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "teamId",
-        "title",
-        "date",
-        "startTime",
-        "createdBy",
-        "createdAt"
-      ]
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "teams": { "type": "object" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
       {
         "path": "/users/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores individual user profiles."
-        }
+        "definition": { "entityName": "UserProfile", "description": "User profiles." }
       },
       {
         "path": "/households/{householdId}",
-        "definition": {
-          "entityName": "Household",
-          "schema": {
-            "$ref": "#/backend/entities/Household"
-          },
-          "description": "Manages family units linking guardians to players."
-        }
+        "definition": { "entityName": "Household", "description": "Guardian family units." }
+      },
+      {
+        "path": "/players/{playerId}",
+        "definition": { "entityName": "PlayerProfile", "description": "Athletes (Adult or Minor)." }
       },
       {
         "path": "/teams/{teamId}",
-        "definition": {
-          "entityName": "Team",
-          "schema": {
-            "$ref": "#/backend/entities/Team"
-          },
-          "description": "Top-level collection for team data."
-        }
+        "definition": { "entityName": "Team", "description": "Squad data hub." }
+      },
+      {
+        "path": "/facilities/{facilityId}",
+        "definition": { "entityName": "Facility", "description": "Venue management." }
+      },
+      {
+        "path": "/leagues/{leagueId}",
+        "definition": { "entityName": "League", "description": "Competitive hubs." }
       }
     ]
   }
