@@ -15,7 +15,6 @@ import {
   PlusCircle,
   Trophy,
   Bell,
-  Info,
   Lock,
   Dumbbell,
   CreditCard,
@@ -39,7 +38,9 @@ import {
   Plus,
   Layout,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Home,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -123,7 +124,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { 
     activeTeam, setActiveTeam, teams, user, isPro, 
-    isClubManager, isStaff, isParent, isPlayer
+    isClubManager, isStaff, isParent, hasFeature
   } = useTeam();
 
   const filteredCoordTabs = coordinationTabs.filter(tab => {
@@ -132,12 +133,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return true;
   });
 
+  const bottomNavItems = [
+    { name: 'Home', href: '/dashboard', icon: Home },
+    { name: 'Schedule', href: '/events', icon: CalendarDays },
+    { name: 'Feed', href: '/feed', icon: LayoutDashboard, gate: () => hasFeature('live_feed_read') },
+    { name: 'Chats', href: '/chats', icon: MessageCircle },
+    { name: 'Profile', href: '/team', icon: Users },
+  ];
+
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full bg-background selection:bg-primary/20">
         <div className="flex flex-1 overflow-hidden">
           <Sidebar className="border-r bg-white w-72 shrink-0 shadow-sm" collapsible="offcanvas">
-            <SidebarHeader className="p-6">
+            <SidebarHeader className="p-6 bg-white">
               <BrandLogo variant="light-background" className="h-10 w-44 justify-start mb-10" priority />
               
               <SidebarMenu className="space-y-2 mb-6">
@@ -199,12 +208,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
                         <AvatarFallback className="hero-gradient text-white font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
                       </Avatar>
-                      <span className="font-black text-sm truncate uppercase tracking-tight">{activeTeam?.name || 'Select Squad'}</span>
+                      <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">{activeTeam?.name || 'Select Squad'}</span>
                     </div>
-                    <ChevronDown className="h-4 w-4 opacity-40" />
+                    <ChevronDown className="h-4 w-4 opacity-40 text-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-72 p-2 rounded-2xl shadow-2xl">
+                <DropdownMenuContent align="start" className="w-72 p-2 rounded-2xl shadow-2xl bg-white">
                   <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground p-3">My Squads</DropdownMenuLabel>
                   <ScrollArea className="h-[300px]">
                     {teams.map(team => (
@@ -253,7 +262,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </DropdownMenu>
             </SidebarHeader>
 
-            <SidebarContent className="px-4 py-2">
+            <SidebarContent className="px-4 py-2 bg-white">
               <SidebarMenu className="space-y-6">
                 {isStaff && (
                   <div className="space-y-1.5">
@@ -268,11 +277,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </SidebarMenu>
             </SidebarContent>
 
-            <SidebarFooter className="p-6 border-t bg-muted/5">
+            <SidebarFooter className="p-6 border-t bg-white">
               <Link href="/settings">
                 <div className="flex items-center gap-3 p-2 hover:bg-primary/5 rounded-2xl transition-all cursor-pointer group">
-                  <Avatar className="h-10 w-10 border-2 border-background shadow-md transition-transform group-hover:scale-105"><AvatarImage src={user?.avatar} /><AvatarFallback className="font-black text-xs">{user?.name?.[0]}</AvatarFallback></Avatar>
-                  <div className="flex flex-col min-w-0"><span className="font-black text-sm truncate uppercase tracking-tight">{user?.name}</span><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Global Settings</span></div>
+                  <Avatar className="h-10 w-10 border-2 border-background shadow-md transition-transform group-hover:scale-105">
+                    <AvatarImage src={user?.avatar} />
+                    <AvatarFallback className="font-black text-xs">{user?.name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">{user?.name}</span>
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Global Settings</span>
+                  </div>
                 </div>
               </Link>
             </SidebarFooter>
@@ -289,15 +304,49 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
               <div className="md:hidden"><BrandLogo variant="light-background" className="h-6 w-28" /></div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
                 {isStaff && <CreateAlertButton />}
-                <AlertsHistoryDialog><Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl hover:bg-primary/5 text-foreground"><Bell className="h-5 w-5" /></Button></AlertsHistoryDialog>
-                <Link href="/settings"><Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-background shadow-md"><AvatarImage src={user?.avatar} /><AvatarFallback className="font-black text-xs">{user?.name?.[0]}</AvatarFallback></Avatar></Link>
+                <AlertsHistoryDialog>
+                  <Button variant="ghost" size="icon" className="h-10 w-10 md:h-10 md:w-10 rounded-2xl hover:bg-primary/5 text-foreground relative">
+                    <Bell className="h-5 w-5" />
+                  </Button>
+                </AlertsHistoryDialog>
+                <Link href="/settings" className="hidden sm:block">
+                  <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-background shadow-md">
+                    <AvatarImage src={user?.avatar} />
+                    <AvatarFallback className="font-black text-xs">{user?.name?.[0]}</AvatarFallback>
+                  </Avatar>
+                </Link>
               </div>
             </header>
-            <main className="flex-1 overflow-y-auto p-4 md:p-10 max-w-7xl mx-auto w-full custom-scrollbar">
+            
+            <main className="flex-1 overflow-y-auto p-4 md:p-10 max-w-7xl mx-auto w-full custom-scrollbar pb-24 md:pb-10">
               {children}
             </main>
+
+            {/* Mobile Bottom Navigation Bar */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/95 backdrop-blur-md border-t border-muted z-50 flex items-center justify-around px-4 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+              {bottomNavItems.map((item) => {
+                if (item.gate && !item.gate()) return null;
+                const isActive = pathname === item.href;
+                return (
+                  <Link key={item.name} href={item.href} className="flex flex-col items-center gap-1 group">
+                    <div className={cn(
+                      "p-2 rounded-xl transition-all",
+                      isActive ? "bg-primary text-white shadow-lg shadow-primary/20 scale-110" : "text-muted-foreground group-hover:text-primary"
+                    )}>
+                      <item.icon className={cn("h-5 w-5", isActive ? "stroke-[3px]" : "stroke-[2.5]")} />
+                    </div>
+                    <span className={cn(
+                      "text-[8px] font-black uppercase tracking-widest",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {item.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
         </div>
       </div>

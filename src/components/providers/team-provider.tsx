@@ -316,6 +316,15 @@ export type TournamentGame = {
   disputeNotes?: string;
 };
 
+export type TeamAlert = {
+  id: string;
+  title: string;
+  message: string;
+  audience: 'everyone' | 'coaches' | 'players' | 'parents';
+  createdAt: string;
+  createdBy: string;
+};
+
 interface TeamContextType {
   user: UserProfile | null;
   activeTeam: Team | null;
@@ -335,7 +344,7 @@ interface TeamContextType {
   household: Household | null;
   householdEvents: TeamEvent[];
   householdBalance: number;
-  alerts: any[];
+  alerts: TeamAlert[];
   plans: any[];
   isPlansLoading: boolean;
   proQuotaStatus: { current: number; limit: number; remaining: number; exceeded: boolean };
@@ -406,6 +415,7 @@ interface TeamContextType {
   disputeMatchScore: (teamId: string, eventId: string, gameId: string, notes: string) => Promise<void>;
   manageSubscription: () => Promise<void>;
   resolveQuota: (selectedTeamIds: string[]) => Promise<void>;
+  createAlert: (title: string, message: string, audience: TeamAlert['audience']) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -438,6 +448,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [household, setHousehold] = useState<Household | null>(null);
   const [householdEvents, setHouseholdEvents] = useState<TeamEvent[]>([]);
   const [householdBalance, setHouseholdBalance] = useState(0);
+  const [alerts, setAlerts] = useState<TeamAlert[]>([]);
 
   const plansQuery = useMemoFirebase(() => (db && isAuthResolved && firebaseUser) ? collection(db, 'plans') : null, [db, isAuthResolved, firebaseUser]);
   const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
@@ -465,6 +476,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       }
     });
   }, [firebaseUser?.uid, db, isAuthResolved]);
+
+  useEffect(() => {
+    if (!firebaseUser?.uid || !db || !isAuthResolved || !activeTeamId) return;
+    const q = query(collection(db, 'teams', activeTeamId, 'alerts'), orderBy('createdAt', 'desc'), limit(10));
+    return onSnapshot(q, (snap) => {
+      setAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeamAlert)));
+    });
+  }, [activeTeamId, db, isAuthResolved, firebaseUser?.uid]);
 
   useEffect(() => {
     if (!firebaseUser?.uid || !db || !isAuthResolved || userProfile?.role !== 'parent') return;
@@ -539,7 +558,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
     isStaff: activeTeam?.role === 'Admin', isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
     isSuperAdmin, isClubManager: ['elite_teams', 'elite_league', 'squad_organization'].includes(userProfile?.activePlanId || ''), household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus,
-    isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true), hasFeature, alerts: [],
+    isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true), hasFeature, alerts,
     formatTime: (date: string | Date) => { try { return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return 'TBD'; } },
     
     createNewTeam: async (name: string, type: "adult" | "youth", pos: string, description?: string, planId?: string) => {
@@ -549,7 +568,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const pId = planId || 'starter_squad';
       const batch = writeBatch(db);
       batch.set(doc(db, 'teams', tid), clean({ id: tid, teamName: name, teamCode: code, type, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), isPro: pId !== 'starter_squad', planId: pId, members: { [firebaseUser.uid]: 'admin' } }));
-      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
+      batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: fontStyle, name: userProfile?.name || 'Coach', avatar: userProfile?.avatar || '', joinedAt: new Date().toISOString(), jersey: 'HQ' }));
       batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name, teamCode: code, type, role: 'Admin', isPro: pId !== 'starter_squad', planId: pId, ownerUserId: firebaseUser.uid }));
       await batch.commit(); return tid;
     },
@@ -1010,6 +1029,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       });
       await batch.commit();
       toast({ title: "Squad Tiers Synchronized" });
+    },
+
+    createAlert: async (title: string, message: string, audience: TeamAlert['audience']) => {
+      if (!activeTeam || !firebaseUser) return;
+      await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({
+        title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid
+      }));
+      toast({ title: "Broadcast Dispatched", description: `Sent to ${audience}.` });
     }
   };
 
