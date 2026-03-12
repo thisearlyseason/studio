@@ -94,6 +94,7 @@ export function useCollection<T = any>(
       },
       (err: FirestoreError) => {
         // 4. Final Guard: Suppress permission errors for root paths or uninitialized states
+        // This prevents red-screen errors during transient auth/state changes.
         if (!trimmedPath || trimmedPath === '/' || trimmedPath === '' || trimmedPath === '//' || trimmedPath.includes('//')) {
           setIsLoading(false);
           return;
@@ -108,7 +109,7 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
         
-        // Only emit if it's not a transient state error
+        // Only emit if it's a real permission issue on a valid non-root path
         if (err.code !== 'permission-denied' || (trimmedPath && trimmedPath !== '/')) {
           errorEmitter.emit('permission-error', contextualError);
         }

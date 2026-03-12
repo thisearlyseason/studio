@@ -30,7 +30,8 @@ import {
   Shield,
   Activity,
   ImageIcon,
-  Plus
+  Plus,
+  MessageCircle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -388,48 +389,40 @@ export default function FeedPage() {
               </div>
             </CardHeader>
             <CardContent className="p-6 relative z-10 space-y-3">
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
-                <Link href="/coaches-corner" className="w-full">
-                  <div className="flex items-center w-full justify-between">
-                    <div className="flex items-center gap-3">
-                      <PenTool className="h-4 w-4 text-primary" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Coaches Corner</span>
-                    </div>
-                    <ChevronRight className="h-3 w-3 opacity-40" />
+              <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
+                <Link href="/coaches-corner" className="flex items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <PenTool className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Coaches Corner</span>
                   </div>
+                  <ChevronRight className="h-3 w-3 ml-auto opacity-40" />
                 </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
-                <Link href="/leagues" className="w-full">
-                  <div className="flex items-center w-full justify-between">
-                    <div className="flex items-center gap-3">
-                      <Shield className="h-4 w-4 text-primary" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Leagues Hub</span>
-                    </div>
-                    <ChevronRight className="h-3 w-3 opacity-40" />
+              <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
+                <Link href="/leagues" className="flex items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Leagues Hub</span>
                   </div>
+                  <ChevronRight className="h-3 w-3 ml-auto opacity-40" />
                 </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
-                <Link href="/facilities" className="w-full">
-                  <div className="flex items-center w-full justify-between">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Facilities</span>
-                    </div>
-                    <ChevronRight className="h-3 w-3 opacity-40" />
+              <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
+                <Link href="/facilities" className="flex items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Facilities</span>
                   </div>
+                  <ChevronRight className="h-3 w-3 ml-auto opacity-40" />
                 </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all justify-start">
-                <Link href="/equipment" className="w-full">
-                  <div className="flex items-center w-full justify-between">
-                    <div className="flex items-center gap-3">
-                      <Package className="h-4 w-4 text-primary" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Equipment</span>
-                    </div>
-                    <ChevronRight className="h-3 w-3 opacity-40" />
+              <Button asChild variant="ghost" className="w-full justify-between h-12 rounded-xl text-white hover:bg-white/10 px-4 border border-white/5 transition-all">
+                <Link href="/equipment" className="flex items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <Package className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Equipment</span>
                   </div>
+                  <ChevronRight className="h-3 w-3 ml-auto opacity-40" />
                 </Link>
               </Button>
             </CardContent>
@@ -531,7 +524,7 @@ export default function FeedPage() {
       <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl p-0 overflow-hidden bg-black/95 border-none rounded-2xl lg:rounded-2xl">
           <DialogTitle className="sr-only">Image Preview</DialogTitle>
-          <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain" alt="Enlarged view" />
+          {lightboxImage && <img src={lightboxImage} className="w-full h-auto max-h-[85vh] object-contain" alt="Enlarged view" />}
         </DialogContent>
       </Dialog>
     </div>

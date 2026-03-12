@@ -72,6 +72,7 @@ service cloud.firestore {
     }
 
     match /teams/{teamId} {
+      // Allow get/list for members, owners, or demo guest teams
       allow get, list: if isSignedIn() && (
         resource == null || 
         resource.data.members[request.auth.uid] != null || 
@@ -88,35 +89,10 @@ service cloud.firestore {
         resource.data.createdBy == request.auth.uid
       );
 
-      // Subcollections
-      match /events/{eventId} {
-        allow read, write, list: if isSignedIn();
-      }
-
-      match /members/{memberId} {
-        allow read, write, list: if isSignedIn();
-      }
-      
-      match /drills/{drillId} {
-        allow read, write, list: if isSignedIn();
-      }
-      
-      match /files/{fileId} {
-        allow read, write, list: if isSignedIn();
-      }
-      
-      match /games/{gameId} {
-        allow read, write, list: if isSignedIn();
-      }
-      
-      match /feedPosts/{postId} {
-        allow read, write, list: if isSignedIn();
-        match /comments/{commentId} {
-          allow read, write, list: if isSignedIn();
-        }
-      }
-
-      match /{document=**} {
+      // Subcollections: Allow read/write/list for all sub-data within a team 
+      // if the user is signed in. This simplifies access for demo guest environments
+      // and ensures coordination tools work seamlessly.
+      match /{allSubcollections=**} {
         allow read, write, list: if isSignedIn();
       }
     }
