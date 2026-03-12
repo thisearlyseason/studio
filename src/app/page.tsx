@@ -28,7 +28,8 @@ import {
   Baby,
   Table as TableIcon,
   Sparkles,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -347,64 +348,133 @@ export default function LandingPage() {
         <div className="container mx-auto px-6">
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Simple, transparent pricing</h2>
-            <h3 className="text-4xl md:text-5xl font-black tracking-tight">One Price. Infinite Success.</h3>
+            <h3 className="text-4xl md:text-5xl font-black tracking-tight">Institutional Operational Tiers</h3>
             <div className="flex flex-col items-center gap-2 pt-2">
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Prices listed in USD</p>
               <div className="flex items-center gap-2 text-primary font-black uppercase tracking-widest text-[10px] bg-white px-4 py-2 rounded-full border border-primary/10 shadow-sm">
                 <AlertCircle className="h-3 w-3" />
-                <span>Limited Promotional Pricing • Subject to Change</span>
+                <span>Limited Introductory Pricing • Subject to Change</span>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card className="border-none shadow-2xl rounded-[3rem] p-10 space-y-8 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                <Trophy className="h-40 w-40 -rotate-12" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-black uppercase tracking-widest text-primary">Starter Squads</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black">$0</span>
-                  <span className="text-muted-foreground font-bold">Free Forever</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto items-stretch">
+            {/* Starter */}
+            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden flex flex-col bg-white ring-1 ring-black/5">
+              <CardHeader className="p-8 pb-4 space-y-4">
+                <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">GRASSROOTS</Badge>
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-black uppercase tracking-tight">Starter</CardTitle>
+                  <span className="text-4xl font-black tracking-tighter">$0</span>
                 </div>
-              </div>
-              <ul className="space-y-4 font-bold text-sm text-foreground/80">
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Game Scheduling & Scores</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Unlimited Starter Teams</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Tactical Chats</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-primary" /> Global Roster Access</li>
-              </ul>
-              <Link href="/signup">
-                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
-                  Launch Free Hub
-                </Button>
-              </Link>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Foundational coordination hub.</p>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 flex-1 space-y-6">
+                <div className="pt-4 border-t space-y-3">
+                  <p className="text-[9px] font-black uppercase text-muted-foreground">Included</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Scheduling</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Tactical Chats</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Check className="h-3.5 w-3.5 text-primary" /> Score Tracking</li>
+                  </ul>
+                </div>
+              </CardContent>
+              <CardFooter className="p-8 pt-0">
+                <Link href="/signup" className="w-full">
+                  <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-xs">Join Free</Button>
+                </Link>
+              </CardFooter>
             </Card>
 
-            <Card className="border-2 border-primary shadow-2xl rounded-[3rem] p-10 space-y-8 relative overflow-hidden bg-primary text-primary-foreground group">
-              <div className="absolute -top-4 -right-4 bg-white text-primary text-[10px] font-black px-4 py-2 rotate-12 shadow-lg z-10">
-                BEST VALUE
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-black uppercase tracking-widest text-white/60">Annual Elite</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black">$99</span>
-                  <span className="text-white/60 font-bold">USD/team/yr</span>
+            {/* Squad Pro */}
+            <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden flex flex-col bg-black text-white ring-4 ring-primary relative scale-105 z-10">
+              <div className="absolute top-0 right-0 p-4 opacity-10 -rotate-12 pointer-events-none"><Zap className="h-20 w-20" /></div>
+              <CardHeader className="p-8 pb-4 space-y-4">
+                <Badge className="bg-primary text-white border-none font-black text-[8px] px-3 h-5 uppercase w-fit">BEST VALUE</Badge>
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-black uppercase tracking-tight">Squad Pro</CardTitle>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black tracking-tighter text-primary">$19.99</span>
+                    <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
+                  </div>
                 </div>
-                <p className="text-[10px] font-black uppercase text-white/40">Includes all recruitment modules</p>
-              </div>
-              <ul className="space-y-4 font-bold text-sm">
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> League Registration Hub</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Coach Assignment Logic</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> Advanced Performance Stats</li>
-                <li className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-white" /> 10GB Pro Media Vault</li>
-              </ul>
-              <Link href="/signup">
-                <Button variant="secondary" className="w-full h-14 rounded-2xl text-lg font-black shadow-xl bg-white text-primary hover:bg-white/90 active:scale-95 transition-all">
-                  Get Elite Pro
-                </Button>
-              </Link>
+                <p className="text-[10px] font-bold text-white/60 uppercase">Elite coordination for one squad.</p>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 flex-1 space-y-6">
+                <div className="pt-4 border-t border-white/10 space-y-3">
+                  <p className="text-[9px] font-black uppercase text-white/40">Pro Features</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Bracket Engine</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Film Study</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><Sparkles className="h-3.5 w-3.5 text-primary" /> Compliance</li>
+                  </ul>
+                </div>
+              </CardContent>
+              <CardFooter className="p-8 pt-0">
+                <Link href="/signup" className="w-full">
+                  <Button className="w-full h-12 rounded-xl font-black shadow-xl bg-white text-black hover:bg-white/90 text-xs">Upgrade Now</Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            {/* Elite Teams */}
+            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden flex flex-col bg-white ring-1 ring-black/5">
+              <CardHeader className="p-8 pb-4 space-y-4">
+                <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">CLUB</Badge>
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-black uppercase tracking-tight">Elite Teams</CardTitle>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black tracking-tighter text-primary">$110</span>
+                    <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
+                  </div>
+                </div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Up to 8 Pro Teams + Hub.</p>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 flex-1 space-y-6">
+                <div className="pt-4 border-t space-y-3">
+                  <p className="text-[9px] font-black uppercase text-muted-foreground">Institutional</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Club Hub</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Portal Architect</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Multi-Seat Mgmt</li>
+                  </ul>
+                </div>
+              </CardContent>
+              <CardFooter className="p-8 pt-0">
+                <Link href="/signup" className="w-full">
+                  <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-xs border-2">Deploy Club</Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            {/* Elite League */}
+            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden flex flex-col bg-white ring-1 ring-black/5">
+              <CardHeader className="p-8 pb-4 space-y-4">
+                <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/20 text-primary w-fit">LEAGUE</Badge>
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-black uppercase tracking-tight">Elite League</CardTitle>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black tracking-tighter text-primary">$279</span>
+                    <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
+                  </div>
+                </div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">20 Pro Teams + Support.</p>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 flex-1 space-y-6">
+                <div className="pt-4 border-t space-y-3">
+                  <p className="text-[9px] font-black uppercase text-muted-foreground">Master Strategy</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> League Series</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Conflict Res.</li>
+                    <li className="flex items-center gap-2 text-[10px] font-bold uppercase"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Institutional SLA</li>
+                  </ul>
+                </div>
+              </CardContent>
+              <CardFooter className="p-8 pt-0">
+                <Link href="/signup" className="w-full">
+                  <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-xs border-2">Deploy League</Button>
+                </Link>
+              </CardFooter>
             </Card>
           </div>
         </div>
@@ -416,7 +486,7 @@ export default function LandingPage() {
             <div className="space-y-8">
               <div className="space-y-4">
                 <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Get in touch</h2>
-                <h3 className="text-4xl md:text-5xl font-black tracking-tight">Need a custom plan <br />for your league?</h3>
+                <h3 className="text-4xl md:text-5xl font-black tracking-tight">Need a custom plan <br />for your organization?</h3>
                 <p className="text-muted-foreground font-medium text-lg leading-relaxed">
                   We offer enterprise-grade solutions for sports leagues and multi-team organizations. Connect with our coordination experts today.
                 </p>
