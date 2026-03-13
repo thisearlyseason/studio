@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +67,7 @@ export default function RosterPage() {
     return `U${age + 1}`;
   };
 
-  const handleExportPortfolio = () => {
+  const handleExportPortfolio = useCallback(() => {
     if (!selectedMember) return;
     const headers = ["Player", "Position", "Jersey", "Status", "Contact", "Evaluations"];
     const row = [
@@ -87,7 +87,7 @@ export default function RosterPage() {
     link.click();
     document.body.removeChild(link);
     toast({ title: "Portfolio Generated" });
-  };
+  }, [selectedMember, staffNote]);
 
   if (!mounted || !activeTeam || isMembersLoading) {
     return (
@@ -175,7 +175,7 @@ export default function RosterPage() {
       </div>
 
       <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
-        <DialogContent className="rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white">
+        <DialogContent data-dark-header="true" className="rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white">
           <DialogTitle className="sr-only">Player Profile: {selectedMember?.name}</DialogTitle>
           {selectedMember && (
             <div className="flex flex-col lg:flex-row">

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -15,7 +15,10 @@ import {
   Loader2, 
   X, 
   Users,
-  FileSignature
+  FileSignature,
+  Info,
+  ExternalLink,
+  Signature
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -37,6 +40,7 @@ import { toast } from '@/hooks/use-toast';
 import { format, isPast, isSameDay } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const EVENT_TYPE_COLORS: Record<EventType, string> = {
   game: 'bg-primary border-primary text-white',
@@ -81,6 +85,7 @@ const formatDateRange = (start: string | Date, end?: string | Date) => {
 function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, children, members }: { event: TeamEvent, updateRSVP: any, isAdmin: boolean, onEdit: any, onDelete: any, children: React.ReactNode, members: Member[] }) {
   const { user } = useTeam();
   const myRsvp = event.userRsvps?.[user?.id || ''] || 'no_response';
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
     <Dialog>
@@ -91,7 +96,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
           <div className="w-full lg:w-1/3 flex flex-col text-white bg-black p-8 relative shrink-0">
             <div className="flex justify-between items-start mb-8 relative z-10">
               <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
-              <DialogClose asChild><X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" /></DialogClose>
             </div>
             <div className="space-y-8 relative z-10">
               <div className="space-y-4">
@@ -127,6 +131,12 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               <TabsList className="bg-muted/50 h-auto p-1.5 rounded-2xl border w-full flex-wrap gap-1 mb-8">
                 <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Attendance</TabsTrigger>
                 <TabsTrigger value="brief" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Brief</TabsTrigger>
+                {event.isTournament && (
+                  <>
+                    <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Portals</TabsTrigger>
+                    <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Compliance</TabsTrigger>
+                  </>
+                )}
               </TabsList>
               
               <TabsContent value="attendance" className="mt-0">
@@ -168,6 +178,61 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </p>
                 </div>
               </TabsContent>
+
+              {event.isTournament && (
+                <>
+                  <TabsContent value="portals" className="mt-0 space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Card className="rounded-[2rem] border-none shadow-md bg-black text-white p-6 space-y-4 group cursor-pointer" onClick={() => window.open(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`, '_blank')}>
+                        <Badge className="bg-primary text-white border-none font-black text-[8px] h-5 px-2">LIVE HUB</Badge>
+                        <h4 className="text-xl font-black uppercase tracking-tight">Spectator Portal</h4>
+                        <p className="text-[10px] text-white/60 font-medium leading-relaxed italic">Public link for fans to track real-time standings and schedules.</p>
+                        <Button variant="outline" className="w-full h-10 rounded-xl font-black uppercase text-[10px] bg-white/10 border-white/20 text-white">Open Live View <ExternalLink className="ml-2 h-3 w-3" /></Button>
+                      </Card>
+                      <Card className="rounded-[2rem] border-none shadow-md bg-white border-2 p-6 space-y-4 group cursor-pointer" onClick={() => window.open(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`, '_blank')}>
+                        <Badge className="bg-muted text-muted-foreground border-none font-black text-[8px] h-5 px-2">ADMIN ONLY</Badge>
+                        <h4 className="text-xl font-black uppercase tracking-tight">Scorekeeper Portal</h4>
+                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">Mobile entry hub for field marshals to post verified match results.</p>
+                        <Button className="w-full h-10 rounded-xl font-black uppercase text-[10px]">Open Scorer Hub <ExternalLink className="ml-2 h-3 w-3" /></Button>
+                      </Card>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="compliance" className="mt-0">
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center gap-3">
+                          <FileSignature className="h-5 w-5 text-primary" />
+                          <h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3>
+                        </div>
+                        <Button variant="outline" className="h-9 px-4 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => window.open(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`, '_blank')}>Open Waiver Portal <ExternalLink className="ml-2 h-3 w-3" /></Button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3">
+                        {event.tournamentTeams?.map(teamName => {
+                          const agreement = event.teamAgreements?.[teamName];
+                          return (
+                            <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", agreement ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground/30")}>
+                                  {agreement ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                                </div>
+                                <span className="font-black text-sm uppercase truncate">{teamName}</span>
+                              </div>
+                              {agreement ? (
+                                <div className="text-right">
+                                  <p className="text-[8px] font-black uppercase text-muted-foreground">Signed by {agreement.captainName}</p>
+                                  <p className="text-[7px] font-bold text-muted-foreground opacity-40">{format(new Date(agreement.signedAt), 'MMM d, h:mm a')}</p>
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="text-[7px] font-black uppercase border-muted-foreground/20 text-muted-foreground">Pending Execution</Badge>
+                              )}
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </TabsContent>
+                </>
+              )}
             </Tabs>
           </div>
         </div>

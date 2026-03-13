@@ -178,6 +178,15 @@ export type TeamEvent = {
   invitedTeamEmails?: Record<string, string>;
 };
 
+export type TeamAlert = {
+  id: string;
+  title: string;
+  message: string;
+  audience: 'everyone' | 'coaches' | 'players' | 'parents';
+  createdAt: string;
+  createdBy: string;
+};
+
 export type Message = {
   id: string;
   author: string;
@@ -342,15 +351,6 @@ export type TournamentGame = {
   isCompleted: boolean;
   isDisputed?: boolean;
   disputeNotes?: string;
-};
-
-export type TeamAlert = {
-  id: string;
-  title: string;
-  message: string;
-  audience: 'everyone' | 'coaches' | 'players' | 'parents';
-  createdAt: string;
-  createdBy: string;
 };
 
 interface TeamContextType {
