@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -101,73 +102,19 @@ const formatDateRange = (start: string | Date, end?: string | Date) => {
   return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
 };
 
-function calculateTournamentStandings(teams: string[], games: TournamentGame[]) {
-  const standings = teams.reduce((acc, team) => {
-    acc[team] = { name: team, wins: 0, losses: 0, ties: 0, points: 0 };
-    return acc;
-  }, {} as Record<string, any>);
-  
-  games.forEach(game => {
-    if (!game.isCompleted) return;
-    const t1 = game.team1; const t2 = game.team2;
-    if (!standings[t1] || !standings[t2]) return;
-    
-    if (game.score1 > game.score2) { 
-      standings[t1].wins += 1; 
-      standings[t1].points += 1; 
-      standings[t2].losses += 1; 
-      standings[t2].points -= 1; 
-    }
-    else if (game.score2 > game.score1) { 
-      standings[t2].wins += 1; 
-      standings[t2].points += 1; 
-      standings[t1].losses += 1; 
-      standings[t1].points -= 1; 
-    }
-    else { 
-      standings[t1].ties += 1; 
-      standings[t2].ties += 1; 
-    }
-  });
-  return Object.values(standings).sort((a, b) => b.points - a.points || b.wins - a.wins);
-}
-
-interface EventDetailDialogProps {
-  event: TeamEvent;
-  updateRSVP: (id: string, status: string) => void;
-  formatTime: (date: string | Date) => string;
-  isAdmin: boolean;
-  onEdit: (event: TeamEvent) => void;
-  onDelete: (eventId: string) => void;
-  children: React.ReactNode;
-  facilities: Facility[];
-  allFields: Field[];
-}
-
-function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, children, facilities, allFields }: EventDetailDialogProps) {
-  const { user, updateEvent, signTeamTournamentWaiver, isPro, activeTeam, members, isStaff } = useTeam();
-  const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [baseUrl, setBaseUrl] = useState('');
-
+function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, children, members }: { event: TeamEvent, updateRSVP: any, isAdmin: boolean, onEdit: any, onDelete: any, children: React.ReactNode, members: Member[] }) {
+  const { user } = useTeam();
   const myRsvp = event.userRsvps?.[user?.id || ''] || 'no_response';
-  const isOrganizer = isStaff && event.teamId === activeTeam?.id;
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') setBaseUrl(window.location.origin);
-  }, []);
-
-  const standings = useMemo(() => event.isTournament ? calculateTournamentStandings(event.tournamentTeams || [], event.tournamentGames || []) : [], [event]);
-  
   return (
-    <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
+    <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden flex flex-col">
-        <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
-        <div className="flex-1 flex flex-col lg:flex-row">
+      <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden">
+        <DialogTitle className="sr-only">{event.title} Details</DialogTitle>
+        <div className="flex flex-col lg:flex-row">
           <div className="w-full lg:w-1/3 flex flex-col text-white bg-black p-8 relative shrink-0">
             <div className="flex justify-between items-start mb-8 relative z-10">
-              <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{event.isTournament ? "Elite Hub" : (event.eventType || 'other').toUpperCase()}</Badge>
+              <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
               <DialogClose asChild><X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" /></DialogClose>
             </div>
             <div className="space-y-8 relative z-10">
@@ -190,98 +137,61 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </div>
                 </div>
               </div>
-
-              {event.isTournament && (
-                <div className="space-y-4 pt-4 border-t border-white/10 pb-8">
-                  <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Standings Pulse</h4>
-                  <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
-                    {standings.map((team) => (
-                      <div key={team.name} className="flex justify-between items-center px-4 py-3 border-b border-white/5 last:border-0">
-                        <span className="text-[10px] font-black uppercase truncate pr-2">{team.name}</span>
-                        <Badge className="bg-primary text-white text-[8px] font-black">{team.points} PTS</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-            {isOrganizer && (
-              <div className="mt-auto pt-8 flex gap-3 relative z-10 pb-8">
+            {isAdmin && (
+              <div className="mt-auto pt-8 flex gap-3 relative z-10">
                 <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button>
+                <Button variant="destructive" size="icon" className="h-12 w-12 rounded-xl" onClick={() => onDelete(event.id)}><Trash2 className="h-5 w-5" /></Button>
               </div>
             )}
           </div>
           
-          <div className="flex-1 flex flex-col bg-background">
-            <Tabs defaultValue="attendance" className="w-full flex flex-col">
-              <div className="bg-muted/30 p-6 border-b">
-                <TabsList className="bg-white/50 h-auto p-1.5 rounded-2xl border w-full flex-wrap gap-1">
-                  <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Attendance</TabsTrigger>
-                  {event.isTournament && (
-                    <>
-                      <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Itinerary</TabsTrigger>
-                      <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Portals</TabsTrigger>
-                      {isOrganizer && <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Compliance</TabsTrigger>}
-                    </>
-                  )}
-                </TabsList>
-              </div>
+          <div className="flex-1 p-8 lg:p-10 bg-background">
+            <Tabs defaultValue="attendance" className="w-full">
+              <TabsList className="bg-muted/50 h-auto p-1.5 rounded-2xl border w-full flex-wrap gap-1 mb-8">
+                <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Attendance</TabsTrigger>
+                <TabsTrigger value="brief" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Operational Brief</TabsTrigger>
+              </TabsList>
               
-              <div className="p-8 lg:p-10 space-y-10">
-                <TabsContent value="attendance" className="mt-0">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 px-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      <h3 className="text-xl font-black uppercase tracking-tight">Roster Pulse</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {members.map(member => {
-                        const rsvp = event.userRsvps?.[member.userId] || 'no_response';
-                        return (
-                          <Card key={member.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white">
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-10 w-10 rounded-xl border">
-                                <AvatarImage src={member.avatar} />
-                                <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0 flex-1">
-                                <p className="font-black text-xs uppercase truncate">{member.name}</p>
-                                <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
-                              </div>
-                              <Badge className={cn(
-                                "border-none font-black text-[8px] uppercase px-2 h-5",
-                                rsvp === 'going' ? "bg-green-100 text-green-700" : rsvp === 'maybe' ? "bg-amber-100 text-amber-700" : rsvp === 'declined' ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
-                              )}>{rsvp}</Badge>
-                            </div>
-                          </Card>
-                        );
-                      })}
-                    </div>
+              <TabsContent value="attendance" className="mt-0">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 px-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <h3 className="text-xl font-black uppercase tracking-tight">Roster Pulse</h3>
                   </div>
-                </TabsContent>
-
-                {event.isTournament && (
-                  <>
-                    <TabsContent value="bracket" className="mt-0">
-                      <div className="text-center py-20 opacity-30">
-                        <TableIcon className="h-12 w-12 mx-auto mb-4" />
-                        <p className="font-black uppercase text-sm">Championship Itinerary Initializing...</p>
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="portals" className="mt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card className="p-6 rounded-3xl border-none shadow-md ring-1 ring-black/5 bg-white space-y-4">
-                          <div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><h4 className="text-sm font-black uppercase">Spectator Hub</h4></div>
-                          <div className="flex gap-2">
-                            <Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                            <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {members.map(member => {
+                      const rsvp = event.userRsvps?.[member.userId] || 'no_response';
+                      return (
+                        <Card key={member.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-10 w-10 rounded-xl border">
+                              <AvatarImage src={member.avatar} />
+                              <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-black text-xs uppercase truncate">{member.name}</p>
+                              <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
+                            </div>
+                            <Badge className={cn(
+                              "border-none font-black text-[8px] uppercase px-2 h-5",
+                              rsvp === 'going' ? "bg-green-100 text-green-700" : rsvp === 'maybe' ? "bg-amber-100 text-amber-700" : rsvp === 'declined' ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
+                            )}>{rsvp}</Badge>
                           </div>
                         </Card>
-                      </div>
-                    </TabsContent>
-                  </>
-                )}
-              </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="brief" className="mt-0">
+                <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
+                  <p className="text-sm font-medium text-foreground/80 leading-relaxed italic whitespace-pre-wrap">
+                    "{event.description || 'No coordination notes established for this deployment.'}"
+                  </p>
+                </div>
+              </TabsContent>
             </Tabs>
           </div>
         </div>
@@ -291,13 +201,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 }
 
 export default function EventsPage() {
-  const { householdEvents, updateRSVP, formatTime, isSuperAdmin, isStaff, activeTeam, addEvent, updateEvent, deleteEvent } = useTeam();
-  const { user: firebaseUser } = useUser();
-  const db = useFirestore();
-  
+  const { householdEvents, updateRSVP, formatTime, isSuperAdmin, isStaff, activeTeam, addEvent, updateEvent, deleteEvent, members } = useTeam();
   const [filterMode, setFilterMode] = useState<'live' | 'past'>('live');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isTournamentMode, setIsTournamentMode] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TeamEvent | null>(null);
   
   const [newTitle, setNewTitle] = useState('');
@@ -306,12 +212,6 @@ export default function EventsPage() {
   const [newLocation, setNewLocation] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [eventType, setEventType] = useState<EventType>('game');
-
-  const facilitiesQuery = useMemoFirebase(() => (db && firebaseUser?.uid) ? query(collection(db, 'facilities'), where('clubId', '==', firebaseUser.uid)) : null, [db, firebaseUser?.uid]);
-  const { data: facilities } = useCollection<Facility>(facilitiesQuery);
-
-  const fieldsQuery = useMemoFirebase(() => db ? query(collectionGroup(db, 'fields')) : null, [db]);
-  const { data: allFields } = useCollection<Field>(fieldsQuery);
 
   const filteredEvents = useMemo(() => { 
     const now = new Date(); 
@@ -327,12 +227,11 @@ export default function EventsPage() {
       const eventDate = new Date(`${newDate}T${timeISO}`);
       const payload: any = { 
         title: newTitle, 
-        eventType: isTournamentMode ? 'tournament' : eventType, 
+        eventType, 
         date: eventDate.toISOString(), 
         startTime: newTime, 
         location: newLocation, 
         description: newDescription, 
-        isTournament: isTournamentMode, 
         lastUpdated: new Date().toISOString() 
       }; 
       const success = editingEvent ? await updateEvent(editingEvent.id, payload) : await addEvent(payload); 
@@ -346,7 +245,6 @@ export default function EventsPage() {
 
   const handleEdit = (event: TeamEvent) => { 
     setEditingEvent(event); 
-    setIsTournamentMode(!!event.isTournament); 
     setNewTitle(event.title); 
     setEventType(event.eventType || 'game'); 
     setNewDate(format(new Date(event.date), 'yyyy-MM-dd')); 
@@ -362,7 +260,7 @@ export default function EventsPage() {
     <div className="space-y-10 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Squad Itinerary</Badge><h1 className="text-4xl font-black uppercase tracking-tight">Schedule Hub</h1></div>
-        {isStaff && ( <div className="flex gap-2"><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { setIsTournamentMode(false); resetForm(); setIsCreateOpen(true); }}>+ New Activity</Button><Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs bg-black text-white shadow-lg" onClick={() => { setIsTournamentMode(true); resetForm(); setIsCreateOpen(true); }}>+ Elite Tournament</Button></div> )}
+        {isStaff && ( <Button size="sm" className="rounded-full h-11 px-6 font-black uppercase text-xs shadow-lg" onClick={() => { resetForm(); setIsCreateOpen(true); }}>+ New Activity</Button> )}
       </div>
       
       <Dialog open={isCreateOpen} onOpenChange={(o) => { if(!o) resetForm(); setIsCreateOpen(o); }}>
@@ -371,15 +269,13 @@ export default function EventsPage() {
             <div className="w-full lg:w-5/12 bg-muted/30 p-10 space-y-8 lg:border-r">
               <DialogHeader><DialogTitle className="text-3xl font-black uppercase tracking-tight">{editingEvent ? "Update" : "Launch"} Activity</DialogTitle></DialogHeader>
               <div className="space-y-6">
-                {!isTournamentMode && ( 
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Activity Type</Label>
-                    <Select value={eventType} onValueChange={(v: EventType) => setEventType(v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-2 bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="rounded-xl"><SelectItem value="game">Match Day</SelectItem><SelectItem value="practice">Training</SelectItem><SelectItem value="meeting">Tactical Meeting</SelectItem><SelectItem value="other">Event</SelectItem></SelectContent>
-                    </Select>
-                  </div> 
-                )}
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Activity Type</Label>
+                  <Select value={eventType} onValueChange={(v: EventType) => setEventType(v)}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 bg-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl"><SelectItem value="game">Match Day</SelectItem><SelectItem value="practice">Training</SelectItem><SelectItem value="meeting">Tactical Meeting</SelectItem><SelectItem value="other">Event</SelectItem></SelectContent>
+                  </Select>
+                </div> 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Title *</Label>
                   <Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
@@ -406,7 +302,7 @@ export default function EventsPage() {
         <div className="flex items-center justify-between px-2"><h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Itinerary</h2><div className="flex bg-muted/50 p-1 rounded-xl border shadow-inner"><Button variant={filterMode === 'live' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('live')} className="h-8 rounded-lg font-black text-[10px] uppercase">Live</Button><Button variant={filterMode === 'past' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('past')} className="h-8 rounded-lg font-black text-[10px] uppercase">History</Button></div></div>
         <div className="grid gap-4">
           {filteredEvents.map((event) => (
-            <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} onEdit={handleEdit} onDelete={deleteEvent} facilities={facilities || []} allFields={allFields || []}>
+            <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} isAdmin={isAdmin} onEdit={handleEdit} onDelete={deleteEvent} members={members}>
               <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
                 <div className="flex items-stretch h-32">
                   <div className={cn("w-24 lg:w-32 flex flex-col items-center justify-center border-r-2 shrink-0 px-2 text-center", event.isTournament ? "bg-black text-white" : EVENT_TYPE_COLORS[event.eventType || 'other'])}>

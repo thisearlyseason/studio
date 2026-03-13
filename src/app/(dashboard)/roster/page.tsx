@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -123,7 +124,7 @@ export default function RosterPage() {
                     <UserPlus className="h-4 w-4 mr-2" /> Invite
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
+                <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-0">
                   <div className="h-2 bg-primary w-full" />
                   <div className="p-8 space-y-6">
                     <DialogHeader>
@@ -174,10 +175,10 @@ export default function RosterPage() {
       </div>
 
       <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
-        <DialogContent className="rounded-[3rem] sm:max-w-5xl overflow-hidden border-none shadow-2xl p-0 flex flex-col bg-white">
+        <DialogContent className="rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white">
           <DialogTitle className="sr-only">Player Profile: {selectedMember?.name}</DialogTitle>
           {selectedMember && (
-            <div className="flex flex-col lg:flex-row min-h-0">
+            <div className="flex flex-col lg:flex-row">
               <div className="w-full lg:w-5/12 bg-black text-white p-8 lg:p-12 space-y-8 shrink-0 flex flex-col relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none">
                   <Zap className="h-48 w-48" />
