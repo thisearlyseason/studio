@@ -43,7 +43,7 @@ export function useCollection<T = any>(
       return;
     }
 
-    // Defensive path check to prevent root-level listing attempts
+    // Defensive path check to prevent root-level listing attempts or malformed queries
     let path = '';
     try {
       const q = memoizedTargetRefOrQuery as any;
@@ -53,6 +53,7 @@ export function useCollection<T = any>(
     }
 
     // CRITICAL GUARD: Do not establish listeners on uninitialized or root paths
+    // This specifically prevents the "Unexpected state (ID: ca9)" assertion failure
     if (!path || path === '/' || path.includes('undefined') || path.includes('//')) {
       setData(null);
       setIsLoading(false);

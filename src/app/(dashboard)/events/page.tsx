@@ -23,7 +23,6 @@ import {
   Calendar as CalendarIcon, 
   Terminal, 
   Download, 
-  Signature,
   Users,
   Copy,
   Share2,
@@ -728,8 +727,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 }
 
 export default function EventsPage() {
+  const { householdEvents, updateRSVP, formatTime, isSuperAdmin, isStaff, activeTeam, addEvent, updateEvent, deleteEvent } = useTeam();
   const { user: firebaseUser } = useUser();
-  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, isStaff } = useTeam();
   const db = useFirestore();
   
   const [filterMode, setFilterMode] = useState<'live' | 'past'>('live');
@@ -752,13 +751,6 @@ export default function EventsPage() {
   const [newDescription, setNewDescription] = useState('');
   const [eventType, setEventType] = useState<EventType>('game');
 
-  const eventsQuery = useMemoFirebase(() => { 
-    if (!db || !firebaseUser?.uid) return null; 
-    return query(collectionGroup(db, 'events'), orderBy('date', 'asc')); 
-  }, [db, firebaseUser?.uid]);
-
-  const { data: allEvents } = useCollection<TeamEvent>(eventsQuery);
-
   const facilitiesQuery = useMemoFirebase(() => (db && firebaseUser?.uid) ? query(collection(db, 'facilities'), where('clubId', '==', firebaseUser.uid)) : null, [db, firebaseUser?.uid]);
   const { data: facilities } = useCollection<Facility>(facilitiesQuery);
 
@@ -767,10 +759,10 @@ export default function EventsPage() {
 
   const filteredEvents = useMemo(() => { 
     const now = new Date(); 
-    const list = allEvents || []; 
+    const list = householdEvents || []; 
     if (filterMode === 'live') return list.filter(e => !isPast(new Date(e.endDate || e.date)) || isSameDay(new Date(e.endDate || e.date), now)); 
     return list.filter(e => isPast(new Date(e.endDate || e.date)) && !isSameDay(new Date(e.endDate || e.date), now)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); 
-  }, [allEvents, filterMode]);
+  }, [householdEvents, filterMode]);
 
   const poolResources = useMemo(() => {
     const list: { id: string, label: string }[] = [];

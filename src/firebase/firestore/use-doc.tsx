@@ -42,6 +42,8 @@ export function useDoc<T = any>(
     }
 
     const path = memoizedDocRef.path || '';
+    
+    // CRITICAL GUARD: Prevent listeners on malformed or root paths
     if (!path || path === '/' || path.includes('undefined') || path.includes('//')) {
       setData(null);
       setIsLoading(false);
