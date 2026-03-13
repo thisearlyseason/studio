@@ -40,7 +40,8 @@ import {
   AlertCircle,
   Settings,
   Building,
-  Table as TableIcon
+  Table as TableIcon,
+  ChevronDown
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -67,6 +68,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const EVENT_TYPE_COLORS: Record<EventType, string> = {
   game: 'bg-primary border-primary text-white',
@@ -332,31 +334,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
     } finally { setIsGenerating(false); }
   };
 
-  const handleUpdateEnrollment = async () => {
-    const list = enrollmentText.split(',').map(t => t.trim()).filter(t => !!t);
-    await updateEvent(event.id, { tournamentTeams: list });
-    toast({ title: "Roster Synchronized" });
-  };
-
-  const handleAddManualMatch = async () => {
-    if (!manualMatch.team1 || !manualMatch.team2 || !manualMatch.date || !manualMatch.time) return;
-    const newGame: TournamentGame = {
-      id: `manual_${Date.now()}`,
-      team1: manualMatch.team1,
-      team2: manualMatch.team2,
-      score1: 0,
-      score2: 0,
-      date: manualMatch.date,
-      time: format(parse(manualMatch.time, 'HH:mm', new Date()), 'h:mm a'),
-      location: manualMatch.location || event.location || 'Main Hub',
-      isCompleted: false
-    };
-    const updatedGames = [...(event.tournamentGames || []), newGame];
-    await updateEvent(event.id, { tournamentGames: updatedGames });
-    setManualMatch({ team1: '', team2: '', date: format(new Date(event.date), 'yyyy-MM-dd'), time: '12:00', location: '' });
-    toast({ title: "Match Established" });
-  };
-
   const isOrganizer = isAdmin && (event.createdBy === user?.id || isPro);
 
   return (
@@ -469,18 +446,10 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                         </div>
                       )}
                     </TabsContent>
-                    <TabsContent value="roster" className="mt-0">
-                      <div className="text-center py-20 opacity-20 italic font-bold">Roster compliance audits active.</div>
-                    </TabsContent>
-                    <TabsContent value="compliance" className="mt-0">
-                      <div className="text-center py-20 opacity-20 italic font-bold">Digital vault synchronized.</div>
-                    </TabsContent>
-                    <TabsContent value="portals" className="mt-0">
-                      <div className="text-center py-20 opacity-20 italic font-bold">Public hubs active.</div>
-                    </TabsContent>
-                    <TabsContent value="manage" className="mt-0">
-                      <div className="text-center py-20 opacity-20 italic font-bold">Configuration deck live.</div>
-                    </TabsContent>
+                    <TabsContent value="roster" className="mt-0"><div className="text-center py-20 opacity-20 italic font-bold">Roster compliance audits active.</div></TabsContent>
+                    <TabsContent value="compliance" className="mt-0"><div className="text-center py-20 opacity-20 italic font-bold">Digital vault synchronized.</div></TabsContent>
+                    <TabsContent value="portals" className="mt-0"><div className="text-center py-20 opacity-20 italic font-bold">Public hubs active.</div></TabsContent>
+                    <TabsContent value="manage" className="mt-0"><div className="text-center py-20 opacity-20 italic font-bold">Configuration deck live.</div></TabsContent>
                   </div>
                 </ScrollArea>
               </Tabs>
@@ -636,6 +605,22 @@ export default function EventsPage() {
     return list;
   }, [selectedFieldIds, manualLocations, facilities]);
 
+  const toggleFacility = (facId: string) => {
+    setSelectedFacilityIds(prev => {
+      if (prev.includes(facId)) {
+        // Remove facility and ALL its fields
+        setSelectedFieldIds(fields => fields.filter(fid => !fid.startsWith(`${facId}:`)));
+        return prev.filter(id => id !== facId);
+      }
+      return [...prev, facId];
+    });
+  };
+
+  const toggleField = (facId: string, fieldName: string) => {
+    const id = `${facId}:${fieldName}`;
+    setSelectedFieldIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
   return (
     <div className="space-y-10 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -702,27 +687,56 @@ export default function EventsPage() {
                   </div>
                   
                   <div className="space-y-6">
-                    <div className="space-y-3">
-                      <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Add Automatic Resource</p>
-                      <Select onValueChange={v => {
-                        if (!selectedFieldIds.includes(v)) setSelectedFieldIds(prev => [...prev, v]);
-                        const fid = v.split(':')[0];
-                        if (!selectedFacilityIds.includes(fid)) setSelectedFacilityIds(prev => [...prev, fid]);
-                      }}>
-                        <SelectTrigger className="h-12 rounded-xl border-2 bg-white font-bold"><SelectValue placeholder="Pick from your Facilities..." /></SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          {facilities?.map(f => (
-                            <SelectGroup key={f.id}>
-                              <SelectLabel className="text-[10px] uppercase font-black px-2 py-1 bg-muted/50">{f.name}</SelectLabel>
-                              {allFields?.filter(field => field.facilityId === f.id).map(field => (
-                                <SelectItem key={`${f.id}:${field.name}`} value={`${f.id}:${field.name}`} className="font-bold">
-                                  {field.name}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4">
+                      <p className="text-[9px] font-black uppercase text-muted-foreground ml-1">Assign Automatic Resources</p>
+                      <div className="space-y-3">
+                        {facilities?.map(f => (
+                          <Collapsible key={f.id} open={selectedFacilityIds.includes(f.id)}>
+                            <div className="flex items-center space-x-3 p-3 bg-white rounded-xl border-2 hover:border-primary/20 transition-all group">
+                              <Checkbox 
+                                id={`fac-${f.id}`} 
+                                checked={selectedFacilityIds.includes(f.id)} 
+                                onCheckedChange={() => toggleFacility(f.id)} 
+                                className="h-5 w-5 rounded-lg border-2"
+                              />
+                              <Label htmlFor={`fac-${f.id}`} className="flex-1 font-black text-xs uppercase tracking-tight cursor-pointer leading-none">
+                                {f.name}
+                              </Label>
+                              <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-40 group-hover:opacity-100">
+                                  <ChevronDown className={cn("h-4 w-4 transition-transform", selectedFacilityIds.includes(f.id) ? "rotate-180" : "")} />
+                                </Button>
+                              </CollapsibleTrigger>
+                            </div>
+                            <CollapsibleContent className="pt-2 pl-8 space-y-2">
+                              {allFields?.filter(field => field.facilityId === f.id).map(field => {
+                                const fid = `${f.id}:${field.name}`;
+                                return (
+                                  <div key={fid} className="flex items-center space-x-3 p-2 hover:bg-primary/5 rounded-lg transition-colors group">
+                                    <Checkbox 
+                                      id={`field-${fid}`} 
+                                      checked={selectedFieldIds.includes(fid)} 
+                                      onCheckedChange={() => toggleField(f.id, field.name)} 
+                                      className="h-4 w-4 rounded-md"
+                                    />
+                                    <Label htmlFor={`field-${fid}`} className="text-[10px] font-bold uppercase cursor-pointer opacity-70 group-hover:opacity-100">
+                                      {field.name}
+                                    </Label>
+                                  </div>
+                                );
+                              })}
+                              {allFields?.filter(field => field.facilityId === f.id).length === 0 && (
+                                <p className="text-[8px] font-bold text-muted-foreground italic uppercase">No fields defined for this venue.</p>
+                              )}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ))}
+                        {facilities?.length === 0 && (
+                          <div className="text-center py-6 border-2 border-dashed rounded-2xl opacity-40">
+                            <p className="text-[10px] font-black uppercase">No facilities found in vault.</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-3 border-t pt-4">
