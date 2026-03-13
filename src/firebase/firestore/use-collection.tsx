@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -46,30 +45,42 @@ export function useCollection<T = any>(
 
     // Defensive path check to prevent root-level listing attempts
     let path = '';
+    let isCollectionGroup = false;
     try {
-      if ((memoizedTargetRefOrQuery as any).type === 'collection') {
-        path = (memoizedTargetRefOrQuery as CollectionReference).path;
+      const q = memoizedTargetRefOrQuery as any;
+      if (q.type === 'collection') {
+        path = q.path;
       } else {
         // Safe query path detection
-        path = (memoizedTargetRefOrQuery as any)._query?.path?.canonicalString() || 'query';
+        // For collectionGroup queries, internal path might be empty but group ID is available
+        path = q._query?.path?.canonicalString() || '';
+        if (!path && q._query?.collectionGroup) {
+          path = q._query.collectionGroup;
+          isCollectionGroup = true;
+        }
+        if (!path) path = 'query';
       }
-    } catch (e) {}
+    } catch (e) {
+      path = 'query';
+    }
 
     const trimmedPath = (path || '').trim();
     
-    // CRITICAL GUARD: Explicitly block root paths, generic 'query' identifiers, or uninitialized segments
+    // CRITICAL GUARD: Explicitly block root paths or uninitialized segments
     if (
       !trimmedPath || 
       trimmedPath === '/' || 
       trimmedPath === '//' || 
       trimmedPath.includes('//') || 
-      trimmedPath === 'query' || 
-      trimmedPath === 'collection' ||
+      (trimmedPath === 'query' && !isCollectionGroup) || 
+      (trimmedPath === 'collection' && !isCollectionGroup) ||
       trimmedPath.includes('undefined')
     ) {
-      setData(null);
-      setIsLoading(false);
-      return;
+      if (!isCollectionGroup) {
+        setData(null);
+        setIsLoading(false);
+        return;
+      }
     }
 
     setIsLoading(true);
