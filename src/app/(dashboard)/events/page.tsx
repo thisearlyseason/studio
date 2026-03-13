@@ -174,7 +174,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
   const myRsvp = event.userRsvps?.[user?.id || ''] || 'no_response';
 
-  // LOGIC: Check if current active team is the organizer of this event
+  // Governance: Check if current active team is the organizer of this event
   const isOrganizer = isStaff && event.teamId === activeTeam?.id;
 
   useEffect(() => {
@@ -442,7 +442,11 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </div>
                 )}
               </div>
-              {isOrganizer && <div className="mt-auto pt-8 flex gap-3 relative z-10"><Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button></div>}
+              {isOrganizer && (
+                <div className="mt-auto pt-8 flex gap-3 relative z-10">
+                  <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button>
+                </div>
+              )}
             </div>
             
             <div className="flex-1 flex flex-col bg-background relative lg:overflow-hidden">
