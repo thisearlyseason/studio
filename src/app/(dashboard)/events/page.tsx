@@ -361,10 +361,10 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col bg-white">
+      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-full sm:h-[90vh] border-none shadow-2xl overflow-y-auto sm:overflow-hidden flex flex-col bg-white">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0">
             <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0 p-8 relative overflow-y-auto custom-scrollbar">
               <div className="flex justify-between items-start mb-8 relative z-10">
                 <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{event.isTournament ? "Elite Hub" : (event.eventType || 'other').toUpperCase()}</Badge>
@@ -432,8 +432,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               )}
             </div>
             
-            <div className="flex-1 flex flex-col bg-background relative overflow-hidden">
-              <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 flex flex-col bg-background relative">
+              <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col h-full">
                 <div className="px-6 py-6 border-b bg-muted/30 backdrop-blur-md shrink-0">
                   <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit overflow-x-auto custom-scrollbar">
                     {event.isTournament && <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Itinerary</TabsTrigger>}
@@ -448,8 +448,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </TabsList>
                 </div>
                 
-                <ScrollArea className="flex-1">
-                  <div className="p-6 lg:p-10 pb-24">
+                <div className="flex-1 overflow-y-auto sm:overflow-hidden">
+                  <div className="p-6 lg:p-10 pb-24 h-full">
                     <TabsContent value="bracket" className="mt-0 space-y-10">
                       {itineraryDays.length > 0 ? (
                         <div className="space-y-8">
@@ -699,7 +699,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                       </TabsContent>
                     )}
                   </div>
-                </ScrollArea>
+                </div>
               </Tabs>
             </div>
           </div>
@@ -883,7 +883,7 @@ export default function EventsPage() {
       </div>
       
       <Dialog open={isCreateOpen} onOpenChange={(o) => { if(!o) resetForm(); setIsCreateOpen(o); }}>
-        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col bg-white">
+        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] h-full sm:h-[90vh] border-none shadow-2xl overflow-y-auto sm:overflow-hidden flex flex-col bg-white">
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="flex flex-col lg:flex-row min-h-full">
               <div className="w-full lg:w-5/12 bg-muted/30 p-10 space-y-8 lg:border-r shrink-0">

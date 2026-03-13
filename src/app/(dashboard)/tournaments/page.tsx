@@ -302,8 +302,8 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8 min-h-[600px] overflow-hidden">
-        <aside className="w-full lg:w-1/3 flex flex-col text-white bg-black rounded-[3rem] p-8 lg:p-10 space-y-8 relative overflow-y-auto custom-scrollbar">
+      <div className="flex flex-col lg:flex-row gap-8">
+        <aside className="w-full lg:w-1/3 flex flex-col text-white bg-black rounded-[3rem] p-8 lg:p-10 space-y-8 relative overflow-y-auto sm:overflow-visible">
           <div className="space-y-4">
             <p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Event Brief</p>
             <p className="text-sm font-medium text-white/80 leading-relaxed italic">"{event.description || 'No specific coordination notes established.'}"</p>
@@ -353,9 +353,9 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           </div>
         </aside>
 
-        <div className="flex-1 flex flex-col min-w-0 bg-white rounded-[3rem] border-2 shadow-sm overflow-hidden">
-          <Tabs defaultValue="bracket" className="w-full flex flex-col h-full overflow-hidden">
-            <div className="bg-muted/30 p-6 border-b">
+        <div className="flex-1 flex flex-col min-w-0 bg-white rounded-[3rem] border-2 shadow-sm">
+          <Tabs defaultValue="bracket" className="w-full flex flex-col">
+            <div className="bg-muted/30 p-6 border-b rounded-t-[3rem]">
               <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit overflow-x-auto custom-scrollbar">
                 <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Itinerary</TabsTrigger>
                 <TabsTrigger value="standings" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Standings</TabsTrigger>
@@ -370,258 +370,256 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               </TabsList>
             </div>
 
-            <ScrollArea className="flex-1">
-              <div className="p-8 lg:p-10 pb-24">
-                <TabsContent value="bracket" className="mt-0 space-y-10">
-                  {itineraryDays.length > 0 ? (
-                    <div className="space-y-8">
-                      <div className="flex bg-muted/50 p-1.5 rounded-2xl border w-fit mx-auto shadow-inner">
-                        {itineraryDays.map(day => (
-                          <Button 
-                            key={day} 
-                            variant={activeItineraryDay === day ? 'default' : 'ghost'} 
-                            onClick={() => setActiveItineraryDay(day)}
-                            className="h-10 px-8 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
-                          >
-                            {format(new Date(day), 'MMM d')}
-                          </Button>
-                        ))}
-                      </div>
+            <div className="p-8 lg:p-10 pb-24">
+              <TabsContent value="bracket" className="mt-0 space-y-10">
+                {itineraryDays.length > 0 ? (
+                  <div className="space-y-8">
+                    <div className="flex bg-muted/50 p-1.5 rounded-2xl border w-fit mx-auto shadow-inner">
+                      {itineraryDays.map(day => (
+                        <Button 
+                          key={day} 
+                          variant={activeItineraryDay === day ? 'default' : 'ghost'} 
+                          onClick={() => setActiveItineraryDay(day)}
+                          className="h-10 px-8 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                        >
+                          {format(new Date(day), 'MMM d')}
+                        </Button>
+                      ))}
+                    </div>
 
-                      <div className="space-y-12">
-                        {Object.entries(dayGamesByField).map(([fieldName, games]) => (
-                          <div key={fieldName} className="space-y-6">
-                            <Badge className="bg-primary text-white font-black uppercase text-[10px] px-6 h-8 rounded-full shadow-lg shadow-primary/20">{fieldName}</Badge>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                              {games.map((game) => (
-                                <button 
-                                  key={game.id} 
-                                  onClick={() => isOrganizer && setEditingGame(game)} 
-                                  className="w-full p-8 bg-white rounded-[3rem] border-2 shadow-sm transition-all text-left relative group ring-1 ring-black/5 hover:border-primary/30 active:scale-[0.98]"
-                                >
-                                  <div className="absolute top-6 left-8"><Badge variant="outline" className="text-[10px] font-black uppercase h-7 px-3 border-2">{game.time}</Badge></div>
-                                  {game.isCompleted && <div className="absolute top-6 right-8"><Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white border-none">FINAL</Badge></div>}
-                                  <div className="grid grid-cols-7 items-center gap-4 text-center mt-10">
-                                    <div className="col-span-3 space-y-2">
-                                      <p className="font-black text-xs uppercase truncate leading-tight mb-1">{game.team1}</p>
-                                      <p className={cn("text-3xl font-black", game.isCompleted && game.score1 > game.score2 ? "text-primary" : "text-foreground")}>{game.score1}</p>
-                                    </div>
-                                    <div className="col-span-1 opacity-20 font-black text-[10px]">VS</div>
-                                    <div className="col-span-3 space-y-2">
-                                      <p className="font-black text-xs uppercase truncate leading-tight mb-1">{game.team2}</p>
-                                      <p className={cn("text-3xl font-black", game.isCompleted && game.score2 > game.score1 ? "text-primary" : "text-foreground")}>{game.score2}</p>
-                                    </div>
+                    <div className="space-y-12">
+                      {Object.entries(dayGamesByField).map(([fieldName, games]) => (
+                        <div key={fieldName} className="space-y-6">
+                          <Badge className="bg-primary text-white font-black uppercase text-[10px] px-6 h-8 rounded-full shadow-lg shadow-primary/20">{fieldName}</Badge>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                            {games.map((game) => (
+                              <button 
+                                key={game.id} 
+                                onClick={() => isOrganizer && setEditingGame(game)} 
+                                className="w-full p-8 bg-white rounded-[3rem] border-2 shadow-sm transition-all text-left relative group ring-1 ring-black/5 hover:border-primary/30 active:scale-[0.98]"
+                              >
+                                <div className="absolute top-6 left-8"><Badge variant="outline" className="text-[10px] font-black uppercase h-7 px-3 border-2">{game.time}</Badge></div>
+                                {game.isCompleted && <div className="absolute top-6 right-8"><Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white border-none">FINAL</Badge></div>}
+                                <div className="grid grid-cols-7 items-center gap-4 text-center mt-10">
+                                  <div className="col-span-3 space-y-2">
+                                    <p className="font-black text-xs uppercase truncate leading-tight mb-1">{game.team1}</p>
+                                    <p className={cn("text-3xl font-black", game.isCompleted && game.score1 > game.score2 ? "text-primary" : "text-foreground")}>{game.score1}</p>
                                   </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-32 bg-muted/10 rounded-[3rem] border-2 border-dashed opacity-40">
-                      <Zap className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse" />
-                      <p className="font-black uppercase tracking-widest text-lg">Itinerary not yet established.</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="standings" className="mt-0">
-                  <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b">
-                          <tr>
-                            <th className="px-10 py-6">Squad</th>
-                            <th className="px-6 py-6 text-center">W</th>
-                            <th className="px-6 py-6 text-center">L</th>
-                            <th className="px-6 py-6 text-center">T</th>
-                            <th className="px-10 py-6 text-right text-primary font-black">POINTS</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-muted/50">
-                          {standings.map((team, idx) => (
-                            <tr key={team.name} className="hover:bg-primary/5 transition-colors group">
-                              <td className="px-10 py-8">
-                                <div className="flex items-center gap-4">
-                                  <span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span>
-                                  <span className="font-black text-base uppercase tracking-tight truncate">{team.name}</span>
+                                  <div className="col-span-1 opacity-20 font-black text-[10px]">VS</div>
+                                  <div className="col-span-3 space-y-2">
+                                    <p className="font-black text-xs uppercase truncate leading-tight mb-1">{game.team2}</p>
+                                    <p className={cn("text-3xl font-black", game.isCompleted && game.score2 > game.score1 ? "text-primary" : "text-foreground")}>{game.score2}</p>
+                                  </div>
                                 </div>
-                              </td>
-                              <td className="px-6 py-8 text-center font-bold text-lg">{team.wins}</td>
-                              <td className="px-6 py-8 text-center font-bold text-lg text-muted-foreground">{team.losses}</td>
-                              <td className="px-6 py-8 text-center font-bold text-lg text-muted-foreground">{team.ties}</td>
-                              <td className="px-10 py-8 text-right font-black text-2xl text-primary">{team.points}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="attendance" className="mt-0 space-y-12">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 px-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      <h3 className="text-xl font-black uppercase tracking-tight">{activeTeam?.name} Tourney Roster</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {members.map(member => {
-                        const rsvp = event.userRsvps?.[member.userId] || 'no_response';
-                        return (
-                          <Card key={member.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white">
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-10 w-10 rounded-xl border">
-                                <AvatarImage src={member.avatar} />
-                                <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0 flex-1">
-                                    <p className="font-black text-xs uppercase truncate">{member.name}</p>
-                                    <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
-                              </div>
-                              <Badge className={cn(
-                                "border-none font-black text-[8px] uppercase px-2 h-5",
-                                rsvp === 'going' ? "bg-green-100 text-green-700" : rsvp === 'maybe' ? "bg-amber-100 text-amber-700" : rsvp === 'declined' ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
-                              )}>{rsvp.replace('_', ' ')}</Badge>
-                            </div>
-                          </Card>
-                        );
-                      })}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
+                ) : (
+                  <div className="text-center py-32 bg-muted/10 rounded-[3rem] border-2 border-dashed opacity-40">
+                    <Zap className="h-16 w-16 mx-auto mb-4 text-primary animate-pulse" />
+                    <p className="font-black uppercase tracking-widest text-lg">Itinerary not yet established.</p>
+                  </div>
+                )}
+              </TabsContent>
 
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 px-2">
-                      <ShieldCheck className="h-5 w-5 text-primary" />
-                      <h3 className="text-xl font-black uppercase tracking-tight">Confirmed Strategic Partners</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {confirmedTeams.map(teamName => (
-                        <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 bg-green-50/30 border-green-100/50">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="bg-white p-2.5 rounded-xl shadow-sm border border-green-100">
-                                <ShieldCheck className="h-5 w-5 text-green-600" />
+              <TabsContent value="standings" className="mt-0">
+                <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b">
+                        <tr>
+                          <th className="px-10 py-6">Squad</th>
+                          <th className="px-6 py-6 text-center">W</th>
+                          <th className="px-6 py-6 text-center">L</th>
+                          <th className="px-6 py-6 text-center">T</th>
+                          <th className="px-10 py-6 text-right text-primary font-black">POINTS</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-muted/50">
+                        {standings.map((team, idx) => (
+                          <tr key={team.name} className="hover:bg-primary/5 transition-colors group">
+                            <td className="px-10 py-8">
+                              <div className="flex items-center gap-4">
+                                <span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span>
+                                <span className="font-black text-base uppercase tracking-tight truncate">{team.name}</span>
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-black text-sm uppercase truncate">{teamName}</p>
-                                <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">VERIFIED SQUAD</p>
-                              </div>
+                            </td>
+                            <td className="px-6 py-8 text-center font-bold text-lg">{team.wins}</td>
+                            <td className="px-6 py-8 text-center font-bold text-lg text-muted-foreground">{team.losses}</td>
+                            <td className="px-6 py-8 text-center font-bold text-lg text-muted-foreground">{team.ties}</td>
+                            <td className="px-10 py-8 text-right font-black text-2xl text-primary">{team.points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="attendance" className="mt-0 space-y-12">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 px-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <h3 className="text-xl font-black uppercase tracking-tight">{activeTeam?.name} Tourney Roster</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {members.map(member => {
+                      const rsvp = event.userRsvps?.[member.userId] || 'no_response';
+                      return (
+                        <Card key={member.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-10 w-10 rounded-xl border">
+                              <AvatarImage src={member.avatar} />
+                              <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase truncate">{member.name}</p>
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
                             </div>
-                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            <Badge className={cn(
+                              "border-none font-black text-[8px] uppercase px-2 h-5",
+                              rsvp === 'going' ? "bg-green-100 text-green-700" : rsvp === 'maybe' ? "bg-amber-100 text-amber-700" : rsvp === 'declined' ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
+                            )}>{rsvp.replace('_', ' ')}</Badge>
                           </div>
                         </Card>
-                      ))}
-                      {confirmedTeams.length === 0 && (
-                        <div className="col-span-full py-12 text-center border-2 border-dashed rounded-3xl opacity-30 italic font-bold text-xs uppercase tracking-widest">
-                          Awaiting squad confirmations...
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                </TabsContent>
+                </div>
 
-                {isOrganizer && (
-                  <TabsContent value="compliance" className="mt-0">
-                    <div className="grid grid-cols-1 gap-4">
-                      {event.tournamentTeams?.map(team => (
-                        <div key={team} className="flex items-center justify-between p-6 bg-white rounded-[2rem] border shadow-sm ring-1 ring-black/5">
-                          <div className="flex items-center gap-6">
-                            <div className="bg-muted p-3 rounded-2xl"><Users className="h-6 w-6 text-muted-foreground" /></div>
-                            <div>
-                              <span className="font-black text-lg uppercase tracking-tight">{team}</span>
-                              {event.teamAgreements?.[team] && <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Signed by: {event.teamAgreements[team].captainName}</p>}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 px-2">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    <h3 className="text-xl font-black uppercase tracking-tight">Confirmed Strategic Partners</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {confirmedTeams.map(teamName => (
+                      <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 bg-green-50/30 border-green-100/50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-green-100">
+                              <ShieldCheck className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-black text-sm uppercase truncate">{teamName}</p>
+                              <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">VERIFIED SQUAD</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            {event.teamAgreements?.[team]?.agreed ? (
-                              <>
-                                <Badge className="bg-green-100 text-green-700 border-none font-black text-[10px] px-4 h-8 flex items-center gap-2 rounded-full"><CheckCircle2 className="h-4 w-4" /> VERIFIED</Badge>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 text-primary" onClick={() => toast({ title: "Audit Success", description: "Signed waiver verified in squad vault." })}><Download className="h-4 w-4" /></Button>
-                              </>
-                            ) : (
-                              <>
-                                <Badge variant="outline" className="border-amber-500/20 text-amber-600 font-black text-[10px] px-4 h-8 rounded-full">PENDING</Badge>
-                                <Button size="sm" variant="ghost" className="h-8 px-4 text-[8px] font-black uppercase border rounded-full" onClick={() => signTeamTournamentWaiver(event.teamId, event.id, team)}>Manual Override</Button>
-                              </>
-                            )}
-                          </div>
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
                         </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-                )}
-
-                <TabsContent value="portals" className="mt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
-                      <div className="flex items-center gap-4"><Eye className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Spectator Hub</h3></div>
-                      <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Public link for live scores and standings.</p>
-                      <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
-                    </Card>
-                    <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
-                      <div className="flex items-center gap-4"><Terminal className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Scorekeeper Hub</h3></div>
-                      <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Portal for marshals to log match results.</p>
-                      <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
-                    </Card>
-                    {isOrganizer && (
-                      <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
-                        <div className="flex items-center gap-4"><FileSignature className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Waiver Portal</h3></div>
-                        <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Public link for digital coach signatures.</p>
-                        <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
                       </Card>
+                    ))}
+                    {confirmedTeams.length === 0 && (
+                      <div className="col-span-full py-12 text-center border-2 border-dashed rounded-3xl opacity-30 italic font-bold text-xs uppercase tracking-widest">
+                        Awaiting squad confirmations...
+                      </div>
                     )}
                   </div>
+                </div>
+              </TabsContent>
+
+              {isOrganizer && (
+                <TabsContent value="compliance" className="mt-0">
+                  <div className="grid grid-cols-1 gap-4">
+                    {event.tournamentTeams?.map(team => (
+                      <div key={team} className="flex items-center justify-between p-6 bg-white rounded-[2rem] border shadow-sm ring-1 ring-black/5">
+                        <div className="flex items-center gap-6">
+                          <div className="bg-muted p-3 rounded-2xl"><Users className="h-6 w-6 text-muted-foreground" /></div>
+                          <div>
+                            <span className="font-black text-lg uppercase tracking-tight">{team}</span>
+                            {event.teamAgreements?.[team] && <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Signed by: {event.teamAgreements[team].captainName}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {event.teamAgreements?.[team]?.agreed ? (
+                            <>
+                              <Badge className="bg-green-100 text-green-700 border-none font-black text-[10px] px-4 h-8 flex items-center gap-2 rounded-full"><CheckCircle2 className="h-4 w-4" /> VERIFIED</Badge>
+                              <Button variant="ghost" size="icon" className="h-10 w-10 text-primary" onClick={() => toast({ title: "Audit Success", description: "Signed waiver verified in squad vault." })}><Download className="h-4 w-4" /></Button>
+                            </>
+                          ) : (
+                            <>
+                              <Badge variant="outline" className="border-amber-500/20 text-amber-600 font-black text-[10px] px-4 h-8 rounded-full">PENDING</Badge>
+                              <Button size="sm" variant="ghost" className="h-8 px-4 text-[8px] font-black uppercase border rounded-full" onClick={() => signTeamTournamentWaiver(event.teamId, event.id, team)}>Manual Override</Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </TabsContent>
+              )}
 
-                {isOrganizer && (
-                  <TabsContent value="manage" className="mt-0 space-y-10">
-                    <div className="bg-muted/20 p-8 rounded-[2.5rem] border-2 border-dashed space-y-6">
-                      <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Tournament Roster</h3></div>
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-2xl border shadow-sm">
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
-                            <Input placeholder="e.g. Metro Warriors" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-12 border-2 rounded-xl" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Email</Label>
-                            <Input placeholder="coach@example.com" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} className="h-12 border-2 rounded-xl" />
-                          </div>
-                          <Button className="md:col-span-2 h-12 rounded-xl font-black uppercase text-xs" onClick={handleAddTeam} disabled={!newTeamName.trim()}><Plus className="h-4 w-4 mr-2" /> Enroll Squad</Button>
+              <TabsContent value="portals" className="mt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
+                    <div className="flex items-center gap-4"><Eye className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Spectator Hub</h3></div>
+                    <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Public link for live scores and standings.</p>
+                    <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
+                  </Card>
+                  <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
+                    <div className="flex items-center gap-4"><Terminal className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Scorekeeper Hub</h3></div>
+                    <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Portal for marshals to log match results.</p>
+                    <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
+                  </Card>
+                  {isOrganizer && (
+                    <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
+                      <div className="flex items-center gap-4"><FileSignature className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Waiver Portal</h3></div>
+                      <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Public link for digital coach signatures.</p>
+                      <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              {isOrganizer && (
+                <TabsContent value="manage" className="mt-0 space-y-10">
+                  <div className="bg-muted/20 p-8 rounded-[2.5rem] border-2 border-dashed space-y-6">
+                    <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Tournament Roster</h3></div>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-2xl border shadow-sm">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
+                          <Input placeholder="e.g. Metro Warriors" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-12 border-2 rounded-xl" />
                         </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {event.tournamentTeams?.map(team => (
-                            <div key={team} className="flex items-center justify-between p-4 bg-white rounded-2xl border shadow-sm group">
-                              <div className="min-w-0">
-                                <p className="font-black text-sm uppercase truncate">{team}</p>
-                                {event.invitedTeamEmails?.[team] && <p className="text-[8px] font-bold text-muted-foreground truncate">{event.invitedTeamEmails[team]}</p>}
-                              </div>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={() => updateEvent(event.id, { tournamentTeams: event.tournamentTeams!.filter(t => t !== team) })}><Trash2 className="h-4 w-4" /></Button>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Email</Label>
+                          <Input placeholder="coach@example.com" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} className="h-12 border-2 rounded-xl" />
+                        </div>
+                        <Button className="md:col-span-2 h-12 rounded-xl font-black uppercase text-xs" onClick={handleAddTeam} disabled={!newTeamName.trim()}><Plus className="h-4 w-4 mr-2" /> Enroll Squad</Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {event.tournamentTeams?.map(team => (
+                          <div key={team} className="flex items-center justify-between p-4 bg-white rounded-2xl border shadow-sm group">
+                            <div className="min-w-0">
+                              <p className="font-black text-sm uppercase truncate">{team}</p>
+                              {event.invitedTeamEmails?.[team] && <p className="text-[8px] font-bold text-muted-foreground truncate">{event.invitedTeamEmails[team]}</p>}
                             </div>
-                          ))}
-                        </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={() => updateEvent(event.id, { tournamentTeams: event.tournamentTeams!.filter(t => t !== team) })}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
+                  </div>
 
-                    <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-8">
-                      <div className="flex items-center gap-3"><Zap className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Auto-Scheduler</h3></div>
-                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Match (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-11 rounded-xl border-2" /></div>
-                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Break (Min)</Label><Input type="number" value={genBreakLength} onChange={e => setGenBreakLength(e.target.value)} className="h-11 rounded-xl border-2" /></div>
-                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-11 rounded-xl border-2" /></div>
-                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-11 rounded-xl border-2" /></div>
-                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Total Cap</Label><Input type="number" value={maxTotalGames} onChange={e => setMaxTotalGames(e.target.value)} className="h-11 rounded-xl border-2" /></div>
-                      </div>
-                      <Button className="w-full h-16 rounded-2xl text-base font-black shadow-xl" onClick={handleGenerateSchedule} disabled={isGenerating}>Deploy Complex Itinerary</Button>
+                  <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-8">
+                    <div className="flex items-center gap-3"><Zap className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Auto-Scheduler</h3></div>
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Match (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-11 rounded-xl border-2" /></div>
+                      <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Break (Min)</Label><Input type="number" value={genBreakLength} onChange={e => setGenBreakLength(e.target.value)} className="h-11 rounded-xl border-2" /></div>
+                      <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-11 rounded-xl border-2" /></div>
+                      <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-11 rounded-xl border-2" /></div>
+                      <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Total Cap</Label><Input type="number" value={maxTotalGames} onChange={e => setMaxTotalGames(e.target.value)} className="h-11 rounded-xl border-2" /></div>
                     </div>
-                  </TabsContent>
-                )}
-              </div>
-            </ScrollArea>
+                    <Button className="w-full h-16 rounded-2xl text-base font-black shadow-xl" onClick={handleGenerateSchedule} disabled={isGenerating}>Deploy Complex Itinerary</Button>
+                  </div>
+                </TabsContent>
+              )}
+            </div>
           </Tabs>
         </div>
       </div>
