@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -33,7 +32,9 @@ import {
   DollarSign, 
   CreditCard,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { 
   Dialog, 

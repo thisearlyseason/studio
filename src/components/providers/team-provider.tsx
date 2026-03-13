@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -557,8 +556,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const proQuotaStatus = useMemo(() => {
     const limitCount = userProfile?.proTeamLimit ?? 0;
-    const current = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro).length;
-    return { current, limit: limitCount, exceeded: current > limitCount };
+    const currentCount = teams.filter(t => t.ownerUserId === firebaseUser?.uid && t.isPro).length;
+    return { current: currentCount, limit: limitCount, remaining: Math.max(0, limitCount - currentCount), exceeded: currentCount > limitCount };
   }, [teams, userProfile, firebaseUser?.uid]);
 
   // --- CORE CALLBACKS ---

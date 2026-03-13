@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -40,7 +39,8 @@ import {
   Eye,
   ShieldAlert,
   BrainCircuit,
-  Wand2
+  Wand2,
+  Info
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -363,7 +363,6 @@ export default function DrillsAndGamePlayPage() {
                 {viewMode === 'drills' && <Button onClick={() => { resetForm(); setIsAddDrillOpen(true); }} className="rounded-full h-12 px-8 font-black uppercase text-xs shadow-lg shadow-primary/20"><Plus className="h-4 w-4 mr-2" /> Add Drill</Button>}
                 {viewMode === 'gameplay' && (
                   <>
-                    <Button variant="outline" onClick={() => { resetForm(); setIsLinkOpen(true); }} className="rounded-full h-12 px-6 font-black uppercase text-xs border-2"><LinkIcon className="h-4 w-4 mr-2" /> Add Link</Button>
                     <Button onClick={() => { resetForm(); setIsUploadOpen(true); }} className="rounded-full h-12 px-8 font-black uppercase text-xs shadow-lg shadow-primary/20"><Upload className="h-4 w-4 mr-2" /> Upload Film</Button>
                   </>
                 )}
@@ -406,7 +405,6 @@ export default function DrillsAndGamePlayPage() {
                 return (
                   <Card key={file.id} className="group border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[2rem] overflow-hidden ring-1 ring-black/5 cursor-pointer bg-white" onClick={() => setSelectedFile(file)}>
                     <div className="aspect-video bg-muted relative overflow-hidden">
-                      {file.type === 'link' ? <div className="absolute inset-0 flex items-center justify-center"><Globe className="h-12 w-12 text-primary opacity-20" /></div> : <div className="absolute inset-0 bg-black/5" />}
                       <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 flex items-center justify-center transition-colors">
                         <Play className="h-10 w-10 text-white fill-current opacity-0 group-hover:opacity-100 transition-opacity scale-50 group-hover:scale-100 transition-transform" />
                       </div>
@@ -450,6 +448,133 @@ export default function DrillsAndGamePlayPage() {
           </div>
         </div>
       </div>
+
+      {/* Drill Detail Dialog */}
+      <Dialog open={!!selectedDrill} onOpenChange={o => !o && setSelectedDrill(null)}>
+        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl overflow-hidden flex flex-col">
+          {selectedDrill && (
+            <div className="flex flex-col lg:flex-row min-h-full">
+              <div className="w-full lg:w-1/2 bg-black text-white p-8 lg:p-12 space-y-8 shrink-0 flex flex-col">
+                <div className="space-y-4">
+                  <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase h-6 px-3">Execution Protocol</Badge>
+                  <h2 className="text-4xl font-black uppercase tracking-tight leading-none">{selectedDrill.title}</h2>
+                </div>
+                {selectedDrill.videoUrl && (
+                  <div className="mt-auto pt-8">
+                    <Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase text-xs tracking-widest shadow-xl" onClick={() => window.open(selectedDrill.videoUrl, '_blank')}>
+                      <Play className="h-4 w-4 mr-2 fill-current" /> Watch External Drill
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 p-8 lg:p-12 bg-white space-y-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3"><Info className="h-5 w-5 text-primary" /><h3 className="text-xs font-black uppercase tracking-widest">Protocol Description</h3></div>
+                  <p className="text-sm font-medium text-muted-foreground leading-relaxed italic whitespace-pre-wrap">"{selectedDrill.description}"</p>
+                </div>
+                <div className="pt-8 border-t flex justify-end gap-3">
+                  {isAdmin && <Button variant="ghost" size="icon" className="text-destructive h-12 w-12 rounded-xl" onClick={() => { deleteDrill(selectedDrill.id); setSelectedDrill(null); }}><Trash2 className="h-5 w-5" /></Button>}
+                  <Button variant="outline" className="px-8 h-12 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => setSelectedDrill(null)}>Close Hub</Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Film Detail Dialog */}
+      <Dialog open={!!selectedFile} onOpenChange={o => !o && setSelectedFile(null)}>
+        <DialogContent data-dark-header="true" className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl overflow-hidden flex flex-col">
+          {selectedFile && (
+            <div className="flex flex-col lg:flex-row min-h-full">
+              <div className="w-full lg:w-2/3 bg-black flex flex-col">
+                <div className="aspect-video bg-muted relative">
+                  <video 
+                    ref={videoRef}
+                    src={selectedFile.url} 
+                    className="w-full h-full object-contain" 
+                    controls 
+                    onTimeUpdate={handleVideoProgress}
+                  />
+                </div>
+                <div className="p-8 text-white space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <Badge className="bg-primary text-white border-none font-black text-[8px] uppercase tracking-widest px-2">{selectedFile.category}</Badge>
+                      <h2 className="text-2xl font-black uppercase tracking-tight">{selectedFile.name}</h2>
+                    </div>
+                    {isAdmin && <Button variant="ghost" size="icon" className="text-white/40 hover:text-white" onClick={(e) => handleEditFilm(e, selectedFile)}><Edit3 className="h-5 w-5" /></Button>}
+                  </div>
+                  <p className="text-xs text-white/60 font-medium leading-relaxed italic">"{selectedFile.description || 'Professional match film archived for tactical review.'}"</p>
+                </div>
+              </div>
+              <div className="flex-1 p-8 bg-white border-l flex flex-col">
+                <div className="flex items-center gap-3 mb-6"><MessageSquare className="h-5 w-5 text-primary" /><h3 className="text-xs font-black uppercase tracking-widest">Tactical discussion</h3></div>
+                <ScrollArea className="flex-1 mb-6 pr-4">
+                  <div className="space-y-4">
+                    {selectedFile.comments?.map(c => (
+                      <div key={c.id} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase">{c.authorName}</span>
+                          <span className="text-[8px] text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-xs font-medium bg-muted/30 p-3 rounded-xl border italic">"{c.text}"</p>
+                      </div>
+                    ))}
+                    {(!selectedFile.comments || selectedFile.comments.length === 0) && (
+                      <p className="text-[10px] font-bold text-muted-foreground text-center py-10 opacity-40 uppercase tracking-widest">No strategic notes yet.</p>
+                    )}
+                  </div>
+                </ScrollArea>
+                <div className="flex gap-2">
+                  <Input placeholder="Add tactical note..." value={newComment} onChange={e => setNewComment(e.target.value)} className="h-11 rounded-xl" onKeyDown={e => e.key === 'Enter' && newComment.trim() && (addMediaComment(selectedFile.id, newComment), setNewComment(''))} />
+                  <Button size="icon" className="rounded-xl h-11 w-11" onClick={() => { if(newComment.trim()) { addMediaComment(selectedFile.id, newComment); setNewComment(''); } }}><Plus className="h-4 w-4" /></Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Drill Dialog */}
+      <Dialog open={isAddDrillOpen} onOpenChange={setIsAddDrillOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight">{editingDrillId ? 'Edit Drill' : 'New Drill protocol'}</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Enroll training resources</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Headline</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-bold border-2" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">External Video URL</Label><Input placeholder="YouTube or Vimeo link..." value={newUrl} onChange={e => setNewUrl(e.target.value)} className="h-12 rounded-xl border-2" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Execution Brief</Label><Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} className="min-h-[120px] rounded-xl border-2" /></div>
+          </div>
+          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleAddDrill}>{editingDrillId ? 'Update Drill' : 'Publish Protocol'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Film Dialog */}
+      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Archive Game Film</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Enroll Match footage</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Film Category</Label>
+              <Select value={uploadCat} onValueChange={setUploadCat}>
+                <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-xl"><SelectItem value="Game Tape">Match Day Film</SelectItem><SelectItem value="Practice Session">Training Session</SelectItem><SelectItem value="Highlights">Squad Highlights</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coordination Notes</Label><Textarea placeholder="Context for the squad..." value={newDesc} onChange={e => setNewDesc(e.target.value)} className="min-h-[100px] rounded-xl border-2 font-medium" /></div>
+            <div className="p-10 border-2 border-dashed rounded-[2rem] bg-muted/20 text-center space-y-4 group cursor-pointer hover:border-primary/20 transition-all" onClick={() => fileInputRef.current?.click()}>
+              <input type="file" ref={fileInputRef} className="hidden" accept="video/*" onChange={handleUploadFile} />
+              <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform"><Video className="h-8 w-8 text-primary" /></div>
+              <p className="text-sm font-black uppercase">Select Video File</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isAddScoutingOpen} onOpenChange={setIsAddScoutingOpen}>
         <DialogContent className="sm:max-w-4xl rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden flex flex-col">
@@ -503,7 +628,7 @@ export default function DrillsAndGamePlayPage() {
       </Dialog>
 
       <Dialog open={!!selectedScouting} onOpenChange={o => !o && setSelectedScouting(null)}>
-        <DialogContent className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
+        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
           <DialogTitle className="sr-only">Scouting Report: {selectedScouting?.opponentName}</DialogTitle>
           <div className="flex-1 overflow-y-auto">
             {selectedScouting && (
@@ -555,8 +680,6 @@ export default function DrillsAndGamePlayPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Other dialogs (Drills, Film) removed for brevity as they remain unchanged but functional */}
     </div>
   );
 }
