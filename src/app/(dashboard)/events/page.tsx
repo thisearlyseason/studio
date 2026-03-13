@@ -730,24 +730,33 @@ export default function EventsPage() {
                               </CollapsibleTrigger>
                             </div>
                             <CollapsibleContent className="pt-2 pl-8 space-y-2 animate-in slide-in-from-top-2 duration-300">
-                              {allFields?.filter(field => field.facilityId === f.id).map(field => {
-                                const fid = `${f.id}:${field.name}`;
-                                return (
-                                  <div key={fid} className="flex items-center space-x-3 p-2.5 bg-muted/20 rounded-xl hover:bg-primary/5 transition-colors group">
-                                    <Checkbox 
-                                      id={`field-${fid}`} 
-                                      checked={selectedFieldIds.includes(fid)} 
-                                      onCheckedChange={() => toggleField(f.id, field.name)} 
-                                      className="h-4 w-4 rounded-md"
-                                    />
-                                    <Label htmlFor={`field-${fid}`} className="text-[10px] font-bold uppercase cursor-pointer opacity-70 group-hover:opacity-100">
-                                      {field.name}
-                                    </Label>
-                                  </div>
-                                );
-                              })}
-                              {allFields?.filter(field => field.facilityId === f.id).length === 0 && !isFieldsLoading && (
-                                <p className="text-[8px] font-bold text-muted-foreground italic uppercase pl-2">No fields defined for this venue.</p>
+                              {isFieldsLoading ? (
+                                <div className="flex items-center gap-2 p-2">
+                                  <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                  <span className="text-[8px] font-black uppercase text-muted-foreground">Scouting Fields...</span>
+                                </div>
+                              ) : (
+                                <>
+                                  {allFields?.filter(field => field.facilityId === f.id).map(field => {
+                                    const fid = `${f.id}:${field.name}`;
+                                    return (
+                                      <div key={fid} className="flex items-center space-x-3 p-2.5 bg-muted/20 rounded-xl hover:bg-primary/5 transition-colors group">
+                                        <Checkbox 
+                                          id={`field-${fid}`} 
+                                          checked={selectedFieldIds.includes(fid)} 
+                                          onCheckedChange={() => toggleField(f.id, field.name)} 
+                                          className="h-4 w-4 rounded-md"
+                                        />
+                                        <Label htmlFor={`field-${fid}`} className="text-[10px] font-bold uppercase cursor-pointer opacity-70 group-hover:opacity-100">
+                                          {field.name}
+                                        </Label>
+                                      </div>
+                                    );
+                                  })}
+                                  {(!allFields || allFields.filter(field => field.facilityId === f.id).length === 0) && (
+                                    <p className="text-[8px] font-bold text-muted-foreground italic uppercase pl-2">No fields defined for this venue.</p>
+                                  )}
+                                </>
                               )}
                             </CollapsibleContent>
                           </Collapsible>

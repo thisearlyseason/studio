@@ -137,5 +137,9 @@ service cloud.firestore {
     match /{path=**}/members/{memberId} {
       allow read: if isSignedIn();
     }
+
+    match /{path=**}/fields/{fieldId} {
+      allow read: if isSignedIn();
+    }
   }
 }
