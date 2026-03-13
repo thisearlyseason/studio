@@ -303,7 +303,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8 min-h-[600px]">
+      <div className="flex flex-col lg:flex-row gap-8 min-h-[600px] overflow-hidden">
         <aside className="w-full lg:w-1/3 flex flex-col text-white bg-black rounded-[3rem] p-8 lg:p-10 space-y-8 relative overflow-y-auto custom-scrollbar">
           <div className="space-y-4">
             <p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Event Brief</p>
@@ -339,7 +339,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             </div>
           </div>
 
-          <div className="space-y-4 pt-4 border-t border-white/10">
+          <div className="space-y-4 pt-4 border-t border-white/10 pb-10">
             <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leadership Board</h4>
             <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
               {standings.length > 0 ? standings.map((team) => (
@@ -355,7 +355,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 bg-white rounded-[3rem] border-2 shadow-sm overflow-hidden">
-          <Tabs defaultValue="bracket" className="w-full flex flex-col h-full">
+          <Tabs defaultValue="bracket" className="w-full flex flex-col h-full overflow-hidden">
             <div className="bg-muted/30 p-6 border-b">
               <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit overflow-x-auto custom-scrollbar">
                 <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Itinerary</TabsTrigger>
@@ -372,7 +372,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="p-8 lg:p-10">
+              <div className="p-8 lg:p-10 pb-24">
                 <TabsContent value="bracket" className="mt-0 space-y-10">
                   {itineraryDays.length > 0 ? (
                     <div className="space-y-8">

@@ -360,16 +360,16 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto flex flex-col bg-white">
+      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col bg-white">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
             <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0 p-8 relative lg:overflow-y-auto custom-scrollbar">
               <div className="flex justify-between items-start mb-8 relative z-10">
                 <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{event.isTournament ? "Elite Hub" : (event.eventType || 'other').toUpperCase()}</Badge>
                 <DialogClose asChild><X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" /></DialogClose>
               </div>
-              <div className="space-y-8 relative z-10">
+              <div className="space-y-8 relative z-10 pb-10">
                 <div className="space-y-4">
                   <h2 className="text-3xl font-black tracking-tighter leading-tight uppercase">{event.title}</h2>
                   <div className="bg-white/10 p-4 rounded-2xl border border-white/10 space-y-3 font-bold text-sm">
@@ -425,14 +425,14 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                 )}
               </div>
               {isOrganizer && (
-                <div className="mt-auto pt-8 flex gap-3 relative z-10">
+                <div className="mt-auto pt-8 flex gap-3 relative z-10 pb-8">
                   <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button>
                 </div>
               )}
             </div>
             
-            <div className="flex-1 flex flex-col bg-background relative lg:overflow-hidden">
-              <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col h-full">
+            <div className="flex-1 flex flex-col bg-background relative overflow-hidden">
+              <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col h-full overflow-hidden">
                 <div className="px-6 py-6 border-b bg-muted/30 sticky top-0 z-20 backdrop-blur-md shrink-0">
                   <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit overflow-x-auto custom-scrollbar">
                     {event.isTournament && <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Itinerary</TabsTrigger>}
@@ -447,8 +447,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </TabsList>
                 </div>
                 
-                <ScrollArea className="flex-1 min-h-0">
-                  <div className="p-6 lg:p-10">
+                <ScrollArea className="flex-1">
+                  <div className="p-6 lg:p-10 pb-24">
                     <TabsContent value="bracket" className="mt-0 space-y-10">
                       {itineraryDays.length > 0 ? (
                         <div className="space-y-8">
@@ -628,7 +628,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                             <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Administrative portal for field marshals to log official match results.</p>
                             <div className="flex gap-2">
                               <Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                              <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                              <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
                             </div>
                           </CardContent>
                         </Card>

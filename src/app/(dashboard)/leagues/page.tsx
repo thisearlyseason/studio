@@ -367,7 +367,7 @@ export default function LeaguesPage() {
           </Card>
 
           {isPro && hasGamesPlayed && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in zoom-in-95 duration-500">
               <Card className="rounded-[2rem] border-none shadow-md bg-white p-6 space-y-4 ring-1 ring-black/5">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-2 rounded-xl text-primary"><TrendingUp className="h-5 w-5" /></div>

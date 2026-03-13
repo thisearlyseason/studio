@@ -77,8 +77,6 @@ export function useCollection<T = any>(
       (trimmedPath === 'query' && !isCollectionGroup) || 
       (trimmedPath === 'collection' && !isCollectionGroup)
     ) {
-      // If we are here, the path is likely invalid or incomplete.
-      // We stop execution to prevent internal Firestore SDK assertion errors.
       setData(null);
       setIsLoading(false);
       return;
