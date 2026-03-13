@@ -461,6 +461,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               </div>
               {isOrganizer && <div className="mt-auto pt-8 flex gap-3 relative z-10"><Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button></div>}
             </div>
+            
             <div className="flex-1 flex flex-col bg-background relative overflow-hidden">
               <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col">
                 <div className="px-6 py-6 border-b bg-muted/30 sticky top-0 z-20 backdrop-blur-md">
@@ -723,10 +724,11 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     </TabsContent>
                   </div>
                 </ScrollArea>
-              </Tabs>
+              </div>
             </div>
           </div>
         </div>
+        
         <Dialog open={!!editingGame} onOpenChange={(open) => !open && setEditingGame(null)}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-primary w-full" />
@@ -791,7 +793,7 @@ export default function EventsPage() {
   const { data: facilities } = useCollection<Facility>(facilitiesQuery);
 
   const fieldsQuery = useMemoFirebase(() => db ? query(collectionGroup(db, 'fields')) : null, [db]);
-  const { data: allFields, isLoading: isFieldsLoading } = useCollection<Field>(fieldsQuery);
+  const { data: allFields } = useCollection<Field>(fieldsQuery);
 
   const filteredEvents = useMemo(() => { 
     const now = new Date(); 
@@ -982,7 +984,7 @@ export default function EventsPage() {
                     <div className="space-y-3 border-t pt-4">
                       <p className="text-[9px] font-black uppercase text-primary ml-1">Active Pool Ledger</p>
                       <div className="flex flex-wrap gap-2">
-                        {poolResources.map((res, i) => (
+                        {poolResources.map((res) => (
                           <Badge key={res.id} className="bg-primary text-white h-8 px-3 flex items-center gap-2 rounded-lg">
                             {res.label}
                             <button onClick={() => {
