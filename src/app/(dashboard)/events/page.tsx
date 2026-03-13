@@ -146,9 +146,10 @@ interface EventDetailDialogProps {
   onDelete: (eventId: string) => void;
   children: React.ReactNode;
   facilities: Facility[];
+  allFields: Field[];
 }
 
-function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, children, facilities }: EventDetailDialogProps) {
+function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, children, facilities, allFields }: EventDetailDialogProps) {
   const { user, updateEvent, signTeamTournamentWaiver, isPro, activeTeam, members } = useTeam();
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -217,17 +218,25 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   const poolResources = useMemo(() => {
     const list: { id: string, label: string }[] = [];
     
-    // Selected Facilities (Venue Descriptions)
-    event.facilityIds?.forEach(id => {
-      const fac = facilities.find(f => f.id === id);
-      if (fac) list.push({ id: `fac:${id}`, label: fac.name });
-    });
-
-    // Selected Fields (Actual Play Areas)
-    event.fieldIds?.forEach(id => {
-      const [facId, fieldName] = id.split(':');
+    // Process Selected Facilities & Fields
+    event.facilityIds?.forEach(facId => {
       const fac = facilities.find(f => f.id === facId);
-      list.push({ id: `field:${id}`, label: fac ? `${fac.name} - ${fieldName}` : fieldName });
+      if (!fac) return;
+
+      const facFields = allFields?.filter(field => field.facilityId === facId) || [];
+      
+      if (facFields.length > 0) {
+        // Only include actual selected fields from the tournament's specific fieldIds
+        facFields.forEach(field => {
+          const combinedFieldId = `${facId}:${field.name}`;
+          if (event.fieldIds?.includes(combinedFieldId)) {
+            list.push({ id: `field:${combinedFieldId}`, label: `${fac.name} - ${field.name}` });
+          }
+        });
+      } else {
+        // No fields defined for this venue, use the facility itself as the location
+        list.push({ id: `fac:${facId}`, label: fac.name });
+      }
     });
 
     // Manual Locations
@@ -236,7 +245,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
     });
 
     return list;
-  }, [event.facilityIds, event.fieldIds, event.manualLocations, facilities]);
+  }, [event.facilityIds, event.fieldIds, event.manualLocations, facilities, allFields]);
 
   const handleGenerateSchedule = async () => {
     if (!event.tournamentTeams || event.tournamentTeams.length < 2) {
@@ -244,7 +253,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       return;
     }
 
-    const resources = poolResources.filter(r => r.id.startsWith('field:') || r.id.startsWith('manual:')).map(r => r.id);
+    const resources = poolResources.map(r => r.id);
     if (resources.length === 0) resources.push(`manual:${event.location || 'Main Venue'}`);
 
     setIsGenerating(true);
@@ -533,17 +542,24 @@ export default function EventsPage() {
   const poolResources = useMemo(() => {
     const list: { id: string, label: string }[] = [];
     
-    // Selected Facilities (Venue Descriptions)
     selectedFacilityIds.forEach(id => {
       const fac = facilities?.find(f => f.id === id);
-      if (fac) list.push({ id: `fac:${id}`, label: fac.name });
-    });
+      if (!fac) return;
 
-    // Selected Fields (Actual Play Areas)
-    selectedFieldIds.forEach(id => {
-      const [facId, fieldName] = id.split(':');
-      const fac = facilities?.find(f => f.id === facId);
-      list.push({ id: `field:${id}`, label: fac ? `${fac.name} - ${fieldName}` : fieldName });
+      const facFields = allFields?.filter(field => field.facilityId === id) || [];
+      
+      if (facFields.length > 0) {
+        // If facility has fields, only add the specifically selected ones
+        facFields.forEach(field => {
+          const fieldId = `${id}:${field.name}`;
+          if (selectedFieldIds.includes(fieldId)) {
+            list.push({ id: `field:${fieldId}`, label: `${fac.name} - ${field.name}` });
+          }
+        });
+      } else {
+        // Facility has no fields, add the facility itself as the location
+        list.push({ id: `fac:${id}`, label: fac.name });
+      }
     });
 
     // Manual Locations
@@ -552,7 +568,7 @@ export default function EventsPage() {
     });
 
     return list;
-  }, [selectedFacilityIds, selectedFieldIds, manualLocations, facilities]);
+  }, [selectedFacilityIds, selectedFieldIds, manualLocations, facilities, allFields]);
 
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
 
@@ -626,6 +642,7 @@ export default function EventsPage() {
   const toggleFacility = (facId: string) => {
     setSelectedFacilityIds(prev => {
       if (prev.includes(facId)) {
+        // If unchecking facility, also uncheck all its fields
         setSelectedFieldIds(fields => fields.filter(fid => !fid.startsWith(`${facId}:`)));
         return prev.filter(id => id !== facId);
       }
@@ -787,8 +804,9 @@ export default function EventsPage() {
                                 removeManualLocation(manualLocations.indexOf(res.label));
                               } else if (res.id.startsWith('fac:')) {
                                 toggleFacility(res.id.split(':')[1]);
-                              } else {
-                                setSelectedFieldIds(prev => prev.filter(id => id !== res.id.split('field:')[1]));
+                              } else if (res.id.startsWith('field:')) {
+                                const fieldId = res.id.split('field:')[1];
+                                setSelectedFieldIds(prev => prev.filter(id => id !== fieldId));
                               }
                             }}><X className="h-3.5 w-3.5" /></button>
                           </Badge>
@@ -865,7 +883,7 @@ export default function EventsPage() {
         <div className="flex items-center justify-between px-2"><h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Itinerary</h2><div className="flex bg-muted/50 p-1 rounded-xl border shadow-inner"><Button variant={filterMode === 'live' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('live')} className="h-8 rounded-lg font-black text-[10px] uppercase">Live</Button><Button variant={filterMode === 'past' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('past')} className="h-8 rounded-lg font-black text-[10px] uppercase">History</Button></div></div>
         <div className="grid gap-4">
           {filteredEvents.map((event) => ( 
-            <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} onEdit={handleEdit} onDelete={deleteEvent} facilities={facilities || []}>
+            <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} formatTime={formatTime} isAdmin={isAdmin} onEdit={handleEdit} onDelete={deleteEvent} facilities={facilities || []} allFields={allFields || []}>
               <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
                 <div className="flex items-stretch h-32">
                   <div className={cn("w-20 lg:w-24 flex flex-col items-center justify-center border-r-2 shrink-0", event.isTournament ? "bg-black text-white" : EVENT_TYPE_COLORS[event.eventType || 'other'])}>
