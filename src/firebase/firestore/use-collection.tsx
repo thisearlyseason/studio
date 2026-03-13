@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -22,7 +23,7 @@ export interface UseCollectionResult<T> {
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Hardened with strictly defensive path guards to prevent internal assertion errors (ID: ca9).
+ * Hardened with strictly defensive path guards to prevent internal assertion errors (ID: ca9 / b815).
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -53,8 +54,8 @@ export function useCollection<T = any>(
     }
 
     // CRITICAL GUARD: Do not establish listeners on uninitialized or root paths
-    // This specifically prevents the "Unexpected state (ID: ca9)" assertion failure
-    if (!path || path === '/' || path.includes('undefined') || path.includes('//')) {
+    // This specifically prevents "Unexpected state" assertion failures (ID: ca9 / b815)
+    if (!path || path === '/' || path === '' || path.includes('undefined') || path.includes('//')) {
       setData(null);
       setIsLoading(false);
       return;

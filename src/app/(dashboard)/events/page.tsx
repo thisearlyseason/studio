@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -42,7 +43,8 @@ import {
   ChevronDown,
   Mail,
   UserPlus,
-  Info
+  Info,
+  Signature
 } from 'lucide-react';
 import { 
   Dialog, 

@@ -1,3 +1,4 @@
+
 'use client';
     
 import { useState, useEffect, useRef } from 'react';
@@ -21,7 +22,7 @@ export interface UseDocResult<T> {
 
 /**
  * React hook to subscribe to a single Firestore document in real-time.
- * Hardened with strictly defensive path guards.
+ * Hardened with strictly defensive path guards to prevent assertion failures (ID: ca9 / b815).
  */
 export function useDoc<T = any>(
   memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
@@ -43,8 +44,8 @@ export function useDoc<T = any>(
 
     const path = memoizedDocRef.path || '';
     
-    // CRITICAL GUARD: Prevent listeners on malformed or root paths
-    if (!path || path === '/' || path.includes('undefined') || path.includes('//')) {
+    // CRITICAL GUARD: Prevent listeners on malformed, empty or root paths
+    if (!path || path === '/' || path === '' || path.includes('undefined') || path.includes('//')) {
       setData(null);
       setIsLoading(false);
       return;
