@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -205,10 +206,10 @@ export default function CoachesCornerPage() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
-          <TabsList className="bg-muted/50 rounded-xl h-12 p-1 border-2 w-full md:w-auto flex-wrap">
-            <TabsTrigger value="compliance" className="rounded-lg font-black text-[10px] uppercase tracking-widest px-6 data-[state=active]:bg-black data-[state=active]:text-white">Waivers</TabsTrigger>
-            <TabsTrigger value="recruitment" className="rounded-lg font-black text-[10px] uppercase tracking-widest px-6 data-[state=active]:bg-primary data-[state=active]:text-white">Recruitment</TabsTrigger>
-            <TabsTrigger value="governance" className="rounded-lg font-black text-[10px] uppercase tracking-widest px-6 data-[state=active]:bg-black data-[state=active]:text-white">Governance</TabsTrigger>
+          <TabsList className="bg-muted/50 rounded-xl h-auto p-1 border-2 w-full md:w-auto flex-wrap gap-1">
+            <TabsTrigger value="compliance" className="rounded-lg font-black text-[10px] uppercase tracking-widest px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Waivers</TabsTrigger>
+            <TabsTrigger value="recruitment" className="rounded-lg font-black text-[10px] uppercase tracking-widest px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Recruitment</TabsTrigger>
+            <TabsTrigger value="governance" className="rounded-lg font-black text-[10px] uppercase tracking-widest px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Governance</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -226,7 +227,7 @@ export default function CoachesCornerPage() {
                   <Plus className="h-4 w-4 mr-2" /> New Waiver
                 </Button>
               </DialogTrigger>
-              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl">
+              <DialogContent data-dark-header="true" className="rounded-[2.5rem] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl">
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 space-y-8">
                   <DialogHeader><DialogTitle className="text-3xl font-black uppercase">Document Architect</DialogTitle></DialogHeader>

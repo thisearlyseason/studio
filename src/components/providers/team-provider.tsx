@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -562,9 +563,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toast({ title: "Broadcast Dispatched", description: `Sent to ${audience}.` });
   }, [activeTeam, firebaseUser, db]);
 
-  const deleteAlert = useCallback(async (id: string) => {
-    if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'alerts', id));
+  const deleteAlert = useCallback(async (alertId: string) => {
+    if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'alerts', alertId));
   }, [activeTeam, db]);
+
+  const respondToAssignment = useCallback(async (contextId: string, entryId: string, status: 'accepted' | 'declined') => {
+    const entryRef = doc(db, 'leagues', contextId, 'registrationEntries', entryId);
+    const entrySnap = await getDoc(entryRef);
+    let finalRef = entryRef;
+    if (!entrySnap.exists()) {
+      const teamEntryRef = doc(db, 'teams', contextId, 'registrationEntries', entryId);
+      const teamEntrySnap = await getDoc(teamEntryRef);
+      if (teamEntrySnap.exists()) finalRef = teamEntryRef;
+    }
+    await updateDoc(finalRef, { status });
+    toast({ title: status === 'accepted' ? "Recruit Enrolled" : "Application Declined" });
+  }, [db]);
 
   const signTeamDocument = useCallback(async (docId: string, signatureText: string) => {
     if (!activeTeam || !userProfile || !currentMember) return;
@@ -607,19 +621,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       'everyone'
     );
   }, [activeTeam, firebaseUser, db, createAlert]);
-
-  const respondToAssignment = useCallback(async (contextId: string, entryId: string, status: 'accepted' | 'declined') => {
-    const entryRef = doc(db, 'leagues', contextId, 'registrationEntries', entryId);
-    const entrySnap = await getDoc(entryRef);
-    let finalRef = entryRef;
-    if (!entrySnap.exists()) {
-      const teamEntryRef = doc(db, 'teams', contextId, 'registrationEntries', entryId);
-      const teamEntrySnap = await getDoc(teamEntryRef);
-      if (teamEntrySnap.exists()) finalRef = teamEntryRef;
-    }
-    await updateDoc(finalRef, { status });
-    toast({ title: status === 'accepted' ? "Recruit Enrolled" : "Application Declined" });
-  }, [db]);
 
   const value = {
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,

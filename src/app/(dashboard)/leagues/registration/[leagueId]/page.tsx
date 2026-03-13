@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -219,7 +220,7 @@ export default function LeagueRegistrationAdminPage() {
                         <div className="flex justify-end gap-2">
                           <Dialog>
                             <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border hover:bg-primary hover:text-white transition-all"><UserPlus className="h-4 w-4" /></Button></DialogTrigger>
-                            <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-2xl">
+                            <DialogContent data-dark-header="true" className="rounded-3xl border-none shadow-2xl p-8 max-w-2xl">
                               <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Review & Dispatch</DialogTitle></DialogHeader>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
                                 <div className="space-y-4">
@@ -341,7 +342,7 @@ export default function LeagueRegistrationAdminPage() {
                   </div>
                   <Dialog>
                     <DialogTrigger asChild><Button variant="secondary" className="rounded-full h-10 px-6 font-black uppercase text-[10px]" onClick={() => setEditingField({ type: 'short_text', label: '', required: true })}><Plus className="h-4 w-4 mr-2" /> Add Field</Button></DialogTrigger>
-                    <DialogContent className="rounded-3xl border-none shadow-2xl p-8"><DialogHeader><DialogTitle className="text-2xl font-black uppercase">New Data Segment</DialogTitle></DialogHeader>
+                    <DialogContent data-dark-header="true" className="rounded-3xl border-none shadow-2xl p-8"><DialogHeader><DialogTitle className="text-2xl font-black uppercase">New Data Segment</DialogTitle></DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Segment Label</Label><Input value={editingField?.label || ''} onChange={e => setEditingField({ ...editingField, label: e.target.value })} className="h-12 rounded-xl" /></div>
                         <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Input Type</Label>
