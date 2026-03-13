@@ -370,7 +370,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               </TabsList>
             </div>
 
-            <div className="flex-1 p-8 lg:p-10 pb-24 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 p-8 lg:p-10 pb-24">
               <TabsContent value="bracket" className="mt-0 space-y-10">
                 {itineraryDays.length > 0 ? (
                   <div className="space-y-8">

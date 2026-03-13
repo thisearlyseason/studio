@@ -363,9 +363,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden flex flex-col">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto sm:overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           <div className="flex flex-col lg:flex-row flex-1 min-h-0">
-            <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0 p-8 relative overflow-y-auto custom-scrollbar">
+            <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0 p-8 relative">
               <div className="flex justify-between items-start mb-8 relative z-10">
                 <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{event.isTournament ? "Elite Hub" : (event.eventType || 'other').toUpperCase()}</Badge>
                 <DialogClose asChild><X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" /></DialogClose>
@@ -432,7 +432,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               )}
             </div>
             
-            <div className="flex-1 flex flex-col bg-background relative overflow-y-auto sm:overflow-hidden">
+            <div className="flex-1 flex flex-col bg-background relative">
               <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col min-h-0">
                 <div className="px-6 py-6 border-b bg-muted/30 backdrop-blur-md shrink-0">
                   <TabsList className="bg-white/50 h-auto p-1.5 rounded-2xl shadow-inner border w-full overflow-x-auto flex-wrap sm:flex-nowrap custom-scrollbar">
@@ -448,257 +448,255 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </TabsList>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="p-6 lg:p-10 pb-24">
-                    <TabsContent value="bracket" className="mt-0 space-y-10">
-                      {itineraryDays.length > 0 ? (
-                        <div className="space-y-8">
-                          <div className="flex bg-muted/50 p-1.5 rounded-2xl border w-fit mx-auto shadow-inner overflow-x-auto custom-scrollbar max-w-full">
-                            {itineraryDays.map(day => (
-                              <Button 
-                                key={day} 
-                                variant={activeItineraryDay === day ? 'default' : 'ghost'} 
-                                onClick={() => setActiveItineraryDay(day)}
-                                className="h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest whitespace-nowrap"
-                              >
-                                {format(new Date(day), 'MMM d')}
-                              </Button>
-                            ))}
-                          </div>
+                <div className="flex-1 p-6 lg:p-10 pb-24">
+                  <TabsContent value="bracket" className="mt-0 space-y-10">
+                    {itineraryDays.length > 0 ? (
+                      <div className="space-y-8">
+                        <div className="flex bg-muted/50 p-1.5 rounded-2xl border w-fit mx-auto shadow-inner overflow-x-auto custom-scrollbar max-w-full">
+                          {itineraryDays.map(day => (
+                            <Button 
+                              key={day} 
+                              variant={activeItineraryDay === day ? 'default' : 'ghost'} 
+                              onClick={() => setActiveItineraryDay(day)}
+                              className="h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest whitespace-nowrap"
+                            >
+                              {format(new Date(day), 'MMM d')}
+                            </Button>
+                          ))}
+                        </div>
 
-                          <div className="space-y-12">
-                            {Object.entries(dayGamesByField).map(([fieldName, games]) => (
-                              <div key={fieldName} className="space-y-6">
-                                <Badge className="bg-primary text-white font-black uppercase text-[10px] px-4 h-7 rounded-full shadow-lg">{fieldName}</Badge>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                  {games.map((game) => (
-                                    <button 
-                                      key={game.id} 
-                                      onClick={() => isOrganizer && setEditingGame(game)} 
-                                      className="w-full p-8 bg-white rounded-[2.5rem] border-2 shadow-sm transition-all text-left relative group ring-1 ring-black/5 active:scale-95 hover:border-primary/20"
-                                    >
-                                      <div className="absolute top-6 left-8">
-                                        <Badge variant="outline" className="text-[10px] font-black uppercase h-7 px-3 border-2">{game.time}</Badge>
+                        <div className="space-y-12">
+                          {Object.entries(dayGamesByField).map(([fieldName, games]) => (
+                            <div key={fieldName} className="space-y-6">
+                              <Badge className="bg-primary text-white font-black uppercase text-[10px] px-4 h-7 rounded-full shadow-lg">{fieldName}</Badge>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                {games.map((game) => (
+                                  <button 
+                                    key={game.id} 
+                                    onClick={() => isOrganizer && setEditingGame(game)} 
+                                    className="w-full p-8 bg-white rounded-[2.5rem] border-2 shadow-sm transition-all text-left relative group ring-1 ring-black/5 active:scale-95 hover:border-primary/20"
+                                  >
+                                    <div className="absolute top-6 left-8">
+                                      <Badge variant="outline" className="text-[10px] font-black uppercase h-7 px-3 border-2">{game.time}</Badge>
+                                    </div>
+                                    <div className="grid grid-cols-7 items-center gap-4 text-center mt-10">
+                                      <div className="col-span-3 space-y-2">
+                                        <p className="font-black text-xs uppercase truncate leading-tight">{game.team1}</p>
+                                        <p className="text-5xl font-black tracking-tighter">{game.score1}</p>
                                       </div>
-                                      <div className="grid grid-cols-7 items-center gap-4 text-center mt-10">
-                                        <div className="col-span-3 space-y-2">
-                                          <p className="font-black text-xs uppercase truncate leading-tight">{game.team1}</p>
-                                          <p className="text-5xl font-black tracking-tighter">{game.score1}</p>
-                                        </div>
-                                        <div className="col-span-1 opacity-20 font-black text-xs">VS</div>
-                                        <div className="col-span-3 space-y-2">
-                                          <p className="font-black text-xs uppercase truncate leading-tight">{game.team2}</p>
-                                          <p className="text-5xl font-black tracking-tighter">{game.score2}</p>
-                                        </div>
+                                      <div className="col-span-1 opacity-20 font-black text-xs">VS</div>
+                                      <div className="col-span-3 space-y-2">
+                                        <p className="font-black text-xs uppercase truncate leading-tight">{game.team2}</p>
+                                        <p className="text-5xl font-black tracking-tighter">{game.score2}</p>
                                       </div>
-                                    </button>
-                                  ))}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-24 opacity-20">
+                        <Zap className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+                        <p className="font-black uppercase tracking-widest text-sm">Itinerary not yet deployed.</p>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="roster" className="mt-0 space-y-12">
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 px-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        <h3 className="text-xl font-black uppercase tracking-tight">{activeTeam?.name} Tourney Roster</h3>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {members.map(member => {
+                          const rsvp = event.userRsvps?.[member.userId] || 'no_response';
+                          return (
+                            <Card key={member.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white">
+                              <div className="flex items-center gap-4">
+                                <Avatar className="h-10 w-10 rounded-xl border">
+                                  <AvatarImage src={member.avatar} />
+                                  <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase truncate">{member.name}</p>
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
+                                </div>
+                                <Badge className={cn(
+                                  "border-none font-black text-[8px] uppercase px-2 h-5",
+                                  rsvp === 'going' ? "bg-green-100 text-green-700" : rsvp === 'maybe' ? "bg-amber-100 text-amber-700" : rsvp === 'declined' ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
+                                )}>{rsvp.replace('_', ' ')}</Badge>
+                              </div>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 px-2">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                        <h3 className="text-xl font-black uppercase tracking-tight">Confirmed Strategic Partners</h3>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {confirmedTeams.map(teamName => (
+                          <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 bg-green-50/30 border-green-100/50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-green-100">
+                                  <ShieldCheck className="h-5 w-5 text-green-600" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-black text-sm uppercase truncate">{teamName}</p>
+                                  <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">VERIFIED SQUAD</p>
                                 </div>
                               </div>
-                            ))}
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            </div>
+                          </Card>
+                        ))}
+                        {confirmedTeams.length === 0 && (
+                          <div className="col-span-full py-12 text-center border-2 border-dashed rounded-3xl opacity-30 italic font-bold text-xs uppercase tracking-widest">
+                            Awaiting squad confirmations...
                           </div>
-                        </div>
-                      ) : (
-                        <div className="text-center py-24 opacity-20">
-                          <Zap className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
-                          <p className="font-black uppercase tracking-widest text-sm">Itinerary not yet deployed.</p>
-                        </div>
-                      )}
-                    </TabsContent>
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
 
-                    <TabsContent value="roster" className="mt-0 space-y-12">
+                  {isOrganizer && (
+                    <TabsContent value="compliance" className="mt-0">
                       <div className="space-y-6">
-                        <div className="flex items-center gap-3 px-2">
-                          <Users className="h-5 w-5 text-primary" />
-                          <h3 className="text-xl font-black uppercase tracking-tight">{activeTeam?.name} Tourney Roster</h3>
+                        <div className="flex items-center justify-between px-2">
+                          <div className="flex items-center gap-3">
+                            <FileSignature className="h-5 w-5 text-primary" />
+                            <h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3>
+                          </div>
+                          <Button variant="outline" className="h-9 px-4 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => window.open(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`, '_blank')}>Open Waiver Portal <ExternalLink className="ml-2 h-3 w-3" /></Button>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {members.map(member => {
-                            const rsvp = event.userRsvps?.[member.userId] || 'no_response';
+                        <div className="grid grid-cols-1 gap-4">
+                          {event.tournamentTeams?.map(team => {
+                            const signed = event.teamAgreements?.[team]?.agreed;
                             return (
-                              <Card key={member.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white">
+                              <Card key={team} className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 p-6 bg-white flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                  <Avatar className="h-10 w-10 rounded-xl border">
-                                    <AvatarImage src={member.avatar} />
-                                    <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-black text-xs uppercase truncate">{member.name}</p>
-                                    <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
+                                  <div className="bg-muted p-3 rounded-2xl"><Users className="h-5 w-5 text-muted-foreground" /></div>
+                                  <div>
+                                    <p className="font-black text-sm uppercase">{team}</p>
+                                    {signed && <p className="text-[8px] font-bold text-muted-foreground uppercase">Signed by: {event.teamAgreements![team].captainName}</p>}
                                   </div>
-                                  <Badge className={cn(
-                                    "border-none font-black text-[8px] uppercase px-2 h-5",
-                                    rsvp === 'going' ? "bg-green-100 text-green-700" : rsvp === 'maybe' ? "bg-amber-100 text-amber-700" : rsvp === 'declined' ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
-                                  )}>{rsvp.replace('_', ' ')}</Badge>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  {signed ? (
+                                    <div className="flex items-center gap-2">
+                                      <Badge className="bg-green-100 text-green-700 border-none font-black text-[8px] px-3 h-6 flex items-center gap-1.5 rounded-full"><CheckCircle2 className="h-3 w-3" /> VERIFIED</Badge>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => toast({ title: "Audit Success", description: "Verification document archived in squad vault." })}><Download className="h-4 w-4" /></Button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <Badge variant="outline" className="border-amber-500/20 text-amber-600 font-black text-[8px] h-6 rounded-full">PENDING</Badge>
+                                      <Button size="sm" variant="ghost" className="h-6 px-3 text-[8px] font-black uppercase border rounded-full" onClick={() => signTeamTournamentWaiver(event.teamId, event.id, team)}>Manual Override</Button>
+                                    </>
+                                  )}
                                 </div>
                               </Card>
                             );
                           })}
                         </div>
                       </div>
-
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-3 px-2">
-                          <ShieldCheck className="h-5 w-5 text-primary" />
-                          <h3 className="text-xl font-black uppercase tracking-tight">Confirmed Strategic Partners</h3>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {confirmedTeams.map(teamName => (
-                            <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 bg-green-50/30 border-green-100/50">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                  <div className="bg-white p-2.5 rounded-xl shadow-sm border border-green-100">
-                                    <ShieldCheck className="h-5 w-5 text-green-600" />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="font-black text-sm uppercase truncate">{teamName}</p>
-                                    <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">VERIFIED SQUAD</p>
-                                  </div>
-                                </div>
-                                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                              </div>
-                            </Card>
-                          ))}
-                          {confirmedTeams.length === 0 && (
-                            <div className="col-span-full py-12 text-center border-2 border-dashed rounded-3xl opacity-30 italic font-bold text-xs uppercase tracking-widest">
-                              Awaiting squad confirmations...
-                            </div>
-                          )}
-                        </div>
-                      </div>
                     </TabsContent>
+                  )}
 
-                    {isOrganizer && (
-                      <TabsContent value="compliance" className="mt-0">
+                  <TabsContent value="portals" className="mt-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
+                        <CardHeader className="bg-primary/5 p-6 border-b"><div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle></div></CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                          <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Public-facing link for fans to follow live scores and standings.</p>
+                          <div className="flex gap-2">
+                            <Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
+                            <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
+                        <CardHeader className="bg-black text-white p-6 border-b"><div className="flex items-center gap-3"><Terminal className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Scorekeeper Hub</CardTitle></div></CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                          <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Administrative portal for field marshals to log official match results.</p>
+                          <div className="flex gap-2">
+                            <Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
+                            <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      {isOrganizer && (
+                        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
+                          <CardHeader className="bg-amber-500/5 p-6 border-b"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-amber-600" /><CardTitle className="text-sm font-black uppercase">Waiver Portal</CardTitle></div></CardHeader>
+                          <CardContent className="p-6 space-y-4">
+                            <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Verification link for participating squad leads to sign the digital agreement.</p>
+                            <div className="flex gap-2">
+                              <Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
+                              <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  {isOrganizer && (
+                    <TabsContent value="manage" className="mt-0 space-y-10">
+                      <div className="bg-muted/20 p-8 rounded-[2.5rem] border-2 border-dashed space-y-6">
+                        <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Tournament Roster</h3></div>
                         <div className="space-y-6">
-                          <div className="flex items-center justify-between px-2">
-                            <div className="flex items-center gap-3">
-                              <FileSignature className="h-5 w-5 text-primary" />
-                              <h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-2xl border shadow-sm">
+                            <div className="space-y-2">
+                              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
+                              <Input placeholder="e.g. Metro Warriors" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-12 border-2 rounded-xl" />
                             </div>
-                            <Button variant="outline" className="h-9 px-4 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => window.open(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`, '_blank')}>Open Waiver Portal <ExternalLink className="ml-2 h-3 w-3" /></Button>
+                            <div className="space-y-2">
+                              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Email (Auto-Enroll)</Label>
+                              <Input placeholder="coach@example.com" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} className="h-12 border-2 rounded-xl" />
+                            </div>
+                            <Button className="md:col-span-2 h-12 rounded-xl font-black uppercase text-xs" onClick={handleAddTeam} disabled={!newTeamName.trim()}><Plus className="h-4 w-4 mr-2" /> Enroll Squad & Send Challenge</Button>
                           </div>
-                          <div className="grid grid-cols-1 gap-4">
-                            {event.tournamentTeams?.map(team => {
-                              const signed = event.teamAgreements?.[team]?.agreed;
-                              return (
-                                <Card key={team} className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 p-6 bg-white flex items-center justify-between">
-                                  <div className="flex items-center gap-4">
-                                    <div className="bg-muted p-3 rounded-2xl"><Users className="h-5 w-5 text-muted-foreground" /></div>
-                                    <div>
-                                      <p className="font-black text-sm uppercase">{team}</p>
-                                      {signed && <p className="text-[8px] font-bold text-muted-foreground uppercase">Signed by: {event.teamAgreements![team].captainName}</p>}
+                          
+                          <div className="space-y-3">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground px-1">Enrolled Squads ({event.tournamentTeams?.length || 0})</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {event.tournamentTeams?.map(team => (
+                                <div key={team} className="flex items-center justify-between p-4 bg-white rounded-2xl border shadow-sm group">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="bg-primary/5 p-2 rounded-lg text-primary"><Users className="h-4 w-4" /></div>
+                                    <div className="min-w-0">
+                                      <p className="font-black text-sm uppercase truncate">{team}</p>
+                                      {event.invitedTeamEmails?.[team] && <p className="text-[8px] font-bold text-muted-foreground truncate">{event.invitedTeamEmails[team]}</p>}
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-3">
-                                    {signed ? (
-                                      <div className="flex items-center gap-2">
-                                        <Badge className="bg-green-100 text-green-700 border-none font-black text-[8px] px-3 h-6 flex items-center gap-1.5 rounded-full"><CheckCircle2 className="h-3 w-3" /> VERIFIED</Badge>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => toast({ title: "Audit Success", description: "Verification document archived in squad vault." })}><Download className="h-4 w-4" /></Button>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <Badge variant="outline" className="border-amber-500/20 text-amber-600 font-black text-[8px] h-6 rounded-full">PENDING</Badge>
-                                        <Button size="sm" variant="ghost" className="h-6 px-3 text-[8px] font-black uppercase border rounded-full" onClick={() => signTeamTournamentWaiver(event.teamId, event.id, team)}>Manual Override</Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </Card>
-                              );
-                            })}
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={() => updateEvent(event.id, { tournamentTeams: event.tournamentTeams!.filter(t => t !== team) })}><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                      </TabsContent>
-                    )}
+                      </div>
 
-                    <TabsContent value="portals" className="mt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
-                          <CardHeader className="bg-primary/5 p-6 border-b"><div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle></div></CardHeader>
-                          <CardContent className="p-6 space-y-4">
-                            <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Public-facing link for fans to follow live scores and standings.</p>
-                            <div className="flex gap-2">
-                              <Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                              <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
-                          <CardHeader className="bg-black text-white p-6 border-b"><div className="flex items-center gap-3"><Terminal className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Scorekeeper Hub</CardTitle></div></CardHeader>
-                          <CardContent className="p-6 space-y-4">
-                            <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Administrative portal for field marshals to log official match results.</p>
-                            <div className="flex gap-2">
-                              <Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                              <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        {isOrganizer && (
-                          <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
-                            <CardHeader className="bg-amber-500/5 p-6 border-b"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-amber-600" /><CardTitle className="text-sm font-black uppercase">Waiver Portal</CardTitle></div></CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                              <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Verification link for participating squad leads to sign the digital agreement.</p>
-                              <div className="flex gap-2">
-                                <Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                                <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
+                      <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-8">
+                        <div className="flex items-center gap-3"><Zap className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Itinerary Deployment Deck</h3></div>
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                          <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Match Length (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
+                          <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Break Length (Min)</Label><Input type="number" value={genBreakLength} onChange={e => setGenBreakLength(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
+                          <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
+                          <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
+                          <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Total Match Limit</Label><Input type="number" value={maxTotalGames} onChange={e => setMaxTotalGames(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
+                        </div>
+                        <Button className="w-full h-16 rounded-2xl text-base font-black shadow-xl shadow-primary/20" onClick={handleGenerateSchedule} disabled={isGenerating}>{isGenerating ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Deploy Complex Itinerary"}</Button>
                       </div>
                     </TabsContent>
-
-                    {isOrganizer && (
-                      <TabsContent value="manage" className="mt-0 space-y-10">
-                        <div className="bg-muted/20 p-8 rounded-[2.5rem] border-2 border-dashed space-y-6">
-                          <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Tournament Roster</h3></div>
-                          <div className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-2xl border shadow-sm">
-                              <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
-                                <Input placeholder="e.g. Metro Warriors" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} className="h-12 border-2 rounded-xl" />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Email (Auto-Enroll)</Label>
-                                <Input placeholder="coach@example.com" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} className="h-12 border-2 rounded-xl" />
-                              </div>
-                              <Button className="md:col-span-2 h-12 rounded-xl font-black uppercase text-xs" onClick={handleAddTeam} disabled={!newTeamName.trim()}><Plus className="h-4 w-4 mr-2" /> Enroll Squad & Send Challenge</Button>
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <p className="text-[10px] font-black uppercase text-muted-foreground px-1">Enrolled Squads ({event.tournamentTeams?.length || 0})</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {event.tournamentTeams?.map(team => (
-                                  <div key={team} className="flex items-center justify-between p-4 bg-white rounded-2xl border shadow-sm group">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                      <div className="bg-primary/5 p-2 rounded-lg text-primary"><Users className="h-4 w-4" /></div>
-                                      <div className="min-w-0">
-                                        <p className="font-black text-sm uppercase truncate">{team}</p>
-                                        {event.invitedTeamEmails?.[team] && <p className="text-[8px] font-bold text-muted-foreground truncate">{event.invitedTeamEmails[team]}</p>}
-                                      </div>
-                                    </div>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={() => updateEvent(event.id, { tournamentTeams: event.tournamentTeams!.filter(t => t !== team) })}><Trash2 className="h-4 w-4" /></Button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-8">
-                          <div className="flex items-center gap-3"><Zap className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Itinerary Deployment Deck</h3></div>
-                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Match Length (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
-                            <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Break Length (Min)</Label><Input type="number" value={genBreakLength} onChange={e => setGenBreakLength(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
-                            <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
-                            <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
-                            <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Total Match Limit</Label><Input type="number" value={maxTotalGames} onChange={e => setMaxTotalGames(e.target.value)} className="h-11 rounded-xl border-2 font-black" /></div>
-                          </div>
-                          <Button className="w-full h-16 rounded-2xl text-base font-black shadow-xl shadow-primary/20" onClick={handleGenerateSchedule} disabled={isGenerating}>{isGenerating ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Deploy Complex Itinerary"}</Button>
-                        </div>
-                      </TabsContent>
-                    )}
-                  </div>
+                  )}
                 </div>
               </Tabs>
             </div>
