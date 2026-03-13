@@ -4,32 +4,29 @@
 import Shell from '@/components/layout/Shell';
 import { AlertOverlay } from '@/components/layout/AlertOverlay';
 import { useUser, useAuth } from '@/firebase';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { RevenueCatPaywall } from '@/components/RevenueCatPaywall';
 import { QuotaResolutionOverlay } from '@/components/layout/QuotaResolutionOverlay';
 import { useTeam } from '@/components/providers/team-provider';
-import { Loader2, Timer, ShieldAlert } from 'lucide-react';
+import { Loader2, Timer } from 'lucide-react';
 import { seedGuestDemoTeam, seedSubscriptionData } from '@/lib/db-seeder';
 import { useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
 
 const DEMO_TIMEOUT_MS = 15 * 60 * 1000; // 15 Minutes
 const DEMO_START_KEY = 'squad_demo_start_time';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function LayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading, isAuthResolved } = useUser();
   const auth = useAuth();
   const { teams, isTeamsLoading, isSeedingDemo, user: userProfile, setActiveTeam } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
   const [mounted, setMounted] = useState(false);
   const [isDemoInitializing, setIsDemoInitializing] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -39,75 +36,19 @@ export default function DashboardLayout({
     setMounted(true);
   }, []);
 
-  // --- DEMO HEARTBEAT LOGIC ---
-  useEffect(() => {
-    if (!mounted || !userProfile?.isDemo || !user) return;
-
-    // 1. Establish session start in sessionStorage (clears when tab closes)
-    let startTime = sessionStorage.getItem(DEMO_START_KEY);
-    if (!startTime) {
-      startTime = Date.now().toString();
-      sessionStorage.setItem(DEMO_START_KEY, startTime);
-    }
-
-    const checkSession = () => {
-      const start = parseInt(startTime!);
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, DEMO_TIMEOUT_MS - elapsed);
-      
-      setTimeLeft(remaining);
-
-      // 60-second warning
-      if (remaining <= 60000 && remaining > 59000) {
-        toast({
-          title: "Session Expiring",
-          description: "Guest tactical access ends in 60 seconds.",
-          variant: "destructive"
-        });
-      }
-
-      if (remaining <= 0) {
-        handleEndDemo("Session Expired");
-      }
-    };
-
-    const handleEndDemo = async (reason: string) => {
-      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
-      sessionStorage.removeItem(DEMO_START_KEY);
-      await signOut(auth);
-      window.location.href = `/login?reason=${encodeURIComponent(reason)}`;
-    };
-
-    // 2. Start heartbeat (update every second for countdown)
-    checkSession();
-    heartbeatInterval.current = setInterval(checkSession, 1000);
-
-    // 3. Reset if they leave
-    const handleExit = () => {
-      sessionStorage.removeItem(DEMO_START_KEY);
-    };
-    window.addEventListener('beforeunload', handleExit);
-
-    return () => {
-      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
-      window.removeEventListener('beforeunload', handleExit);
-    };
-  }, [mounted, userProfile?.isDemo, user, auth]);
-
-  // Handle Demo Seeding
+  // --- DEMO INITIALIZATION ---
   useEffect(() => {
     if (!mounted || !user || isDemoInitializing) return;
     
-    const urlParams = new URLSearchParams(window.location.search);
-    const demoPlanId = urlParams.get('seed_demo');
-    
+    const demoPlanId = searchParams.get('seed_demo');
     if (demoPlanId && teams.length === 0) {
       setIsDemoInitializing(true);
       const seed = async () => {
         try {
           await seedSubscriptionData(db);
           await seedGuestDemoTeam(db, user.uid, demoPlanId);
-          window.location.href = '/dashboard'; 
+          // Clean URL and refresh state
+          router.replace('/dashboard');
         } catch (e) {
           console.error("Demo seeding failed:", e);
           setIsDemoInitializing(false);
@@ -115,27 +56,26 @@ export default function DashboardLayout({
       };
       seed();
     }
-  }, [mounted, user, teams.length, db, isDemoInitializing]);
+  }, [mounted, user, teams.length, db, isDemoInitializing, searchParams, router]);
 
-  // Global Auth Guard
+  // --- GLOBAL AUTH GUARD ---
   useEffect(() => {
     if (!mounted || !isAuthResolved) return;
     
-    // Check if we are currently launching a demo
-    const urlParams = new URLSearchParams(window.location.search);
-    const isLaunchingDemo = urlParams.has('seed_demo');
+    const isLaunchingDemo = searchParams.has('seed_demo');
 
-    if (!user && !isLaunchingDemo) {
+    // If no user and not currently initializing a demo, go to login
+    if (!user && !isLaunchingDemo && !isDemoInitializing) {
       router.push('/login');
     }
-  }, [user, isAuthResolved, router, mounted]);
+  }, [user, isAuthResolved, router, mounted, searchParams, isDemoInitializing]);
 
-  // Team Setup Guard
+  // --- TEAM SETUP GUARD ---
   useEffect(() => {
     if (!mounted || isSeedingDemo || isTeamsLoading || !user || isDemoInitializing) return;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('seed_demo')) return;
+    const isLaunchingDemo = searchParams.has('seed_demo');
+    if (isLaunchingDemo) return;
 
     const isSetupPage = pathname === '/dashboard' ||
                         pathname === '/teams/new' || 
@@ -154,7 +94,47 @@ export default function DashboardLayout({
         router.push('/teams/join');
       }
     }
-  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted, isDemoInitializing]);
+  }, [user, userProfile, teams, isTeamsLoading, isSeedingDemo, pathname, router, mounted, isDemoInitializing, searchParams]);
+
+  // --- DEMO HEARTBEAT ---
+  useEffect(() => {
+    if (!mounted || !userProfile?.isDemo || !user) return;
+
+    let startTime = sessionStorage.getItem(DEMO_START_KEY);
+    if (!startTime) {
+      startTime = Date.now().toString();
+      sessionStorage.setItem(DEMO_START_KEY, startTime);
+    }
+
+    const checkSession = () => {
+      const start = parseInt(startTime!);
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, DEMO_TIMEOUT_MS - elapsed);
+      setTimeLeft(remaining);
+
+      if (remaining <= 60000 && remaining > 59000) {
+        toast({ title: "Session Expiring", description: "Guest access ends in 60s.", variant: "destructive" });
+      }
+
+      if (remaining <= 0) {
+        handleEndDemo("Session Expired");
+      }
+    };
+
+    const handleEndDemo = async (reason: string) => {
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+      sessionStorage.removeItem(DEMO_START_KEY);
+      await signOut(auth);
+      window.location.href = `/login?reason=${encodeURIComponent(reason)}`;
+    };
+
+    checkSession();
+    heartbeatInterval.current = setInterval(checkSession, 1000);
+
+    return () => {
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+    };
+  }, [mounted, userProfile?.isDemo, user, auth]);
 
   const formatTimeLeft = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -169,10 +149,8 @@ export default function DashboardLayout({
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 animate-in fade-in duration-500">
-          <div className="bg-primary/10 p-6 rounded-[2.5rem] shadow-xl relative">
-            <div className="h-16 w-16 flex items-center justify-center">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </div>
+          <div className="bg-primary/10 p-6 rounded-[2.5rem] shadow-xl">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
@@ -189,7 +167,6 @@ export default function DashboardLayout({
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Demo Banner moved to Top with lower z-index */}
       {userProfile?.isDemo && (
         <div className="w-full bg-black text-white h-9 flex items-center justify-center gap-4 z-[40] border-b border-primary/20 shrink-0 sticky top-0">
           <Timer className="h-3.5 w-3.5 text-primary animate-pulse" />
@@ -209,5 +186,13 @@ export default function DashboardLayout({
         <Shell>{children}</Shell>
       </div>
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <LayoutContent>{children}</LayoutContent>
+    </Suspense>
   );
 }

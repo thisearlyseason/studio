@@ -1,28 +1,25 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, signInAnonymously, signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import BrandLogo from '@/components/BrandLogo';
 import Image from 'next/image';
-import { Sparkles, Trophy, Users, Zap, Loader2, Table as TableIcon, User, Baby, ChevronRight, ChevronLeft, ShieldAlert } from 'lucide-react';
+import { Trophy, Users, Zap, Loader2, User, Baby, ChevronRight, ChevronLeft, ShieldAlert } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
-  const [backgroundImage, setBackgroundImage] = useState('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1600');
   const auth = useAuth();
   const router = useRouter();
 
@@ -46,14 +43,19 @@ export default function LoginPage() {
   const handleLaunchDemo = async (planId: string) => {
     setIsDemoLoading(true);
     try {
+      // Clear current session first
       await signOut(auth);
+      // Wait for sign out to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await signInAnonymously(auth);
-      // Use window.location.href to ensure a clean slate for the demo entry
-      window.location.href = `/dashboard?seed_demo=${planId}`;
+      
+      // Use location.replace to bypass internal router cache and ensure clean redirect
+      window.location.replace(`/dashboard?seed_demo=${planId}`);
     } catch (error: any) {
       toast({
         title: "Demo Launch Failed",
-        description: "Please try again later.",
+        description: "Verification service unavailable. Try again shortly.",
         variant: "destructive"
       });
       setIsDemoLoading(false);
@@ -72,7 +74,7 @@ export default function LoginPage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-black p-6 relative overflow-hidden">
       <div className="absolute inset-0 w-full h-full">
         <Image 
-          src={backgroundImage} 
+          src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1600" 
           alt="Stadium Atmosphere" 
           fill
           className="object-cover opacity-50 animate-in fade-in duration-1000"
@@ -82,7 +84,6 @@ export default function LoginPage() {
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
       
-      {/* Back Button */}
       <div className="absolute top-6 left-6 z-30">
         <Link href="/">
           <Button variant="ghost" className="text-white hover:bg-white/10 font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-full border border-white/10 backdrop-blur-sm">
