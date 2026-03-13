@@ -1,4 +1,3 @@
-
 'use client';
     
 import { useState, useEffect, useRef } from 'react';
@@ -43,7 +42,13 @@ export function useDoc<T = any>(
     }
 
     const path = (memoizedDocRef.path || '').trim();
-    if (!path || path === '/' || path.includes('//')) {
+    if (
+      !path || 
+      path === '/' || 
+      path.includes('//') || 
+      path.includes('/undefined') || 
+      path.includes('undefined/')
+    ) {
       setData(null);
       setIsLoading(false);
       return;

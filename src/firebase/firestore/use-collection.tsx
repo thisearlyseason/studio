@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -72,9 +71,10 @@ export function useCollection<T = any>(
       trimmedPath === '/' || 
       trimmedPath === '//' || 
       trimmedPath.includes('//') || 
+      trimmedPath.includes('/undefined') ||
+      trimmedPath.includes('undefined/') ||
       (trimmedPath === 'query' && !isCollectionGroup) || 
-      (trimmedPath === 'collection' && !isCollectionGroup) ||
-      trimmedPath.includes('undefined')
+      (trimmedPath === 'collection' && !isCollectionGroup)
     ) {
       if (!isCollectionGroup) {
         setData(null);
