@@ -275,8 +275,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       const days = Object.keys(dayConfigs).sort();
       let pairingIdx = 0;
 
-      // Calculate pairings per day roughly
-      const pairingsPerDay = Math.ceil(pairings.length / days.length);
+      const totalPairings = pairings.length;
+      const totalDays = days.length;
+      const targetMatchesPerDay = Math.ceil(totalPairings / totalDays);
 
       for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
         const dayKey = days[dayIdx];
@@ -291,9 +292,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
         const teamAvailability: Record<string, string> = {};
         teams.forEach(t => teamAvailability[t] = config.start);
 
-        // Schedule matches for this day
-        // We attempt to fill the day with its share of pairings
-        while (pairingIdx < pairings.length && dayGameCount < maxPerDayLimit && dayGameCount < pairingsPerDay && games.length < totalMatchLimit) {
+        while (pairingIdx < pairings.length && dayGameCount < maxPerDayLimit && dayGameCount < targetMatchesPerDay && games.length < totalMatchLimit) {
           const pair = pairings[pairingIdx];
           
           if (teamGameCounts[pair[0]] >= maxPerTeamLimit || teamGameCounts[pair[1]] >= maxPerTeamLimit) {
@@ -709,7 +708,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     )}
                   </div>
                 </ScrollArea>
-              </div>
+              </Tabs>
             </div>
           </div>
         </div>
