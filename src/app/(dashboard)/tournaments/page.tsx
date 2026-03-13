@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -795,7 +796,7 @@ export default function TournamentsPage() {
         </div>
         <CardContent className="p-16 relative z-10 space-y-8">
           <Badge className="bg-primary text-white border-none font-black text-[11px] px-6 h-8 rounded-full shadow-lg shadow-primary/40 uppercase tracking-widest">Elite Infrastructure</Badge>
-          <h2 className="text-5xl md:text-6xl font-black tracking-tight leading-[0.9] uppercase">Institutional <br />Series Coordination</h2>
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[0.9] uppercase">Institutional <br />Series Coordination</h2>
           <p className="text-white/60 font-medium text-xl leading-relaxed max-w-3xl">
             This hub provides absolute operational control over championship series. Coordinate complex brackets across multiple venues, verify digital compliance waivers, and distribute real-time results to fans via the automated Public Spectator Hub.
           </p>

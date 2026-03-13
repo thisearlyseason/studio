@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -361,7 +362,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden flex flex-col max-h-[100dvh]">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           <div className="flex flex-col lg:flex-row flex-1 min-h-0">
@@ -438,8 +439,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   <TabsList className="bg-white/50 h-auto p-1.5 rounded-2xl shadow-inner border w-full overflow-x-auto flex-wrap sm:flex-nowrap custom-scrollbar">
                     {event.isTournament && <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-6 sm:px-8 data-[state=active]:bg-black data-[state=active]:text-white">Itinerary</TabsTrigger>}
                     <TabsTrigger value="roster" className="rounded-xl font-black text-xs uppercase px-6 sm:px-8 data-[state=active]:bg-black data-[state=active]:text-white">Attendance</TabsTrigger>
-                    <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-6 sm:px-8 data-[state=active]:bg-primary data-[state=active]:text-white">Portals</TabsTrigger>
-                    {isOrganizer && (
+                    {event.isTournament && <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-6 sm:px-8 data-[state=active]:bg-primary data-[state=active]:text-white">Portals</TabsTrigger>}
+                    {isOrganizer && event.isTournament && (
                       <>
                         <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-6 sm:px-8 data-[state=active]:bg-black data-[state=active]:text-white">Compliance</TabsTrigger>
                         <TabsTrigger value="manage" className="rounded-xl font-black text-xs uppercase px-6 sm:px-8 data-[state=active]:bg-primary data-[state=active]:text-white">Deploy</TabsTrigger>
@@ -448,7 +449,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </TabsList>
                 </div>
                 
-                <div className="flex-1 p-6 lg:p-10 pb-24">
+                <div className="flex-1 p-6 lg:p-10 pb-24 overflow-y-auto">
                   <TabsContent value="bracket" className="mt-0 space-y-10">
                     {itineraryDays.length > 0 ? (
                       <div className="space-y-8">
@@ -509,7 +510,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 px-2">
                         <Users className="h-5 w-5 text-primary" />
-                        <h3 className="text-xl font-black uppercase tracking-tight">{activeTeam?.name} Tourney Roster</h3>
+                        <h3 className="text-xl font-black uppercase tracking-tight">{activeTeam?.name} Attendance Pulse</h3>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {members.map(member => {
@@ -536,38 +537,40 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 px-2">
-                        <ShieldCheck className="h-5 w-5 text-primary" />
-                        <h3 className="text-xl font-black uppercase tracking-tight">Confirmed Strategic Partners</h3>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {confirmedTeams.map(teamName => (
-                          <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 bg-green-50/30 border-green-100/50">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-green-100">
-                                  <ShieldCheck className="h-5 w-5 text-green-600" />
+                    {event.isTournament && (
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 px-2">
+                          <ShieldCheck className="h-5 w-5 text-primary" />
+                          <h3 className="text-xl font-black uppercase tracking-tight">Confirmed Strategic Partners</h3>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {confirmedTeams.map(teamName => (
+                            <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 bg-green-50/30 border-green-100/50">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="bg-white p-2.5 rounded-xl shadow-sm border border-green-100">
+                                    <ShieldCheck className="h-5 w-5 text-green-600" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-black text-sm uppercase truncate">{teamName}</p>
+                                    <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">VERIFIED SQUAD</p>
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="font-black text-sm uppercase truncate">{teamName}</p>
-                                  <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">VERIFIED SQUAD</p>
-                                </div>
+                                <CheckCircle2 className="h-5 w-5 text-green-600" />
                               </div>
-                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            </Card>
+                          ))}
+                          {confirmedTeams.length === 0 && (
+                            <div className="col-span-full py-12 text-center border-2 border-dashed rounded-3xl opacity-30 italic font-bold text-xs uppercase tracking-widest">
+                              Awaiting squad confirmations...
                             </div>
-                          </Card>
-                        ))}
-                        {confirmedTeams.length === 0 && (
-                          <div className="col-span-full py-12 text-center border-2 border-dashed rounded-3xl opacity-30 italic font-bold text-xs uppercase tracking-widest">
-                            Awaiting squad confirmations...
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </TabsContent>
 
-                  {isOrganizer && (
+                  {isOrganizer && event.isTournament && (
                     <TabsContent value="compliance" className="mt-0">
                       <div className="space-y-6">
                         <div className="flex items-center justify-between px-2">
@@ -610,44 +613,46 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     </TabsContent>
                   )}
 
-                  <TabsContent value="portals" className="mt-0">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
-                        <CardHeader className="bg-primary/5 p-6 border-b"><div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle></div></CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                          <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Public-facing link for fans to follow live scores and standings.</p>
-                          <div className="flex gap-2">
-                            <Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                            <Button size="icon" variant="secondary" className="h-10 text-[10px] font-mono bg-muted/30 border-none rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
-                        <CardHeader className="bg-black text-white p-6 border-b"><div className="flex items-center gap-3"><Terminal className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Scorekeeper Hub</CardTitle></div></CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                          <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Administrative portal for field marshals to log official match results.</p>
-                          <div className="flex gap-2">
-                            <Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                            <Button size="icon" variant="secondary" className="h-10 text-[10px] font-mono bg-muted/30 border-none rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      {isOrganizer && (
+                  {event.isTournament && (
+                    <TabsContent value="portals" className="mt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
-                          <CardHeader className="bg-amber-500/5 p-6 border-b"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-amber-600" /><CardTitle className="text-sm font-black uppercase">Waiver Portal</CardTitle></div></CardHeader>
+                          <CardHeader className="bg-primary/5 p-6 border-b"><div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle></div></CardHeader>
                           <CardContent className="p-6 space-y-4">
-                            <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Verification link for participating squad leads to sign the digital agreement.</p>
+                            <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Public-facing link for fans to follow live scores and standings.</p>
                             <div className="flex gap-2">
-                              <Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
-                              <Button size="icon" variant="secondary" className="h-10 text-[10px] font-mono bg-muted/30 border-none rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                              <Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
+                              <Button size="icon" variant="secondary" className="h-10 text-[10px] font-mono bg-muted/30 border-none rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
                             </div>
                           </CardContent>
                         </Card>
-                      )}
-                    </div>
-                  </TabsContent>
+                        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
+                          <CardHeader className="bg-black text-white p-6 border-b"><div className="flex items-center gap-3"><Terminal className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Scorekeeper Hub</CardTitle></div></CardHeader>
+                          <CardContent className="p-6 space-y-4">
+                            <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Administrative portal for field marshals to log official match results.</p>
+                            <div className="flex gap-2">
+                              <Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
+                              <Button size="icon" variant="secondary" className="h-10 text-[10px] font-mono bg-muted/30 border-none rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        {isOrganizer && (
+                          <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
+                            <CardHeader className="bg-amber-500/5 p-6 border-b"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-amber-600" /><CardTitle className="text-sm font-black uppercase">Waiver Portal</CardTitle></div></CardHeader>
+                            <CardContent className="p-6 space-y-4">
+                              <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Verification link for participating squad leads to sign the digital agreement.</p>
+                              <div className="flex gap-2">
+                                <Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-10 text-[9px] font-mono bg-muted/30 border-none" />
+                                <Button size="icon" variant="secondary" className="h-10 text-[10px] font-mono bg-muted/30 border-none rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    </TabsContent>
+                  )}
 
-                  {isOrganizer && (
+                  {isOrganizer && event.isTournament && (
                     <TabsContent value="manage" className="mt-0 space-y-10">
                       <div className="bg-muted/20 p-8 rounded-[2.5rem] border-2 border-dashed space-y-6">
                         <div className="flex items-center gap-3"><Users className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase tracking-tight">Tournament Roster</h3></div>
@@ -881,7 +886,7 @@ export default function EventsPage() {
       </div>
       
       <Dialog open={isCreateOpen} onOpenChange={(o) => { if(!o) resetForm(); setIsCreateOpen(o); }}>
-        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white flex flex-col">
+        <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white flex flex-col max-h-[100dvh]">
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="flex flex-col lg:flex-row min-h-full">
               <div className="w-full lg:w-5/12 bg-muted/30 p-10 space-y-8 lg:border-r shrink-0">
