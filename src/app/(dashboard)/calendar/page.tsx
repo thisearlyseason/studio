@@ -108,7 +108,7 @@ function EventItem({ event, teams, onClick }: { event: TeamEvent, teams: any[], 
 }
 
 function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
-  const { updateRSVP, user, members } = useTeam();
+  const { updateRSVP, user } = useTeam();
   if (!event) return null;
 
   const myRsvp = event.userRsvps?.[user?.id || ''];
@@ -143,7 +143,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
                       variant={myRsvp === 'maybe' ? 'default' : 'outline'} 
-                      className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'maybe' ? "bg-amber-500 border-none" : "bg-white/5 border-white/10")}
+                      className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'maybe' ? "bg-amber-50 border-none" : "bg-white/5 border-white/10")}
                       onClick={() => updateRSVP(event.id, 'maybe')}
                     >
                       Maybe
@@ -169,7 +169,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
                 {Object.entries(event.userRsvps || {}).slice(0, 8).map(([uid, status]) => (
                   <Badge key={uid} variant="outline" className={cn(
                     "text-[8px] font-black uppercase border-none h-6",
-                    status === 'going' ? "bg-green-50 text-green-700" : status === 'maybe' ? "bg-amber-50 text-amber-700" : status === 'red-50 text-red-700"
+                    status === 'going' ? "bg-green-50 text-green-700" : status === 'maybe' ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
                   )}>
                     {status}
                   </Badge>
@@ -184,7 +184,6 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
 }
 
 export default function MasterCalendarPage() {
-  const { user: authUser } = useUser();
   const { teams, householdEvents, isParent } = useTeam();
   
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -195,7 +194,6 @@ export default function MasterCalendarPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeDetailedEvent, setActiveDetailedEvent] = useState<TeamEvent | null>(null);
 
-  // 1. Unified Itinerary Source
   const allEvents = householdEvents;
 
   const discoveryTeamIds = useMemo(() => {

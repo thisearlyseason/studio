@@ -66,7 +66,7 @@ import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 export default function LeagueRegistrationAdminPage() {
   const { leagueId } = useParams();
   const router = useRouter();
-  const { saveLeagueRegistrationConfig, assignEntryToTeam, activeTeam, isClubManager, hasFeature, toggleRegistrationPaymentStatus, purchasePro, isStaff, respondToAssignment } = useTeam();
+  const { saveLeagueRegistrationConfig, assignEntryToTeam, activeTeam, hasFeature, toggleRegistrationPaymentStatus, purchasePro, isStaff, respondToAssignment } = useTeam();
   const db = useFirestore();
 
   const canRegister = hasFeature('league_registration') || (activeTeam?.isPro && isStaff);
@@ -82,7 +82,6 @@ export default function LeagueRegistrationAdminPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'accepted'>('all');
 
-  // Debounce State
   const [localConfig, setLocalConfig] = useState<Partial<LeagueRegistrationConfig> | null>(null);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 

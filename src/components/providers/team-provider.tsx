@@ -174,6 +174,7 @@ export type TeamEvent = {
   facilityIds?: string[];
   fieldIds?: string[];
   manualLocations?: string[];
+  invitedTeamEmails?: Record<string, string>;
 };
 
 export type Message = {

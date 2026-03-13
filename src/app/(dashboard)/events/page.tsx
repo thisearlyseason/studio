@@ -273,16 +273,13 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       }
 
       const days = Object.keys(dayConfigs).sort();
-      let pairingIdx = 0;
-
       const totalPairings = pairings.length;
       const totalDays = days.length;
       const targetMatchesPerDay = Math.ceil(totalPairings / totalDays);
+      let pairingIdx = 0;
 
-      for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
-        const dayKey = days[dayIdx];
+      for (const dayKey of days) {
         if (games.length >= totalMatchLimit || pairingIdx >= pairings.length) break;
-        
         const config = dayConfigs[dayKey];
         let dayGameCount = 0;
         
@@ -294,10 +291,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
         while (pairingIdx < pairings.length && dayGameCount < maxPerDayLimit && dayGameCount < targetMatchesPerDay && games.length < totalMatchLimit) {
           const pair = pairings[pairingIdx];
-          
           if (teamGameCounts[pair[0]] >= maxPerTeamLimit || teamGameCounts[pair[1]] >= maxPerTeamLimit) {
-            pairingIdx++;
-            continue;
+            pairingIdx++; continue;
           }
 
           let bestResourceId = null;
@@ -328,15 +323,11 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
           const [h, m] = earliestMatchTime.split(':').map(Number);
           const nextAvailable = format(addMinutes(new Date(2000, 0, 1, h, m), matchMinutes + breakMinutes), 'HH:mm');
-          
           resourceTimes[bestResourceId] = nextAvailable;
           teamAvailability[pair[0]] = nextAvailable;
           teamAvailability[pair[1]] = nextAvailable;
-          teamGameCounts[pair[0]]++;
-          teamGameCounts[pair[1]]++;
-          
-          pairingIdx++;
-          dayGameCount++;
+          teamGameCounts[pair[0]]++; teamGameCounts[pair[1]]++;
+          pairingIdx++; dayGameCount++;
         }
       }
 
@@ -369,7 +360,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   return (
     <Dialog onOpenChange={(open) => { if(!open) setEditingGame(null); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col bg-white">
+      <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-y-auto flex flex-col bg-white">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex flex-col lg:flex-row flex-1 min-h-0">
@@ -401,7 +392,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     <div className="grid grid-cols-2 gap-2">
                       <Button 
                         variant={myRsvp === 'maybe' ? 'default' : 'outline'} 
-                        className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'maybe' ? "bg-amber-500 border-none shadow-lg" : "bg-white/5 border-white/10 hover:bg-white/10")}
+                        className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'maybe' ? "bg-amber-50 border-none shadow-lg" : "bg-white/5 border-white/10 hover:bg-white/10")}
                         onClick={() => updateRSVP(event.id, 'maybe')}
                       >
                         Maybe
@@ -737,7 +728,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
 export default function EventsPage() {
   const { user: firebaseUser } = useUser();
-  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, isStaff, user, hasFeature, isPro } = useTeam();
+  const { activeTeam, addEvent, updateEvent, deleteEvent, updateRSVP, formatTime, isSuperAdmin, isStaff } = useTeam();
   const db = useFirestore();
   
   const [filterMode, setFilterMode] = useState<'live' | 'past'>('live');
