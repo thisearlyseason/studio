@@ -506,7 +506,7 @@ export default function LeaguesPage() {
               <Button className="h-12 px-8 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20" onClick={() => setIsCreateOpen(true)}>Create Hub League</Button>
               <div className="relative group">
                 <Button variant="outline" className="h-12 px-8 rounded-xl font-black uppercase text-xs tracking-widest border-2 opacity-50 cursor-not-allowed">Browse Public Leagues</Button>
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white font-black text-[8px] uppercase px-2 h-5 shadow-lg whitespace-nowrap">Coming Soon</Badge>
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-50 text-white font-black text-[8px] uppercase px-2 h-5 shadow-lg whitespace-nowrap">Coming Soon</Badge>
               </div>
             </div>
           )}

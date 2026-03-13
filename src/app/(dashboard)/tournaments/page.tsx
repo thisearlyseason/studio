@@ -479,8 +479,8 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                                 <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
                               </Avatar>
                               <div className="min-w-0 flex-1">
-                                <p className="font-black text-xs uppercase truncate">{member.name}</p>
-                                <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
+                                    <p className="font-black text-xs uppercase truncate">{member.name}</p>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase">{member.position}</p>
                               </div>
                               <Badge className={cn(
                                 "border-none font-black text-[8px] uppercase px-2 h-5",
