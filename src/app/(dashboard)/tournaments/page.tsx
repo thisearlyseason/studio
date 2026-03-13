@@ -58,7 +58,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTeam, TeamEvent, TournamentGame, Member } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, where, doc, collectionGroup } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, collectionGroup, deleteDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format, isPast, isSameDay, addMinutes, eachDayOfInterval, parse as parseDate } from 'date-fns';
 import { useRouter } from 'next/navigation';

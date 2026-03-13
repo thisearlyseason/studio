@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -52,7 +53,6 @@ export function useCollection<T = any>(
         path = q.path;
       } else {
         // Safe query path detection
-        // For collectionGroup queries, internal path might be empty but group ID is available
         path = q._query?.path?.canonicalString() || '';
         if (!path && q._query?.collectionGroup) {
           path = q._query.collectionGroup;
@@ -103,7 +103,6 @@ export function useCollection<T = any>(
         
         // Suppress index errors (failed-precondition) or auth-transient errors
         if (err.code === 'failed-precondition' || trimmedPath.includes('demo_guest') || trimmedPath === 'query') {
-          console.warn(`Firestore optimization required for: ${trimmedPath}`, err.message);
           setIsLoading(false);
           return;
         }
