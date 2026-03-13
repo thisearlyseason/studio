@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -145,7 +145,7 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
 
 interface EventDetailDialogProps {
   event: TeamEvent;
-  updateRSVP: (id: string, status: string, gameId?: string) => void;
+  updateRSVP: (id: string, status: string) => void;
   formatTime: (date: string | Date) => string;
   isAdmin: boolean;
   onEdit: (event: TeamEvent) => void;
@@ -581,7 +581,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
                     <TabsContent value="portals" className="mt-0">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Card className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 bg-white overflow-hidden">
+                        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
                           <CardHeader className="bg-primary/5 p-6 border-b"><div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle></div></CardHeader>
                           <CardContent className="p-6 space-y-4">
                             <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Public-facing link for fans to follow live scores and standings.</p>
@@ -591,7 +591,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                             </div>
                           </CardContent>
                         </Card>
-                        <Card className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 bg-white overflow-hidden">
+                        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
                           <CardHeader className="bg-black text-white p-6 border-b"><div className="flex items-center gap-3"><Terminal className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Scorekeeper Hub</CardTitle></div></CardHeader>
                           <CardContent className="p-6 space-y-4">
                             <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Administrative portal for field marshals to log official match results.</p>
@@ -601,7 +601,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                             </div>
                           </CardContent>
                         </Card>
-                        <Card className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 bg-white overflow-hidden">
+                        <Card className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden group">
                           <CardHeader className="bg-amber-500/5 p-6 border-b"><div className="flex items-center gap-3"><Signature className="h-5 w-5 text-amber-600" /><CardTitle className="text-sm font-black uppercase">Waiver Portal</CardTitle></div></CardHeader>
                           <CardContent className="p-6 space-y-4">
                             <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">Verification link for participating squad leads to sign the digital agreement.</p>
@@ -664,7 +664,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     </TabsContent>
                   </div>
                 </ScrollArea>
-              </div>
+              </Tabs>
             </div>
           </div>
         </div>
@@ -742,12 +742,13 @@ export default function EventsPage() {
       const fac = facilities?.find(f => f.id === id);
       if (!fac) return;
       const facFields = allFields?.filter(field => field.facilityId === id) || [];
+      
+      const selectedFieldsInFac = selectedFieldIds.filter(fid => fid.startsWith(`${id}:`));
+
       if (facFields.length > 0) {
-        facFields.forEach(field => {
-          const fieldId = `${id}:${field.name}`;
-          if (selectedFieldIds.includes(fieldId)) {
-            list.push({ id: `field:${fieldId}`, label: `${fac.name} - ${field.name}` });
-          }
+        selectedFieldsInFac.forEach(fid => {
+          const fieldName = fid.split(':')[1];
+          list.push({ id: `field:${fid}`, label: `${fac.name} - ${fieldName}` });
         });
       } else {
         list.push({ id: `fac:${id}`, label: fac.name });
@@ -817,8 +818,13 @@ export default function EventsPage() {
   };
 
   const toggleFacility = (facId: string) => {
+    const fac = facilities?.find(f => f.id === facId);
+    if (!fac) return;
+    const facFields = allFields?.filter(field => field.facilityId === facId) || [];
+
     setSelectedFacilityIds(prev => {
-      if (prev.includes(facId)) {
+      const isSelecting = !prev.includes(facId);
+      if (!isSelecting) {
         setSelectedFieldIds(fields => fields.filter(fid => !fid.startsWith(`${facId}:`)));
         return prev.filter(id => id !== facId);
       }
