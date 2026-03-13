@@ -129,6 +129,55 @@ const SidebarItem = memo(({ tab, isActive, isLocked }: { tab: any, isActive: boo
 });
 SidebarItem.displayName = "SidebarItem";
 
+function SquadSwitcherMenu({ activeTeam, teams, setActiveTeam, router }: { activeTeam: any, teams: any[], setActiveTeam: any, router: any }) {
+  return (
+    <DropdownMenuContent align="start" className="w-72 p-2 rounded-2xl shadow-2xl bg-white">
+      <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground p-3">My Squads</DropdownMenuLabel>
+      <ScrollArea className="h-[300px]">
+        {teams.map(team => (
+          <DropdownMenuItem key={team.id} onClick={() => setActiveTeam(team)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer", activeTeam?.id === team.id ? "bg-primary/5 text-primary" : "")}>
+            <Avatar className="h-8 w-8 rounded-lg shrink-0 shadow-sm">
+              <AvatarImage src={team.teamLogoUrl} className="object-cover" />
+              <AvatarFallback className="font-black text-[10px]">{team.name?.[0] || 'T'}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="font-black text-sm truncate uppercase tracking-tight">{team.name}</span>
+              <div className="flex items-center gap-1.5 mt-0">
+                {team.isPro ? (
+                  <span className="text-[7px] font-black uppercase text-primary tracking-tighter">ELITE PRO</span>
+                ) : (
+                  <span className="text-[7px] font-black uppercase text-muted-foreground/60 tracking-tighter">STARTER</span>
+                )}
+              </div>
+            </div>
+            {activeTeam?.id === team.id && <CheckCircle2 className="h-4 w-4 ml-auto text-primary" />}
+          </DropdownMenuItem>
+        ))}
+      </ScrollArea>
+      
+      <DropdownMenuSeparator className="my-2" />
+      
+      <DropdownMenuItem onClick={() => router.push('/team')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
+        <Settings className="h-4 w-4 text-primary" /> View Squad Profile
+      </DropdownMenuItem>
+      
+      <DropdownMenuItem onClick={() => router.push('/teams/join')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
+        <UserPlus className="h-4 w-4 text-primary" /> Recruitment Hub
+      </DropdownMenuItem>
+
+      <DropdownMenuSeparator className="my-2" />
+      
+      <DropdownMenuItem onClick={() => router.push('/teams/new?tier=starter')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
+        <PlusCircle className="h-4 w-4 text-primary" /> Deploy Free Team
+      </DropdownMenuItem>
+      
+      <DropdownMenuItem onClick={() => router.push('/teams/new?tier=pro')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
+        <Zap className="h-4 w-4 text-amber-500" /> Deploy Elite Pro Team
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+}
+
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -225,52 +274,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     <ChevronDown className="h-4 w-4 opacity-40 text-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-72 p-2 rounded-2xl shadow-2xl bg-white">
-                  <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground p-3">My Squads</DropdownMenuLabel>
-                  <ScrollArea className="h-[300px]">
-                    {teams.map(team => (
-                      <DropdownMenuItem key={team.id} onClick={() => setActiveTeam(team)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer", activeTeam?.id === team.id ? "bg-primary/5 text-primary" : "")}>
-                        <Avatar className="h-8 w-8 rounded-lg shrink-0 shadow-sm">
-                          <AvatarImage src={team.teamLogoUrl} />
-                          <AvatarFallback className="font-black text-[10px]">{team.name?.[0] || 'T'}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="font-black text-sm truncate uppercase tracking-tight">{team.name}</span>
-                          {team.isPro ? (
-                            <Badge className="w-fit h-4 text-[7px] font-black uppercase bg-primary text-white border-none mt-0.5">
-                              <Zap className="h-2 w-2 mr-1 fill-current" /> ELITE PRO
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="w-fit h-4 text-[7px] font-black uppercase border-muted-foreground/30 text-muted-foreground mt-0.5">
-                              STARTER
-                            </Badge>
-                          )}
-                        </div>
-                        {activeTeam?.id === team.id && <CheckCircle2 className="h-4 w-4 ml-auto text-primary" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </ScrollArea>
-                  
-                  <DropdownMenuSeparator className="my-2" />
-                  
-                  <DropdownMenuItem onClick={() => router.push('/team')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
-                    <Settings className="h-4 w-4 text-primary" /> View Squad Profile
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem onClick={() => router.push('/teams/join')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
-                    <UserPlus className="h-4 w-4 text-primary" /> Recruitment Hub
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator className="my-2" />
-                  
-                  <DropdownMenuItem onClick={() => router.push('/teams/new?tier=starter')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
-                    <PlusCircle className="h-4 w-4 text-primary" /> Deploy Free Team
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem onClick={() => router.push('/teams/new?tier=pro')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
-                    <Zap className="h-4 w-4 text-amber-500" /> Deploy Elite Pro Team
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                <SquadSwitcherMenu activeTeam={activeTeam} teams={teams} setActiveTeam={setActiveTeam} router={router} />
               </DropdownMenu>
             </SidebarHeader>
 
@@ -309,7 +313,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between">
               <div className="flex items-center gap-4">
                 <div className="md:hidden">
-                  <SidebarTrigger className="h-10 w-10 text-foreground" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl hover:bg-primary/5 text-primary relative transition-all active:scale-95 border-2 border-primary/10">
+                        <Zap className="h-5 w-5 fill-current" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <SquadSwitcherMenu activeTeam={activeTeam} teams={teams} setActiveTeam={setActiveTeam} router={router} />
+                  </DropdownMenu>
                 </div>
                 <div className="hidden md:block">
                   <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tighter text-foreground">
@@ -341,7 +352,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               {children}
             </main>
 
-            {/* Floating Mobile Bottom Navigation Bar */}
             <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-max max-w-[95vw]">
               <nav className="flex items-center gap-1 bg-white/95 backdrop-blur-md border rounded-full px-2 py-2 shadow-2xl ring-1 ring-black/5">
                 {bottomNavItems.map((item) => {

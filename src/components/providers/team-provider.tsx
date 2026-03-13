@@ -557,6 +557,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return { current, limit: limitCount, exceeded: current > limitCount };
   }, [teams, userProfile, firebaseUser?.uid]);
 
+  // Defined before value object to avoid circular reference initialization errors
   const createAlert = useCallback(async (title: string, message: string, audience: TeamAlert['audience']) => {
     if (!activeTeam || !firebaseUser) return;
     await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid }));
@@ -612,16 +613,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toast({ title: "Document Signed & Archived" });
   }, [activeTeam, userProfile, db, currentMember]);
 
-  const createTeamDocument = useCallback(async (data: any) => {
-    if (!activeTeam || !firebaseUser) return;
-    await addDoc(collection(db, 'teams', activeTeam.id, 'documents'), clean({ ...data, teamId: activeTeam.id, signatureCount: 0, createdAt: new Date().toISOString() }));
-    await createAlert(
-      `Required Document: ${data.title}`, 
-      `A new ${data.type} requires your digital signature. Please visit the Library to execute.`, 
-      'everyone'
-    );
-  }, [activeTeam, firebaseUser, db, createAlert]);
-
   const value = {
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
     currentMember,
@@ -642,7 +633,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     updateTeamHero: async (url: string) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); },
     updateTeamPlan: async (tid: string, pid: string) => { await updateDoc(doc(db, 'teams', tid), { planId: pid, isPro: pid !== 'starter_squad' }); },
     signTeamDocument,
-    createTeamDocument,
+    createTeamDocument: useCallback(async (data: any) => {
+      if (!activeTeam || !firebaseUser) return;
+      await addDoc(collection(db, 'teams', activeTeam.id, 'documents'), clean({ ...data, teamId: activeTeam.id, signatureCount: 0, createdAt: new Date().toISOString() }));
+      await createAlert(
+        `Required Document: ${data.title}`, 
+        `A new ${data.type} requires your digital signature. Please visit the Library to execute.`, 
+        'everyone'
+      );
+    }, [activeTeam, firebaseUser, db, createAlert]),
     deleteTeamDocument: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'documents', id)); },
     updateStaffEvaluation: async (mid: string, note: string) => { if (activeTeam) await setDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation'), { note, updatedAt: new Date().toISOString() }); },
     getStaffEvaluation: async (mid: string) => { if (!activeTeam) return ''; const s = await getDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation')); return s.exists() ? s.data().note : ''; },
