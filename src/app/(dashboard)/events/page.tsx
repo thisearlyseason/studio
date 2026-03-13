@@ -162,8 +162,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   const [dayConfigs, setDayConfigs] = useState<Record<string, { start: string, end: string }>>({});
   
   const [baseUrl, setBaseUrl] = useState('');
-  const [manualMatch, setManualMatch] = useState({ team1: '', team2: '', date: format(new Date(event.date), 'yyyy-MM-dd'), time: '12:00', location: '' });
-  const [enrollmentText, setEnrollmentText] = useState(event.tournamentTeams?.join(', ') || '');
 
   useEffect(() => {
     if (typeof window !== 'undefined') setBaseUrl(window.location.origin);
@@ -219,16 +217,27 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
   const poolResources = useMemo(() => {
     const list: { id: string, label: string }[] = [];
+    
+    // Selected Facilities (Venue Descriptions)
+    event.facilityIds?.forEach(id => {
+      const fac = facilities.find(f => f.id === id);
+      if (fac) list.push({ id: `fac:${id}`, label: fac.name });
+    });
+
+    // Selected Fields (Actual Play Areas)
     event.fieldIds?.forEach(id => {
       const [facId, fieldName] = id.split(':');
       const fac = facilities.find(f => f.id === facId);
-      list.push({ id, label: fac ? `${fac.name} - ${fieldName}` : fieldName });
+      list.push({ id: `field:${id}`, label: fac ? `${fac.name} - ${fieldName}` : fieldName });
     });
+
+    // Manual Locations
     event.manualLocations?.forEach(loc => {
       list.push({ id: `manual:${loc}`, label: loc });
     });
+
     return list;
-  }, [event.fieldIds, event.manualLocations, facilities]);
+  }, [event.facilityIds, event.fieldIds, event.manualLocations, facilities]);
 
   const handleGenerateSchedule = async () => {
     if (!event.tournamentTeams || event.tournamentTeams.length < 2) {
@@ -236,7 +245,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       return;
     }
 
-    const resources = poolResources.map(r => r.id);
+    const resources = poolResources.filter(r => r.id.startsWith('field:') || r.id.startsWith('manual:')).map(r => r.id);
     if (resources.length === 0) resources.push(`manual:${event.location || 'Main Venue'}`);
 
     setIsGenerating(true);
@@ -340,9 +349,9 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-7xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
         <DialogTitle className="sr-only">{event.title} Hub</DialogTitle>
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="flex flex-col lg:flex-row min-h-full">
-            <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0 p-8 relative">
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+            <div className="w-full lg:w-1/3 flex flex-col text-white bg-black lg:border-r border-white/10 shrink-0 p-8 relative overflow-y-auto custom-scrollbar">
               <div className="flex justify-between items-start mb-8 relative z-10">
                 <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{event.isTournament ? "Elite Hub" : (event.eventType || 'other').toUpperCase()}</Badge>
                 <DialogClose asChild><X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" /></DialogClose>
@@ -377,8 +386,8 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
             </div>
             
             <div className="flex-1 flex flex-col bg-background relative overflow-hidden">
-              <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col">
-                <div className="px-6 py-6 border-b bg-muted/30 sticky top-0 z-20 backdrop-blur-md">
+              <Tabs defaultValue={event.isTournament ? "bracket" : "roster"} className="flex-1 flex flex-col h-full">
+                <div className="px-6 py-6 border-b bg-muted/30 sticky top-0 z-20 backdrop-blur-md shrink-0">
                   <TabsList className="bg-white/50 h-14 p-1.5 rounded-2xl shadow-inner border w-full lg:w-fit overflow-x-auto custom-scrollbar">
                     {event.isTournament && <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Itinerary</TabsTrigger>}
                     <TabsTrigger value="roster" className="rounded-xl font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Attendance</TabsTrigger>
@@ -388,7 +397,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </TabsList>
                 </div>
                 
-                <ScrollArea className="flex-1">
+                <ScrollArea className="flex-1 min-h-0">
                   <div className="p-10">
                     <TabsContent value="bracket" className="mt-0 space-y-10">
                       {itineraryDays.length > 0 ? (
@@ -522,6 +531,30 @@ export default function EventsPage() {
     return list.filter(e => isPast(new Date(e.date)) && !isSameDay(new Date(e.date), now)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); 
   }, [allEvents, filterMode]);
 
+  const poolResources = useMemo(() => {
+    const list: { id: string, label: string }[] = [];
+    
+    // Selected Facilities (Venue Descriptions)
+    selectedFacilityIds.forEach(id => {
+      const fac = facilities?.find(f => f.id === id);
+      if (fac) list.push({ id: `fac:${id}`, label: fac.name });
+    });
+
+    // Selected Fields (Actual Play Areas)
+    selectedFieldIds.forEach(id => {
+      const [facId, fieldName] = id.split(':');
+      const fac = facilities?.find(f => f.id === facId);
+      list.push({ id: `field:${id}`, label: fac ? `${fac.name} - ${fieldName}` : fieldName });
+    });
+
+    // Manual Locations
+    manualLocations.forEach(loc => {
+      list.push({ id: `manual:${loc}`, label: loc });
+    });
+
+    return list;
+  }, [selectedFacilityIds, selectedFieldIds, manualLocations, facilities]);
+
   const isAdmin = activeTeam?.role === 'Admin' || isSuperAdmin;
 
   const handleEdit = (event: TeamEvent) => { 
@@ -591,23 +624,9 @@ export default function EventsPage() {
     setManualLocations(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const poolResources = useMemo(() => {
-    const list: { id: string, label: string }[] = [];
-    selectedFieldIds.forEach(id => {
-      const [facId, fieldName] = id.split(':');
-      const fac = facilities?.find(f => f.id === facId);
-      list.push({ id, label: fac ? `${fac.name} - ${fieldName}` : fieldName });
-    });
-    manualLocations.forEach(loc => {
-      list.push({ id: `manual:${loc}`, label: loc });
-    });
-    return list;
-  }, [selectedFieldIds, manualLocations, facilities]);
-
   const toggleFacility = (facId: string) => {
     setSelectedFacilityIds(prev => {
       if (prev.includes(facId)) {
-        // Remove facility and ALL its fields
         setSelectedFieldIds(fields => fields.filter(fid => !fid.startsWith(`${facId}:`)));
         return prev.filter(id => id !== facId);
       }
@@ -758,8 +777,10 @@ export default function EventsPage() {
                             <button onClick={() => {
                               if (res.id.startsWith('manual:')) {
                                 removeManualLocation(manualLocations.indexOf(res.label));
+                              } else if (res.id.startsWith('fac:')) {
+                                toggleFacility(res.id.split(':')[1]);
                               } else {
-                                setSelectedFieldIds(prev => prev.filter(id => id !== res.id));
+                                setSelectedFieldIds(prev => prev.filter(id => id !== res.id.split('field:')[1]));
                               }
                             }}><X className="h-3.5 w-3.5" /></button>
                           </Badge>
@@ -774,11 +795,14 @@ export default function EventsPage() {
 
                     <div className="space-y-2 border-t pt-4">
                       <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Primary Display Location</Label>
-                      <Select value={poolResources.find(r => r.label === newLocation)?.id || 'manual'} onValueChange={v => {
-                        if (v === 'manual') return;
-                        const res = poolResources.find(r => r.id === v);
-                        if (res) setNewLocation(res.label);
-                      }}>
+                      <Select 
+                        value={poolResources.find(r => r.label === newLocation)?.id || 'manual'} 
+                        onValueChange={v => {
+                          if (v === 'manual') return;
+                          const res = poolResources.find(r => r.id === v);
+                          if (res) setNewLocation(res.label);
+                        }}
+                      >
                         <SelectTrigger className="h-11 rounded-xl border-2 bg-white font-bold"><SelectValue placeholder="Pick from pool..." /></SelectTrigger>
                         <SelectContent className="rounded-xl">
                           <SelectItem value="manual" className="font-bold italic">Manual / Override</SelectItem>
