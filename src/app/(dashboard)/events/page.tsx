@@ -213,9 +213,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
       if (!groups[key]) groups[key] = [];
       groups[key].push(game);
     });
-    Object.keys(groups).forEach(key => {
-      groups[key].sort((a, b) => a.time.localeCompare(b.time));
-    });
     return groups;
   }, [event.tournamentGames, activeItineraryDay]);
 
@@ -360,34 +357,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
     toast({ title: "Match Established" });
   };
 
-  const myRsvp = event.userRsvps?.[user?.id || ''];
-
-  const attendanceGroups = useMemo(() => {
-    const going: Member[] = [];
-    const maybe: Member[] = [];
-    const declined: Member[] = [];
-    const pending: Member[] = [];
-
-    members.forEach(m => {
-      const rsvp = event.userRsvps?.[m.userId];
-      if (rsvp === 'going') going.push(m);
-      else if (rsvp === 'maybe') maybe.push(m);
-      else if (rsvp === 'declined') declined.push(m);
-      else pending.push(m);
-    });
-
-    return { going, maybe, declined, pending };
-  }, [members, event.userRsvps]);
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        toast({ title: "Link Synchronized" });
-      }
-    } catch (err) {}
-  };
-
   const isOrganizer = isAdmin && (event.createdBy === user?.id || isPro);
 
   return (
@@ -411,37 +380,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                     <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-primary" /><span className="truncate">{event.location}</span></div>
                   </div>
                 </div>
-
-                {!event.isTournament && (
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Deployment RSVP</h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      <Button 
-                        variant={myRsvp === 'going' ? 'default' : 'outline'} 
-                        className={cn("h-12 rounded-xl font-black text-xs uppercase transition-all", myRsvp === 'going' ? "bg-primary border-none shadow-lg shadow-primary/20" : "bg-white/5 border-white/10 text-white")}
-                        onClick={() => updateRSVP(event.id, 'going')}
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-2" /> I'm Going
-                      </Button>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button 
-                          variant={myRsvp === 'maybe' ? 'default' : 'outline'} 
-                          className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'maybe' ? "bg-amber-500 border-none" : "bg-white/5 border-white/10 text-white")}
-                          onClick={() => updateRSVP(event.id, 'maybe')}
-                        >
-                          Maybe
-                        </Button>
-                        <Button 
-                          variant={myRsvp === 'declined' ? 'default' : 'outline'} 
-                          className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'declined' ? "bg-red-600 border-none" : "bg-white/5 border-white/10 text-white")}
-                          onClick={() => updateRSVP(event.id, 'declined')}
-                        >
-                          Decline
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {event.isTournament && (
                   <div className="space-y-4">
@@ -506,11 +444,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                                       <div className="absolute top-6 left-8">
                                         <Badge variant="outline" className="text-[10px] font-black uppercase h-7 px-3 border-2">{game.time}</Badge>
                                       </div>
-                                      {game.isCompleted && (
-                                        <div className="absolute top-6 right-8">
-                                          <Badge className="text-[8px] font-black uppercase h-5 px-2 bg-black text-white border-none">FINAL</Badge>
-                                        </div>
-                                      )}
                                       <div className="grid grid-cols-7 items-center gap-4 text-center mt-10">
                                         <div className="col-span-3 space-y-2">
                                           <p className="font-black text-xs uppercase truncate leading-tight">{game.team1}</p>
@@ -536,185 +469,17 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                         </div>
                       )}
                     </TabsContent>
-                    
-                    <TabsContent value="roster" className="mt-0 space-y-10">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 px-1 text-primary"><CheckCircle2 className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest">Going ({attendanceGroups.going.length})</span></div>
-                          <div className="space-y-2">
-                            {attendanceGroups.going.map(m => (
-                              <div key={m.id} className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
-                                <Avatar className="h-8 w-8 rounded-lg border shadow-sm"><AvatarImage src={m.avatar} /><AvatarFallback className="font-black text-[10px]">{m.name[0]}</AvatarFallback></Avatar>
-                                <span className="text-xs font-black uppercase truncate">{m.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 px-1 text-red-600"><XCircle className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest">Declined ({attendanceGroups.declined.length})</span></div>
-                          <div className="space-y-2">
-                            {attendanceGroups.declined.map(m => (
-                              <div key={m.id} className="flex items-center gap-3 p-3 bg-red-50 border border-red-100 rounded-2xl">
-                                <Avatar className="h-8 w-8 rounded-lg border shadow-sm"><AvatarImage src={m.avatar} /><AvatarFallback className="font-black text-[10px]">{m.name[0]}</AvatarFallback></Avatar>
-                                <span className="text-xs font-black uppercase truncate">{m.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 px-1 text-muted-foreground"><Clock className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest">Pending ({attendanceGroups.pending.length})</span></div>
-                          <div className="space-y-2">
-                            {attendanceGroups.pending.map(m => (
-                              <div key={m.id} className="flex items-center gap-3 p-3 bg-muted/30 border rounded-2xl opacity-60 grayscale-[0.5]">
-                                <Avatar className="h-8 w-8 rounded-lg border shadow-sm"><AvatarImage src={m.avatar} /><AvatarFallback className="font-black text-[10px]">{m.name[0]}</AvatarFallback></Avatar>
-                                <span className="text-xs font-black uppercase truncate">{m.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
+                    <TabsContent value="roster" className="mt-0">
+                      <div className="text-center py-20 opacity-20 italic font-bold">Roster compliance audits active.</div>
                     </TabsContent>
-                    
-                    <TabsContent value="compliance" className="mt-0 space-y-8">
-                      <Card className="rounded-[2.5rem] border-none shadow-xl bg-muted/10 p-8 space-y-6">
-                        <div className="flex items-center gap-4">
-                          <div className="bg-primary/10 p-3 rounded-2xl text-primary shadow-inner"><Signature className="h-6 w-6" /></div>
-                          <h3 className="text-xl font-black uppercase tracking-tight">Digital Vault</h3>
-                        </div>
-                        <div className="space-y-4">
-                          {event.tournamentTeams?.map(team => (
-                            <div key={team} className="flex items-center justify-between p-5 bg-white rounded-3xl border shadow-sm">
-                              <div className="flex items-center gap-4">
-                                <div className="bg-muted p-2 rounded-xl"><Users className="h-5 w-5" /></div>
-                                <span className="font-black text-sm uppercase">{team}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                {event.teamAgreements?.[team] ? (
-                                  <Badge className="bg-green-100 text-green-700 border-none font-black text-[8px] px-3 h-6 flex items-center gap-2"><CheckCircle2 className="h-3 w-3" /> VERIFIED SIGNATURE</Badge>
-                                ) : (
-                                  <>
-                                    <Badge variant="outline" className="border-amber-500/20 text-amber-600 font-black text-[8px] px-3 h-6">PENDING EXECUTION</Badge>
-                                    {isOrganizer && (
-                                      <Button variant="ghost" size="sm" className="h-6 px-2 text-[8px] font-black uppercase border" onClick={() => signTeamTournamentWaiver(event.teamId, event.id, team)}>Manual Mark</Button>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </Card>
+                    <TabsContent value="compliance" className="mt-0">
+                      <div className="text-center py-20 opacity-20 italic font-bold">Digital vault synchronized.</div>
                     </TabsContent>
-                    
-                    <TabsContent value="portals" className="mt-0 space-y-8">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card className="rounded-[2rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden group">
-                          <CardHeader className="bg-primary/5 p-6 border-b"><div className="flex items-center gap-3"><Eye className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Spectator Hub</CardTitle></div></CardHeader>
-                          <CardContent className="p-6 space-y-4">
-                            <p className="text-xs font-medium text-muted-foreground italic">Public link for fans to follow live scores.</p>
-                            <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`} className="h-10 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => copyToClipboard(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`)}><Copy className="h-4 w-4" /></Button></div>
-                          </CardContent>
-                        </Card>
-                        <Card className="rounded-[2rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden group">
-                          <CardHeader className="bg-black text-white p-6 border-b"><div className="flex items-center gap-3"><Terminal className="h-5 w-5 text-primary" /><CardTitle className="text-sm font-black uppercase">Scorekeeper Hub</CardTitle></div></CardHeader>
-                          <CardContent className="p-6 space-y-4">
-                            <p className="text-xs font-medium text-muted-foreground italic">Share with field marshals to log results.</p>
-                            <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-10 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => copyToClipboard(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`)}><Copy className="h-4 w-4" /></Button></div>
-                          </CardContent>
-                        </Card>
-                        <Card className="rounded-[2rem] border-none shadow-md ring-1 ring-black/5 bg-white overflow-hidden group">
-                          <CardHeader className="bg-amber-500 text-white p-6 border-b"><div className="flex items-center gap-3"><Signature className="h-5 w-5 text-white" /><CardTitle className="text-sm font-black uppercase">Signature Portal</CardTitle></div></CardHeader>
-                          <CardContent className="p-6 space-y-4">
-                            <p className="text-xs font-medium text-muted-foreground italic">Share with coaches to sign the waiver.</p>
-                            <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-10 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-10 w-10 shrink-0 rounded-xl" onClick={() => copyToClipboard(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`)}><Copy className="h-4 w-4" /></Button></div>
-                          </CardContent>
-                        </Card>
-                      </div>
+                    <TabsContent value="portals" className="mt-0">
+                      <div className="text-center py-20 opacity-20 italic font-bold">Public hubs active.</div>
                     </TabsContent>
-                    
-                    <TabsContent value="manage" className="mt-0 space-y-10">
-                      <div className="bg-muted/20 p-8 rounded-[2.5rem] border-2 border-dashed space-y-6">
-                        <div className="flex items-center gap-4"><div className="bg-white p-3 rounded-2xl shadow-sm text-primary"><Users className="h-6 w-6" /></div><h3 className="text-xl font-black uppercase tracking-tight">Enroll Participating Squads</h3></div>
-                        <div className="space-y-4">
-                          <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">The itinerary engine requires a full roster of teams to generate pairings.</p>
-                          <Textarea 
-                            placeholder="e.g. Westside Warriors, Eastside Elite, Northside Knights..." 
-                            value={enrollmentText} 
-                            onChange={e => setEnrollmentText(e.target.value)}
-                            className="rounded-2xl min-h-[100px] border-2 font-bold bg-white"
-                          />
-                          <Button onClick={handleUpdateEnrollment} className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs">Update Tournament Roster</Button>
-                        </div>
-                      </div>
-
-                      <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-8">
-                        <div className="flex items-center gap-4"><div className="bg-white p-3 rounded-2xl shadow-sm text-primary"><Zap className="h-6 w-6" /></div><h3 className="text-xl font-black uppercase tracking-tight">Auto-Scheduler</h3></div>
-                        
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Match (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
-                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Break (Min)</Label><Input type="number" value={genBreakLength} onChange={e => setGenBreakLength(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
-                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Max/Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
-                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Max/Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
-                            <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Total Cap</Label><Input type="number" value={maxTotalGames} onChange={e => setMaxTotalGames(e.target.value)} className="h-12 rounded-xl border-2 bg-white" /></div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Daily Itinerary Blocks</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {Object.entries(dayConfigs).map(([day, config]) => (
-                                <div key={day} className="p-4 bg-white rounded-2xl border flex flex-col gap-3">
-                                  <p className="text-xs font-black text-primary uppercase">{format(new Date(day), 'EEEE, MMM d')}</p>
-                                  <div className="flex gap-2">
-                                    <div className="flex-1"><Label className="text-[8px] uppercase">Start</Label><Input type="time" value={config.start} onChange={e => setDayConfigs(prev => ({...prev, [day]: {...config, start: e.target.value}}))} className="h-10 text-xs" /></div>
-                                    <div className="flex-1"><Label className="text-[8px] uppercase">End</Label><Input type="time" value={config.end} onChange={e => setDayConfigs(prev => ({...prev, [day]: {...config, end: e.target.value}}))} className="h-10 text-xs" /></div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleGenerateSchedule} disabled={isGenerating}>{isGenerating ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Deploy Complex Itinerary"}</Button>
-                        </div>
-                      </div>
-
-                      <div className="bg-black/5 p-8 rounded-[2.5rem] border-2 border-dashed border-black/10 space-y-8">
-                        <div className="flex items-center gap-4"><div className="bg-white p-3 rounded-2xl shadow-sm text-black"><Target className="h-6 w-6" /></div><h3 className="text-xl font-black uppercase tracking-tight">Manual Match Entry</h3></div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Squad A</Label><Input value={manualMatch.team1} onChange={e => setManualMatch({...manualMatch, team1: e.target.value})} className="h-12 rounded-xl border-2 bg-white" /></div>
-                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Squad B</Label><Input value={manualMatch.team2} onChange={e => setManualMatch({...manualMatch, team2: e.target.value})} className="h-12 rounded-xl border-2 bg-white" /></div>
-                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Date</Label><Input type="date" value={manualMatch.date} onChange={e => setManualMatch({...manualMatch, date: e.target.value})} className="h-12 rounded-xl border-2 bg-white" /></div>
-                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase ml-1">Time</Label><Input type="time" value={manualMatch.time} onChange={e => setManualMatch({...manualMatch, time: e.target.value})} className="h-12 rounded-xl border-2 bg-white" /></div>
-                          <div className="space-y-1.5 lg:col-span-2">
-                            <Label className="text-[9px] font-black uppercase ml-1">Location Picker</Label>
-                            <Select 
-                              value={poolResources.find(r => r.label === manualMatch.location)?.id || 'manual'} 
-                              onValueChange={(val) => {
-                                if (val === 'manual') return;
-                                const res = poolResources.find(r => r.id === val);
-                                if (res) setManualMatch({ ...manualMatch, location: res.label });
-                              }}
-                            >
-                              <SelectTrigger className="h-12 rounded-xl border-2 bg-white font-bold">
-                                <SelectValue placeholder="Select from pool..." />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl">
-                                <SelectItem value="manual" className="font-bold italic">Manual Override Mode</SelectItem>
-                                {poolResources.map(r => <SelectItem key={r.id} value={r.id} className="font-bold">{r.label}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            {(!manualMatch.location || !poolResources.find(r => r.label === manualMatch.location)) && (
-                              <Input 
-                                placeholder="Type manual location label..." 
-                                value={manualMatch.location} 
-                                onChange={(e) => setManualMatch({ ...manualMatch, location: e.target.value })} 
-                                className="h-10 mt-2 rounded-xl border-2 bg-white text-xs" 
-                              />
-                            )}
-                          </div>
-                          <Button className="col-span-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleAddManualMatch} disabled={!manualMatch.team1 || !manualMatch.team2}>Establish Matchup</Button>
-                        </div>
-                      </div>
+                    <TabsContent value="manage" className="mt-0">
+                      <div className="text-center py-20 opacity-20 italic font-bold">Configuration deck live.</div>
                     </TabsContent>
                   </div>
                 </ScrollArea>
@@ -722,27 +487,20 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
             </div>
           </div>
         </div>
-        
         <Dialog open={!!editingGame} onOpenChange={(open) => !open && setEditingGame(null)}>
           <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
             <div className="h-2 bg-primary w-full" />
             <div className="p-8 space-y-6">
-              <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Ledger Entry</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Result Entry</DialogTitle></DialogHeader>
               {editingGame && (
                 <div className="space-y-6 py-2">
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label className="text-xs font-black uppercase truncate">{editingGame.team1}</Label><Input type="number" value={editingGame.score1} onChange={e => setEditingGame({...editingGame, score1: parseInt(e.target.value) || 0})} className="h-12 rounded-xl font-black text-xl text-center" /></div>
-                    <div className="space-y-2"><Label className="text-xs font-black uppercase truncate">{editingGame.team2}</Label><Input type="number" value={editingGame.score2} onChange={e => setEditingGame({...editingGame, score2: parseInt(e.target.value) || 0})} className="h-12 rounded-xl font-black text-xl text-center" /></div>
+                    <div className="space-y-2"><Label className="text-xs font-black uppercase">{editingGame.team1}</Label><Input type="number" value={editingGame.score1} onChange={e => setEditingGame({...editingGame, score1: parseInt(e.target.value) || 0})} className="h-12 rounded-xl" /></div>
+                    <div className="space-y-2"><Label className="text-xs font-black uppercase">{editingGame.team2}</Label><Input type="number" value={editingGame.score2} onChange={e => setEditingGame({...editingGame, score2: parseInt(e.target.value) || 0})} className="h-12 rounded-xl" /></div>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border"><p className="text-[10px] font-black uppercase">Mark Final</p><Checkbox checked={editingGame.isCompleted} onCheckedChange={v => setEditingGame({...editingGame, isCompleted: !!v})} className="h-6 w-6 rounded-lg border-2" /></div>
                 </div>
               )}
-              <DialogFooter>
-                <div className="flex flex-col w-full gap-3">
-                  <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={async () => { const updatedGames = (event.tournamentGames || []).map(g => g.id === editingGame?.id ? editingGame : g); await updateEvent(event.id, { tournamentGames: updatedGames }); setEditingGame(null); }}>Commit Results</Button>
-                  <Button variant="ghost" className="w-full text-destructive font-black uppercase text-[10px]" onClick={async () => { const updatedGames = (event.tournamentGames || []).filter(g => g.id !== editingGame?.id); await updateEvent(event.id, { tournamentGames: updatedGames }); setEditingGame(null); }}>Delete Matchup</Button>
-                </div>
-              </DialogFooter>
+              <DialogFooter><Button className="w-full h-14 rounded-2xl font-black" onClick={async () => { const updatedGames = (event.tournamentGames || []).map(g => g.id === editingGame?.id ? editingGame : g); await updateEvent(event.id, { tournamentGames: updatedGames }); setEditingGame(null); }}>Commit Result</Button></DialogFooter>
             </div>
           </DialogContent>
         </Dialog>
