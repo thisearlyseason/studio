@@ -537,7 +537,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
-                            {event.teamAgreements?.[team] ? (
+                            {event.teamAgreements?.[team]?.agreed ? (
                               <>
                                 <Badge className="bg-green-100 text-green-700 border-none font-black text-[10px] px-4 h-8 flex items-center gap-2 rounded-full"><CheckCircle2 className="h-4 w-4" /> VERIFIED</Badge>
                                 <Button variant="ghost" size="icon" className="h-10 w-10 text-primary" onClick={() => toast({ title: "Audit Success", description: "Signed waiver verified in squad vault." })}><Download className="h-5 w-5" /></Button>
@@ -565,13 +565,13 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                     <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
                       <div className="flex items-center gap-4"><Terminal className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Scorekeeper Hub</h3></div>
                       <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Portal for marshals to log match results.</p>
-                      <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
+                      <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button></div>
                     </Card>
                     {isOrganizer && (
                       <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white overflow-hidden p-8 space-y-6">
                         <div className="flex items-center gap-4"><Signature className="h-6 w-6 text-primary" /><h3 className="text-lg font-black uppercase">Waiver Portal</h3></div>
                         <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Public link for digital coach signatures.</p>
-                        <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-5 w-5" /></Button></div>
+                        <div className="flex gap-2"><Input readOnly value={`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`} className="h-12 text-[10px] font-mono bg-muted/30 border-none" /><Button size="icon" variant="secondary" className="h-12 w-12 shrink-0 rounded-xl" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Link Copied" }); }}><Copy className="h-4 w-4" /></Button></div>
                       </Card>
                     )}
                   </div>
@@ -613,8 +613,8 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                         <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Match (Min)</Label><Input type="number" value={genMatchLength} onChange={e => setGenMatchLength(e.target.value)} className="h-11 rounded-xl border-2" /></div>
                         <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Break (Min)</Label><Input type="number" value={genBreakLength} onChange={e => setGenBreakLength(e.target.value)} className="h-11 rounded-xl border-2" /></div>
-                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max/Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-11 rounded-xl border-2" /></div>
-                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max/Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-11 rounded-xl border-2" /></div>
+                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Day</Label><Input type="number" value={maxGamesPerDay} onChange={e => setMaxGamesPerDay(e.target.value)} className="h-11 rounded-xl border-2" /></div>
+                        <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Max Matches / Team</Label><Input type="number" value={maxGamesPerTeam} onChange={e => setMaxGamesPerTeam(e.target.value)} className="h-11 rounded-xl border-2" /></div>
                         <div className="space-y-1.5"><Label className="text-[8px] font-black uppercase tracking-widest ml-1">Total Cap</Label><Input type="number" value={maxTotalGames} onChange={e => setMaxTotalGames(e.target.value)} className="h-11 rounded-xl border-2" /></div>
                       </div>
                       <Button className="w-full h-16 rounded-2xl text-base font-black shadow-xl" onClick={handleGenerateSchedule} disabled={isGenerating}>Deploy Complex Itinerary</Button>

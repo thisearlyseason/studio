@@ -23,7 +23,7 @@ export interface UseCollectionResult<T> {
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Hardened with strictly defensive path guards and unmount protection.
+ * Hardened with strictly defensive path guards and unmount protection to prevent SDK assertion errors.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -77,11 +77,11 @@ export function useCollection<T = any>(
       (trimmedPath === 'query' && !isCollectionGroup) || 
       (trimmedPath === 'collection' && !isCollectionGroup)
     ) {
-      if (!isCollectionGroup) {
-        setData(null);
-        setIsLoading(false);
-        return;
-      }
+      // If we are here, the path is likely invalid or incomplete.
+      // We stop execution to prevent internal Firestore SDK assertion errors.
+      setData(null);
+      setIsLoading(false);
+      return;
     }
 
     setIsLoading(true);
