@@ -45,7 +45,7 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription, 
-  DialogFooter,
+  DialogFooter, 
   DialogClose
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -57,7 +57,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTeam, TeamEvent, TournamentGame, Member } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, where, doc } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, collectionGroup } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format, isPast, isSameDay, addMinutes, eachDayOfInterval, parse as parseDate } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -125,7 +125,6 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 
   const myRsvp = event.userRsvps?.[user?.id || ''] || 'no_response';
 
-  // LOGIC: Check if current active team is the organizer of this event
   const isOrganizer = isStaff && event.teamId === activeTeam?.id;
 
   useEffect(() => {
@@ -336,21 +335,19 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             </div>
           </div>
 
-          {event.isTournament && (
-            <div className="space-y-4 pt-4 border-t border-white/10">
-              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leadership Board</h4>
-              <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
-                {standings.length > 0 ? standings.map((team) => (
-                  <div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0">
-                    <span className="text-xs font-black uppercase truncate pr-2">{team.name}</span>
-                    <Badge className={cn("text-white border-none font-black text-[9px] px-2 h-5", team.points >= 0 ? "bg-primary" : "bg-destructive")}>{team.points > 0 ? `+${team.points}` : team.points} PTS</Badge>
-                  </div>
-                )) : (
-                  <p className="p-6 text-center text-[10px] font-bold text-white/20 uppercase tracking-widest italic">Awaiting results...</p>
-                )}
-              </div>
+          <div className="space-y-4 pt-4 border-t border-white/10">
+            <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leadership Board</h4>
+            <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
+              {standings.length > 0 ? standings.map((team) => (
+                <div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0">
+                  <span className="text-xs font-black uppercase truncate pr-2">{team.name}</span>
+                  <Badge className={cn("text-white border-none font-black text-[9px] px-2 h-5", team.points >= 0 ? "bg-primary" : "bg-destructive")}>{team.points > 0 ? `+${team.points}` : team.points} PTS</Badge>
+                </div>
+              )) : (
+                <p className="p-6 text-center text-[10px] font-bold text-white/20 uppercase tracking-widest italic">Awaiting results...</p>
+              )}
             </div>
-          )}
+          </div>
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">

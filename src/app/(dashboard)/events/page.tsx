@@ -174,7 +174,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 
   const myRsvp = event.userRsvps?.[user?.id || ''] || 'no_response';
 
-  // Governance: Check if current active team is the organizer of this event
   const isOrganizer = isStaff && event.teamId === activeTeam?.id;
 
   useEffect(() => {
@@ -792,9 +791,7 @@ export default function EventsPage() {
       const fac = facilities?.find(f => f.id === id);
       if (!fac) return;
       const facFields = allFields?.filter(field => field.facilityId === id) || [];
-      
       const selectedFieldsInFac = selectedFieldIds.filter(fid => fid.startsWith(`${id}:`));
-
       if (facFields.length > 0) {
         selectedFieldsInFac.forEach(fid => {
           const fieldName = fid.split(':')[1];
@@ -871,10 +868,6 @@ export default function EventsPage() {
   };
 
   const toggleFacility = (facId: string) => {
-    const fac = facilities?.find(f => f.id === facId);
-    if (!fac) return;
-    const facFields = allFields?.filter(field => field.facilityId === facId) || [];
-
     setSelectedFacilityIds(prev => {
       const isSelecting = !prev.includes(facId);
       if (!isSelecting) {
@@ -893,10 +886,8 @@ export default function EventsPage() {
   const getCardDateDisplay = (event: TeamEvent) => {
     const startDate = new Date(event.date);
     const month = format(startDate, 'MMM').toUpperCase();
-    
     if (event.endDate && !isSameDay(startDate, new Date(event.endDate))) {
-      const endDay = format(new Date(event.endDate), 'd');
-      return { month, day: `${format(startDate, 'd')}-${endDay}` };
+      return { month, day: `${format(startDate, 'd')}-${format(new Date(event.endDate), 'd')}` };
     }
     return { month, day: format(startDate, 'd') };
   };
@@ -972,46 +963,23 @@ export default function EventsPage() {
                         {facilities?.map(f => (
                           <Collapsible key={f.id} open={selectedFacilityIds.includes(f.id)}>
                             <div className="flex items-center space-x-3 p-3 bg-white rounded-xl border-2 hover:border-primary/20 transition-all group shadow-sm">
-                              <Checkbox 
-                                id={`fac-${f.id}`} 
-                                checked={selectedFacilityIds.includes(f.id)} 
-                                onCheckedChange={() => toggleFacility(f.id)} 
-                                className="h-5 w-5 rounded-lg border-2"
-                              />
-                              <Label htmlFor={`fac-${f.id}`} className="flex-1 font-black text-xs uppercase tracking-tight cursor-pointer leading-none">
-                                {f.name}
-                              </Label>
-                              <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-40 group-hover:opacity-100">
-                                  <ChevronDown className={cn("h-4 w-4 transition-transform", selectedFacilityIds.includes(f.id) ? "rotate-180" : "")} />
-                                </Button>
-                              </CollapsibleTrigger>
+                              <Checkbox id={`fac-${f.id}`} checked={selectedFacilityIds.includes(f.id)} onCheckedChange={() => toggleFacility(f.id)} className="h-5 w-5 rounded-lg border-2" />
+                              <Label htmlFor={`fac-${f.id}`} className="flex-1 font-black text-xs uppercase tracking-tight cursor-pointer leading-none">{f.name}</Label>
+                              <CollapsibleTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 opacity-40 group-hover:opacity-100"><ChevronDown className={cn("h-4 w-4 transition-transform", selectedFacilityIds.includes(f.id) ? "rotate-180" : "")} /></Button></CollapsibleTrigger>
                             </div>
                             <CollapsibleContent className="pt-2 pl-8 space-y-2 animate-in slide-in-from-top-2 duration-300">
                               {isFieldsLoading ? (
-                                <div className="flex items-center gap-2 p-2">
-                                  <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                                  <span className="text-[8px] font-black uppercase text-muted-foreground">Scouting Fields...</span>
-                                </div>
+                                <div className="flex items-center gap-2 p-2"><Loader2 className="h-3 w-3 animate-spin text-primary" /><span className="text-[8px] font-black uppercase text-muted-foreground">Scouting Fields...</span></div>
                               ) : (
-                                <>
-                                  {allFields?.filter(field => field.facilityId === f.id).map(field => {
-                                    const fid = `${f.id}:${field.name}`;
-                                    return (
-                                      <div key={fid} className="flex items-center space-x-3 p-2.5 bg-muted/20 rounded-xl hover:bg-primary/5 transition-colors group">
-                                        <Checkbox 
-                                          id={`field-${fid}`} 
-                                          checked={selectedFieldIds.includes(fid)} 
-                                          onCheckedChange={() => toggleField(f.id, field.name)} 
-                                          className="h-4 w-4 rounded-md"
-                                        />
-                                        <Label htmlFor={`field-${fid}`} className="text-[10px] font-bold uppercase cursor-pointer opacity-70 group-hover:opacity-100">
-                                          {field.name}
-                                        </Label>
-                                      </div>
-                                    );
-                                  })}
-                                </>
+                                allFields?.filter(field => field.facilityId === f.id).map(field => {
+                                  const fid = `${f.id}:${field.name}`;
+                                  return (
+                                    <div key={fid} className="flex items-center space-x-3 p-2.5 bg-muted/20 rounded-xl hover:bg-primary/5 transition-colors group">
+                                      <Checkbox id={`field-${fid}`} checked={selectedFieldIds.includes(fid)} onCheckedChange={() => toggleField(f.id, field.name)} className="h-4 w-4 rounded-md" />
+                                      <Label htmlFor={`field-${fid}`} className="text-[10px] font-bold uppercase cursor-pointer opacity-70 group-hover:opacity-100">{field.name}</Label>
+                                    </div>
+                                  );
+                                })
                               )}
                             </CollapsibleContent>
                           </Collapsible>
@@ -1042,37 +1010,21 @@ export default function EventsPage() {
                     </div>
                     <div className="space-y-2 border-t pt-4">
                       <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Primary Display Location</Label>
-                      <Select 
-                        value={poolResources.find(r => r.label === newLocation)?.id || 'manual'} 
-                        onValueChange={v => { if (v !== 'manual') { const res = poolResources.find(r => r.id === v); if (res) setNewLocation(res.label); } }}>
+                      <Select value={poolResources.find(r => r.label === newLocation)?.id || 'manual'} onValueChange={v => { if (v !== 'manual') { const res = poolResources.find(r => r.id === v); if (res) setNewLocation(res.label); } }}>
                         <SelectTrigger className="h-11 rounded-xl border-2 bg-white font-bold"><SelectValue placeholder="Pick from pool..." /></SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="manual" className="font-bold italic">Manual / Override</SelectItem>
-                          {poolResources.map(r => <SelectItem key={r.id} value={r.id} className="font-bold">{r.label}</SelectItem>)}
-                        </SelectContent>
+                        <SelectContent className="rounded-xl"><SelectItem value="manual" className="font-bold italic">Manual / Override</SelectItem>{poolResources.map(r => <SelectItem key={r.id} value={r.id} className="font-bold">{r.label}</SelectItem>)}</SelectContent>
                       </Select>
-                      {(newLocation === '' || !poolResources.find(r => r.label === newLocation)) && (
-                        <Input placeholder="Type display location..." value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-10 mt-2 rounded-xl border-2 bg-white font-bold" />
-                      )}
+                      {(newLocation === '' || !poolResources.find(r => r.label === newLocation)) && (<Input placeholder="Type display location..." value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-10 mt-2 rounded-xl border-2 bg-white font-bold" />)}
                     </div>
                   </div>
                 </div>
                 {isTournamentMode && (
                   <div className="space-y-6">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Participating Squads (Comma Separated)</Label>
-                      <Textarea placeholder="e.g. Warriors, Elite, Knights..." value={newTournamentTeams} onChange={e => setNewTournamentTeams(e.target.value)} className="rounded-xl min-h-[80px] border-2 font-bold" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Tournament Waiver Text</Label>
-                      <Textarea placeholder="Define participation terms..." value={newWaiverText} onChange={e => setNewWaiverText(e.target.value)} className="rounded-xl min-h-[120px] border-2 font-medium bg-muted/10" />
-                    </div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Participating Squads (Comma Separated)</Label><Textarea placeholder="e.g. Warriors, Elite, Knights..." value={newTournamentTeams} onChange={e => setNewTournamentTeams(e.target.value)} className="rounded-xl min-h-[80px] border-2 font-bold" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Tournament Waiver Text</Label><Textarea placeholder="Define participation terms..." value={newWaiverText} onChange={e => setNewWaiverText(e.target.value)} className="rounded-xl min-h-[120px] border-2 font-medium bg-muted/10" /></div>
                   </div>
                 )}
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase ml-1">Event Brief</Label>
-                  <Textarea value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-xl min-h-[100px] border-2 font-medium" />
-                </div>
+                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase ml-1">Event Brief</Label><Textarea value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-xl min-h-[100px] border-2 font-medium" /></div>
               </div>
             </div>
           </div>
@@ -1099,11 +1051,7 @@ export default function EventsPage() {
                     <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="flex gap-2 mb-1.5">
-                            <Badge className="text-[7px] uppercase font-black">{event.isTournament ? 'Elite Tournament' : (event.eventType || 'Activity')}</Badge>
-                            <Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{formatDateRange(event.date, event.endDate)}</Badge>
-                            <Badge variant="outline" className="text-[7px] uppercase font-black">{event.startTime}</Badge>
-                          </div>
+                          <div className="flex gap-2 mb-1.5"><Badge className="text-[7px] uppercase font-black">{event.isTournament ? 'Elite Tournament' : (event.eventType || 'Activity')}</Badge><Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{formatDateRange(event.date, event.endDate)}</Badge><Badge variant="outline" className="text-[7px] uppercase font-black">{event.startTime}</Badge></div>
                           <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors">{event.title}</h3>
                           <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1 mt-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
                         </div>
