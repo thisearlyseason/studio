@@ -180,6 +180,7 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl bg-white overflow-hidden">
+        <DialogTitle className="sr-only">Personnel Evaluation: {member.name}</DialogTitle>
         <div className="h-2 bg-black w-full" />
         <div className="flex flex-col lg:flex-row">
           <div className="w-full lg:w-5/12 bg-muted/20 p-8 lg:p-10 space-y-8 border-r">
@@ -359,6 +360,7 @@ export default function CoachesCornerPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto">
+                <DialogTitle className="sr-only">Document Architect</DialogTitle>
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 lg:p-12 space-y-10">
                   <DialogHeader><DialogTitle className="text-3xl lg:text-4xl font-black uppercase tracking-tight">{editingDocId ? 'Update Waiver' : 'Document Architect'}</DialogTitle></DialogHeader>
@@ -498,6 +500,7 @@ export default function CoachesCornerPage() {
                           <Dialog>
                             <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border"><Eye className="h-4 w-4" /></Button></DialogTrigger>
                             <DialogContent className="rounded-3xl border-none shadow-2xl p-0 sm:max-w-lg overflow-y-auto">
+                              <DialogTitle className="sr-only">Recruit File Details</DialogTitle>
                               <div className="h-2 bg-primary w-full" />
                               <div className="p-8 space-y-6">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Recruit File</DialogTitle></DialogHeader>
@@ -598,6 +601,7 @@ export default function CoachesCornerPage() {
 
       <Dialog open={!!selectedDoc} onOpenChange={o => !o && setSelectedDoc(null)}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-xl border-none shadow-2xl p-0 overflow-y-auto">
+          <DialogTitle className="sr-only">Document Audit: {selectedDoc?.title}</DialogTitle>
           <div className="h-2 bg-black w-full" />
           <div className="p-8 space-y-6">
             <DialogHeader>
