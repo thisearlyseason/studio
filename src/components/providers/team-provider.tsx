@@ -559,7 +559,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return { current: currentCount, limit: limitCount, remaining: Math.max(0, limitCount - currentCount), exceeded: currentCount > limitCount };
   }, [teams, userProfile, firebaseUser?.uid]);
 
-  // --- REFACTORED CORE CALLBACKS (FIXED CIRCULARITY) ---
+  // --- REFACTORED CORE CALLBACKS ---
   const createAlert = useCallback(async (title: string, message: string, audience: TeamAlert['audience']) => {
     if (!activeTeam || !firebaseUser) return;
     await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid }));

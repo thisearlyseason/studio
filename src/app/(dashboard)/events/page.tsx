@@ -89,7 +89,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent data-dark-header="true" className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden">
+      <DialogContent className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-y-auto">
         <DialogTitle className="sr-only">{event.title} Details</DialogTitle>
         <div className="flex flex-col lg:flex-row">
           <div className="w-full lg:w-1/3 flex flex-col text-white bg-black p-8 relative shrink-0">
@@ -304,7 +304,7 @@ export default function EventsPage() {
       </div>
       
       <Dialog open={isCreateOpen} onOpenChange={(o) => { if(!o) resetForm(); setIsCreateOpen(o); }}>
-        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white">
+        <DialogContent className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-y-auto">
           <div className="flex flex-col lg:flex-row">
             <div className="w-full lg:w-5/12 bg-muted/30 p-10 space-y-8 lg:border-r">
               <DialogHeader><DialogTitle className="text-3xl font-black uppercase tracking-tight">{editingEvent ? "Update" : "Launch"} Activity</DialogTitle></DialogHeader>
@@ -313,7 +313,7 @@ export default function EventsPage() {
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Activity Type</Label>
                   <Select value={eventType} onValueChange={(v: EventType) => setEventType(v)}>
                     <SelectTrigger className="h-12 rounded-xl border-2 bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent className="rounded-xl"><SelectItem value="game">Match Day</SelectItem><SelectItem value="practice">Training</SelectItem><SelectItem value="meeting">Tactical Meeting</SelectItem><SelectItem value="other">Event</SelectItem></SelectContent>
+                    <SelectContent className="rounded-xl"><SelectItem value="game" className="font-bold">Match Day</SelectItem><SelectItem value="practice" className="font-bold">Training</SelectItem><SelectItem value="meeting" className="font-bold">Tactical Meeting</SelectItem><SelectItem value="other" className="font-bold">Event</SelectItem></SelectContent>
                   </Select>
                 </div> 
                 <div className="space-y-1.5">

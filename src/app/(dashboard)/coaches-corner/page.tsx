@@ -236,48 +236,48 @@ export default function CoachesCornerPage() {
                   <Plus className="h-4 w-4 mr-2" /> New Waiver
                 </Button>
               </DialogTrigger>
-              <DialogContent data-dark-header="true" className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl">
+              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto">
                 <div className="h-2 bg-primary w-full" />
-                <div className="p-8 space-y-8">
-                  <DialogHeader><DialogTitle className="text-3xl font-black uppercase">{editingDocId ? 'Edit Document' : 'Document Architect'}</DialogTitle></DialogHeader>
+                <div className="p-8 lg:p-12 space-y-10">
+                  <DialogHeader><DialogTitle className="text-3xl lg:text-4xl font-black uppercase tracking-tight">{editingDocId ? 'Update Waiver' : 'Document Architect'}</DialogTitle></DialogHeader>
                   
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                      <div className="space-y-4">
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-black">Headline</Label><Input value={newDoc.title} onChange={e => setNewDoc({...newDoc, title: e.target.value})} className="h-12 rounded-xl border-2" placeholder="e.g. 2024 Medical Release" /></div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-black">Document Type</Label>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <div className="space-y-8">
+                      <div className="space-y-6">
+                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black tracking-widest ml-1">Headline</Label><Input value={newDoc.title} onChange={e => setNewDoc({...newDoc, title: e.target.value})} className="h-14 rounded-2xl border-2 font-bold text-lg" placeholder="e.g. 2024 Medical Release" /></div>
+                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black tracking-widest ml-1">Document Type</Label>
                           <Select value={newDoc.type} onValueChange={v => setNewDoc({...newDoc, type: v})}>
-                            <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
-                            <SelectContent className="rounded-xl"><SelectItem value="waiver">Legal Waiver</SelectItem><SelectItem value="policy">Conduct Policy</SelectItem><SelectItem value="info">Informational</SelectItem></SelectContent>
+                            <SelectTrigger className="h-14 rounded-2xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                            <SelectContent className="rounded-xl"><SelectItem value="waiver" className="font-bold">Legal Waiver</SelectItem><SelectItem value="policy" className="font-bold">Conduct Policy</SelectItem><SelectItem value="info" className="font-bold">Informational</SelectItem></SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-black">Legal Content</Label><Textarea value={newDoc.content} onChange={e => setNewDoc({...newDoc, content: e.target.value})} className="min-h-[250px] rounded-2xl border-2 font-medium bg-muted/10 p-4" placeholder="Paste full legal text here..." /></div>
+                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black tracking-widest ml-1">Legal Content</Label><Textarea value={newDoc.content} onChange={e => setNewDoc({...newDoc, content: e.target.value})} className="min-h-[300px] rounded-3xl border-2 font-medium bg-muted/5 p-6 resize-none" placeholder="Paste full legal text here..." /></div>
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[10px] uppercase font-black">Assignment Logic</Label>
-                          <Badge variant="outline" className="text-[8px] font-black">{newDoc.assignedTo.includes('all') ? 'Global' : `${newDoc.assignedTo.length} Targeted`}</Badge>
+                    <div className="space-y-8">
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between px-1">
+                          <Label className="text-[10px] uppercase font-black tracking-widest">Assignment Logic</Label>
+                          <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">{newDoc.assignedTo.includes('all') ? 'Global' : `${newDoc.assignedTo.length} Targeted`}</Badge>
                         </div>
-                        <div className="space-y-1.5 bg-muted/10 rounded-2xl border-2 p-2">
-                          <div className={cn("p-3 rounded-xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes('all') ? "bg-primary text-white" : "hover:bg-white")} onClick={() => toggleAssignment('all')}>
-                            <span className="text-xs font-black uppercase">Assign to Entire Roster</span>
-                            {newDoc.assignedTo.includes('all') && <CheckCircle2 className="h-4 w-4" />}
+                        <div className="bg-muted/10 rounded-[2.5rem] border-2 p-3 space-y-2">
+                          <div className={cn("p-4 rounded-2xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes('all') ? "bg-primary text-white shadow-lg" : "hover:bg-white")} onClick={() => toggleAssignment('all')}>
+                            <span className="text-sm font-black uppercase tracking-tight">Assign to Entire Roster</span>
+                            {newDoc.assignedTo.includes('all') && <CheckCircle2 className="h-5 w-5" />}
                           </div>
-                          <div className="h-px bg-muted my-2" />
-                          <div className="space-y-1.5">
+                          <div className="h-px bg-muted mx-4" />
+                          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                             {members.map(member => (
-                              <div key={member.id} className={cn("p-3 rounded-xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes(member.id) ? "bg-black text-white" : "hover:bg-white")} onClick={() => toggleAssignment(member.id)}>
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-7 w-7 rounded-lg border shadow-sm">
+                              <div key={member.id} className={cn("p-4 rounded-2xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes(member.id) ? "bg-black text-white shadow-lg" : "hover:bg-white")} onClick={() => toggleAssignment(member.id)}>
+                                <div className="flex items-center gap-4">
+                                  <Avatar className="h-10 w-10 rounded-xl border-2 border-background shadow-sm">
                                     <AvatarImage src={member.avatar} />
-                                    <AvatarFallback className="text-[8px] font-black">{member.name[0]}</AvatarFallback>
+                                    <AvatarFallback className="font-black text-xs">{member.name[0]}</AvatarFallback>
                                   </Avatar>
-                                  <div className="min-w-0"><p className="text-xs font-black uppercase truncate">{member.name}</p><p className="text-[8px] font-bold opacity-60 uppercase">{member.position}</p></div>
+                                  <div className="min-w-0"><p className="text-sm font-black uppercase truncate">{member.name}</p><p className="text-[9px] font-bold opacity-60 uppercase tracking-widest">{member.position}</p></div>
                                 </div>
-                                {newDoc.assignedTo.includes(member.id) && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                                {newDoc.assignedTo.includes(member.id) && <CheckCircle2 className="h-5 w-5 text-primary" />}
                               </div>
                             ))}
                           </div>
@@ -286,7 +286,12 @@ export default function CoachesCornerPage() {
                     </div>
                   </div>
                   
-                  <DialogFooter><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleCreateDocument} disabled={isProcessing || !newDoc.title || !newDoc.content}>{editingDocId ? 'Update & Synchronize' : 'Deploy Verified Protocol'}</Button></DialogFooter>
+                  <div className="pt-6 border-t">
+                    <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all" onClick={handleCreateDocument} disabled={isProcessing || !newDoc.title || !newDoc.content}>
+                      {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : <ShieldCheck className="h-6 w-6 mr-3" />}
+                      {editingDocId ? 'Update & Synchronize Protocol' : 'Deploy Verified Protocol'}
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
@@ -370,7 +375,7 @@ export default function CoachesCornerPage() {
                           )}
                           <Dialog>
                             <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border"><Eye className="h-4 w-4" /></Button></DialogTrigger>
-                            <DialogContent className="rounded-3xl border-none shadow-2xl p-0 sm:max-w-lg">
+                            <DialogContent className="rounded-3xl border-none shadow-2xl p-0 sm:max-w-lg overflow-y-auto">
                               <div className="h-2 bg-primary w-full" />
                               <div className="p-8 space-y-6">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Recruit File</DialogTitle></DialogHeader>
@@ -429,7 +434,7 @@ export default function CoachesCornerPage() {
       </Tabs>
 
       <Dialog open={!!selectedDoc} onOpenChange={o => !o && setSelectedDoc(null)}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-xl border-none shadow-2xl p-0">
+        <DialogContent className="rounded-[2.5rem] sm:max-w-xl border-none shadow-2xl p-0 overflow-y-auto">
           <div className="h-2 bg-black w-full" />
           <div className="p-8 space-y-6">
             <DialogHeader>

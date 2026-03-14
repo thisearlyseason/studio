@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -161,7 +160,7 @@ export default function RosterPage() {
                     <UserPlus className="h-4 w-4 mr-2" /> Invite
                   </Button>
                 </DialogTrigger>
-                <DialogContent data-dark-header="true" className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-0">
+                <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-0 overflow-y-auto">
                   <div className="h-2 bg-primary w-full" />
                   <div className="p-8 space-y-6">
                     <DialogHeader>
@@ -212,7 +211,7 @@ export default function RosterPage() {
       </div>
 
       <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
-        <DialogContent data-dark-header="true" className="rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white">
+        <DialogContent className="rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white overflow-y-auto">
           <DialogTitle className="sr-only">Player Profile: {selectedMember?.name}</DialogTitle>
           {selectedMember && (
             <div className="flex flex-col lg:flex-row">
