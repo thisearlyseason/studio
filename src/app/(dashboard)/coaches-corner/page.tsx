@@ -179,7 +179,7 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
+      <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl bg-white overflow-hidden">
         <div className="h-2 bg-black w-full" />
         <div className="flex flex-col lg:flex-row">
           <div className="w-full lg:w-5/12 bg-muted/20 p-8 lg:p-10 space-y-8 border-r">
@@ -204,7 +204,7 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
               </div>
             </div>
           </div>
-          <div className="flex-1 p-8 lg:p-10 space-y-8">
+          <div className="flex-1 p-8 lg:p-10 space-y-8 overflow-y-auto max-h-[80vh]">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <ShieldAlert className="h-5 w-5 text-primary" />
@@ -223,7 +223,7 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
             <div className="pt-4 border-t flex justify-end gap-3">
               <Button variant="outline" className="h-12 rounded-xl font-black uppercase text-[10px] px-8 border-2" onClick={() => onOpenChange(false)}>Close Audit</Button>
               <Button className="h-12 rounded-xl font-black uppercase text-[10px] px-8 shadow-lg shadow-primary/20" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                {isSaving ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : <Save className="h-6 w-6 mr-2" />}
                 Commit Evaluation
               </Button>
             </div>
@@ -358,7 +358,7 @@ export default function CoachesCornerPage() {
                   <Plus className="h-4 w-4 mr-2" /> New Waiver
                 </Button>
               </DialogTrigger>
-              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl">
+              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto">
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 lg:p-12 space-y-10">
                   <DialogHeader><DialogTitle className="text-3xl lg:text-4xl font-black uppercase tracking-tight">{editingDocId ? 'Update Waiver' : 'Document Architect'}</DialogTitle></DialogHeader>

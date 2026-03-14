@@ -3,7 +3,8 @@
 import { 
   Firestore, 
   doc, 
-  writeBatch
+  writeBatch,
+  collection
 } from 'firebase/firestore';
 
 /**
