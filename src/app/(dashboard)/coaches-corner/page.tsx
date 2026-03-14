@@ -236,7 +236,7 @@ export default function CoachesCornerPage() {
                   <Plus className="h-4 w-4 mr-2" /> New Waiver
                 </Button>
               </DialogTrigger>
-              <DialogContent data-dark-header="true" className="rounded-[2.5rem] sm:max-w-4xl p-0 overflow-hidden border-none shadow-2xl">
+              <DialogContent data-dark-header="true" className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl">
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 space-y-8">
                   <DialogHeader><DialogTitle className="text-3xl font-black uppercase">{editingDocId ? 'Edit Document' : 'Document Architect'}</DialogTitle></DialogHeader>
@@ -261,13 +261,13 @@ export default function CoachesCornerPage() {
                           <Label className="text-[10px] uppercase font-black">Assignment Logic</Label>
                           <Badge variant="outline" className="text-[8px] font-black">{newDoc.assignedTo.includes('all') ? 'Global' : `${newDoc.assignedTo.length} Targeted`}</Badge>
                         </div>
-                        <ScrollArea className="h-[400px] rounded-2xl border-2 p-2 bg-muted/10">
+                        <div className="space-y-1.5 bg-muted/10 rounded-2xl border-2 p-2">
+                          <div className={cn("p-3 rounded-xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes('all') ? "bg-primary text-white" : "hover:bg-white")} onClick={() => toggleAssignment('all')}>
+                            <span className="text-xs font-black uppercase">Assign to Entire Roster</span>
+                            {newDoc.assignedTo.includes('all') && <CheckCircle2 className="h-4 w-4" />}
+                          </div>
+                          <div className="h-px bg-muted my-2" />
                           <div className="space-y-1.5">
-                            <div className={cn("p-3 rounded-xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes('all') ? "bg-primary text-white" : "hover:bg-white")} onClick={() => toggleAssignment('all')}>
-                              <span className="text-xs font-black uppercase">Assign to Entire Roster</span>
-                              {newDoc.assignedTo.includes('all') && <CheckCircle2 className="h-4 w-4" />}
-                            </div>
-                            <div className="h-px bg-muted my-2" />
                             {members.map(member => (
                               <div key={member.id} className={cn("p-3 rounded-xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes(member.id) ? "bg-black text-white" : "hover:bg-white")} onClick={() => toggleAssignment(member.id)}>
                                 <div className="flex items-center gap-3">
@@ -281,7 +281,7 @@ export default function CoachesCornerPage() {
                               </div>
                             ))}
                           </div>
-                        </ScrollArea>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -370,7 +370,7 @@ export default function CoachesCornerPage() {
                           )}
                           <Dialog>
                             <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border"><Eye className="h-4 w-4" /></Button></DialogTrigger>
-                            <DialogContent className="rounded-3xl border-none shadow-2xl p-0 overflow-hidden sm:max-w-lg">
+                            <DialogContent className="rounded-3xl border-none shadow-2xl p-0 sm:max-w-lg">
                               <div className="h-2 bg-primary w-full" />
                               <div className="p-8 space-y-6">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Recruit File</DialogTitle></DialogHeader>
@@ -429,7 +429,7 @@ export default function CoachesCornerPage() {
       </Tabs>
 
       <Dialog open={!!selectedDoc} onOpenChange={o => !o && setSelectedDoc(null)}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-xl border-none shadow-2xl p-0 overflow-hidden">
+        <DialogContent className="rounded-[2.5rem] sm:max-w-xl border-none shadow-2xl p-0">
           <div className="h-2 bg-black w-full" />
           <div className="p-8 space-y-6">
             <DialogHeader>
@@ -438,9 +438,9 @@ export default function CoachesCornerPage() {
                 <Button variant="outline" className="rounded-xl h-9 px-4 font-black uppercase text-[10px] border-2"><Download className="h-3 w-3 mr-2" /> Export CSV</Button>
               </div>
             </DialogHeader>
-            <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-4">
               {selectedDoc && <SignatureList teamId={activeTeam!.id} documentId={selectedDoc.id} />}
-            </ScrollArea>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

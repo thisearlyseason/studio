@@ -304,8 +304,8 @@ export default function EventsPage() {
       </div>
       
       <Dialog open={isCreateOpen} onOpenChange={(o) => { if(!o) resetForm(); setIsCreateOpen(o); }}>
-        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden flex flex-col">
-          <div className="flex-1 flex flex-col lg:flex-row">
+        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl bg-white">
+          <div className="flex flex-col lg:flex-row">
             <div className="w-full lg:w-5/12 bg-muted/30 p-10 space-y-8 lg:border-r">
               <DialogHeader><DialogTitle className="text-3xl font-black uppercase tracking-tight">{editingEvent ? "Update" : "Launch"} Activity</DialogTitle></DialogHeader>
               <div className="space-y-6">

@@ -95,6 +95,7 @@ export default function DrillsAndGamePlayPage() {
   const scoutingReports = useMemo(() => rawScouting || [], [rawScouting]);
   
   // State
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [isAddDrillOpen, setIsAddDrillOpen] = useState(false);
   const [isAddScoutingOpen, setIsAddScoutingOpen] = useState(false);
   const [selectedDrill, setSelectedDrill] = useState<any>(null);
@@ -451,10 +452,10 @@ export default function DrillsAndGamePlayPage() {
 
       {/* Drill Detail Dialog */}
       <Dialog open={!!selectedDrill} onOpenChange={o => !o && setSelectedDrill(null)}>
-        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl overflow-hidden flex flex-col">
+        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl">
           {selectedDrill && (
-            <div className="flex flex-col lg:flex-row min-h-full">
-              <div className="w-full lg:w-1/2 bg-black text-white p-8 lg:p-12 space-y-8 shrink-0 flex flex-col">
+            <div className="flex flex-col lg:flex-row">
+              <div className="w-full lg:w-1/2 bg-black text-white p-8 lg:p-12 space-y-8 flex flex-col">
                 <div className="space-y-4">
                   <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase h-6 px-3">Execution Protocol</Badge>
                   <h2 className="text-4xl font-black uppercase tracking-tight leading-none">{selectedDrill.title}</h2>
@@ -484,9 +485,9 @@ export default function DrillsAndGamePlayPage() {
 
       {/* Film Detail Dialog */}
       <Dialog open={!!selectedFile} onOpenChange={o => !o && setSelectedFile(null)}>
-        <DialogContent data-dark-header="true" className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl overflow-hidden flex flex-col">
+        <DialogContent data-dark-header="true" className="sm:max-w-5xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl">
           {selectedFile && (
-            <div className="flex flex-col lg:flex-row min-h-full">
+            <div className="flex flex-col lg:flex-row">
               <div className="w-full lg:w-2/3 bg-black flex flex-col">
                 <div className="aspect-video bg-muted relative">
                   <video 
@@ -510,22 +511,20 @@ export default function DrillsAndGamePlayPage() {
               </div>
               <div className="flex-1 p-8 bg-white border-l flex flex-col">
                 <div className="flex items-center gap-3 mb-6"><MessageSquare className="h-5 w-5 text-primary" /><h3 className="text-xs font-black uppercase tracking-widest">Tactical discussion</h3></div>
-                <ScrollArea className="flex-1 mb-6 pr-4">
-                  <div className="space-y-4">
-                    {selectedFile.comments?.map(c => (
-                      <div key={c.id} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase">{c.authorName}</span>
-                          <span className="text-[8px] text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <p className="text-xs font-medium bg-muted/30 p-3 rounded-xl border italic">"{c.text}"</p>
+                <div className="flex-1 mb-6 space-y-4 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
+                  {selectedFile.comments?.map(c => (
+                    <div key={c.id} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase">{c.authorName}</span>
+                        <span className="text-[8px] text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</span>
                       </div>
-                    ))}
-                    {(!selectedFile.comments || selectedFile.comments.length === 0) && (
-                      <p className="text-[10px] font-bold text-muted-foreground text-center py-10 opacity-40 uppercase tracking-widest">No strategic notes yet.</p>
-                    )}
-                  </div>
-                </ScrollArea>
+                      <p className="text-xs font-medium bg-muted/30 p-3 rounded-xl border italic">"{c.text}"</p>
+                    </div>
+                  ))}
+                  {(!selectedFile.comments || selectedFile.comments.length === 0) && (
+                    <p className="text-[10px] font-bold text-muted-foreground text-center py-10 opacity-40 uppercase tracking-widest">No strategic notes yet.</p>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Input placeholder="Add tactical note..." value={newComment} onChange={e => setNewComment(e.target.value)} className="h-11 rounded-xl" onKeyDown={e => e.key === 'Enter' && newComment.trim() && (addMediaComment(selectedFile.id, newComment), setNewComment(''))} />
                   <Button size="icon" className="rounded-xl h-11 w-11" onClick={() => { if(newComment.trim()) { addMediaComment(selectedFile.id, newComment); setNewComment(''); } }}><Plus className="h-4 w-4" /></Button>
@@ -577,107 +576,101 @@ export default function DrillsAndGamePlayPage() {
       </Dialog>
 
       <Dialog open={isAddScoutingOpen} onOpenChange={setIsAddScoutingOpen}>
-        <DialogContent className="sm:max-w-4xl rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-4xl rounded-[2.5rem] p-0 border-none shadow-2xl">
           <div className="h-2 bg-black w-full" />
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col lg:flex-row min-h-full">
-              <div className="w-full lg:w-5/12 bg-primary/5 p-8 lg:p-10 space-y-8 border-r">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-black uppercase tracking-tight">Intelligence Log</DialogTitle>
-                  <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Draft Opponent scouting brief</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6">
-                  <div className="space-y-4 bg-white p-6 rounded-3xl border-2 border-dashed border-primary/20">
-                    <div className="flex items-center gap-3">
-                      <BrainCircuit className="h-5 w-5 text-primary" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-primary">AI Tactical Assistant</Label>
-                    </div>
-                    <Textarea 
-                      placeholder="Paste match notes or raw observations here..." 
-                      value={aiObservations}
-                      onChange={e => setAiObservations(e.target.value)}
-                      className="min-h-[150px] rounded-2xl bg-muted/10 border-none font-medium text-sm"
-                    />
-                    <Button 
-                      className="w-full h-12 rounded-xl font-black uppercase text-xs shadow-lg shadow-primary/20"
-                      onClick={handleAiAnalyze}
-                      disabled={isAiGenerating || !aiObservations.trim() || !newScouting.opponentName}
-                    >
-                      {isAiGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Wand2 className="h-4 w-4 mr-2" />}
-                      Generate AI Brief
-                    </Button>
+          <div className="flex flex-col lg:flex-row">
+            <div className="w-full lg:w-5/12 bg-primary/5 p-8 lg:p-10 space-y-8 border-r">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight">Intelligence Log</DialogTitle>
+                <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Draft Opponent scouting brief</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="space-y-4 bg-white p-6 rounded-3xl border-2 border-dashed border-primary/20">
+                  <div className="flex items-center gap-3">
+                    <BrainCircuit className="h-5 w-5 text-primary" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary">AI Tactical Assistant</Label>
                   </div>
+                  <Textarea 
+                    placeholder="Paste match notes or raw observations here..." 
+                    value={aiObservations}
+                    onChange={e => setAiObservations(e.target.value)}
+                    className="min-h-[150px] rounded-2xl bg-muted/10 border-none font-medium text-sm"
+                  />
+                  <Button 
+                    className="w-full h-12 rounded-xl font-black uppercase text-xs shadow-lg shadow-primary/20"
+                    onClick={handleAiAnalyze}
+                    disabled={isAiGenerating || !aiObservations.trim() || !newScouting.opponentName}
+                  >
+                    {isAiGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Wand2 className="h-4 w-4 mr-2" />}
+                    Generate AI Brief
+                  </Button>
                 </div>
-              </div>
-              <div className="flex-1 p-8 lg:p-10 space-y-6 bg-white">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Opponent Name</Label><Input value={newScouting.opponentName} onChange={e => setNewScouting({...newScouting, opponentName: e.target.value})} className="h-11 rounded-xl border-2" /></div>
-                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Match Date</Label><Input type="date" value={newScouting.date} onChange={e => setNewScouting({...newScouting, date: e.target.value})} className="h-11 rounded-xl border-2" /></div>
-                </div>
-                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Video Study Link (Optional)</Label><Input value={newScouting.videoUrl} onChange={e => setNewScouting({...newScouting, videoUrl: e.target.value})} className="h-11 rounded-xl border-2" /></div>
-                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Strengths</Label><Textarea value={newScouting.strengths} onChange={e => setNewScouting({...newScouting, strengths: e.target.value})} className="h-20 rounded-xl border-2 resize-none text-xs font-bold" /></div>
-                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Weaknesses</Label><Textarea value={newScouting.weaknesses} onChange={e => setNewScouting({...newScouting, weaknesses: e.target.value})} className="h-20 rounded-xl border-2 resize-none text-xs font-bold" /></div>
-                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-primary">Keys to Victory</Label><Textarea value={newScouting.keysToVictory} onChange={e => setNewScouting({...newScouting, keysToVictory: e.target.value})} className="h-24 rounded-xl border-primary border-2 resize-none text-sm font-black" /></div>
               </div>
             </div>
+            <div className="flex-1 p-8 lg:p-10 space-y-6 bg-white">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Opponent Name</Label><Input value={newScouting.opponentName} onChange={e => setNewScouting({...newScouting, opponentName: e.target.value})} className="h-11 rounded-xl border-2" /></div>
+                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Match Date</Label><Input type="date" value={newScouting.date} onChange={e => setNewScouting({...newScouting, date: e.target.value})} className="h-11 rounded-xl border-2" /></div>
+              </div>
+              <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Video Study Link (Optional)</Label><Input value={newScouting.videoUrl} onChange={e => setNewScouting({...newScouting, videoUrl: e.target.value})} className="h-11 rounded-xl border-2" /></div>
+              <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Strengths</Label><Textarea value={newScouting.strengths} onChange={e => setNewScouting({...newScouting, strengths: e.target.value})} className="h-20 rounded-xl border-2 resize-none text-xs font-bold" /></div>
+              <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase">Weaknesses</Label><Textarea value={newScouting.weaknesses} onChange={e => setNewScouting({...newScouting, weaknesses: e.target.value})} className="h-20 rounded-xl border-2 resize-none text-xs font-bold" /></div>
+              <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase text-primary">Keys to Victory</Label><Textarea value={newScouting.keysToVictory} onChange={e => setNewScouting({...newScouting, keysToVictory: e.target.value})} className="h-24 rounded-xl border-primary border-2 resize-none text-sm font-black" /></div>
+              <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleAddScouting} disabled={!newScouting.opponentName || !newScouting.date}>Commit Scouting Report</Button>
+            </div>
           </div>
-          <DialogFooter className="p-8 bg-muted/10 border-t shrink-0">
-            <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleAddScouting} disabled={!newScouting.opponentName || !newScouting.date}>Commit Scouting Report</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!selectedScouting} onOpenChange={o => !o && setSelectedScouting(null)}>
-        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] h-[100dvh] sm:h-[90vh] border-none shadow-2xl overflow-hidden flex flex-col">
+        <DialogContent data-dark-header="true" className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl">
           <DialogTitle className="sr-only">Scouting Report: {selectedScouting?.opponentName}</DialogTitle>
-          <div className="flex-1 overflow-y-auto">
-            {selectedScouting && (
-              <div className="flex flex-col lg:flex-row min-h-full">
-                <div className="lg:w-5/12 bg-black text-white p-8 lg:p-12 space-y-8 shrink-0 flex flex-col">
-                  <div className="space-y-4">
-                    <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase h-6 px-3">Elite Intel</Badge>
-                    <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tight leading-none">Vs {selectedScouting.opponentName}</h2>
-                    <p className="text-white/40 font-bold uppercase tracking-widest text-xs">{selectedScouting.date}</p>
-                  </div>
-                  
-                  {selectedScouting.videoUrl && (
-                    <div className="bg-white/10 p-6 rounded-2xl border border-white/10 space-y-4 mt-auto">
-                      <div className="flex items-center gap-3"><Video className="h-5 w-5 text-primary" /><span className="text-[10px] font-black uppercase">Film Attached</span></div>
-                      <Button className="w-full rounded-xl h-12 bg-white text-black font-black uppercase text-[10px]" onClick={() => window.open(selectedScouting.videoUrl, '_blank')}>Study Opponent Tape</Button>
-                    </div>
-                  )}
+          {selectedScouting && (
+            <div className="flex flex-col lg:flex-row">
+              <div className="lg:w-5/12 bg-black text-white p-8 lg:p-12 space-y-8 flex flex-col">
+                <div className="space-y-4">
+                  <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase h-6 px-3">Elite Intel</Badge>
+                  <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tight leading-none">Vs {selectedScouting.opponentName}</h2>
+                  <p className="text-white/40 font-bold uppercase tracking-widest text-xs">{selectedScouting.date}</p>
                 </div>
                 
-                <div className="flex-1 p-8 lg:p-12 space-y-10 bg-white">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2"><div className="h-2 w-2 bg-green-500 rounded-full" /><h4 className="text-[10px] font-black uppercase tracking-widest">Strengths</h4></div>
-                      <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-wrap italic bg-muted/30 p-4 rounded-2xl">{selectedScouting.strengths}</p>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2"><div className="h-2 w-2 bg-red-500 rounded-full" /><h4 className="text-[10px] font-black uppercase tracking-widest">Weaknesses</h4></div>
-                      <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-wrap italic bg-muted/30 p-4 rounded-2xl">{selectedScouting.weaknesses}</p>
-                    </div>
+                {selectedScouting.videoUrl && (
+                  <div className="bg-white/10 p-6 rounded-2xl border border-white/10 space-y-4 mt-auto">
+                    <div className="flex items-center gap-3"><Video className="h-5 w-5 text-primary" /><span className="text-[10px] font-black uppercase">Film Attached</span></div>
+                    <Button className="w-full rounded-xl h-12 bg-white text-black font-black uppercase text-[10px]" onClick={() => window.open(selectedScouting.videoUrl, '_blank')}>Study Opponent Tape</Button>
                   </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 px-1">
-                      <Target className="h-5 w-5 text-primary" />
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Primary Keys to Victory</h4>
-                    </div>
-                    <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
-                      <p className="text-lg font-black leading-snug text-primary text-center italic">"{selectedScouting.keysToVictory}"</p>
-                    </div>
+                )}
+              </div>
+              
+              <div className="flex-1 p-8 lg:p-12 space-y-10 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2"><div className="h-2 w-2 bg-green-500 rounded-full" /><h4 className="text-[10px] font-black uppercase tracking-widest">Strengths</h4></div>
+                    <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-wrap italic bg-muted/30 p-4 rounded-2xl">{selectedScouting.strengths}</p>
                   </div>
-
-                  <div className="pt-8 border-t flex justify-end gap-3 mt-auto">
-                    {isAdmin && <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl text-destructive hover:bg-destructive/5" onClick={() => { deleteScoutingReport(selectedScouting.id); setSelectedScouting(null); }}><Trash2 className="h-5 w-5" /></Button>}
-                    <Button variant="outline" className="px-8 h-12 rounded-xl font-black uppercase text-[10px] tracking-widest border-2" onClick={() => setSelectedScouting(null)}>Close Intel Hub</Button>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2"><div className="h-2 w-2 bg-red-500 rounded-full" /><h4 className="text-[10px] font-black uppercase tracking-widest">Weaknesses</h4></div>
+                    <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-wrap italic bg-muted/30 p-4 rounded-2xl">{selectedScouting.weaknesses}</p>
                   </div>
                 </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 px-1">
+                    <Target className="h-5 w-5 text-primary" />
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Primary Keys to Victory</h4>
+                  </div>
+                  <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
+                    <p className="text-lg font-black leading-snug text-primary text-center italic">"{selectedScouting.keysToVictory}"</p>
+                  </div>
+                </div>
+
+                <div className="pt-8 border-t flex justify-end gap-3 mt-auto">
+                  {isAdmin && <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl text-destructive hover:bg-destructive/5" onClick={() => { deleteScoutingReport(selectedScouting.id); setSelectedScouting(null); }}><Trash2 className="h-5 w-5" /></Button>}
+                  <Button variant="outline" className="px-8 h-12 rounded-xl font-black uppercase text-[10px] tracking-widest border-2" onClick={() => setSelectedScouting(null)}>Close Intel Hub</Button>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
