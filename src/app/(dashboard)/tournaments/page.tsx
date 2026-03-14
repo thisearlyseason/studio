@@ -21,7 +21,12 @@ import {
   Target,
   List,
   ShieldAlert,
-  Edit3
+  Edit3,
+  ExternalLink,
+  Users,
+  FileSignature,
+  Info,
+  X
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -38,7 +43,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useTeam, TeamEvent, TournamentGame } from '@/components/providers/team-provider';
+import { useTeam, TeamEvent, TournamentGame, Member } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, where } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
@@ -80,6 +85,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
   const { user, members, updateRSVP, isStaff, activeTeam } = useTeam();
   const standings = useMemo(() => calculateTournamentStandings(event.tournamentTeams || [], event.tournamentGames || []), [event.tournamentTeams, event.tournamentGames]);
   const isOrganizer = isStaff && event.teamId === activeTeam?.id;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
@@ -122,7 +128,8 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               <TabsList className="bg-white/50 h-auto p-1.5 rounded-2xl border w-full flex-wrap gap-1">
                 <TabsTrigger value="itinerary" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Match Schedule</TabsTrigger>
                 <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Squad Presence</TabsTrigger>
-                {isOrganizer && <TabsTrigger value="manage" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Strategic Setup</TabsTrigger>}
+                <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Portals</TabsTrigger>
+                <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Compliance</TabsTrigger>
               </TabsList>
             </div>
             <div className="flex-1 p-8 lg:p-10">
@@ -150,6 +157,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                   </div>
                 )}
               </TabsContent>
+              
               <TabsContent value="attendance" className="mt-0">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {members.map(member => (
@@ -169,6 +177,61 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                   ))}
                 </div>
               </TabsContent>
+
+              <TabsContent value="portals" className="mt-0 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Card className="rounded-[2rem] border-none shadow-md bg-black text-white p-6 space-y-4 group cursor-pointer" onClick={() => window.open(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`, '_blank')}>
+                    <Badge className="bg-primary text-white border-none font-black text-[8px] h-5 px-2">LIVE HUB</Badge>
+                    <h4 className="text-xl font-black uppercase tracking-tight">Spectator Portal</h4>
+                    <p className="text-[10px] text-white/60 font-medium leading-relaxed italic">Public link for fans to track real-time standings and schedules.</p>
+                    <Button variant="outline" className="w-full h-10 rounded-xl font-black uppercase text-[10px] bg-white/10 border-white/20 text-white">Open Live View <ExternalLink className="ml-2 h-3 w-3" /></Button>
+                  </Card>
+                  <Card className="rounded-[2rem] border-none shadow-md bg-white border-2 p-6 space-y-4 group cursor-pointer" onClick={() => window.open(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`, '_blank')}>
+                    <Badge className="bg-muted text-muted-foreground border-none font-black text-[8px] h-5 px-2">ADMIN ONLY</Badge>
+                    <h4 className="text-xl font-black uppercase tracking-tight">Scorekeeper Portal</h4>
+                    <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">Mobile entry hub for field marshals to post verified match results.</p>
+                    <Button className="w-full h-10 rounded-xl font-black uppercase text-[10px]">Open Scorer Hub <ExternalLink className="ml-2 h-3 w-3" /></Button>
+                  </Card>
+                  <Card className="rounded-[2rem] border-none shadow-md bg-primary/5 border-2 border-dashed border-primary/20 p-6 space-y-4 group cursor-pointer" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Portal Link Copied" }); }}>
+                    <Badge className="bg-primary text-white border-none font-black text-[8px] h-5 px-2">COMPLIANCE</Badge>
+                    <h4 className="text-xl font-black uppercase tracking-tight">Team Waiver URL</h4>
+                    <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">Public signing link for external teams to execute participation waivers.</p>
+                    <Button variant="outline" className="w-full h-10 rounded-xl font-black uppercase text-[10px] border-primary/20 text-primary">Copy Waiver Link <FileSignature className="ml-2 h-3 w-3" /></Button>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="compliance" className="mt-0">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 px-2">
+                    <FileSignature className="h-5 w-5 text-primary" />
+                    <h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
+                    {event.tournamentTeams?.map(teamName => {
+                      const agreement = event.teamAgreements?.[teamName];
+                      return (
+                        <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", agreement ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground/30")}>
+                              {agreement ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                            </div>
+                            <span className="font-black text-sm uppercase truncate">{teamName}</span>
+                          </div>
+                          {agreement ? (
+                            <div className="text-right">
+                              <p className="text-[8px] font-black uppercase text-muted-foreground">Signed by {agreement.captainName}</p>
+                              <p className="text-[7px] font-bold text-muted-foreground opacity-40">{format(new Date(agreement.signedAt), 'MMM d, h:mm a')}</p>
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="text-[7px] font-black uppercase border-muted-foreground/20 text-muted-foreground">Pending Execution</Badge>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </TabsContent>
             </div>
           </Tabs>
         </div>
@@ -181,7 +244,7 @@ export default function TournamentsPage() {
   const { isStaff, addEvent, activeTeam, householdEvents } = useTeam();
   const [isDeployOpen, setIsDeployOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<TeamEvent | null>(null);
-  const [newTourney, setNewTourney] = useState({ title: '', date: '', endDate: '', location: '', description: '', teams: '' });
+  const [newTourney, setNewTourney] = useState({ title: '', date: '', endDate: '', location: '', description: '', teams: '', invitedEmails: '' });
   const [isProcessing, setIsProcessing] = useState(false);
 
   const tournaments = useMemo(() => {
@@ -192,6 +255,12 @@ export default function TournamentsPage() {
     if (!newTourney.title || !newTourney.date || !activeTeam) return;
     setIsProcessing(true);
     const teams = newTourney.teams.split(',').map(t => t.trim()).filter(t => t);
+    const emails = newTourney.invitedEmails.split(',').map(e => e.trim()).filter(e => e);
+    const invitedMap: Record<string, string> = {};
+    emails.forEach((email, i) => {
+      invitedMap[email] = teams[i] || `Team ${i+1}`;
+    });
+
     try {
       await addEvent({
         title: newTourney.title,
@@ -203,10 +272,11 @@ export default function TournamentsPage() {
         eventType: 'tournament',
         tournamentTeams: teams,
         tournamentGames: [],
+        invitedTeamEmails: invitedMap,
         startTime: 'TBD'
       });
       setIsDeployOpen(false);
-      setNewTourney({ title: '', date: '', endDate: '', location: '', description: '', teams: '' });
+      setNewTourney({ title: '', date: '', endDate: '', location: '', description: '', teams: '', invitedEmails: '' });
       toast({ title: "Elite Series Launched" });
     } catch (e) {
       toast({ title: "Deployment Failed", variant: "destructive" });
@@ -232,7 +302,7 @@ export default function TournamentsPage() {
                 <Plus className="h-5 w-5 mr-2" /> Launch Elite Series
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+            <DialogContent className="rounded-[3rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white">
               <DialogTitle className="sr-only">New Tournament Strategic Deployment</DialogTitle>
               <div className="h-2 bg-primary w-full" />
               <div className="p-8 lg:p-12 space-y-10">
@@ -242,23 +312,23 @@ export default function TournamentsPage() {
                       <Trophy className="h-6 w-6" />
                     </div>
                     <div>
-                      <DialogTitle className="text-3xl font-black uppercase tracking-tight">Deploy Series</DialogTitle>
+                      <DialogTitle className="text-3xl font-black uppercase tracking-tight">Deploy Tourney</DialogTitle>
                       <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Launch a new championship event</DialogDescription>
                     </div>
                   </div>
                 </DialogHeader>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Championship Title</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Tournament Title</Label>
                     <Input placeholder="e.g. Winter Regional Finals" value={newTourney.title} onChange={e => setNewTourney({...newTourney, title: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Date</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Series Start Date</Label>
                       <Input type="date" value={newTourney.date} onChange={e => setNewTourney({...newTourney, date: e.target.value})} className="h-14 rounded-2xl font-black border-2 focus:border-primary/20 transition-all" />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">End Date</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Series End Date</Label>
                       <Input type="date" value={newTourney.endDate} onChange={e => setNewTourney({...newTourney, endDate: e.target.value})} className="h-14 rounded-2xl font-black border-2 focus:border-primary/20 transition-all" />
                     </div>
                   </div>
@@ -266,18 +336,24 @@ export default function TournamentsPage() {
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Location</Label>
                     <Input placeholder="Official Venue..." value={newTourney.location} onChange={e => setNewTourney({...newTourney, location: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Participating Squads (Comma Separated)</Label>
-                    <Input placeholder="Tigers, Lions, Warriors..." value={newTourney.teams} onChange={e => setNewTourney({...newTourney, teams: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Participating Squads</Label>
+                      <Input placeholder="Tigers, Lions, Warriors..." value={newTourney.teams} onChange={e => setNewTourney({...newTourney, teams: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Email Invites</Label>
+                      <Input placeholder="coach@tigers.com, coach@lions.com..." value={newTourney.invitedEmails} onChange={e => setNewTourney({...newTourney, invitedEmails: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Brief</Label>
-                    <Textarea placeholder="Define the rules and coordination needs..." value={newTourney.description} onChange={e => setNewTourney({...newTourney, description: e.target.value})} className="rounded-[1.5rem] min-h-[100px] border-2 font-medium focus:border-primary/20 transition-all p-4 resize-none" />
+                    <Textarea placeholder="Define rules, coordination notes, and championship structure..." value={newTourney.description} onChange={e => setNewTourney({...newTourney, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium focus:border-primary/20 transition-all p-4 resize-none" />
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="pb-8">
                   <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all" onClick={handleDeployTournament} disabled={isProcessing || !newTourney.title || !newTourney.date}>
-                    {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Authorize Strategic Deployment"}
+                    {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Deploy Tournament"}
                   </Button>
                 </DialogFooter>
               </div>

@@ -249,12 +249,12 @@ export default function EventsPage() {
   
   const [newTitle, setNewTitle] = useState('');
   const [newDate, setNewDate] = useState('');
+  const [newEndDate, setNewEndDate] = useState('');
   const [newTime, setNewTime] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [eventType, setEventType] = useState<EventType>('game');
 
-  // Filter events for the active squad view
   const filteredEvents = useMemo(() => { 
     const now = new Date(); 
     const list = householdEvents.filter(e => e.teamId === activeTeam?.id) || []; 
@@ -271,6 +271,7 @@ export default function EventsPage() {
         title: newTitle, 
         eventType, 
         date: eventDate.toISOString(), 
+        endDate: newEndDate ? new Date(newEndDate).toISOString() : eventDate.toISOString(),
         startTime: newTime, 
         location: newLocation, 
         description: newDescription, 
@@ -282,7 +283,7 @@ export default function EventsPage() {
   };
 
   const resetForm = () => {
-    setNewTitle(''); setNewDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setEventType('game'); setEditingEvent(null);
+    setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription(''); setEventType('game'); setEditingEvent(null);
   };
 
   const handleEdit = (event: TeamEvent) => { 
@@ -290,6 +291,7 @@ export default function EventsPage() {
     setNewTitle(event.title); 
     setEventType(event.eventType || 'game'); 
     setNewDate(format(new Date(event.date), 'yyyy-MM-dd')); 
+    if (event.endDate) setNewEndDate(format(new Date(event.endDate), 'yyyy-MM-dd'));
     setNewTime(event.startTime); 
     setNewLocation(event.location); 
     setNewDescription(event.description); 
@@ -323,9 +325,10 @@ export default function EventsPage() {
                   <Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Date *</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
-                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Time *</Label><Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
+                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Date *</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
+                  <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">End Date (Opt)</Label><Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
                 </div>
+                <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Start Time *</Label><Input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="h-12 rounded-xl border-2 font-black" /></div>
               </div>
             </div>
             <div className="flex-1 p-10 space-y-6 bg-white">
@@ -356,7 +359,10 @@ export default function EventsPage() {
                       <div>
                         <div className="flex gap-2 mb-1.5"><Badge className="text-[7px] uppercase font-black">{event.eventType === 'tournament' ? 'Elite Series' : (event.eventType || 'Activity')}</Badge><Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{event.startTime}</Badge></div>
                         <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors">{event.title}</h3>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
+                        <div className="flex items-center gap-4 mt-1">
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
+                          <p className="text-[8px] font-black text-primary uppercase">{formatDateRange(event.date, event.endDate)}</p>
+                        </div>
                       </div>
                       <ChevronRight className="h-5 w-5 text-primary opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all mt-2" />
                     </div>
