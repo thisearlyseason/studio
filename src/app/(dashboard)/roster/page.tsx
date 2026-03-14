@@ -28,7 +28,10 @@ import {
   HeartPulse,
   Target,
   Trophy,
-  Star
+  Star,
+  Settings,
+  Save,
+  UserCog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam, Member } from '@/components/providers/team-provider';
@@ -43,6 +46,13 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,6 +65,18 @@ const STANDARD_WAIVERS = [
   { id: 'travel', label: 'Travel Consent', icon: Plane },
   { id: 'parental', label: 'Parental Waiver', icon: ShieldCheck, minorOnly: true },
   { id: 'photography', label: 'Photography Release', icon: Camera }
+];
+
+const POSITION_OPTIONS = [
+  'Coach', 
+  'Assistant Coach', 
+  'Team Representative', 
+  'Forward', 
+  'Midfield', 
+  'Defense', 
+  'Goalkeeper', 
+  'Utility', 
+  'Squad Leader'
 ];
 
 function MemberComplianceLedger({ teamId, memberId, birthdate }: { teamId: string, memberId: string, birthdate?: string }) {
@@ -139,7 +161,7 @@ function MemberComplianceLedger({ teamId, memberId, birthdate }: { teamId: strin
 }
 
 export default function RosterPage() {
-  const { activeTeam, user, members, isMembersLoading, isStaff, updateStaffEvaluation, getStaffEvaluation } = useTeam();
+  const { activeTeam, user, members, isMembersLoading, isStaff, updateStaffEvaluation, getStaffEvaluation, updateMember } = useTeam();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -147,6 +169,8 @@ export default function RosterPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [staffNote, setStaffNote] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isEditPositionOpen, setIsEditPositionOpen] = useState(false);
+  const [newPosition, setNewPosition] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -155,6 +179,7 @@ export default function RosterPage() {
   useEffect(() => {
     if (selectedMember && isStaff) {
       getStaffEvaluation(selectedMember.id).then(setStaffNote);
+      setNewPosition(selectedMember.position);
     }
   }, [selectedMember, isStaff, getStaffEvaluation]);
 
@@ -166,6 +191,16 @@ export default function RosterPage() {
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
     return `U${age + 1}`;
+  };
+
+  const handleUpdatePosition = async () => {
+    if (!selectedMember || !newPosition) return;
+    setIsSavingNote(true);
+    await updateMember(selectedMember.id, { position: newPosition });
+    setSelectedMember(prev => prev ? { ...prev, position: newPosition } : null);
+    setIsSavingNote(false);
+    setIsEditPositionOpen(false);
+    toast({ title: "Role Provisioned", description: `${selectedMember.name} is now ${newPosition}.` });
   };
 
   const handleExportPortfolio = useCallback(() => {
@@ -302,7 +337,14 @@ export default function RosterPage() {
                   <div className="space-y-2">
                     <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase h-6 px-4 mb-2">Verified Athlete</Badge>
                     <h2 className="text-4xl font-black tracking-tighter leading-none uppercase">{selectedMember.name}</h2>
-                    <p className="text-primary font-black uppercase tracking-[0.2em] text-sm">{selectedMember.position} • #{selectedMember.jersey}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-primary font-black uppercase tracking-[0.2em] text-sm">{selectedMember.position} • #{selectedMember.jersey}</p>
+                      {activeTeam.role === 'Admin' && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => setIsEditPositionOpen(true)}>
+                          <Settings className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="w-full space-y-4 pt-4 border-t border-white/10">
@@ -396,6 +438,46 @@ export default function RosterPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditPositionOpen} onOpenChange={setIsEditPositionOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden">
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-8 space-y-6">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <UserCog className="h-6 w-6 text-primary" />
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight">Provision Role</DialogTitle>
+              </div>
+              <DialogDescription className="font-bold text-muted-foreground uppercase text-[10px]">Modify organizational authority for {selectedMember?.name}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">New Position / Title</Label>
+              <Select value={newPosition} onValueChange={setNewPosition}>
+                <SelectTrigger className="h-14 rounded-2xl border-2 font-bold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {POSITION_OPTIONS.map(opt => (
+                    <SelectItem key={opt} value={opt} className="font-bold">{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="bg-primary/5 p-4 rounded-2xl border-2 border-dashed border-primary/20 space-y-2">
+                <p className="text-[10px] font-black text-primary uppercase">Governance Tip</p>
+                <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">
+                  Promoting a member to <strong>Team Representative</strong> or <strong>Coach</strong> grants them authority to record match results and manage squad itineraries.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdatePosition} disabled={isSavingNote}>
+                {isSavingNote ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-6 w-6 mr-2" />}
+                Commit Position Update
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -457,6 +457,7 @@ interface TeamContextType {
   exportSignaturesCSV: (documentId: string) => Promise<void>;
   exportAttendanceCSV: (eventId: string) => Promise<void>;
   exportTournamentStandingsCSV: (tournamentId: string) => Promise<void>;
+  assignManualPlan: (userId: string, planId: string, quota: number) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -475,6 +476,16 @@ const clean = (obj: any): any => {
   }
   return obj ?? null;
 };
+
+const STAFF_POSITIONS = [
+  'Coach', 
+  'Assistant Coach', 
+  'Team Representative', 
+  'Manager', 
+  'Organization Lead', 
+  'Platform Admin',
+  'Squad Leader'
+];
 
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isAuthResolved } = useFirebase();
@@ -553,7 +564,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const activeTeam = useMemo(() => teams.find(t => t.id === activeTeamId) || teams[0] || null, [teams, activeTeamId]);
 
-  // --- UNIFIED EVENT SYNC ---
   useEffect(() => {
     if (!db || !isAuthResolved || !firebaseUser || teams.length === 0) return;
 
@@ -586,6 +596,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const currentMember = useMemo(() => members.find(m => m.userId === firebaseUser?.uid) || null, [members, firebaseUser?.uid]);
 
+  const isStaff = useMemo(() => {
+    if (isSuperAdmin) return true;
+    if (activeTeam?.role === 'Admin') return true;
+    return STAFF_POSITIONS.includes(currentMember?.position || '');
+  }, [activeTeam?.role, currentMember?.position, isSuperAdmin]);
+
   const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
   const alerts = alertsData || [];
@@ -594,13 +610,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!userProfile || !alertsData) return 0;
     const myAlerts = (alertsData || []).filter(alert => {
       if (alert.audience === 'everyone') return true;
-      if (alert.audience === 'coaches' && (activeTeam?.role === 'Admin')) return true;
+      if (alert.audience === 'coaches' && isStaff) return true;
       if (alert.audience === 'players' && (userProfile.role === 'adult_player')) return true;
       if (alert.audience === 'parents' && (userProfile.role === 'parent')) return true;
       return false;
     });
     return myAlerts.filter(a => !seenAlertIds.includes(a.id)).length;
-  }, [alertsData, seenAlertIds, userProfile, activeTeam?.role]);
+  }, [alertsData, seenAlertIds, userProfile, isStaff]);
 
   const proQuotaStatus = useMemo(() => {
     const limitCount = userProfile?.proTeamLimit ?? 0;
@@ -746,13 +762,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toast({ title: "Championship Standings Exported" });
   }, [householdEvents]);
 
+  const assignManualPlan = useCallback(async (uid: string, pid: string, q: number) => {
+    if (!isSuperAdmin) return;
+    await updateDoc(doc(db, 'users', uid), {
+      activePlanId: pid,
+      proTeamLimit: q,
+      planSource: 'manual'
+    });
+    toast({ title: "Quota Provisioned" });
+  }, [db, isSuperAdmin]);
+
   const contextValue = useMemo(() => ({
     db,
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
-    currentMember, isStaff: activeTeam?.role === 'Admin', isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
+    currentMember, isStaff, isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
     isSuperAdmin, isClubManager: ['elite_teams', 'elite_league', 'squad_organization'].includes(userProfile?.activePlanId || ''), household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus,
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true), 
-    hasFeature: (fid: string) => !!plans.find(p => p.id === (activeTeam?.planId || 'starter_squad'))?.features?.[fid], 
+    hasFeature: (fid: string) => {
+      const plan = plans.find(p => p.id === (activeTeam?.planId || 'starter_squad'));
+      return !!plan?.features?.[fid];
+    }, 
     alerts, unreadAlertsCount, 
     markAlertAsSeen: (id: string) => { setSeenAlertIds(prev => [...new Set([...prev, id])]); localStorage.setItem('squad_seen_alerts_ids', JSON.stringify([...seenAlertIds, id])); },
     markAllAlertsAsSeen: () => { const ids = alerts.map(a => a.id); setSeenAlertIds(ids); localStorage.setItem('squad_seen_alerts_ids', JSON.stringify(ids)); },
@@ -830,8 +859,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     deleteAlert,
     exportSignaturesCSV,
     exportAttendanceCSV,
-    exportTournamentStandingsCSV
-  }), [userProfile, activeTeam?.id, activeTeam?.role, activeTeam?.isPro, activeTeam?.planId, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, router]);
+    exportTournamentStandingsCSV,
+    assignManualPlan
+  }), [userProfile, activeTeam?.id, activeTeam?.isPro, activeTeam?.planId, isStaff, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, assignManualPlan, router]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
