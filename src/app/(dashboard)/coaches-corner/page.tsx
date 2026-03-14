@@ -403,6 +403,49 @@ export default function CoachesCornerPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="rounded-[2.5rem] sm:max-w-lg overflow-hidden p-0 border-none shadow-2xl">
+          <DialogTitle className="sr-only">{editingDocId ? 'Edit' : 'Create'} Institutional Protocol</DialogTitle>
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-8 space-y-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">{editingDocId ? 'Update' : 'New'} Protocol</DialogTitle>
+              <DialogDescription className="font-bold text-primary uppercase text-[10px]">Define mandatory data execution</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase ml-1">Title</Label>
+                <Input value={newDoc.title} onChange={e => setNewDoc({...newDoc, title: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase ml-1">Type</Label>
+                <Select value={newDoc.type} onValueChange={v => setNewDoc({...newDoc, type: v})}>
+                  <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="waiver" className="font-bold">Liability Waiver</SelectItem>
+                    <SelectItem value="policy" className="font-bold">Institutional Policy</SelectItem>
+                    <SelectItem value="info" className="font-bold">Information Release</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase ml-1">Protocol Content</Label>
+                <Textarea value={newDoc.content} onChange={e => setNewDoc({...newDoc, content: e.target.value})} className="min-h-[200px] rounded-xl border-2 font-medium" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full h-14 rounded-2xl font-black shadow-xl" onClick={async () => {
+                if(editingDocId) await updateTeamDocument(editingDocId, newDoc);
+                else await createTeamDocument(newDoc);
+                setIsCreateOpen(false);
+              }}>
+                {editingDocId ? 'Commit Changes' : 'Launch Protocol'}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

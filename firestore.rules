@@ -22,10 +22,17 @@ service cloud.firestore {
 
     function isTeamStaff(teamId) {
       let team = get(/databases/$(database)/documents/teams/$(teamId));
+      let member = get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
       return isSignedIn() && (
         isSuperAdmin() || 
-        (team != null && (team.data.ownerUserId == request.auth.uid || team.data.createdBy == request.auth.uid))
+        (team != null && (team.data.ownerUserId == request.auth.uid || team.data.createdBy == request.auth.uid)) ||
+        (member != null && member.data.position in ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Organization Lead', 'Platform Admin', 'Squad Leader'])
       );
+    }
+
+    function isLeagueOrganizer(leagueId) {
+      let league = get(/databases/$(database)/documents/leagues/$(leagueId));
+      return isSignedIn() && (isSuperAdmin() || (league != null && league.data.creatorId == request.auth.uid));
     }
 
     // --- COLLECTION RULES ---
@@ -103,7 +110,7 @@ service cloud.firestore {
         allow get: if true; 
         allow read, list: if true; 
         allow create: if isSignedIn();
-        allow update: if true; // Public scoring and waiver signing
+        allow update: if true; // Public scoring and tournament waiver signing
         allow delete: if isTeamStaff(teamId);
         
         match /registrations/{regId} {
@@ -193,7 +200,7 @@ service cloud.firestore {
       
       match /registrationEntries/{entryId} {
         allow create: if true;
-        allow read, write: if isSignedIn();
+        allow read, write: if isLeagueOrganizer(leagueId);
       }
 
       match /registration/{protocolId} {
