@@ -19,8 +19,7 @@ import {
   increment,
   arrayUnion,
   getDoc,
-  deleteField,
-  collectionGroup
+  deleteField
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';

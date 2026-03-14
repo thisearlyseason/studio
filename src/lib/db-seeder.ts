@@ -3,7 +3,6 @@
 import { 
   Firestore, 
   doc, 
-  collection, 
   writeBatch
 } from 'firebase/firestore';
 
@@ -37,9 +36,9 @@ const GET_DEMO_DATA = (teamId: string, userId: string) => {
 
   return {
     members: [
-      { id: `m1_${teamId}`, userId: `u1_${teamId}`, name: 'Jordan Smith', role: 'Member', position: 'Forward', jersey: '10', medicalClearance: true, amountOwed: 0 },
-      { id: `m2_${teamId}`, userId: `u2_${teamId}`, name: 'Alex Rivera', role: 'Member', position: 'Midfield', jersey: '22', medicalClearance: true, amountOwed: 50 },
-      { id: `m3_${teamId}`, userId: `u3_${teamId}`, name: 'Sam Taylor', role: 'Member', position: 'Defender', jersey: '04', medicalClearance: false, amountOwed: 125 }
+      { id: `m1_${teamId}`, userId: `u1_${teamId}`, name: 'Jordan Smith', role: 'Member', position: 'Forward', jersey: '10', medicalClearance: true, amountOwed: 0, avatar: `https://picsum.photos/seed/m1/150/150` },
+      { id: `m2_${teamId}`, userId: `u2_${teamId}`, name: 'Alex Rivera', role: 'Member', position: 'Midfield', jersey: '22', medicalClearance: true, amountOwed: 50, avatar: `https://picsum.photos/seed/m2/150/150` },
+      { id: `m3_${teamId}`, userId: `u3_${teamId}`, name: 'Sam Taylor', role: 'Member', position: 'Defender', jersey: '04', medicalClearance: false, amountOwed: 125, avatar: `https://picsum.photos/seed/m3/150/150` }
     ],
     games: [
       { id: `g1_${teamId}`, opponent: 'Tigers', date: yesterday, myScore: 12, opponentScore: 8, result: 'Win', location: 'City Arena' }
@@ -57,6 +56,9 @@ const GET_DEMO_DATA = (teamId: string, userId: string) => {
     feed: [
       { id: `p1_${teamId}`, type: 'user', content: 'Focus for Saturday, squad!', author: { name: 'Jordan Smith' }, createdAt: yesterday, likes: [userId] },
       { id: `p2_${teamId}`, type: 'poll', content: 'Uniform choice?', poll: { question: 'Uniform choice?', options: [{text: 'Home Red', votes: 12}, {text: 'Away White', votes: 5}], totalVotes: 17, voters: {}, isClosed: false }, createdAt: yesterday }
+    ],
+    documents: [
+      { id: `doc1_${teamId}`, teamId, title: '2024 Liability Waiver', content: 'Standard participation agreement and medical release.', type: 'waiver', assignedTo: ['all'], signatureCount: 0, createdAt: now.toISOString() }
     ]
   };
 };
@@ -112,17 +114,18 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   // 3. Static Blueprint Injection
   const data = GET_DEMO_DATA(teamId, userId);
-  data.members.forEach(m => batch.set(doc(db, 'teams', teamId, 'members', m.id), clean({ ...m, teamId, joinedAt: now, avatar: `https://picsum.photos/seed/${m.id}/150/150` })));
+  data.members.forEach(m => batch.set(doc(db, 'teams', teamId, 'members', m.id), clean({ ...m, teamId, joinedAt: now })));
   data.games.forEach(g => batch.set(doc(db, 'teams', teamId, 'games', g.id), clean(g)));
   data.events.forEach(e => batch.set(doc(db, 'teams', teamId, 'events', e.id), clean({ ...e, teamId, teamName: 'Elite Demo Squad' })));
   data.drills.forEach(d => batch.set(doc(db, 'teams', teamId, 'drills', d.id), clean(d)));
   data.scouting.forEach(s => batch.set(doc(db, 'teams', teamId, 'scouting', s.id), clean(s)));
   data.feed.forEach(p => batch.set(doc(db, 'teams', teamId, 'feedPosts', p.id), clean({ ...p, teamId })));
+  data.documents.forEach(d => batch.set(doc(db, 'teams', teamId, 'documents', d.id), clean(d)));
 
   if (isParentDemo) {
     const childId = `child_${teamId}`;
     batch.set(doc(db, 'players', childId), clean({ id: childId, firstName: 'Junior', lastName: 'Guest', dateOfBirth: '2012-01-01', isMinor: true, parentId: userId, joinedTeamIds: [teamId], createdAt: now }));
-    batch.set(doc(db, 'teams', teamId, 'members', childId), clean({ id: childId, userId: 'none', playerId: childId, teamId, name: 'Junior Guest', role: 'Member', position: 'Player', jersey: '10', joinedAt: now, isMinor: true, amountOwed: 75 }));
+    batch.set(doc(db, 'teams', teamId, 'members', childId), clean({ id: childId, userId: 'none', playerId: childId, teamId, name: 'Junior Guest', role: 'Member', position: 'Player', jersey: '10', joinedAt: now, isMinor: true, amountOwed: 75, avatar: `https://picsum.photos/seed/junior/150/150` }));
   }
 
   await batch.commit();
