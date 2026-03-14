@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -601,7 +602,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         const data = doc.data() as League;
         if (data.schedule) {
           data.schedule.forEach(game => {
-            // Filter: Only include if one of the user's teams is team1 or team2
             if (myTeamNames.has(game.team1) || myTeamNames.has(game.team2)) {
               allLeagueGames.push({
                 id: game.id,
@@ -669,7 +669,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ 
       title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid 
     }));
-    toast({ title: "Broadcast Dispatched" });
   }, [activeTeam?.id, firebaseUser, db]);
 
   const deleteAlert = useCallback(async (alertId: string) => {
@@ -732,7 +731,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     await addDoc(collection(db, 'teams', activeTeam.id, 'documents'), clean({ 
       ...data, teamId: activeTeam.id, signatureCount: 0, createdAt: new Date().toISOString() 
     }));
-    await createAlert(`Waiver Required: ${data.title}`, `Please visit the Library to sign.`, 'everyone');
+    await createAlert(`Protocol Required: ${data.title}`, `Strategic compliance document published. Please visit Library to execute.`, 'everyone');
   }, [activeTeam?.id, firebaseUser, db, createAlert]);
 
   const exportSignaturesCSV = useCallback(async (documentId: string) => {
@@ -753,13 +752,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!activeTeam?.id) return;
     const event = householdEvents.find(e => e.id === eventId);
     if (!event) return;
-    
     const headers = ["Member Name", "RSVP Status", "Position", "Jersey"];
-    const rows = members.map(m => {
-      const rsvp = event.userRsvps?.[m.userId] || 'No Response';
-      return [m.name, rsvp, m.position, m.jersey];
-    });
-
+    const rows = members.map(m => [m.name, event.userRsvps?.[m.userId] || 'No Response', m.position, m.jersey]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].map(e => e.join(",")).join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
@@ -773,23 +767,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => {
     const event = householdEvents.find(e => e.id === tournamentId);
     if (!event) return;
-    
     const teams = event.tournamentTeams || [];
     const games = event.tournamentGames || [];
-    
     const standings = teams.map(team => {
       let w = 0, l = 0, t = 0, p = 0;
       games.filter(g => g.isCompleted && (g.team1 === team || g.team2 === team)).forEach(g => {
         const isT1 = g.team1 === team;
-        const myScore = isT1 ? g.score1 : g.score2;
-        const oppScore = isT1 ? g.score2 : g.score1;
-        if (myScore > oppScore) { w++; p++; }
-        else if (myScore < oppScore) { l++; p--; }
-        else t++;
+        const myS = isT1 ? g.score1 : g.score2;
+        const opS = isT1 ? g.score2 : g.score1;
+        if (myS > opS) { w++; p++; } else if (myS < opS) { l++; p--; } else t++;
       });
       return [team, w, l, t, p];
     });
-
     const headers = ["Team Name", "Wins", "Losses", "Ties", "Total Points"];
     const csvContent = "data:text/csv;charset=utf-8," + [headers, ...standings].map(e => e.join(",")).join("\n");
     const link = document.createElement("a");
@@ -798,16 +787,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Championship Standings Exported" });
+    toast({ title: "Standings Ledger Exported" });
   }, [householdEvents]);
 
   const assignManualPlan = useCallback(async (uid: string, pid: string, q: number) => {
     if (!isSuperAdmin) return;
-    await updateDoc(doc(db, 'users', uid), {
-      activePlanId: pid,
-      proTeamLimit: q,
-      planSource: 'manual'
-    });
+    await updateDoc(doc(db, 'users', uid), { activePlanId: pid, proTeamLimit: q, planSource: 'manual' });
     toast({ title: "Quota Provisioned" });
   }, [db, isSuperAdmin]);
 
@@ -817,10 +802,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     currentMember, isStaff, isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
     isSuperAdmin, isClubManager: ['elite_teams', 'elite_league', 'squad_organization'].includes(userProfile?.activePlanId || ''), household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus,
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true), 
-    hasFeature: (fid: string) => {
-      const plan = plans.find(p => p.id === (activeTeam?.planId || 'starter_squad'));
-      return !!plan?.features?.[fid];
-    }, 
+    hasFeature: (fid: string) => { const plan = plans.find(p => p.id === (activeTeam?.planId || 'starter_squad')); return !!plan?.features?.[fid]; }, 
     alerts, unreadAlertsCount, 
     markAlertAsSeen: (id: string) => { setSeenAlertIds(prev => [...new Set([...prev, id])]); localStorage.setItem('squad_seen_alerts_ids', JSON.stringify([...seenAlertIds, id])); },
     markAllAlertsAsSeen: () => { const ids = alerts.map(a => a.id); setSeenAlertIds(ids); localStorage.setItem('squad_seen_alerts_ids', JSON.stringify(ids)); },
@@ -835,8 +817,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     updateTeamDetails: async (u: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id), clean(u)); },
     updateTeamHero: async (url: string) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); },
     updateTeamPlan: async (tid: string, pid: string) => { await updateDoc(doc(db, 'teams', tid), { planId: pid, isPro: pid !== 'starter_squad' }); },
-    signTeamDocument,
-    createTeamDocument,
+    signTeamDocument, createTeamDocument,
     updateTeamDocument: async (id: string, data: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'documents', id), clean(data)); },
     deleteTeamDocument: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'documents', id)); },
     updateStaffEvaluation: async (mid: string, note: string) => { if (activeTeam?.id) await setDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation'), { note, updatedAt: new Date().toISOString() }); },

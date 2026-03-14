@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -52,32 +53,11 @@ const EVENT_TYPE_COLORS: Record<EventType, string> = {
   other: 'bg-slate-600 border-slate-600 text-white',
 };
 
-const normalizeTime = (t: string) => {
-  if (!t || t === 'TBD') return '12:00';
-  if (t.toUpperCase().includes('M')) {
-    try {
-      const parts = t.trim().split(/\s+/);
-      const timePart = parts[0];
-      const period = parts[1]?.toUpperCase() || (t.toUpperCase().includes('PM') ? 'PM' : 'AM');
-      let [hStr, mStr] = timePart.split(':');
-      let h = parseInt(hStr);
-      let m = parseInt(mStr) || 0;
-      if (period === 'PM' && h !== 12) h += 12;
-      if (period === 'AM' && h === 12) h = 0;
-      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    } catch (e) {
-      return '12:00';
-    }
-  }
-  return t.includes(':') ? t : '12:00';
-};
-
 const formatDateRange = (start: string | Date, end?: string | Date) => {
   const startDate = new Date(start);
   if (!end) return format(startDate, 'MMM dd');
   const endDate = new Date(end);
   if (isSameDay(startDate, endDate)) return format(startDate, 'MMM dd');
-  
   if (startDate.getMonth() === endDate.getMonth()) {
     return `${format(startDate, 'MMM d')} - ${format(endDate, 'd')}`;
   }
@@ -137,7 +117,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
             {isAdmin && (
               <div className="mt-auto pt-8 flex flex-col gap-3 relative z-10">
                 <Button variant="outline" className="w-full h-12 rounded-xl border-white/20 text-white hover:bg-white/10 font-black uppercase text-[10px]" onClick={() => exportAttendanceCSV(event.id)}>
-                  <Download className="h-4 w-4 mr-2" /> Export RSVP Ledger
+                  <Download className="h-4 w-4 mr-2 text-white" /> <span className="text-white">Export RSVP Ledger</span>
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button>
@@ -152,12 +132,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               <TabsList className="bg-muted/50 h-auto p-1.5 rounded-2xl border w-full flex-wrap gap-1 mb-8">
                 <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Attendance</TabsTrigger>
                 <TabsTrigger value="brief" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Brief</TabsTrigger>
-                {event.eventType === 'tournament' && (
-                  <>
-                    <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Portals</TabsTrigger>
-                    <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Compliance</TabsTrigger>
-                  </>
-                )}
               </TabsList>
               
               <TabsContent value="attendance" className="mt-0">
@@ -199,61 +173,6 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   </p>
                 </div>
               </TabsContent>
-
-              {event.eventType === 'tournament' && (
-                <>
-                  <TabsContent value="portals" className="mt-0 space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Card className="rounded-[2rem] border-none shadow-md bg-black text-white p-6 space-y-4 group cursor-pointer" onClick={() => window.open(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`, '_blank')}>
-                        <Badge className="bg-primary text-white border-none font-black text-[8px] h-5 px-2">LIVE HUB</Badge>
-                        <h4 className="text-xl font-black uppercase tracking-tight">Spectator Portal</h4>
-                        <p className="text-[10px] text-white/60 font-medium leading-relaxed italic">Public link for fans to track real-time standings and schedules.</p>
-                        <Button variant="outline" className="w-full h-10 rounded-xl font-black uppercase text-[10px] bg-white/10 border-white/20 text-white">Open Live View <ExternalLink className="ml-2 h-3 w-3" /></Button>
-                      </Card>
-                      <Card className="rounded-[2rem] border-none shadow-md bg-white border-2 p-6 space-y-4 group cursor-pointer" onClick={() => window.open(`${baseUrl}/tournaments/scorekeeper/${event.teamId}/${event.id}`, '_blank')}>
-                        <Badge className="bg-muted text-muted-foreground border-none font-black text-[8px] h-5 px-2">ADMIN ONLY</Badge>
-                        <h4 className="text-xl font-black uppercase tracking-tight">Scorekeeper Portal</h4>
-                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">Mobile entry hub for field marshals to post verified match results.</p>
-                        <Button className="w-full h-10 rounded-xl font-black uppercase text-[10px]">Open Scorer Hub <ExternalLink className="ml-2 h-3 w-3" /></Button>
-                      </Card>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="compliance" className="mt-0">
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between px-2">
-                        <div className="flex items-center gap-3">
-                          <FileSignature className="h-5 w-5 text-primary" />
-                          <h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3>
-                        </div>
-                        <Button variant="outline" className="h-9 px-4 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => window.open(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`, '_blank')}>Open Waiver Portal <ExternalLink className="ml-2 h-3 w-3" /></Button>
-                      </div>
-                      <div className="grid grid-cols-1 gap-3">
-                        {event.tournamentTeams?.map(teamName => {
-                          const agreement = event.teamAgreements?.[teamName];
-                          return (
-                            <Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", agreement ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground/30")}>
-                                  {agreement ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-                                </div>
-                                <span className="font-black text-sm uppercase truncate">{teamName}</span>
-                              </div>
-                              {agreement ? (
-                                <div className="text-right">
-                                  <p className="text-[8px] font-black uppercase text-muted-foreground">Signed by {agreement.captainName}</p>
-                                  <p className="text-[7px] font-bold text-muted-foreground opacity-40">{format(new Date(agreement.signedAt), 'MMM d, h:mm a')}</p>
-                                </div>
-                              ) : (
-                                <Badge variant="outline" className="text-[7px] font-black uppercase border-muted-foreground/20 text-muted-foreground">Pending Execution</Badge>
-                              )}
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </TabsContent>
-                </>
-              )}
             </Tabs>
           </div>
         </div>
@@ -285,21 +204,15 @@ export default function EventsPage() {
 
   const handleCreateEvent = async () => { 
     if (!newTitle || !newDate || !newTime) return;
-    const timeISO = normalizeTime(newTime);
     try {
-      const eventDate = new Date(`${newDate}T${timeISO}`);
       const payload: any = { 
-        title: newTitle, 
-        eventType, 
-        date: eventDate.toISOString(), 
-        endDate: newEndDate ? new Date(newEndDate).toISOString() : eventDate.toISOString(),
-        startTime: newTime, 
-        location: newLocation, 
-        description: newDescription, 
-        lastUpdated: new Date().toISOString() 
+        title: newTitle, eventType, 
+        date: new Date(newDate).toISOString(), 
+        endDate: newEndDate ? new Date(newEndDate).toISOString() : new Date(newDate).toISOString(),
+        startTime: newTime, location: newLocation, description: newDescription 
       }; 
       const success = editingEvent ? await updateEvent(editingEvent.id, payload) : await addEvent(payload); 
-      if (success) { setIsCreateOpen(false); setEditingEvent(null); resetForm(); }
+      if (success) { setIsCreateOpen(false); resetForm(); }
     } catch (e) { toast({ title: "Deployment Error", variant: "destructive" }); }
   };
 
@@ -395,12 +308,6 @@ export default function EventsPage() {
               </Card>
             </EventDetailDialog> 
           ))}
-          {filteredEvents.length === 0 && (
-            <div className="text-center py-20 bg-muted/10 rounded-[3rem] border-2 border-dashed opacity-40">
-              <CalendarDays className="h-12 w-12 mx-auto mb-4" />
-              <p className="text-sm font-black uppercase tracking-widest">No activities scheduled.</p>
-            </div>
-          )}
         </div>
       </section>
     </div>

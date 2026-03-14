@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -31,7 +32,8 @@ import {
   Sparkles,
   Settings,
   Building,
-  CheckCircle2
+  CheckCircle2,
+  Calendar as CalendarDaysIcon
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -192,6 +194,12 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
     }));
   };
 
+  const handleCopyWaiverLink = () => {
+    const url = `${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: "Waiver Link Copied", description: "Share this link with participating squads." });
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -206,7 +214,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px]" onClick={() => setIsEditOpen(true)}><Edit3 className="h-4 w-4 mr-2" /> Manage Teams</Button>
             </>
           )}
-          <Badge variant="outline" className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] tracking-widest"><CalendarIcon className="h-4 w-4 mr-2" /> {event.date ? format(new Date(event.date), 'MMM d') : ''} - {event.endDate ? format(new Date(event.endDate), 'd') : ''}</Badge>
+          <Badge variant="outline" className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] tracking-widest"><CalendarDaysIcon className="h-4 w-4 mr-2" /> {event.date ? format(new Date(event.date), 'MMM d') : ''} - {event.endDate ? format(new Date(event.endDate), 'MMM d') : ''}</Badge>
         </div>
       </div>
 
@@ -217,6 +225,12 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             <div className="flex justify-between items-center"><h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard Pulse</h4>{isOrganizer && <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-white/10" onClick={() => exportTournamentStandingsCSV(event.id)}><Download className="h-4 w-4" /></Button>}</div>
             <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">{standings.map((team) => (<div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0"><span className="text-xs font-black uppercase truncate pr-2">{team.name}</span><Badge className="bg-primary text-white border-none font-black text-[9px] px-2 h-5">{team.points} PTS</Badge></div>))}</div>
           </div>
+          {isOrganizer && (
+            <div className="space-y-4 pt-4 border-t border-white/10">
+              <p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Recruitment</p>
+              <Button className="w-full h-12 rounded-xl bg-primary text-white font-black uppercase text-[10px]" onClick={handleCopyWaiverLink}><Share2 className="h-4 w-4 mr-2" /> Copy Waiver Link</Button>
+            </div>
+          )}
         </aside>
 
         <div className="flex-1 min-w-0 bg-white rounded-[3rem] border-2 shadow-sm overflow-hidden">
@@ -269,7 +283,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               </TabsContent>
               <TabsContent value="compliance" className="mt-0">
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-primary" /><h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3></div><Button variant="outline" className="h-9 px-4 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => window.open(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`, '_blank')}>Open Waiver Portal <ExternalLink className="ml-2 h-3 w-3" /></Button></div>
+                  <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-primary" /><h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3></div><Button variant="outline" className="h-9 px-4 rounded-xl font-black uppercase text-[10px] border-2" onClick={handleCopyWaiverLink}>Copy Portal Link <ExternalLink className="ml-2 h-3 w-3" /></Button></div>
                   <div className="grid grid-cols-1 gap-3">{event.tournamentTeams?.map(teamName => { const agreement = event.teamAgreements?.[teamName]; return (<Card key={teamName} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white flex items-center justify-between"><div className="flex items-center gap-4"><div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", agreement ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground/30")}>{agreement ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}</div><span className="font-black text-sm uppercase truncate">{teamName}</span></div>{agreement ? (<div className="text-right"><p className="text-[8px] font-black uppercase text-muted-foreground">Signed by {agreement.captainName}</p><p className="text-[7px] font-bold text-muted-foreground opacity-40">{format(new Date(agreement.signedAt), 'MMM d, h:mm a')}</p></div>) : (<Badge variant="outline" className="text-[7px] font-black uppercase border-muted-foreground/20 text-muted-foreground">Pending Execution</Badge>)}</Card>); })}</div>
                 </div>
               </TabsContent>
@@ -393,14 +407,14 @@ export default function TournamentsPage() {
         description: newTourney.description,
         isTournament: true,
         eventType: 'tournament',
-        tournamentTeams: [],
+        tournamentTeams: [activeTeam.name], // Organizer's team automatically joined
         tournamentGames: [],
         invitedTeamEmails: {},
         startTime: 'TBD'
       });
       setIsDeployOpen(false);
       setNewTourney({ title: '', date: '', endDate: '', location: '', description: '' });
-      toast({ title: "Tournament Initialized", description: "Now add teams in the hub." });
+      toast({ title: "Tournament Initialized", description: "Organizer team automatically enrolled." });
     } catch (e) {
       toast({ title: "Deployment Failed", variant: "destructive" });
     } finally {

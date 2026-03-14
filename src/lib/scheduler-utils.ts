@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Core logic for the Elite Scheduling Engine.
  * Hardened for balanced distribution and multi-venue resource mapping.
@@ -54,10 +55,10 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
   }
 
   if (availableSlots.length === 0 || matchups.length === 0) return [];
-  const step = availableSlots.length / matchups.length;
+  const step = Math.max(1, Math.floor(availableSlots.length / matchups.length));
 
   for (let i = 0; i < matchups.length; i++) {
-    const slotIdx = Math.floor(i * step);
+    const slotIdx = i * step;
     if (slotIdx >= availableSlots.length) break;
     const slot = availableSlots[slotIdx];
     const [t1, t2] = matchups[i];
@@ -130,10 +131,10 @@ export function generateLeagueSchedule(config: ScheduleConfig & { playDays: numb
   }
 
   if (availableSlots.length === 0 || matchPool.length === 0) return [];
-  const step = availableSlots.length / matchPool.length;
+  const step = Math.max(1, Math.floor(availableSlots.length / matchPool.length));
 
   for (let i = 0; i < matchPool.length; i++) {
-    const slotIdx = Math.floor(i * step);
+    const slotIdx = i * step;
     if (slotIdx >= availableSlots.length) break;
     
     const slot = availableSlots[slotIdx];
