@@ -391,7 +391,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                         {(!fields || fields.length === 0) && (
                           <div className="flex flex-col items-center justify-center py-12 text-center opacity-30">
                             <Building className="h-8 w-8 mb-2" />
-                            <p className="text-[9px] font-bold uppercase tracking-widest max-w-[150px]">Select a venue to allocate field resources.</p>
+                            <p className="text-[9px] font-bold uppercase tracking-widest max-w-[150px]">Select a facility to allocate field resources.</p>
                           </div>
                         )}
                       </div>

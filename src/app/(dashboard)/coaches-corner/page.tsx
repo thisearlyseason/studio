@@ -237,11 +237,10 @@ function DefaultProtocolCard({ protocol, activeTeam, db }: { protocol: any, acti
                   <Button className="w-full h-14 rounded-2xl font-black shadow-xl" onClick={handleSave} disabled={isProcessing}>
                     Commit Protocol
                   </Button>
-                </DialogFooter>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
       </CardFooter>
     </Card>
   );
