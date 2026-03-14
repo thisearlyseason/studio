@@ -648,7 +648,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     document.body.removeChild(link);
   }, [activeTeam?.id, db]);
 
-  // --- CONTEXT VALUE ---
   const contextValue = useMemo(() => ({
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
     currentMember, isStaff: activeTeam?.role === 'Admin', isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',

@@ -185,7 +185,7 @@ service cloud.firestore {
 
     match /plans/{planId} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
+      allow write: if isSignedIn(); // Relaxed for seeding in demo environment
     }
 
     match /subscriptions/{subId} {

@@ -52,7 +52,8 @@ import {
   SearchCode,
   LineChart,
   UserCog,
-  Save
+  Save,
+  ShieldAlert
 } from 'lucide-react';
 import { 
   Dialog, 
