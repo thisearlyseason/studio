@@ -19,7 +19,8 @@ import {
   UserPlus,
   Copy,
   FileSignature,
-  Clock
+  Clock,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam, Member } from '@/components/providers/team-provider';
@@ -178,6 +179,7 @@ export default function RosterPage() {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-0 overflow-y-auto">
+                  <DialogTitle className="sr-only">Invite Teammates</DialogTitle>
                   <div className="h-2 bg-primary w-full" />
                   <div className="p-8 space-y-6">
                     <DialogHeader>

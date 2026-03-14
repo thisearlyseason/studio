@@ -100,7 +100,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   batch.set(doc(db, 'teams', teamId), clean({
     id: teamId, teamName: 'Elite Demo Squad', teamCode: teamId.slice(-6).toUpperCase(),
     ownerUserId: userId, isPro: true, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
-    parentCommentsEnabled: true, parentChatEnabled: true, createdAt: now
+    parentCommentsEnabled: true, parentChatEnabled: true, createdAt: now, createdBy: userId
   }));
 
   batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), clean({

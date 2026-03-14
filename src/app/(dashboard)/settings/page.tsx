@@ -212,6 +212,7 @@ export default function SettingsPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-2xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden">
+                <DialogTitle className="sr-only">Edit Profile Architect</DialogTitle>
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 lg:p-12 space-y-10">
                   <DialogHeader>
@@ -343,6 +344,7 @@ export default function SettingsPage() {
 
       <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Season Reset Selection</DialogTitle>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 space-y-6">
             <DialogHeader>

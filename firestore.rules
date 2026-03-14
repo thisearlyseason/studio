@@ -24,7 +24,7 @@ service cloud.firestore {
       let team = get(/databases/$(database)/documents/teams/$(teamId));
       return isSignedIn() && (
         isSuperAdmin() || 
-        (team != null && team.data.ownerUserId == request.auth.uid)
+        (team != null && (team.data.ownerUserId == request.auth.uid || team.data.createdBy == request.auth.uid))
       );
     }
 
@@ -60,13 +60,13 @@ service cloud.firestore {
       // Subcollections
       match /alerts/{alertId} {
         allow get, list: if isSignedIn();
-        allow create: if isSignedIn(); // Seeder support
+        allow create: if isSignedIn(); // Allow seeding
         allow update, delete: if isTeamStaff(teamId);
       }
 
       match /members/{memberId} {
         allow read, list: if isSignedIn();
-        allow create: if isSignedIn();
+        allow create: if isSignedIn(); // Allow seeding
         allow update, delete: if isTeamStaff(teamId) || isOwner(memberId);
 
         match /private/evaluation {
@@ -198,12 +198,12 @@ service cloud.firestore {
 
     match /plans/{planId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Relaxed for seeding in demo environment
+      allow write: if isSignedIn(); // Allow seeder
     }
 
     match /subscriptions/{subId} {
       allow read: if isOwner(subId) || isSuperAdmin();
-      allow write: if isSuperAdmin() || isSignedIn(); // Relaxed for seeding
+      allow write: if isSuperAdmin() || isSignedIn();
     }
 
     match /{path=**}/registrationEntries/{entryId} {
