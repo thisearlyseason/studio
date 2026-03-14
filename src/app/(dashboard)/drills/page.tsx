@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -173,7 +174,7 @@ export default function PlaybookAndGamePlayPage() {
         <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
           <DialogTitle className="sr-only">New Drill Enrollment</DialogTitle>
           <div className="h-2 bg-primary w-full" />
-          <div className="p-8 lg:p-12 space-y-8">
+          <div className="p-8 lg:p-12 space-y-8 overflow-y-auto max-h-[90vh] custom-scrollbar">
             <DialogHeader>
               <DialogTitle className="text-3xl font-black uppercase tracking-tight">New Protocol</DialogTitle>
               <DialogDescription className="font-bold text-primary uppercase text-[10px]">Enroll training resource</DialogDescription>
@@ -192,7 +193,7 @@ export default function PlaybookAndGamePlayPage() {
         <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
           <DialogTitle className="sr-only">Game Film Archiving Hub</DialogTitle>
           <div className="h-2 bg-black w-full" />
-          <div className="p-8 lg:p-12 space-y-8">
+          <div className="p-8 lg:p-12 space-y-8 overflow-y-auto max-h-[90vh] custom-scrollbar">
             <DialogHeader>
               <DialogTitle className="text-3xl font-black uppercase tracking-tight">Archive Film</DialogTitle>
               <DialogDescription className="font-bold text-primary uppercase text-[10px]">Enroll Match footage</DialogDescription>

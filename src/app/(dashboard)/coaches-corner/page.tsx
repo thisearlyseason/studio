@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
@@ -395,7 +396,7 @@ function DefaultProtocolCard({ protocol, activeTeam, db }: { protocol: any, acti
             <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden sm:max-w-xl">
               <DialogTitle className="sr-only">Edit Mandatory Protocol</DialogTitle>
               <div className="h-2 bg-primary w-full" />
-              <div className="p-8 space-y-6">
+              <div className="p-8 space-y-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black uppercase tracking-tight">Edit Protocol: {protocol.label}</DialogTitle>
                   <DialogDescription className="font-bold text-primary uppercase text-[10px]">Define squad liability & terms</DialogDescription>

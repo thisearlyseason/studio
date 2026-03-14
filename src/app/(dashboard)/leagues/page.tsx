@@ -34,7 +34,8 @@ import {
   Sparkles,
   MapPin,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Building
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -305,7 +306,7 @@ export default function LeaguesPage() {
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b"><tr><th className="px-8 py-5">Squad</th><th className="px-4 py-5 text-center">W</th><th className="px-4 py-5 text-center">L</th><th className="px-4 py-5 text-center">T</th><th className="px-8 py-5 text-right text-primary">PTS</th></tr></thead>
+                      <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b"><tr><th className="px-8 py-5">Squad</th><th className="px-4 py-5 text-center">W</th><th className="px-4 py-5 text-center">L</th><th className="px-4 py-5 text-center">T</th><th className="px-8 py-5 text-right text-primary">PTS</th></tr></thead>
                       <tbody className="divide-y">{sortedStandings.map((team, idx) => (<tr key={team.id} className={cn("hover:bg-primary/5 transition-colors group", team.id === activeTeam?.id && "bg-primary/5")}><td className="px-8 py-6"><div className="flex items-center gap-4"><span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span><div className="flex items-center gap-3"><Avatar className="h-10 w-10 rounded-xl border shadow-inner shrink-0"><AvatarImage src={team.teamLogoUrl} className="object-cover" /><AvatarFallback className="font-black text-xs">{team.teamName?.[0] || 'T'}</AvatarFallback></Avatar><div className="flex flex-col min-w-0"><div className="flex items-center gap-2"><span className="font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors truncate">{team.teamName}</span></div></div></div></div></td><td className="px-4 py-6 text-center font-bold text-sm">{team.wins}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.losses}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.ties}</td><td className="px-8 py-6 text-right font-black text-lg text-primary">{team.points}</td></tr>))}</tbody>
                     </table>
                   </div>
