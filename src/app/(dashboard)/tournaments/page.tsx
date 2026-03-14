@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -282,7 +281,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             </div>
           </div>
           <DialogFooter>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateTeams}>Synchronize Roster</Button>
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl">Synchronize Roster</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

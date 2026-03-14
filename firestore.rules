@@ -60,13 +60,13 @@ service cloud.firestore {
       // Subcollections
       match /alerts/{alertId} {
         allow get, list: if isSignedIn();
-        allow create: if isSignedIn(); // Allow seeding
+        allow create: if isSignedIn(); 
         allow update, delete: if isTeamStaff(teamId);
       }
 
       match /members/{memberId} {
         allow read, list: if isSignedIn();
-        allow create: if isSignedIn(); // Allow seeding
+        allow create: if isSignedIn(); 
         allow update, delete: if isTeamStaff(teamId) || isOwner(memberId);
 
         match /private/evaluation {
@@ -156,8 +156,13 @@ service cloud.firestore {
         }
       }
 
+      match /registration/{protocolId} {
+        allow read: if true; // Public access for registration configuration
+        allow write: if isTeamStaff(teamId);
+      }
+
       match /registrationEntries/{entryId} {
-        allow create: if true;
+        allow create: if true; // Public application submission
         allow read, write: if isTeamStaff(teamId) || isSuperAdmin();
       }
 
@@ -186,7 +191,7 @@ service cloud.firestore {
       
       match /registrationEntries/{entryId} {
         allow create: if true;
-        allow read, write: if isSignedIn();
+        allow read, write: if isTeamStaff(teamId) || isSignedIn();
       }
 
       match /registration/{protocolId} {
@@ -198,7 +203,7 @@ service cloud.firestore {
 
     match /plans/{planId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Allow seeder
+      allow write: if isSignedIn(); // Allow seeder for demo environments
     }
 
     match /subscriptions/{subId} {

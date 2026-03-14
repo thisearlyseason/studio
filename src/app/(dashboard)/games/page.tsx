@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trophy, Plus, MapPin, TrendingUp, Lock, LineChart as ChartIcon, ChevronRight, Zap, Quote, Loader2, Download } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
