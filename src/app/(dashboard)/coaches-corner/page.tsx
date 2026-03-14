@@ -205,7 +205,7 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
               </div>
             </div>
           </div>
-          <div className="flex-1 p-8 lg:p-10 space-y-8 overflow-y-auto max-h-[80vh]">
+          <div className="flex-1 p-8 lg:p-10 space-y-8 overflow-y-auto max-h-[80vh] custom-scrollbar">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <ShieldAlert className="h-5 w-5 text-primary" />
@@ -359,7 +359,7 @@ export default function CoachesCornerPage() {
                   <Plus className="h-4 w-4 mr-2" /> New Waiver
                 </Button>
               </DialogTrigger>
-              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto">
+              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto custom-scrollbar">
                 <DialogTitle className="sr-only">Document Architect</DialogTitle>
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 lg:p-12 space-y-10">
@@ -499,7 +499,7 @@ export default function CoachesCornerPage() {
                           )}
                           <Dialog>
                             <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border"><Eye className="h-4 w-4" /></Button></DialogTrigger>
-                            <DialogContent className="rounded-3xl border-none shadow-2xl p-0 sm:max-w-lg overflow-y-auto">
+                            <DialogContent className="rounded-3xl border-none shadow-2xl p-0 sm:max-w-lg overflow-y-auto custom-scrollbar">
                               <DialogTitle className="sr-only">Recruit File Details</DialogTitle>
                               <div className="h-2 bg-primary w-full" />
                               <div className="p-8 space-y-6">
@@ -600,7 +600,7 @@ export default function CoachesCornerPage() {
       </Tabs>
 
       <Dialog open={!!selectedDoc} onOpenChange={o => !o && setSelectedDoc(null)}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-xl border-none shadow-2xl p-0 overflow-y-auto">
+        <DialogContent className="rounded-[2.5rem] sm:max-w-xl border-none shadow-2xl p-0 overflow-y-auto custom-scrollbar">
           <DialogTitle className="sr-only">Document Audit: {selectedDoc?.title}</DialogTitle>
           <div className="h-2 bg-black w-full" />
           <div className="p-8 space-y-6">

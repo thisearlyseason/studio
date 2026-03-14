@@ -58,10 +58,9 @@ service cloud.firestore {
       allow update, delete: if isTeamStaff(teamId);
 
       // Subcollections
-      // TACTICAL: Allow create if signed in to support batch initialization during seeding
       match /alerts/{alertId} {
         allow get, list: if isSignedIn();
-        allow create: if isSignedIn();
+        allow create: if isSignedIn(); // Seeder support
         allow update, delete: if isTeamStaff(teamId);
       }
 

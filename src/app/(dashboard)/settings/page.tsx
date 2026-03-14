@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -17,33 +17,20 @@ import {
 } from '@/components/ui/select';
 import { 
   Bell, 
-  Lock, 
   LogOut, 
   Camera, 
   ChevronRight,
-  HelpCircle,
   Loader2,
   CreditCard,
   ExternalLink,
-  Building,
   Zap,
   ArrowRight,
   RotateCcw,
   AlertTriangle,
   BookOpen,
-  Trophy,
-  Clock,
-  Target,
-  Activity,
-  Users,
-  Info,
   User,
-  Phone,
-  AtSign,
-  PenTool,
-  Save,
-  ChevronDown,
-  Edit3
+  Edit3,
+  Save
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -75,7 +62,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function SettingsPage() {
-  const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro, isClubManager, resetSquadData, isStaff } = useTeam();
+  const { user, updateUser, members, activeTeam, updateMember, manageSubscription, isPro, resetSquadData } = useTeam();
   const auth = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
@@ -119,38 +106,20 @@ export default function SettingsPage() {
   const currentMember = activeTeam ? members.find(m => m.userId === user.id) : null;
   const isAdmin = activeTeam?.role === 'Admin';
 
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_SIZE = 400;
-          let width = img.width; let height = img.height;
-          if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
-          else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
-          canvas.width = width; canvas.height = height;
-          const ctx = canvas.getContext('2d'); ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
-        };
-      };
-    });
-  };
-
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setIsUpdatingAvatar(true);
       try {
-        const compressed = await compressImage(e.target.files[0]);
-        await updateUser({ avatar: compressed });
-        toast({ title: "Avatar Updated" });
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          await updateUser({ avatar: ev.target?.result as string });
+          toast({ title: "Avatar Updated" });
+          setIsUpdatingAvatar(false);
+        };
+        reader.readAsDataURL(e.target.files[0]);
       } catch (error) {
-        toast({ title: "Update Failed", variant: "destructive" });
-      } finally {
         setIsUpdatingAvatar(false);
+        toast({ title: "Update Failed", variant: "destructive" });
       }
     }
   };
@@ -171,12 +140,12 @@ export default function SettingsPage() {
     }
   };
 
-  const handleResetClick = () => {
-    const highImpact = resetOptions.includes('members') || resetOptions.includes('facilities');
-    if (highImpact) {
-      setIsDoubleConfirmOpen(true);
-    } else {
-      handleFinalReset();
+  const handleLogout = async () => {
+    try { 
+      await signOut(auth); 
+      router.push('/login'); 
+    } catch (error) { 
+      toast({ title: "Logout Failed", variant: "destructive" }); 
     }
   };
 
@@ -186,15 +155,7 @@ export default function SettingsPage() {
     setIsResetOpen(false);
     setIsDoubleConfirmOpen(false);
     setIsProcessing(false);
-  };
-
-  const handleLogout = async () => {
-    try { 
-      await signOut(auth); 
-      router.push('/login'); 
-    } catch (error) { 
-      toast({ title: "Logout Failed", variant: "destructive" }); 
-    }
+    toast({ title: "Season Reset Complete" });
   };
 
   return (
@@ -328,7 +289,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {isStaff && (
+        {isPro && (
           <Card className="rounded-[2.5rem] border-none shadow-xl bg-black text-white overflow-hidden group transition-all hover:ring-4 hover:ring-primary/20">
             <CardHeader className="p-8 border-b border-white/5">
               <div className="flex items-center gap-4">
@@ -351,7 +312,7 @@ export default function SettingsPage() {
       <div className="space-y-4 pt-10 border-t">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-2">Account Logistics</h3>
         
-        {isPro && isStaff && (
+        {isPro && (
           <button onClick={manageSubscription} className="w-full p-6 bg-white rounded-3xl flex items-center justify-between border-2 border-transparent hover:border-primary/20 shadow-sm transition-all group">
             <div className="flex items-center gap-4">
               <div className="bg-amber-100 p-3 rounded-2xl text-amber-600 group-hover:bg-primary group-hover:text-white transition-colors"><CreditCard className="h-6 w-6" /></div>
@@ -380,7 +341,6 @@ export default function SettingsPage() {
 
       <p className="text-center text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] opacity-30 pt-10 pb-20">The Squad Coordination Hub v1.0.0 • Verified Global ID: {user.id.slice(-8)}</p>
 
-      {/* Season Reset Dialog */}
       <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl p-0 overflow-hidden">
           <div className="h-2 bg-primary w-full" />
@@ -393,28 +353,17 @@ export default function SettingsPage() {
               <DialogDescription className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest">Select data categories to wipe for the new season.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
-              {[
-                { id: 'games', label: 'Match Ledger (Win/Loss Records)', icon: Trophy },
-                { id: 'events', label: 'Itinerary (Matches & Practices)', icon: Clock },
-                { id: 'scouting', label: 'Scouting Intel (Opponent Reports)', icon: Target },
-                { id: 'feed', label: 'Squad Feed (Historical Broadcasts)', icon: Activity },
-                { id: 'members', label: 'Squad Roster (Players & Members)', icon: Users },
-                { id: 'facilities', label: 'Facility Data (Venues & Fields)', icon: Building }
-              ].map(opt => (
-                <div key={opt.id} className={cn(
-                  "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
-                  resetOptions.includes(opt.id) ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:border-muted"
-                )} onClick={() => setResetOptions(prev => prev.includes(opt.id) ? prev.filter(i => i !== opt.id) : [...prev, opt.id])}>
-                  <div className="flex items-center gap-3">
-                    <opt.icon className={cn("h-4 w-4", resetOptions.includes(opt.id) ? "text-primary" : "text-muted-foreground opacity-60")} />
-                    <span className="text-xs font-black uppercase">{opt.label}</span>
-                  </div>
-                  <Checkbox checked={resetOptions.includes(opt.id)} onCheckedChange={() => {}} className="rounded-lg h-5 w-5" />
-                </div>
-              ))}
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", resetOptions.includes('games') ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:border-muted")} onClick={() => setResetOptions(prev => prev.includes('games') ? prev.filter(i => i !== 'games') : [...prev, 'games'])}>
+                <span className="text-xs font-black uppercase">Match Ledger</span>
+                <Checkbox checked={resetOptions.includes('games')} onCheckedChange={() => {}} />
+              </div>
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", resetOptions.includes('events') ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:border-muted")} onClick={() => setResetOptions(prev => prev.includes('events') ? prev.filter(i => i !== 'events') : [...prev, 'events'])}>
+                <span className="text-xs font-black uppercase">Schedule & Itinerary</span>
+                <Checkbox checked={resetOptions.includes('events')} onCheckedChange={() => {}} />
+              </div>
             </div>
             <DialogFooter>
-              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleResetClick} disabled={isProcessing || resetOptions.length === 0}>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={() => setIsDoubleConfirmOpen(true)} disabled={isProcessing || resetOptions.length === 0}>
                 {isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Commit Tactical Reset"}
               </Button>
             </DialogFooter>
@@ -425,17 +374,14 @@ export default function SettingsPage() {
       <AlertDialog open={isDoubleConfirmOpen} onOpenChange={setIsDoubleConfirmOpen}>
         <AlertDialogContent className="rounded-[2.5rem] border-none shadow-2xl">
           <AlertDialogHeader>
-            <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="h-8 w-8 text-red-600" />
-            </div>
             <AlertDialogTitle className="text-center text-2xl font-black uppercase">Irreversible Purge</AlertDialogTitle>
             <AlertDialogDescription className="text-center text-base font-medium pt-2 text-foreground/80">
-              You have selected high-impact data categories (Roster or Facilities). This will permanently delete squad members or organization venue records. This action cannot be undone.
+              This will permanently delete squad data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6">
-            <AlertDialogCancel className="rounded-xl font-bold border-2">Cancel Operation</AlertDialogCancel>
-            <AlertDialogAction onClick={handleFinalReset} className="rounded-xl font-black bg-red-600 hover:bg-red-700 shadow-xl shadow-red-600/20">Purge Permanently</AlertDialogAction>
+            <AlertDialogCancel className="rounded-xl font-bold border-2">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFinalReset} className="rounded-xl font-black bg-red-600 hover:bg-red-700">Purge Permanently</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
