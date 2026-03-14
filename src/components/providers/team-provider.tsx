@@ -118,6 +118,8 @@ export type Member = {
   highlightUrl?: string;
   joinedAt?: string;
   isDemo?: boolean;
+  achievements?: string[];
+  skills?: string[];
 };
 
 export type FeeItem = {
@@ -336,6 +338,7 @@ export type TournamentGame = {
   isCompleted: boolean;
   isDisputed?: boolean;
   disputeNotes?: string;
+  mvp?: string;
 };
 
 interface TeamContextType {
@@ -439,6 +442,8 @@ interface TeamContextType {
   createAlert: (title: string, message: string, audience: TeamAlert['audience']) => Promise<void>;
   deleteAlert: (alertId: string) => Promise<void>;
   exportSignaturesCSV: (documentId: string) => Promise<void>;
+  exportAttendanceCSV: (eventId: string) => Promise<void>;
+  exportTournamentStandingsCSV: (tournamentId: string) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -676,6 +681,58 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     document.body.removeChild(link);
   }, [activeTeam?.id, db]);
 
+  const exportAttendanceCSV = useCallback(async (eventId: string) => {
+    if (!activeTeam?.id) return;
+    const event = householdEvents.find(e => e.id === eventId);
+    if (!event) return;
+    
+    const headers = ["Member Name", "RSVP Status", "Position", "Jersey"];
+    const rows = members.map(m => {
+      const rsvp = event.userRsvps?.[m.userId] || 'No Response';
+      return [m.name, rsvp, m.position, m.jersey];
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].map(e => e.join(",")).join("\n");
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", `Attendance_${event.title.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "RSVP Ledger Exported" });
+  }, [activeTeam?.id, householdEvents, members]);
+
+  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => {
+    const event = householdEvents.find(e => e.id === tournamentId);
+    if (!event) return;
+    
+    const teams = event.tournamentTeams || [];
+    const games = event.tournamentGames || [];
+    
+    const standings = teams.map(team => {
+      let w = 0, l = 0, t = 0, p = 0;
+      games.filter(g => g.isCompleted && (g.team1 === team || g.team2 === team)).forEach(g => {
+        const isT1 = g.team1 === team;
+        const myScore = isT1 ? g.score1 : g.score2;
+        const oppScore = isT1 ? g.score2 : g.score1;
+        if (myScore > oppScore) { w++; p++; }
+        else if (myScore < oppScore) { l++; p--; }
+        else t++;
+      });
+      return [team, w, l, t, p];
+    });
+
+    const headers = ["Team Name", "Wins", "Losses", "Ties", "Total Points"];
+    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...standings].map(e => e.join(",")).join("\n");
+    const link = document.createElement("a");
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", `Standings_${event.title.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Championship Standings Exported" });
+  }, [householdEvents]);
+
   const contextValue = useMemo(() => ({
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
     currentMember, isStaff: activeTeam?.role === 'Admin', isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
@@ -755,8 +812,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     resolveQuota: async (sids: string[]) => { if (firebaseUser) { const b = writeBatch(db); teams.filter(t => t.ownerUserId === firebaseUser.uid && t.isPro).forEach(t => { const ok = sids.includes(t.id); b.update(doc(db, 'teams', t.id), { isPro: ok, planId: ok ? t.planId : 'starter_squad' }); b.update(doc(db, 'users', firebaseUser.uid, 'teamMemberships', t.id), { isPro: ok, planId: ok ? t.planId : 'starter_squad' }); }); await b.commit(); } },
     createAlert,
     deleteAlert,
-    exportSignaturesCSV
-  }), [userProfile, activeTeam?.id, activeTeam?.role, activeTeam?.isPro, activeTeam?.planId, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, router]);
+    exportSignaturesCSV,
+    exportAttendanceCSV,
+    exportTournamentStandingsCSV
+  }), [userProfile, activeTeam?.id, activeTeam?.role, activeTeam?.isPro, activeTeam?.planId, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, router]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

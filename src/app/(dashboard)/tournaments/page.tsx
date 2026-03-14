@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -25,7 +26,9 @@ import {
   Users,
   FileSignature,
   Info,
-  X
+  X,
+  Download,
+  Share2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -80,8 +83,61 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
   return Object.values(standings).sort((a, b) => b.points - a.points || b.wins - a.wins);
 }
 
+function BracketVisualizer({ games }: { games: TournamentGame[] }) {
+  // Simple simulation of a championship bracket nodes
+  return (
+    <div className="p-8 bg-muted/10 rounded-[3rem] border-2 border-dashed overflow-x-auto min-h-[400px] flex items-center justify-center">
+      <div className="flex gap-12 items-center">
+        {/* Quarter Finals */}
+        <div className="flex flex-col gap-8">
+          <p className="text-[10px] font-black uppercase text-center text-muted-foreground mb-2">Quarter Finals</p>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="w-48 h-16 bg-white rounded-xl border-2 flex flex-col justify-center px-4 shadow-sm opacity-40">
+              <div className="h-2 w-24 bg-muted rounded-full mb-2" />
+              <div className="h-2 w-16 bg-muted/50 rounded-full" />
+            </div>
+          ))}
+        </div>
+        
+        <ArrowRight className="h-6 w-6 text-muted-foreground opacity-20" />
+
+        {/* Semi Finals */}
+        <div className="flex flex-col gap-24">
+          <p className="text-[10px] font-black uppercase text-center text-muted-foreground mb-2">Semi Finals</p>
+          {[1, 2].map(i => (
+            <div key={i} className="w-48 h-20 bg-white rounded-xl border-2 border-primary/20 flex flex-col justify-center px-4 shadow-md">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-black uppercase">TBD</span>
+                <span className="text-[10px] font-bold opacity-40">0</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase">TBD</span>
+                <span className="text-[10px] font-bold opacity-40">0</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <ArrowRight className="h-8 w-8 text-primary opacity-40" />
+
+        {/* Grand Final */}
+        <div className="flex flex-col">
+          <p className="text-[10px] font-black uppercase text-center text-primary mb-4 tracking-widest">Championship Match</p>
+          <div className="w-64 h-32 bg-black text-white rounded-[2rem] border-4 border-primary flex flex-col justify-center items-center gap-4 shadow-2xl relative">
+            <Trophy className="absolute -top-6 h-12 w-12 text-amber-500 drop-shadow-lg" />
+            <div className="text-center">
+              <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">Finalists</p>
+              <p className="font-black text-lg uppercase tracking-tight">Match Pending</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () => void }) {
-  const { user, members, updateRSVP, isStaff, activeTeam, db } = useTeam();
+  const { user, members, updateRSVP, isStaff, activeTeam, db, exportTournamentStandingsCSV } = useTeam();
   const standings = useMemo(() => calculateTournamentStandings(event.tournamentTeams || [], event.tournamentGames || []), [event.tournamentTeams, event.tournamentGames]);
   const isOrganizer = isStaff && event.teamId === activeTeam?.id;
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -136,7 +192,14 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             <p className="text-sm font-medium text-white/80 leading-relaxed italic">"{event.description || 'Championship coordination itinerary established.'}"</p>
           </div>
           <div className="space-y-4 pt-4 border-t border-white/10">
-            <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard Pulse</h4>
+            <div className="flex justify-between items-center">
+              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard Pulse</h4>
+              {isOrganizer && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-white/10" onClick={() => exportTournamentStandingsCSV(event.id)}>
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
               {standings.map((team) => (
                 <div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0">
@@ -152,10 +215,11 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           <Tabs defaultValue="itinerary" className="w-full h-full flex flex-col">
             <div className="bg-muted/30 p-6 border-b">
               <TabsList className="bg-white/50 h-auto p-1.5 rounded-2xl border w-full flex-wrap gap-1">
-                <TabsTrigger value="itinerary" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Match Schedule</TabsTrigger>
-                <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Squad Presence</TabsTrigger>
+                <TabsTrigger value="itinerary" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Matches</TabsTrigger>
+                <TabsTrigger value="bracket" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Bracket</TabsTrigger>
+                <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Squad</TabsTrigger>
                 <TabsTrigger value="portals" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Portals</TabsTrigger>
-                <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Compliance</TabsTrigger>
+                <TabsTrigger value="compliance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Legal</TabsTrigger>
               </TabsList>
             </div>
             <div className="flex-1 p-8 lg:p-10">
@@ -182,6 +246,10 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                     <p className="text-sm font-black uppercase">No matches scheduled.</p>
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="bracket" className="mt-0">
+                <BracketVisualizer games={event.tournamentGames || []} />
               </TabsContent>
               
               <TabsContent value="attendance" className="mt-0">
@@ -229,9 +297,12 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 
               <TabsContent value="compliance" className="mt-0">
                 <div className="space-y-6">
-                  <div className="flex items-center gap-3 px-2">
-                    <FileSignature className="h-5 w-5 text-primary" />
-                    <h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3>
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-3">
+                      <FileSignature className="h-5 w-5 text-primary" />
+                      <h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3>
+                    </div>
+                    <Button variant="outline" className="h-9 px-4 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => window.open(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`, '_blank')}>Open Waiver Portal <ExternalLink className="ml-2 h-3 w-3" /></Button>
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     {event.tournamentTeams?.map(teamName => {
@@ -281,7 +352,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             </div>
           </div>
           <DialogFooter>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl">Synchronize Roster</Button>
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateTeams}>Synchronize Roster</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

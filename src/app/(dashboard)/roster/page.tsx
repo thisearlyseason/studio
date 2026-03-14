@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -24,7 +25,10 @@ import {
   Stethoscope,
   Plane,
   Camera,
-  HeartPulse
+  HeartPulse,
+  Target,
+  Trophy,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam, Member } from '@/components/providers/team-provider';
@@ -322,6 +326,20 @@ export default function RosterPage() {
                     <p className="text-sm font-medium leading-relaxed italic text-foreground/80">
                       {selectedMember.notes || "This athlete has not yet established a squad bio. Visit Settings to update."}
                     </p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Star className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Operational Skills & Achievements</h4></div>
+                  <div className="flex flex-wrap gap-2">
+                    {(selectedMember.skills || ['Speed', 'Communication', 'Technical Control']).map((skill, idx) => (
+                      <Badge key={idx} variant="secondary" className="rounded-xl px-4 py-1.5 font-black text-[10px] uppercase">{skill}</Badge>
+                    ))}
+                    {(selectedMember.achievements || ['MVP 2023', 'District Finals 2024']).map((award, idx) => (
+                      <Badge key={idx} className="bg-amber-100 text-amber-700 border-none rounded-xl px-4 py-1.5 font-black text-[10px] uppercase flex items-center gap-2">
+                        <Trophy className="h-3 w-3" /> {award}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
 

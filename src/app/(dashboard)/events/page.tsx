@@ -18,7 +18,8 @@ import {
   Users,
   FileSignature,
   Info,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -83,7 +84,7 @@ const formatDateRange = (start: string | Date, end?: string | Date) => {
 };
 
 function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, children, members }: { event: TeamEvent, updateRSVP: any, isAdmin: boolean, onEdit: any, onDelete: any, children: React.ReactNode, members: Member[] }) {
-  const { user } = useTeam();
+  const { user, exportAttendanceCSV } = useTeam();
   const myRsvp = event.userRsvps?.[user?.id || ''] || 'no_response';
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -119,9 +120,14 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
               </div>
             </div>
             {isAdmin && (
-              <div className="mt-auto pt-8 flex gap-3 relative z-10">
-                <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button>
-                <Button variant="destructive" size="icon" className="h-12 w-12 rounded-xl" onClick={() => onDelete(event.id)}><Trash2 className="h-5 w-5" /></Button>
+              <div className="mt-auto pt-8 flex flex-col gap-3 relative z-10">
+                <Button variant="outline" className="w-full h-12 rounded-xl border-white/20 text-white hover:bg-white/10 font-black uppercase text-[10px]" onClick={() => exportAttendanceCSV(event.id)}>
+                  <Download className="h-4 w-4 mr-2" /> Export RSVP Ledger
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="secondary" className="flex-1 rounded-xl h-12 font-black uppercase text-[10px]" onClick={() => onEdit(event)}>Edit Hub</Button>
+                  <Button variant="destructive" size="icon" className="h-12 w-12 rounded-xl" onClick={() => onDelete(event.id)}><Trash2 className="h-5 w-5" /></Button>
+                </div>
               </div>
             )}
           </div>
