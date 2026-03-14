@@ -92,8 +92,6 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
   const { data: facilities } = useCollection<Facility>(facilitiesQuery);
   
   const allFields = useMemo(() => {
-    // In a real scenario, we'd fetch fields for all selected venues.
-    // For MVP, we allow selection from the current organizational facilities.
     return [];
   }, [facilities]);
 
@@ -189,7 +187,6 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
                   <div className="space-y-4 animate-in slide-in-from-top-4">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Assign Fields/Courts</Label>
                     <div className="bg-muted/20 rounded-2xl p-4 border-2 border-dashed space-y-2">
-                      {/* For simplicity we use all fields of selected venues. Real app would fetch specific fields per venue */}
                       <p className="text-[9px] font-bold text-muted-foreground uppercase text-center py-4">Select fields manually in Facilities to map them here.</p>
                       <Button variant="outline" className="w-full h-10 rounded-xl font-black uppercase text-[10px]" onClick={() => setConfig({...config, selectedFields: ['Field 1', 'Field 2', 'Court A']})}>Map Standard Resources</Button>
                     </div>
@@ -213,7 +210,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
                   </div>
                 </div>
               </section>
-            </div>
+            </aside>
           </div>
 
           <DialogFooter className="pt-10">
@@ -406,13 +403,13 @@ export default function LeaguesPage() {
                   {isStaff && isOrganizer && (
                     <>
                       <Button onClick={() => setIsSeasonOpen(true)} className="h-12 px-8 rounded-xl font-black text-xs uppercase bg-white text-black hover:bg-primary hover:text-white"><CalendarDays className="h-4 w-4 mr-2" /> Season Architect</Button>
-                      <Button asChild variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase border-white/20 text-white hover:bg-white/10 hover:text-primary hover:border-primary transition-all">
-                        <Link href={`/leagues/registration/${activeLeague.id}`} className="flex items-center text-white hover:text-primary">
+                      <Button asChild variant="secondary" className="h-12 px-8 rounded-xl font-black text-xs uppercase shadow-xl hover:bg-white/90">
+                        <Link href={`/leagues/registration/${activeLeague.id}`} className="flex items-center">
                           <ClipboardList className="h-4 w-4 mr-2" /> 
                           <span>Registration Hub</span>
                         </Link>
                       </Button>
-                      <Button variant="secondary" className="h-12 px-8 rounded-xl font-black text-xs uppercase" onClick={() => setIsInviteOpen(true)}><UserPlus className="h-4 w-4 mr-2" /> Add/Invite Team</Button>
+                      <Button variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase border-white/20 text-white hover:bg-white/10" onClick={() => setIsInviteOpen(true)}><UserPlus className="h-4 w-4 mr-2" /> Invite Team</Button>
                     </>
                   )}
                   <Button asChild variant="ghost" className="h-12 px-6 rounded-xl font-black text-xs uppercase text-white/60 hover:text-white"><Link href={`/leagues/spectator/${activeLeague.id}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2" /> Public Portal</Link></Button>

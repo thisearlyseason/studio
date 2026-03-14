@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -93,7 +92,8 @@ export default function LeagueRegistrationAdminPage() {
       is_active: false,
       form_schema: [
         { id: 'name', type: 'short_text', label: 'Full Name', required: true },
-        { id: 'email', type: 'short_text', label: 'Email Address', required: true }
+        { id: 'email', type: 'short_text', label: 'Email Address', required: true },
+        { id: 'squad_request', type: 'dropdown', label: 'Squad Assignment Request', required: false, options: ['Returning Team', 'Draft Pool', 'Request Specific Coach'] }
       ],
       form_version: 1,
       waiver_text: '',
