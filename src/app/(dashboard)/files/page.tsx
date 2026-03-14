@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -36,7 +36,7 @@ import {
   Shield,
   Loader2
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useTeam, TeamFile, TeamDocument, DocumentSignature, Member } from '@/components/providers/team-provider';
 import { 
@@ -46,7 +46,7 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription, 
-  DialogFooter,
+  DialogFooter, 
   DialogClose
 } from '@/components/ui/dialog';
 import {
@@ -165,7 +165,7 @@ export default function FilesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadCategory, setUploadCategory] = useState<string>('Compliance');
   const [uploadDescription, setUploadDescription] = useState('');
-  const [signedDocIds, setSignedDocIds] = useState<string[]>([]);
+  const [signedDocIds, setSignedDocIds] = useState<Record<string, string[]>>({});
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -207,23 +207,20 @@ export default function FilesPage() {
 
   const checkSigs = useCallback(async () => {
     if (!activeTeam || signingMembers.length === 0 || !db) return;
-    const ids: string[] = [];
-    const docsSnap = await getDocs(collection(db, 'teams', activeTeam.id, 'documents'));
-    for (const d of docsSnap.docs) {
-      let allSigned = true;
-      for (const m of signingMembers) {
+    const results: Record<string, string[]> = {};
+    
+    for (const m of signingMembers) {
+      const signedIds: string[] = [];
+      const docsSnap = await getDocs(collection(db, 'teams', activeTeam.id, 'documents'));
+      for (const d of docsSnap.docs) {
         const sigSnap = await getDocs(query(collection(db, 'teams', activeTeam.id, 'documents', d.id, 'signatures'), where('memberId', '==', m.id)));
-        if (sigSnap.empty) {
-          // If the doc is NOT assigned to this member, we don't mark it as "needed"
-          const assignedTo = d.data().assignedTo || ['all'];
-          if (assignedTo.includes('all') || assignedTo.includes(m.id)) {
-            allSigned = false;
-          }
+        if (!sigSnap.empty) {
+          signedIds.push(d.id);
         }
       }
-      if (allSigned && signingMembers.length > 0) ids.push(d.id);
+      results[m.id] = signedIds;
     }
-    setSignedDocIds(ids);
+    setSignedDocIds(results);
   }, [activeTeam, signingMembers, db]);
 
   useEffect(() => {
@@ -231,17 +228,23 @@ export default function FilesPage() {
     checkSigs();
   }, [checkSigs, documents]);
 
-  const pendingDocs = useMemo(() => {
+  const pendingDocsForDisplay = useMemo(() => {
     if (!documents) return [];
+    
+    // We group by document, but only if SOME eligible member hasn't signed it
     return documents.filter(d => {
-      const isAssigned = d.assignedTo.includes('all') || signingMembers.some(m => d.assignedTo.includes(m.id));
-      return isAssigned && !signedDocIds.includes(d.id);
+      const isParentalWaiver = d.id === 'default_parental';
+      
+      return signingMembers.some(m => {
+        const isAdult = m.birthdate && differenceInYears(new Date(), new Date(m.birthdate)) >= 18;
+        if (isParentalWaiver && isAdult) return false;
+        
+        const isAssigned = d.assignedTo.includes('all') || d.assignedTo.includes(m.id);
+        const alreadySigned = signedDocIds[m.id]?.includes(d.id);
+        return isAssigned && !alreadySigned;
+      });
     });
   }, [documents, signedDocIds, signingMembers]);
-
-  const filteredFiles = useMemo(() => {
-    return teamFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [teamFiles, searchTerm]);
 
   if (!mounted || !activeTeam) return null;
 
@@ -314,7 +317,7 @@ export default function FilesPage() {
         )}
       </div>
 
-      {pendingDocs.length > 0 && (
+      {pendingDocsForDisplay.length > 0 && (
         <section className="space-y-6">
           <div className="flex items-center gap-3 px-2">
             <div className="bg-red-100 p-2 rounded-xl text-red-600 animate-pulse">
@@ -326,7 +329,7 @@ export default function FilesPage() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {pendingDocs.map(d => (
+            {pendingDocsForDisplay.map(d => (
               <Card key={d.id} className="rounded-[2.5rem] border-none shadow-xl ring-2 ring-red-100 bg-white overflow-hidden flex flex-col group">
                 <CardHeader className="p-8 pb-4">
                   <div className="flex justify-between items-start">
@@ -339,7 +342,18 @@ export default function FilesPage() {
                   <p className="text-xs font-medium text-muted-foreground line-clamp-3 leading-relaxed mb-6 italic">
                     "{d.content}"
                   </p>
-                  <DocumentSigningDialog doc={d} onSign={signTeamDocument} members={signingMembers} onComplete={checkSigs} />
+                  <DocumentSigningDialog 
+                    doc={d} 
+                    onSign={signTeamDocument} 
+                    members={signingMembers.filter(m => {
+                      const isAdult = m.birthdate && differenceInYears(new Date(), new Date(m.birthdate)) >= 18;
+                      if (d.id === 'default_parental' && isAdult) return false;
+                      const isAssigned = d.assignedTo.includes('all') || d.assignedTo.includes(m.id);
+                      const signed = signedDocIds[m.id]?.includes(d.id);
+                      return isAssigned && !signed;
+                    })} 
+                    onComplete={checkSigs} 
+                  />
                 </CardContent>
               </Card>
             ))}
@@ -411,7 +425,7 @@ export default function FilesPage() {
             );
           })}
 
-          {filteredFiles.length === 0 && pendingDocs.length === 0 && (
+          {filteredFiles.length === 0 && pendingDocsForDisplay.length === 0 && (
             <div className="col-span-full py-24 text-center bg-muted/10 rounded-[3rem] border-2 border-dashed space-y-4 opacity-40">
               <FolderClosed className="h-12 w-12 mx-auto" />
               <p className="text-sm font-black uppercase tracking-widest">No Documents Found</p>

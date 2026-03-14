@@ -45,16 +45,16 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, where } from 'firebase/firestore';
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 
 const STANDARD_WAIVERS = [
   { id: 'medical', label: 'Medical Clearance', icon: HeartPulse },
   { id: 'travel', label: 'Travel Consent', icon: Plane },
-  { id: 'parental', label: 'Parental Waiver', icon: ShieldCheck },
+  { id: 'parental', label: 'Parental Waiver', icon: ShieldCheck, minorOnly: true },
   { id: 'photography', label: 'Photography Release', icon: Camera }
 ];
 
-function MemberComplianceLedger({ teamId, memberId }: { teamId: string, memberId: string }) {
+function MemberComplianceLedger({ teamId, memberId, birthdate }: { teamId: string, memberId: string, birthdate?: string }) {
   const db = useFirestore();
   const q = useMemoFirebase(() => {
     if (!db || !teamId || !memberId) return null;
@@ -62,6 +62,11 @@ function MemberComplianceLedger({ teamId, memberId }: { teamId: string, memberId
   }, [db, teamId, memberId]);
 
   const { data: signatures, isLoading } = useCollection(q);
+
+  const isAdult = useMemo(() => {
+    if (!birthdate) return false;
+    return differenceInYears(new Date(), new Date(birthdate)) >= 18;
+  }, [birthdate]);
 
   const handleDownload = (sig: any) => {
     const content = `CERTIFICATE OF VERIFIED SIGNATURE\n\nDocument: ${sig.title}\nTimestamp: ${sig.signedAt}\nLegal Signature: "${sig.signatureText}"\n\nThis document was digitally executed within the SquadForge platform.`;
@@ -85,6 +90,7 @@ function MemberComplianceLedger({ teamId, memberId }: { teamId: string, memberId
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-3">Institutional Compliance</p>
         <div className="grid grid-cols-1 gap-2">
           {STANDARD_WAIVERS.map(w => {
+            if (w.minorOnly && isAdult) return null;
             const isSigned = sigTitles.some(t => t.includes(w.id));
             return (
               <div key={w.id} className={cn(
@@ -149,7 +155,7 @@ export default function RosterPage() {
     }
   }, [selectedMember, isStaff, getStaffEvaluation]);
 
-  const calculateAge = (dob?: string) => {
+  const calculateAgeGroup = (dob?: string) => {
     if (!dob) return null;
     const birthDate = new Date(dob);
     const today = new Date();
@@ -297,7 +303,7 @@ export default function RosterPage() {
                   </div>
 
                   <div className="w-full space-y-4 pt-4 border-t border-white/10">
-                    <MemberComplianceLedger teamId={activeTeam.id} memberId={selectedMember.id} />
+                    <MemberComplianceLedger teamId={activeTeam.id} memberId={selectedMember.id} birthdate={selectedMember.birthdate} />
                   </div>
 
                   <div className="w-full pt-4 border-t border-white/10 space-y-4">
@@ -330,7 +336,7 @@ export default function RosterPage() {
                       </div>
                       <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
                         <span className="text-[10px] font-black uppercase opacity-40">Age Group</span>
-                        <span className="text-sm font-black uppercase">{calculateAge(selectedMember.birthdate) || 'U18'}</span>
+                        <span className="text-sm font-black uppercase">{calculateAgeGroup(selectedMember.birthdate) || 'U18'}</span>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
                         <span className="text-[10px] font-black uppercase opacity-40">Grad Class</span>
