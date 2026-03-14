@@ -28,7 +28,7 @@ const clean = (obj: any): any => {
 
 /**
  * STATIC BLUEPRINTS
- * Pre-defined data structures to eliminate loop processing time during guest initialization.
+ * Pre-defined data structures to eliminate procedural generation latency.
  */
 const GET_DEMO_DATA = (teamId: string, userId: string) => {
   const now = new Date();
@@ -71,7 +71,7 @@ const STANDARD_PLANS = [
 
 /**
  * HIGH-SPEED ATOMIC SEEDER
- * Combines all demo operations into a single batch commit for near-instant preparation.
+ * Merges all initialization tasks into a single batch commit for near-instant preparation.
  */
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
   const teamId = `demo_${planId}_${userId.slice(-4)}`;
@@ -89,7 +89,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   // 1. Global Setup (Plans)
   STANDARD_PLANS.forEach(p => batch.set(doc(db, 'plans', p.id), p, { merge: true }));
 
-  // 2. Core Profile & Context
+  // 2. Core Profile & Membership Context
   batch.set(doc(db, 'users', userId), clean({
     id: userId, fullName: `Guest ${pos}`, email: `${userRole}@thesquad.pro`,
     role: userRole, activePlanId: actualPlanId, proTeamLimit: 1, createdAt: now, isDemo: true
@@ -111,7 +111,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     joinedAt: now, isDemo: true, avatar: `https://picsum.photos/seed/${userId}/150/150`
   }));
 
-  // 3. Blueprint Data Injection
+  // 3. Static Blueprint Injection
   const data = GET_DEMO_DATA(teamId, userId);
   data.members.forEach(m => batch.set(doc(db, 'teams', teamId, 'members', m.id), clean({ ...m, teamId, joinedAt: now, avatar: `https://picsum.photos/seed/${m.id}/150/150` })));
   data.games.forEach(g => batch.set(doc(db, 'teams', teamId, 'games', g.id), clean(g)));
@@ -131,6 +131,6 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 }
 
 export async function seedSubscriptionData(db: Firestore) {
-  // Logic merged into atomic seeder for performance
+  // Integrated into atomic seeder for performance optimization
   return;
 }

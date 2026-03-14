@@ -1,3 +1,4 @@
+
 "use client";
 
 import Shell from '@/components/layout/Shell';
@@ -9,7 +10,7 @@ import { RevenueCatPaywall } from '@/components/RevenueCatPaywall';
 import { QuotaResolutionOverlay } from '@/components/layout/QuotaResolutionOverlay';
 import { useTeam } from '@/components/providers/team-provider';
 import { Loader2, Timer } from 'lucide-react';
-import { seedGuestDemoTeam, seedSubscriptionData } from '@/lib/db-seeder';
+import { seedGuestDemoTeam } from '@/lib/db-seeder';
 import { useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
@@ -42,8 +43,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       setIsDemoInitializing(true);
       const seed = async () => {
         try {
-          // Perform global and specific seeding in one flow
-          await seedSubscriptionData(db);
           await seedGuestDemoTeam(db, user.uid, demoPlanId);
           window.location.replace('/dashboard');
         } catch (e) {
@@ -127,10 +126,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              {isDemoInitializing ? "Seeding Demo..." : "Authenticating..."}
+              {isDemoInitializing ? "Synchronizing Demo..." : "Authenticating..."}
             </p>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-              Synchronising Elite Infrastructure
+              Establishing Elite Infrastructure
             </p>
           </div>
         </div>
