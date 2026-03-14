@@ -390,7 +390,7 @@ interface TeamContextType {
   deleteEvent: (id: string) => Promise<void>;
   updateRSVP: (eventId: string, status: string) => Promise<void>;
   addMessage: (chatId: string, author: string, content: string, type: string, img?: string, poll?: any) => Promise<void>;
-  votePoll: (chatId: string, msgId: string, optIdx: number) => Promise<void>;
+  votePoll: (chatId: string, msgId: string, oIdx: number) => Promise<void>;
   createChat: (name: string, members: string[]) => Promise<string>;
   deleteChat: (chatId: string) => Promise<void>;
   hideChatForUser: (chatId: string) => Promise<void>;
@@ -413,7 +413,7 @@ interface TeamContextType {
   deleteDrill: (id: string) => Promise<void>;
   addScoutingReport: (data: any) => Promise<void>;
   deleteScoutingReport: (id: string) => Promise<void>;
-  addFile: (name: string, type: string, sizeBytes: number, url: string, category: string, desc?: string) => Promise<void>;
+  addFile: (name: string, type: string, sBytes: number, url: string, category: string, desc?: string) => Promise<void>;
   deleteFile: (id: string) => Promise<void>;
   markMediaAsViewed: (id: string) => Promise<void>;
   addMediaComment: (id: string, text: string) => Promise<void>;
@@ -564,15 +564,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return { current: currentCount, limit: limitCount, remaining: Math.max(0, limitCount - currentCount), exceeded: currentCount > limitCount };
   }, [teams, userProfile, firebaseUser?.uid]);
 
-  // --- CORE CALLBACKS ---
+  // --- ACTIONS ---
   const createAlert = useCallback(async (title: string, message: string, audience: TeamAlert['audience']) => {
-    if (!activeTeam || !firebaseUser) return;
-    await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid }));
+    if (!activeTeam?.id || !firebaseUser) return;
+    await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ 
+      title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid 
+    }));
     toast({ title: "Broadcast Dispatched" });
   }, [activeTeam?.id, firebaseUser, db]);
 
   const deleteAlert = useCallback(async (alertId: string) => {
-    if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'alerts', alertId));
+    if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'alerts', alertId));
   }, [activeTeam?.id, db]);
 
   const respondToAssignment = useCallback(async (contextId: string, entryId: string, status: 'accepted' | 'declined') => {
@@ -589,7 +591,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [db]);
 
   const signTeamDocument = useCallback(async (docId: string, signatureText: string, targetMemberId: string) => {
-    if (!activeTeam || !userProfile) return false;
+    if (!activeTeam?.id || !userProfile) return false;
     const docRef = doc(db, 'teams', activeTeam.id, 'documents', docId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) return false;
@@ -600,21 +602,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const batch = writeBatch(db);
     const sigId = `sig_${targetMember.id}_${Date.now()}`;
     
-    // 1. Log to document's signatures list
     batch.set(doc(db, 'teams', activeTeam.id, 'documents', docId, 'signatures', sigId), clean({
       id: sigId, memberId: targetMember.id, userId: userProfile.id, userName: targetMember.name,
       signedAt: new Date().toISOString(), signatureText, documentTitle: docData.title, documentId: docId
     }));
     
-    // 2. Log to member's signatures bio
     batch.set(doc(db, 'teams', activeTeam.id, 'members', targetMember.id, 'signatures', docId), clean({
       id: sigId, docId, title: docData.title, signedAt: new Date().toISOString(), signatureText
     }));
     
-    // 3. Update doc summary
     batch.update(docRef, { signatureCount: increment(1) });
     
-    // 4. Create certified file record
     const certId = `cert_${docId}_${targetMember.id}`;
     batch.set(doc(db, 'teams', activeTeam.id, 'files', certId), clean({
       id: certId,
@@ -631,13 +629,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam?.id, userProfile, db, members]);
 
   const createTeamDocument = useCallback(async (data: any) => {
-    if (!activeTeam || !firebaseUser) return;
-    await addDoc(collection(db, 'teams', activeTeam.id, 'documents'), clean({ ...data, teamId: activeTeam.id, signatureCount: 0, createdAt: new Date().toISOString() }));
+    if (!activeTeam?.id || !firebaseUser) return;
+    await addDoc(collection(db, 'teams', activeTeam.id, 'documents'), clean({ 
+      ...data, teamId: activeTeam.id, signatureCount: 0, createdAt: new Date().toISOString() 
+    }));
     await createAlert(`Waiver Required: ${data.title}`, `Please visit the Library to sign.`, 'everyone');
   }, [activeTeam?.id, firebaseUser, db, createAlert]);
 
   const exportSignaturesCSV = useCallback(async (documentId: string) => {
-    if (!activeTeam) return;
+    if (!activeTeam?.id) return;
     const s = await getDocs(collection(db, 'teams', activeTeam.id, 'documents', documentId, 'signatures'));
     const rows = s.docs.map(d => d.data());
     const headers = ["Member", "Legal Signature", "Date Signed", "Document"];
@@ -651,7 +651,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam?.id, db]);
 
   // --- CONTEXT VALUE ---
-  const value = useMemo(() => ({
+  const contextValue = useMemo(() => ({
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
     currentMember, isStaff: activeTeam?.role === 'Admin', isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
     isSuperAdmin, isClubManager: ['elite_teams', 'elite_league', 'squad_organization'].includes(userProfile?.activePlanId || ''), household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus,
@@ -667,54 +667,54 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     registerChild: async (f: string, l: string, d: string) => { if (!firebaseUser) return ''; const ref = await addDoc(collection(db, 'players'), clean({ firstName: f, lastName: l, dateOfBirth: d, isMinor: true, parentId: firebaseUser.uid, createdAt: new Date().toISOString() })); return ref.id; },
     upgradeChildToLogin: async (cid: string) => { await updateDoc(doc(db, 'players', cid), { hasLogin: true }); },
     updateUser: async (u: any) => { if (firebaseUser) await updateDoc(doc(db, 'users', firebaseUser.uid), clean(u)); },
-    updateMember: async (mid: string, u: any) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'members', mid), clean(u)); },
-    updateTeamDetails: async (u: any) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id), clean(u)); },
-    updateTeamHero: async (url: string) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); },
+    updateMember: async (mid: string, u: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'members', mid), clean(u)); },
+    updateTeamDetails: async (u: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id), clean(u)); },
+    updateTeamHero: async (url: string) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); },
     updateTeamPlan: async (tid: string, pid: string) => { await updateDoc(doc(db, 'teams', tid), { planId: pid, isPro: pid !== 'starter_squad' }); },
     signTeamDocument,
     createTeamDocument,
-    updateTeamDocument: async (id: string, data: any) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'documents', id), clean(data)); },
-    deleteTeamDocument: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'documents', id)); },
-    updateStaffEvaluation: async (mid: string, note: string) => { if (activeTeam) await setDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation'), { note, updatedAt: new Date().toISOString() }); },
-    getStaffEvaluation: async (mid: string) => { if (!activeTeam) return ''; const s = await getDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation')); return s.exists() ? s.data().note : ''; },
-    addEvent: async (d: any) => { if (!activeTeam) return false; await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean({ ...d, teamId: activeTeam.id })); return true; },
-    updateEvent: async (id: string, d: any) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'events', id), clean(d)); return true; },
-    deleteEvent: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'events', id)); },
-    updateRSVP: async (eid: string, s: string) => { if (activeTeam && firebaseUser) await updateDoc(doc(db, 'teams', activeTeam.id, 'events', eid), { [`userRsvps.${firebaseUser.uid}`]: s }); },
-    addMessage: async (cid: string, a: string, c: string, t: string, i?: string, p?: any) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages'), clean({ author: a, authorId: firebaseUser?.uid, content: c, type: t, imageUrl: i, poll: p, createdAt: new Date().toISOString() })); },
-    votePoll: async (cid: string, mid: string, o: number) => { if (activeTeam && firebaseUser) { const r = doc(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages', mid); const s = await getDoc(r); const p = s.data()?.poll; const cur = p.voters?.[firebaseUser.uid]; const u: any = { [`poll.voters.${firebaseUser.uid}`]: o }; if (cur === undefined) { u[`poll.options.${o}.votes`] = increment(1); u['poll.totalVotes'] = increment(1); } else if (cur !== o) { u[`poll.options.${cur}.votes`] = increment(-1); u[`poll.options.${o}.votes`] = increment(1); } await updateDoc(r, u); } },
-    createChat: async (n: string, m: string[]) => { if (!activeTeam || !firebaseUser) return ''; const r = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), clean({ name: n, memberIds: [...m, firebaseUser.uid], createdAt: new Date().toISOString() })); return r.id; },
-    deleteChat: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'groupChats', id)); },
-    hideChatForUser: async (id: string) => { if (activeTeam && firebaseUser) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', id), { [`hiddenFor.${firebaseUser.uid}`]: true }); },
-    resetSquadData: async (cats: string[]) => { if (!activeTeam) return; const b = writeBatch(db); for (const c of cats) { const s = await getDocs(collection(db, `teams/${activeTeam.id}/${c}`)); s.docs.forEach(d => b.delete(d.ref)); } await b.commit(); },
-    addVolunteerOpportunity: async (d: any) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ ...d, signups: {}, createdAt: new Date().toISOString() })); },
-    signUpForVolunteer: async (id: string) => { if (activeTeam && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id), { [`signups.${userProfile.id}`]: { userId: userProfile.id, userName: userProfile.name, status: 'pending' } }); },
-    verifyVolunteerHours: async (id: string, uid: string, h: number) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id), { [`signups.${uid}.status`]: 'verified', [`signups.${uid}.verifiedHours`]: h }); },
-    deleteVolunteerOpportunity: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id)); },
-    addFundraisingOpportunity: async (d: any) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...d, currentAmount: 0, participants: {}, createdAt: new Date().toISOString() })); },
-    signUpForFundraising: async (id: string) => { if (activeTeam && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id), { [`participants.${userProfile.id}`]: true }); },
-    updateFundraisingAmount: async (id: string, a: number) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id), { currentAmount: increment(a) }); },
-    deleteFundraisingOpportunity: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id)); },
-    addEquipmentItem: async (d: any) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'equipment'), clean({ ...d, availableQuantity: d.totalQuantity, assignments: {}, status: 'Active' })); },
-    updateEquipmentItem: async (id: string, u: any) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), clean(u)); },
-    deleteEquipmentItem: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'equipment', id)); },
-    assignEquipment: async (id: string, uid: string, un: string, q: number) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), { [`assignments.${uid}`]: { userId: uid, userName: un, quantity: q, assignedAt: new Date().toISOString() }, availableQuantity: increment(-q) }); },
-    returnEquipment: async (id: string, uid: string) => { if (activeTeam) { const r = doc(db, 'teams', activeTeam.id, 'equipment', id); const s = await getDoc(r); const q = s.data()?.assignments?.[uid]?.quantity || 0; await updateDoc(r, { [`assignments.${uid}`]: deleteField(), availableQuantity: increment(q) }); } },
-    addDrill: async (d: any) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'drills'), clean(d)); },
-    deleteDrill: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'drills', id)); },
-    addScoutingReport: async (d: any) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'scouting'), clean(d)); },
-    deleteScoutingReport: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'scouting', id)); },
-    addFile: async (n: string, t: string, s: number, u: string, c: string, d?: string) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: n, type: t, size: (s / 1048576).toFixed(2) + ' MB', sizeBytes: s, url: u, category: c, description: d, date: new Date().toISOString() })); },
-    deleteFile: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'files', id)); },
-    markMediaAsViewed: async (id: string) => { if (activeTeam && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { [`viewedBy.${userProfile.id}`]: true }); },
-    addMediaComment: async (id: string, text: string) => { if (activeTeam && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { comments: arrayUnion({ id: `c_${Date.now()}`, authorId: userProfile.id, authorName: userProfile.name, text, createdAt: new Date().toISOString() }) }); },
+    updateTeamDocument: async (id: string, data: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'documents', id), clean(data)); },
+    deleteTeamDocument: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'documents', id)); },
+    updateStaffEvaluation: async (mid: string, note: string) => { if (activeTeam?.id) await setDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation'), { note, updatedAt: new Date().toISOString() }); },
+    getStaffEvaluation: async (mid: string) => { if (!activeTeam?.id) return ''; const s = await getDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation')); return s.exists() ? s.data().note : ''; },
+    addEvent: async (d: any) => { if (!activeTeam?.id) return false; await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean({ ...d, teamId: activeTeam.id })); return true; },
+    updateEvent: async (id: string, d: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'events', id), clean(d)); return true; },
+    deleteEvent: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'events', id)); },
+    updateRSVP: async (eid: string, s: string) => { if (activeTeam?.id && firebaseUser) await updateDoc(doc(db, 'teams', activeTeam.id, 'events', eid), { [`userRsvps.${firebaseUser.uid}`]: s }); },
+    addMessage: async (cid: string, a: string, c: string, t: string, i?: string, p?: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages'), clean({ author: a, authorId: firebaseUser?.uid, content: c, type: t, imageUrl: i, poll: p, createdAt: new Date().toISOString() })); },
+    votePoll: async (cid: string, mid: string, o: number) => { if (activeTeam?.id && firebaseUser) { const r = doc(db, 'teams', activeTeam.id, 'groupChats', cid, 'messages', mid); const s = await getDoc(r); const p = s.data()?.poll; const cur = p.voters?.[firebaseUser.uid]; const u: any = { [`poll.voters.${firebaseUser.uid}`]: o }; if (cur === undefined) { u[`poll.options.${o}.votes`] = increment(1); u['poll.totalVotes'] = increment(1); } else if (cur !== o) { u[`poll.options.${cur}.votes`] = increment(-1); u[`poll.options.${o}.votes`] = increment(1); } await updateDoc(r, u); } },
+    createChat: async (n: string, m: string[]) => { if (!activeTeam?.id || !firebaseUser) return ''; const r = await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats'), clean({ name: n, memberIds: [...m, firebaseUser.uid], createdAt: new Date().toISOString() })); return r.id; },
+    deleteChat: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'groupChats', id)); },
+    hideChatForUser: async (id: string) => { if (activeTeam?.id && firebaseUser) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', id), { [`hiddenFor.${firebaseUser.uid}`]: true }); },
+    resetSquadData: async (cats: string[]) => { if (!activeTeam?.id) return; const b = writeBatch(db); for (const c of cats) { const s = await getDocs(collection(db, `teams/${activeTeam.id}/${c}`)); s.docs.forEach(d => b.delete(d.ref)); } await b.commit(); },
+    addVolunteerOpportunity: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ ...d, signups: {}, createdAt: new Date().toISOString() })); },
+    signUpForVolunteer: async (id: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id), { [`signups.${userProfile.id}`]: { userId: userProfile.id, userName: userProfile.name, status: 'pending' } }); },
+    verifyVolunteerHours: async (id: string, uid: string, h: number) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id), { [`signups.${uid}.status`]: 'verified', [`signups.${uid}.verifiedHours`]: h }); },
+    deleteVolunteerOpportunity: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id)); },
+    addFundraisingOpportunity: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...d, currentAmount: 0, participants: {}, createdAt: new Date().toISOString() })); },
+    signUpForFundraising: async (id: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id), { [`participants.${userProfile.id}`]: true }); },
+    updateFundraisingAmount: async (id: string, a: number) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id), { currentAmount: increment(a) }); },
+    deleteFundraisingOpportunity: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id)); },
+    addEquipmentItem: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'equipment'), clean({ ...d, availableQuantity: d.totalQuantity, assignments: {}, status: 'Active' })); },
+    updateEquipmentItem: async (id: string, u: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), clean(u)); },
+    deleteEquipmentItem: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'equipment', id)); },
+    assignEquipment: async (id: string, uid: string, un: string, q: number) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), { [`assignments.${uid}`]: { userId: uid, userName: un, quantity: q, assignedAt: new Date().toISOString() }, availableQuantity: increment(-q) }); },
+    returnEquipment: async (id: string, uid: string) => { if (activeTeam?.id) { const r = doc(db, 'teams', activeTeam.id, 'equipment', id); const s = await getDoc(r); const q = s.data()?.assignments?.[uid]?.quantity || 0; await updateDoc(r, { [`assignments.${uid}`]: deleteField(), availableQuantity: increment(q) }); } },
+    addDrill: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'drills'), clean(d)); },
+    deleteDrill: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'drills', id)); },
+    addScoutingReport: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'scouting'), clean(d)); },
+    deleteScoutingReport: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'scouting', id)); },
+    addFile: async (n: string, t: string, s: number, u: string, c: string, d?: string) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: n, type: t, size: (s / 1048576).toFixed(2) + ' MB', sizeBytes: s, url: u, category: c, description: d, date: new Date().toISOString() })); },
+    deleteFile: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'files', id)); },
+    markMediaAsViewed: async (id: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { [`viewedBy.${userProfile.id}`]: true }); },
+    addMediaComment: async (id: string, text: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { comments: arrayUnion({ id: `c_${Date.now()}`, authorId: userProfile.id, authorName: userProfile.name, text, createdAt: new Date().toISOString() }) }); },
     addFacility: async (d: any) => { if (firebaseUser) await addDoc(collection(db, 'facilities'), clean({ ...d, clubId: firebaseUser.uid, createdAt: new Date().toISOString() })); },
     deleteFacility: async (id: string) => { await deleteDoc(doc(db, 'facilities', id)); },
     addField: async (fid: string, n: string) => { await addDoc(collection(db, 'facilities', fid, 'fields'), clean({ name: n, facilityId: fid, createdAt: new Date().toISOString() })); },
     deleteField: async (fid: string, id: string) => { await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); },
-    createLeague: async (n: string) => { if (activeTeam && firebaseUser) { const r = doc(collection(db, 'leagues')); await setDoc(r, clean({ id: r.id, name: n, sport: activeTeam.sport, teams: { [activeTeam.id]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }, creatorId: firebaseUser.uid })); return r.id; } return ''; },
+    createLeague: async (n: string) => { if (activeTeam?.id && firebaseUser) { const r = doc(collection(db, 'leagues')); await setDoc(r, clean({ id: r.id, name: n, sport: activeTeam.sport, teams: { [activeTeam.id]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }, creatorId: firebaseUser.uid })); return r.id; } return ''; },
     inviteTeamToLeague: async (lid: string, ln: string, e: string) => { await addDoc(collection(db, 'leagues', 'global', 'invites'), clean({ leagueId: lid, leagueName: ln, invitedEmail: e, status: 'pending', createdAt: new Date().toISOString() })); },
-    acceptLeagueInvite: async (iid: string, lid: string) => { if (activeTeam) { const b = writeBatch(db); b.update(doc(db, 'leagues', 'global', 'invites', iid), { status: 'accepted' }); b.update(doc(db, 'leagues', lid), { [`teams.${activeTeam.id}`]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }); await b.commit(); } },
+    acceptLeagueInvite: async (iid: string, lid: string) => { if (activeTeam?.id) { const b = writeBatch(db); b.update(doc(db, 'leagues', 'global', 'invites', iid), { status: 'accepted' }); b.update(doc(db, 'leagues', lid), { [`teams.${activeTeam.id}`]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }); await b.commit(); } },
     manuallyAddTeamToLeague: async (lid: string, n: string, e?: string, l?: string) => { await updateDoc(doc(db, 'leagues', lid), { [`teams.manual_${Date.now()}`]: { teamName: n, coachEmail: e, teamLogoUrl: l, wins: 0, losses: 0, ties: 0, points: 0 } }); },
     saveLeagueRegistrationConfig: async (lid: string, u: any) => { const pid = u.id || 'config'; await setDoc(doc(db, 'leagues', lid, 'registration', pid), clean({ ...u, id: pid }), { merge: true }); },
     submitRegistrationEntry: async (tid: string, pid: string, a: any, v: number, s?: string, type: any = 'leagues') => { await addDoc(collection(db, type, tid, 'registrationEntries'), clean({ league_id: tid, protocol_id: pid, answers: a, status: 'pending', created_at: new Date().toISOString(), form_version: v, waiver_signed_text: s, target_type: type })); },
@@ -731,9 +731,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     createAlert,
     deleteAlert,
     exportSignaturesCSV
-  }), [userProfile, activeTeam?.id, activeTeam?.role, activeTeam?.isPro, activeTeam?.planId, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV]);
+  }), [userProfile, activeTeam?.id, activeTeam?.role, activeTeam?.isPro, activeTeam?.planId, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, router]);
 
-  return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
+  return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
 
 export const useTeam = () => {

@@ -1,15 +1,11 @@
+
 'use client';
 
 import { 
   Firestore, 
   doc, 
   collection, 
-  getDocs, 
-  writeBatch,
-  setDoc,
-  updateDoc,
-  arrayUnion,
-  addDoc
+  writeBatch
 } from 'firebase/firestore';
 
 /**
@@ -66,26 +62,16 @@ const GET_DEMO_DATA = (teamId: string, userId: string) => {
   };
 };
 
-/**
- * Optimized Global Seeding
- * Seeds the standard plans and features if they are missing.
- */
-export async function seedSubscriptionData(db: Firestore) {
-  const plans = [
-    { id: 'starter_squad', name: 'Starter Squad', billingType: 'free', features: { schedule_basic: true, live_feed_read: true }, proTeamLimit: 0 },
-    { id: 'squad_pro', name: 'Squad Pro', billingType: 'monthly', features: { schedule_basic: true, schedule_elite: true, tournament_basic: true, tournament_elite: true, live_feed_read: true, live_feed_post: true, stats_basic: true, media_uploads: true }, proTeamLimit: 1 },
-    { id: 'elite_teams', name: 'Elite Teams', billingType: 'monthly', features: { schedule_basic: true, schedule_elite: true, tournament_basic: true, tournament_elite: true, live_feed_read: true, live_feed_post: true, stats_basic: true, media_uploads: true, leagues: true, league_registration: true }, proTeamLimit: 8 },
-    { id: 'elite_league', name: 'Elite League', billingType: 'monthly', features: { schedule_basic: true, schedule_elite: true, tournament_basic: true, tournament_elite: true, live_feed_read: true, live_feed_post: true, stats_basic: true, media_uploads: true, leagues: true, league_registration: true }, proTeamLimit: 20 }
-  ];
-
-  const batch = writeBatch(db);
-  plans.forEach(p => batch.set(doc(db, 'plans', p.id), p, { merge: true }));
-  await batch.commit();
-}
+const STANDARD_PLANS = [
+  { id: 'starter_squad', name: 'Starter Squad', billingType: 'free', features: { schedule_basic: true, live_feed_read: true }, proTeamLimit: 0 },
+  { id: 'squad_pro', name: 'Squad Pro', billingType: 'monthly', features: { schedule_basic: true, schedule_elite: true, tournament_basic: true, tournament_elite: true, live_feed_read: true, live_feed_post: true, stats_basic: true, media_uploads: true }, proTeamLimit: 1 },
+  { id: 'elite_teams', name: 'Elite Teams', billingType: 'monthly', features: { schedule_basic: true, schedule_elite: true, tournament_basic: true, tournament_elite: true, live_feed_read: true, live_feed_post: true, stats_basic: true, media_uploads: true, leagues: true, league_registration: true }, proTeamLimit: 8 },
+  { id: 'elite_league', name: 'Elite League', billingType: 'monthly', features: { schedule_basic: true, schedule_elite: true, tournament_basic: true, tournament_elite: true, live_feed_read: true, live_feed_post: true, stats_basic: true, media_uploads: true, leagues: true, league_registration: true }, proTeamLimit: 20 }
+];
 
 /**
  * HIGH-SPEED ATOMIC SEEDER
- * Combines all demo operations into a single batch commit.
+ * Combines all demo operations into a single batch commit for near-instant preparation.
  */
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
   const teamId = `demo_${planId}_${userId.slice(-4)}`;
@@ -100,7 +86,10 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const batch = writeBatch(db);
   const now = new Date().toISOString();
 
-  // 1. Core Profile & Context
+  // 1. Global Setup (Plans)
+  STANDARD_PLANS.forEach(p => batch.set(doc(db, 'plans', p.id), p, { merge: true }));
+
+  // 2. Core Profile & Context
   batch.set(doc(db, 'users', userId), clean({
     id: userId, fullName: `Guest ${pos}`, email: `${userRole}@thesquad.pro`,
     role: userRole, activePlanId: actualPlanId, proTeamLimit: 1, createdAt: now, isDemo: true
@@ -108,7 +97,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   batch.set(doc(db, 'teams', teamId), clean({
     id: teamId, teamName: 'Elite Demo Squad', teamCode: teamId.slice(-6).toUpperCase(),
-    ownerUserId: 'system', isPro: true, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
+    ownerUserId: userId, isPro: true, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
     parentCommentsEnabled: true, parentChatEnabled: true, createdAt: now
   }));
 
@@ -122,7 +111,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     joinedAt: now, isDemo: true, avatar: `https://picsum.photos/seed/${userId}/150/150`
   }));
 
-  // 2. Blueprint Data Injection
+  // 3. Blueprint Data Injection
   const data = GET_DEMO_DATA(teamId, userId);
   data.members.forEach(m => batch.set(doc(db, 'teams', teamId, 'members', m.id), clean({ ...m, teamId, joinedAt: now, avatar: `https://picsum.photos/seed/${m.id}/150/150` })));
   data.games.forEach(g => batch.set(doc(db, 'teams', teamId, 'games', g.id), clean(g)));
@@ -139,4 +128,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   await batch.commit();
   return teamId;
+}
+
+export async function seedSubscriptionData(db: Firestore) {
+  // Logic merged into atomic seeder for performance
+  return;
 }

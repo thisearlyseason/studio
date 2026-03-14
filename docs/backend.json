@@ -97,8 +97,48 @@
         "definition": { "entityName": "Team", "description": "Squad data hub." }
       },
       {
+        "path": "/teams/{teamId}/members/{memberId}",
+        "definition": { "entityName": "Member", "description": "Roster membership details." }
+      },
+      {
+        "path": "/teams/{teamId}/members/{memberId}/private/evaluation",
+        "definition": { "entityName": "StaffNote", "description": "Private personnel evaluations." }
+      },
+      {
+        "path": "/teams/{teamId}/documents/{docId}",
+        "definition": { "entityName": "TeamDocument", "description": "Compliance protocols." }
+      },
+      {
         "path": "/teams/{teamId}/documents/{docId}/signatures/{sigId}",
         "definition": { "entityName": "DocumentSignature", "description": "Verified legal signatures." }
+      },
+      {
+        "path": "/teams/{teamId}/events/{eventId}",
+        "definition": { "entityName": "TeamEvent", "description": "Match and practice itinerary." }
+      },
+      {
+        "path": "/teams/{teamId}/equipment/{itemId}",
+        "definition": { "entityName": "EquipmentItem", "description": "Inventory vault items." }
+      },
+      {
+        "path": "/teams/{teamId}/volunteers/{oppId}",
+        "definition": { "entityName": "VolunteerOpportunity", "description": "Support assignments." }
+      },
+      {
+        "path": "/teams/{teamId}/fundraising/{fundId}",
+        "definition": { "entityName": "FundraisingOpportunity", "description": "Capital campaigns." }
+      },
+      {
+        "path": "/teams/{teamId}/drills/{drillId}",
+        "definition": { "entityName": "Drill", "description": "Playbook protocols." }
+      },
+      {
+        "path": "/teams/{teamId}/scouting/{reportId}",
+        "definition": { "entityName": "ScoutingReport", "description": "Opponent intelligence." }
+      },
+      {
+        "path": "/teams/{teamId}/feedPosts/{postId}",
+        "definition": { "entityName": "FeedPost", "description": "Tactical broadcasts." }
       },
       {
         "path": "/facilities/{facilityId}",

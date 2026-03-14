@@ -358,7 +358,7 @@ export default function CoachesCornerPage() {
                   <Plus className="h-4 w-4 mr-2" /> New Waiver
                 </Button>
               </DialogTrigger>
-              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto">
+              <DialogContent className="rounded-[2.5rem] sm:max-w-4xl p-0 border-none shadow-2xl">
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 lg:p-12 space-y-10">
                   <DialogHeader><DialogTitle className="text-3xl lg:text-4xl font-black uppercase tracking-tight">{editingDocId ? 'Update Waiver' : 'Document Architect'}</DialogTitle></DialogHeader>
@@ -389,7 +389,7 @@ export default function CoachesCornerPage() {
                             {newDoc.assignedTo.includes('all') && <CheckCircle2 className="h-5 w-5" />}
                           </div>
                           <div className="h-px bg-muted mx-4" />
-                          <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                          <div className="space-y-2">
                             {members.map(member => (
                               <div key={member.id} className={cn("p-4 rounded-2xl flex items-center justify-between cursor-pointer transition-all", newDoc.assignedTo.includes(member.id) ? "bg-black text-white shadow-lg" : "hover:bg-white")} onClick={() => toggleAssignment(member.id)}>
                                 <div className="flex items-center gap-4">
