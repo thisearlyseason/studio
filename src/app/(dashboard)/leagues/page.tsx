@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -287,8 +286,11 @@ export default function LeaguesPage() {
                   {isStaff && activeLeague.creatorId === authUser?.uid && (
                     <>
                       <Button onClick={() => setIsSeasonOpen(true)} className="h-12 px-8 rounded-xl font-black text-xs uppercase bg-white text-black hover:bg-primary hover:text-white"><CalendarDays className="h-4 w-4 mr-2" /> Season Architect</Button>
-                      <Button asChild variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase border-white/20 text-white hover:bg-white/10 hover:text-white hover:border-primary">
-                        <Link href={`/leagues/registration/${activeLeague.id}`}><ClipboardList className="h-4 w-4 mr-2" /> Registration Hub</Link>
+                      <Button asChild variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase border-white/20 text-white hover:bg-white/10 hover:text-primary hover:border-primary transition-all">
+                        <Link href={`/leagues/registration/${activeLeague.id}`} className="flex items-center text-white hover:text-primary">
+                          <ClipboardList className="h-4 w-4 mr-2" /> 
+                          <span>Registration Hub</span>
+                        </Link>
                       </Button>
                       <Button variant="secondary" className="h-12 px-8 rounded-xl font-black text-xs uppercase" onClick={() => setIsInviteOpen(true)}><UserPlus className="h-4 w-4 mr-2" /> Add/Invite Team</Button>
                     </>

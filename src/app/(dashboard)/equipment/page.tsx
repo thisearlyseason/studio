@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -25,7 +24,8 @@ import {
   Filter,
   UserPlus,
   RotateCcw,
-  LayoutGrid
+  LayoutGrid,
+  Save
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -54,13 +54,14 @@ export default function EquipmentPage() {
   const db = useFirestore();
   
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAssignOpen, setIsInviteOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
 
-  const [newEq, setNewEq] = useState({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' });
+  const [formEq, setFormEq] = useState({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' });
   const [assignment, setAssignment] = useState({ userId: '', quantity: '1' });
 
   const eqQuery = useMemoFirebase(() => {
@@ -80,16 +81,40 @@ export default function EquipmentPage() {
   }, [equipment, searchTerm, activeCategory]);
 
   const handleAddItem = async () => {
-    if (!newEq.name) return;
+    if (!formEq.name) return;
     setIsProcessing(true);
     await addEquipmentItem({
-      ...newEq,
-      totalQuantity: parseInt(newEq.totalQuantity)
+      ...formEq,
+      totalQuantity: parseInt(formEq.totalQuantity)
     });
     setIsAddOpen(false);
     setIsProcessing(false);
-    setNewEq({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' });
-    toast({ title: "Inventory Updated", description: `${newEq.name} enrolled in vault.` });
+    setFormEq({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' });
+    toast({ title: "Inventory Updated", description: `${formEq.name} enrolled in vault.` });
+  };
+
+  const handleEditItem = async () => {
+    if (!selectedItem || !formEq.name) return;
+    setIsProcessing(true);
+    await updateEquipmentItem(selectedItem.id, {
+      ...formEq,
+      totalQuantity: parseInt(formEq.totalQuantity)
+    });
+    setIsEditOpen(false);
+    setIsProcessing(false);
+    setSelectedItem(null);
+    toast({ title: "Asset Synchronized" });
+  };
+
+  const openEdit = (item: EquipmentItem) => {
+    setSelectedItem(item);
+    setFormEq({
+      name: item.name,
+      category: item.category,
+      totalQuantity: item.totalQuantity.toString(),
+      description: item.description || ''
+    });
+    setIsEditOpen(true);
   };
 
   const handleAssign = async () => {
@@ -130,63 +155,9 @@ export default function EquipmentPage() {
         </div>
 
         {isStaff && (
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 transition-all active:scale-95">
-                <Plus className="h-5 w-5 mr-2" /> Add Asset
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
-              <DialogTitle className="sr-only">Enroll Equipment Asset</DialogTitle>
-              <div className="h-2 bg-primary w-full" />
-              <div className="p-8 lg:p-12 space-y-10">
-                <DialogHeader>
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="bg-primary/10 p-3 rounded-2xl text-primary">
-                      <Package className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <DialogTitle className="text-3xl font-black uppercase tracking-tight">Enroll Equipment</DialogTitle>
-                      <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Add new tactical assets to the vault</DialogDescription>
-                    </div>
-                  </div>
-                </DialogHeader>
-                <div className="space-y-6 py-2">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Name</Label>
-                    <Input placeholder="e.g. Away Jerseys" value={newEq.name} onChange={e => setNewEq({...newEq, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Category</Label>
-                      <Select value={newEq.category} onValueChange={v => setNewEq({...newEq, category: v})}>
-                        <SelectTrigger className="h-14 rounded-2xl border-2 font-bold focus:border-primary/20"><SelectValue /></SelectTrigger>
-                        <SelectContent className="rounded-2xl">
-                          <SelectItem value="Uniforms" className="font-bold">Uniforms</SelectItem>
-                          <SelectItem value="Training Gear" className="font-bold">Training Gear</SelectItem>
-                          <SelectItem value="Facility Kit" className="font-bold">Facility Kit</SelectItem>
-                          <SelectItem value="Medical" className="font-bold">Medical</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Total Stock</Label>
-                      <Input type="number" value={newEq.totalQuantity} onChange={e => setNewEq({...newEq, totalQuantity: e.target.value})} className="h-14 rounded-2xl font-black border-2 focus:border-primary/20 transition-all" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Description</Label>
-                    <Textarea placeholder="Condition notes or sizing..." value={newEq.description} onChange={e => setNewEq({...newEq, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium focus:border-primary/20 transition-all p-4 resize-none" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all" onClick={handleAddItem} disabled={isProcessing || !newEq.name}>
-                    {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Commit Asset to Vault"}
-                  </Button>
-                </DialogFooter>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => { setFormEq({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' }); setIsAddOpen(true); }} className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 transition-all active:scale-95">
+            <Plus className="h-5 w-5 mr-2" /> Add Asset
+          </Button>
         )}
       </div>
 
@@ -245,10 +216,15 @@ export default function EquipmentPage() {
                 <CardHeader className="p-8 pb-4 space-y-4">
                   <div className="flex justify-between items-start">
                     <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest border-primary/20 text-primary">{item.category}</Badge>
-                    <Badge className={cn(
-                      "font-black text-[8px] px-2 h-5 border-none uppercase",
-                      item.status === 'Active' ? "bg-green-500 text-white" : "bg-amber-500 text-white"
-                    )}>{item.status}</Badge>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-primary/5 text-primary" onClick={() => openEdit(item)}>
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Badge className={cn(
+                        "font-black text-[8px] px-2 h-5 border-none uppercase",
+                        item.status === 'Active' ? "bg-green-500 text-white" : "bg-amber-500 text-white"
+                      )}>{item.status}</Badge>
+                    </div>
                   </div>
                   <CardTitle className="text-2xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{item.name}</CardTitle>
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest line-clamp-2">{item.description || 'Professional grade squad equipment logged in active inventory.'}</CardDescription>
@@ -308,6 +284,113 @@ export default function EquipmentPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+          <DialogTitle className="sr-only">Enroll Equipment Asset</DialogTitle>
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-8 lg:p-12 space-y-10">
+            <DialogHeader>
+              <div className="flex items-center gap-4 mb-2">
+                <div className="bg-primary/10 p-3 rounded-2xl text-primary">
+                  <Package className="h-6 w-6" />
+                </div>
+                <div>
+                  <DialogTitle className="text-3xl font-black uppercase tracking-tight">Enroll Equipment</DialogTitle>
+                  <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Add new tactical assets to the vault</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="space-y-6 py-2">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Name</Label>
+                <Input placeholder="e.g. Away Jerseys" value={formEq.name} onChange={e => setFormEq({...formEq, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Category</Label>
+                  <Select value={formEq.category} onValueChange={v => setFormEq({...formEq, category: v})}>
+                    <SelectTrigger className="h-14 rounded-2xl border-2 font-bold focus:border-primary/20"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-2xl">
+                      <SelectItem value="Uniforms" className="font-bold">Uniforms</SelectItem>
+                      <SelectItem value="Training Gear" className="font-bold">Training Gear</SelectItem>
+                      <SelectItem value="Facility Kit" className="font-bold">Facility Kit</SelectItem>
+                      <SelectItem value="Medical" className="font-bold">Medical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Total Stock</Label>
+                  <Input type="number" value={formEq.totalQuantity} onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})} className="h-14 rounded-2xl font-black border-2 focus:border-primary/20 transition-all" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Description</Label>
+                <Textarea placeholder="Condition notes or sizing..." value={formEq.description} onChange={e => setFormEq({...formEq, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium focus:border-primary/20 transition-all p-4 resize-none" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all" onClick={handleAddItem} disabled={isProcessing || !formEq.name}>
+                {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Commit Asset to Vault"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+          <DialogTitle className="sr-only">Edit Equipment Asset</DialogTitle>
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-8 lg:p-12 space-y-10">
+            <DialogHeader>
+              <div className="flex items-center gap-4 mb-2">
+                <div className="bg-primary/10 p-3 rounded-2xl text-primary">
+                  <Edit3 className="h-6 w-6" />
+                </div>
+                <div>
+                  <DialogTitle className="text-3xl font-black uppercase tracking-tight">Sync Asset</DialogTitle>
+                  <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Update inventory parameters</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="space-y-6 py-2">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Name</Label>
+                <Input value={formEq.name} onChange={e => setFormEq({...formEq, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Category</Label>
+                  <Select value={formEq.category} onValueChange={v => setFormEq({...formEq, category: v})}>
+                    <SelectTrigger className="h-14 rounded-2xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-2xl">
+                      <SelectItem value="Uniforms" className="font-bold">Uniforms</SelectItem>
+                      <SelectItem value="Training Gear" className="font-bold">Training Gear</SelectItem>
+                      <SelectItem value="Facility Kit" className="font-bold">Facility Kit</SelectItem>
+                      <SelectItem value="Medical" className="font-bold">Medical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Total Stock</Label>
+                  <Input type="number" value={formEq.totalQuantity} onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})} className="h-14 rounded-2xl font-black border-2" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Description</Label>
+                <Textarea value={formEq.description} onChange={e => setFormEq({...formEq, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium p-4 resize-none" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl" onClick={handleEditItem} disabled={isProcessing || !formEq.name}>
+                {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
+                Commit Synchronization
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isAssignOpen} onOpenChange={setIsInviteOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl p-8">

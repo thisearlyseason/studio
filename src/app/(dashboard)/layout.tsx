@@ -1,4 +1,3 @@
-
 "use client";
 
 import Shell from '@/components/layout/Shell';
@@ -54,10 +53,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [mounted, user, teams.length, db, isDemoInitializing, searchParams]);
 
-  // --- AUTH GUARDS ---
+  // --- AUTH GUARDS (Optimized for Mobile Demo stability) ---
   useEffect(() => {
-    if (!mounted || !isAuthResolved || isDemoInitializing) return;
-    if (!user && !searchParams.has('seed_demo')) {
+    // If we're initializing a demo, we MUST NOT redirect even if user is briefly null
+    const demoParam = searchParams.get('seed_demo');
+    if (!mounted || !isAuthResolved || isDemoInitializing || demoParam) return;
+    
+    if (!user) {
       router.push('/login');
     }
   }, [user, isAuthResolved, router, mounted, searchParams, isDemoInitializing]);

@@ -157,12 +157,12 @@ service cloud.firestore {
       }
 
       match /registration/{protocolId} {
-        allow read: if true; // Public access for registration configuration
+        allow read: if true; 
         allow write: if isTeamStaff(teamId);
       }
 
       match /registrationEntries/{entryId} {
-        allow create: if true; // Public application submission
+        allow create: if true; 
         allow read, write: if isTeamStaff(teamId) || isSuperAdmin();
       }
 
@@ -191,7 +191,7 @@ service cloud.firestore {
       
       match /registrationEntries/{entryId} {
         allow create: if true;
-        allow read, write: if isTeamStaff(teamId) || isSignedIn();
+        allow read, write: if isTeamStaff(teamId) || isSuperAdmin() || isSignedIn();
       }
 
       match /registration/{protocolId} {
@@ -203,7 +203,7 @@ service cloud.firestore {
 
     match /plans/{planId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Allow seeder for demo environments
+      allow write: if isSignedIn(); 
     }
 
     match /subscriptions/{subId} {
@@ -214,7 +214,7 @@ service cloud.firestore {
     match /{path=**}/registrationEntries/{entryId} {
       allow read, list: if isSignedIn();
       allow create: if true;
-      allow write: if isSignedIn();
+      allow write: if isTeamStaff(path.split('/')[1]) || isSuperAdmin() || isSignedIn();
     }
   }
 }
