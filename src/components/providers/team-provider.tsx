@@ -111,9 +111,11 @@ export type Member = {
   emergencyContactPhone?: string;
   notes?: string;
   waiverSigned?: boolean;
-  transportationWaiverSigned?: boolean;
   medicalClearance?: boolean;
-  mediaRelease?: boolean;
+  gpa?: string;
+  gradYear?: string;
+  school?: string;
+  highlightUrl?: string;
   joinedAt?: string;
   isDemo?: boolean;
 };
@@ -174,9 +176,6 @@ export type TeamEvent = {
     captainName: string;
     userId: string;
   }>;
-  facilityIds?: string[];
-  fieldIds?: string[];
-  manualLocations?: string[];
   invitedTeamEmails?: Record<string, string>;
 };
 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -20,7 +21,11 @@ import {
   Copy,
   FileSignature,
   Clock,
-  ShieldCheck
+  ShieldCheck,
+  Stethoscope,
+  Plane,
+  Camera,
+  HeartPulse
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam, Member } from '@/components/providers/team-provider';
@@ -41,6 +46,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, where } from 'firebase/firestore';
 import { format } from 'date-fns';
+
+const STANDARD_WAIVERS = [
+  { id: 'medical', label: 'Medical Clearance', icon: HeartPulse },
+  { id: 'travel', label: 'Travel Consent', icon: Plane },
+  { id: 'parental', label: 'Parental Waiver', icon: ShieldCheck },
+  { id: 'photography', label: 'Photography Release', icon: Camera }
+];
 
 function MemberComplianceLedger({ teamId, memberId }: { teamId: string, memberId: string }) {
   const db = useFirestore();
@@ -65,28 +77,54 @@ function MemberComplianceLedger({ teamId, memberId }: { teamId: string, memberId
 
   if (isLoading) return <Loader2 className="h-4 w-4 animate-spin mx-auto text-primary" />;
 
+  const sigTitles = (signatures || []).map(s => (s.title || '').toLowerCase());
+
   return (
-    <div className="space-y-3">
-      {signatures?.map(sig => (
-        <div key={sig.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 group/sig">
-          <div className="min-w-0">
-            <p className="font-black text-[10px] uppercase text-white truncate">{sig.title || 'Waiver'}</p>
-            <div className="flex items-center gap-2 opacity-40 mt-0.5">
-              <Clock className="h-2 w-2" />
-              <span className="text-[8px] font-bold uppercase">{format(new Date(sig.signedAt), 'MMM d, yyyy')}</span>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-3">Institutional Compliance</p>
+        <div className="grid grid-cols-1 gap-2">
+          {STANDARD_WAIVERS.map(w => {
+            const isSigned = sigTitles.some(t => t.includes(w.id));
+            return (
+              <div key={w.id} className={cn(
+                "flex items-center justify-between p-3 rounded-xl border transition-all",
+                isSigned ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-white/5 border-white/10 text-white/40"
+              )}>
+                <div className="flex items-center gap-3">
+                  <w.icon className="h-4 w-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{w.label}</span>
+                </div>
+                {isSigned ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4 opacity-20" />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-4 border-t border-white/10">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Verified Audit Logs</p>
+        {signatures?.map(sig => (
+          <div key={sig.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 group/sig">
+            <div className="min-w-0">
+              <p className="font-black text-[10px] uppercase text-white truncate">{sig.title || 'Waiver'}</p>
+              <div className="flex items-center gap-2 opacity-40 mt-0.5">
+                <Clock className="h-2 w-2" />
+                <span className="text-[8px] font-bold uppercase">{format(new Date(sig.signedAt), 'MMM d, yyyy')}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg opacity-0 group-hover/sig:opacity-100 text-white" onClick={() => handleDownload(sig)}>
+                <Download className="h-3 w-3" />
+              </Button>
+              <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg opacity-0 group-hover/sig:opacity-100 text-white" onClick={() => handleDownload(sig)}>
-              <Download className="h-3 w-3" />
-            </Button>
-            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-          </div>
-        </div>
-      ))}
-      {(!signatures || signatures.length === 0) && (
-        <p className="text-[9px] font-bold text-white/30 uppercase text-center py-2 italic">No signatures recorded.</p>
-      )}
+        ))}
+        {(!signatures || signatures.length === 0) && (
+          <p className="text-[9px] font-bold text-white/30 uppercase text-center py-2 italic">No additional signatures recorded.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -123,24 +161,33 @@ export default function RosterPage() {
 
   const handleExportPortfolio = useCallback(() => {
     if (!selectedMember) return;
-    const headers = ["Player", "Position", "Jersey", "Status", "Contact", "Evaluations"];
+    const headers = [
+      "PLAYER PROFILE - THE SQUAD CERTIFIED",
+      "",
+      "Name", "Position", "Jersey", "Class", "GPA", "Clearance", "School", "Highlights", "Contact", "Evaluations"
+    ];
     const row = [
+      "", "",
       selectedMember.name,
       selectedMember.position,
       selectedMember.jersey,
-      selectedMember.medicalClearance ? 'Cleared' : 'Pending',
+      selectedMember.gradYear || 'N/A',
+      selectedMember.gpa || 'N/A',
+      selectedMember.medicalClearance ? 'CLEARED' : 'PENDING',
+      selectedMember.school || 'N/A',
+      selectedMember.highlightUrl || 'N/A',
       selectedMember.phone || selectedMember.parentEmail || 'N/A',
-      staffNote.replace(/,/g, ';')
+      staffNote.replace(/,/g, ';').replace(/\n/g, ' ')
     ];
     const csvContent = "data:text/csv;charset=utf-8," + [headers, row].map(e => e.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${selectedMember.name.replace(/\s+/g, '_')}_Recruiting_Portfolio.csv`);
+    link.setAttribute("download", `RECRUITING_PACK_${selectedMember.name.replace(/\s+/g, '_')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Portfolio Generated" });
+    toast({ title: "Recruiting Pack Generated", description: "Professional CSV portfolio exported." });
   }, [selectedMember, staffNote]);
 
   if (!mounted || !activeTeam || isMembersLoading) {
@@ -230,7 +277,7 @@ export default function RosterPage() {
       </div>
 
       <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
-        <DialogContent className="rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white overflow-y-auto">
+        <DialogContent className="rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white overflow-y-auto max-h-[90vh] custom-scrollbar">
           <DialogTitle className="sr-only">Player Profile: {selectedMember?.name}</DialogTitle>
           {selectedMember && (
             <div className="flex flex-col lg:flex-row">
@@ -250,7 +297,6 @@ export default function RosterPage() {
                   </div>
 
                   <div className="w-full space-y-4 pt-4 border-t border-white/10">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Compliance Ledger</p>
                     <MemberComplianceLedger teamId={activeTeam.id} memberId={selectedMember.id} />
                   </div>
 
@@ -259,7 +305,7 @@ export default function RosterPage() {
                       <span>Recruiting Portfolio</span>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10" onClick={handleExportPortfolio}><Download className="h-4 w-4" /></Button>
                     </div>
-                    <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] shadow-xl hover:bg-white/90" onClick={handleExportPortfolio}>Generate Scouting Pack</Button>
+                    <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] shadow-xl hover:bg-white/90" onClick={handleExportPortfolio}>Generate Recruiting Pack</Button>
                   </div>
                 </div>
               </div>
@@ -286,6 +332,10 @@ export default function RosterPage() {
                         <span className="text-[10px] font-black uppercase opacity-40">Age Group</span>
                         <span className="text-sm font-black uppercase">{calculateAge(selectedMember.birthdate) || 'U18'}</span>
                       </div>
+                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                        <span className="text-[10px] font-black uppercase opacity-40">Grad Class</span>
+                        <span className="text-sm font-black uppercase">{selectedMember.gradYear || '2028'}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -297,8 +347,8 @@ export default function RosterPage() {
                         <span className={cn("text-sm font-black", selectedMember.feesPaid ? "text-green-600" : "text-primary")}>${selectedMember.amountOwed || 0}</span>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
-                        <span className="text-[10px] font-black uppercase opacity-40">Season Compliance</span>
-                        <Badge className="bg-black text-white h-5 text-[8px] font-black uppercase">94% Attendance</Badge>
+                        <span className="text-[10px] font-black uppercase opacity-40">Academic GPA</span>
+                        <span className="text-sm font-black uppercase">{selectedMember.gpa || '3.8'}</span>
                       </div>
                     </div>
                   </div>

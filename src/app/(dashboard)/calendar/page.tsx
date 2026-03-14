@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -13,7 +14,10 @@ import {
   isSameDay, 
   addMonths, 
   subMonths,
-  isToday
+  isToday,
+  isWithinInterval,
+  startOfDay,
+  endOfDay
 } from 'date-fns';
 import { 
   ChevronLeft, 
@@ -186,14 +190,25 @@ export default function MasterCalendarPage() {
 
   const eventsByDay = useMemo(() => {
     const map: Record<string, TeamEvent[]> = {};
-    filteredEvents.forEach(event => {
-      const start = new Date(event.date);
-      const key = format(start, 'yyyy-MM-dd');
-      if (!map[key]) map[key] = [];
-      map[key].push(event);
+    
+    // For each day, find events that are active on that day (including ranges)
+    calendarDays.forEach(day => {
+      const dayKey = format(day, 'yyyy-MM-dd');
+      const dayStart = startOfDay(day);
+      const dayEnd = endOfDay(day);
+
+      filteredEvents.forEach(event => {
+        const start = startOfDay(new Date(event.date));
+        const end = event.endDate ? startOfDay(new Date(event.endDate)) : start;
+        
+        if (isWithinInterval(dayStart, { start, end }) || isWithinInterval(dayEnd, { start, end })) {
+          if (!map[dayKey]) map[dayKey] = [];
+          map[dayKey].push(event);
+        }
+      });
     });
     return map;
-  }, [filteredEvents]);
+  }, [filteredEvents, calendarDays]);
 
   const selectedDayEvents = useMemo(() => {
     if (!selectedDay) return [];

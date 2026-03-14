@@ -45,7 +45,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTeam, TeamEvent, TournamentGame, Member } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, updateDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format, isPast, isSameDay } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -82,10 +82,33 @@ function calculateTournamentStandings(teams: string[], games: TournamentGame[]) 
 }
 
 function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () => void }) {
-  const { user, members, updateRSVP, isStaff, activeTeam } = useTeam();
+  const { user, members, updateRSVP, isStaff, activeTeam, db } = useTeam();
   const standings = useMemo(() => calculateTournamentStandings(event.tournamentTeams || [], event.tournamentGames || []), [event.tournamentTeams, event.tournamentGames]);
   const isOrganizer = isStaff && event.teamId === activeTeam?.id;
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ 
+    teams: event.tournamentTeams?.join(', ') || '', 
+    invitedEmails: Object.keys(event.invitedTeamEmails || {}).join(', ') 
+  });
+
+  const handleUpdateTeams = async () => {
+    if (!db || !event.id) return;
+    const teams = editForm.teams.split(',').map(t => t.trim()).filter(t => t);
+    const emails = editForm.invitedEmails.split(',').map(e => e.trim()).filter(e => e);
+    const invitedMap: Record<string, string> = {};
+    emails.forEach((email, i) => {
+      invitedMap[email] = teams[i] || `Team ${i+1}`;
+    });
+
+    await updateDoc(doc(db, 'teams', event.teamId, 'events', event.id), {
+      tournamentTeams: teams,
+      invitedTeamEmails: invitedMap
+    });
+    setIsEditOpen(false);
+    toast({ title: "Tournament Roster Updated" });
+  };
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
@@ -98,8 +121,12 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isOrganizer && (
+            <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px]" onClick={() => setIsEditOpen(true)}>
+              <Edit3 className="h-4 w-4 mr-2" /> Manage Teams
+            </Button>
+          )}
           <Badge variant="outline" className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] tracking-widest"><CalendarIcon className="h-4 w-4 mr-2" /> {formatDateRange(event.date, event.endDate)}</Badge>
-          <Badge variant="outline" className="h-10 px-4 rounded-xl border-2 font-black uppercase text-[10px] tracking-widest"><MapPin className="h-4 w-4 mr-2" /> {event.location}</Badge>
         </div>
       </div>
 
@@ -236,6 +263,29 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           </Tabs>
         </div>
       </div>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="rounded-[2.5rem] sm:max-w-lg p-8 shadow-2xl border-none overflow-hidden">
+          <DialogTitle className="sr-only">Manage Tournament Roster</DialogTitle>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Expand Competition</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px]">Enroll participating squads</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Squad Names (Comma separated)</Label>
+              <Input value={editForm.teams} onChange={e => setEditForm({ ...editForm, teams: e.target.value })} className="h-12 rounded-xl border-2 font-bold" placeholder="Tigers, Lions, Warriors..." />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Email Invites (Optional)</Label>
+              <Input value={editForm.invitedEmails} onChange={e => setEditForm({ ...editForm, invitedEmails: e.target.value })} className="h-12 rounded-xl border-2 font-bold" placeholder="coach@tigers.com, coach@lions.com..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateTeams}>Synchronize Roster</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -244,7 +294,7 @@ export default function TournamentsPage() {
   const { isStaff, addEvent, activeTeam, householdEvents } = useTeam();
   const [isDeployOpen, setIsDeployOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<TeamEvent | null>(null);
-  const [newTourney, setNewTourney] = useState({ title: '', date: '', endDate: '', location: '', description: '', teams: '', invitedEmails: '' });
+  const [newTourney, setNewTourney] = useState({ title: '', date: '', endDate: '', location: '', description: '' });
   const [isProcessing, setIsProcessing] = useState(false);
 
   const tournaments = useMemo(() => {
@@ -254,13 +304,6 @@ export default function TournamentsPage() {
   const handleDeployTournament = async () => {
     if (!newTourney.title || !newTourney.date || !activeTeam) return;
     setIsProcessing(true);
-    const teams = newTourney.teams.split(',').map(t => t.trim()).filter(t => t);
-    const emails = newTourney.invitedEmails.split(',').map(e => e.trim()).filter(e => e);
-    const invitedMap: Record<string, string> = {};
-    emails.forEach((email, i) => {
-      invitedMap[email] = teams[i] || `Team ${i+1}`;
-    });
-
     try {
       await addEvent({
         title: newTourney.title,
@@ -270,14 +313,14 @@ export default function TournamentsPage() {
         description: newTourney.description,
         isTournament: true,
         eventType: 'tournament',
-        tournamentTeams: teams,
+        tournamentTeams: [],
         tournamentGames: [],
-        invitedTeamEmails: invitedMap,
+        invitedTeamEmails: {},
         startTime: 'TBD'
       });
       setIsDeployOpen(false);
-      setNewTourney({ title: '', date: '', endDate: '', location: '', description: '', teams: '', invitedEmails: '' });
-      toast({ title: "Elite Series Launched" });
+      setNewTourney({ title: '', date: '', endDate: '', location: '', description: '' });
+      toast({ title: "Tournament Initialized", description: "Now add teams in the hub." });
     } catch (e) {
       toast({ title: "Deployment Failed", variant: "destructive" });
     } finally {
@@ -299,11 +342,11 @@ export default function TournamentsPage() {
           <Dialog open={isDeployOpen} onOpenChange={setIsDeployOpen}>
             <DialogTrigger asChild>
               <Button className="h-16 px-10 rounded-[2rem] text-lg font-black shadow-2xl shadow-primary/20 transition-all active:scale-95">
-                <Plus className="h-5 w-5 mr-2" /> Launch Elite Series
+                <Plus className="h-5 w-5 mr-2" /> Deploy Tourney
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-[3rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white">
-              <DialogTitle className="sr-only">New Tournament Strategic Deployment</DialogTitle>
+            <DialogContent className="rounded-[3rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar bg-white">
+              <DialogTitle className="sr-only">Deploy Tournament Hub</DialogTitle>
               <div className="h-2 bg-primary w-full" />
               <div className="p-8 lg:p-12 space-y-10">
                 <DialogHeader>
@@ -313,7 +356,7 @@ export default function TournamentsPage() {
                     </div>
                     <div>
                       <DialogTitle className="text-3xl font-black uppercase tracking-tight">Deploy Tourney</DialogTitle>
-                      <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Launch a new championship event</DialogDescription>
+                      <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Initialize a new championship event</DialogDescription>
                     </div>
                   </div>
                 </DialogHeader>
@@ -335,16 +378,6 @@ export default function TournamentsPage() {
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Location</Label>
                     <Input placeholder="Official Venue..." value={newTourney.location} onChange={e => setNewTourney({...newTourney, location: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Participating Squads</Label>
-                      <Input placeholder="Tigers, Lions, Warriors..." value={newTourney.teams} onChange={e => setNewTourney({...newTourney, teams: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Email Invites</Label>
-                      <Input placeholder="coach@tigers.com, coach@lions.com..." value={newTourney.invitedEmails} onChange={e => setNewTourney({...newTourney, invitedEmails: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
-                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Brief</Label>

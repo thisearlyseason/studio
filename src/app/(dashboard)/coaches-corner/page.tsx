@@ -50,7 +50,10 @@ import {
   BrainCircuit,
   Wand2,
   Camera,
-  LayoutGrid
+  LayoutGrid,
+  HeartPulse,
+  Plane,
+  GraduationCap
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -151,7 +154,11 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
     name: member.name || '',
     position: member.position || '',
     jersey: member.jersey || '',
-    notes: member.notes || ''
+    notes: member.notes || '',
+    gradYear: member.gradYear || '',
+    gpa: member.gpa || '',
+    school: member.school || '',
+    highlightUrl: member.highlightUrl || ''
   });
 
   useEffect(() => {
@@ -161,7 +168,11 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
         name: member.name || '',
         position: member.position || '',
         jersey: member.jersey || '',
-        notes: member.notes || ''
+        notes: member.notes || '',
+        gradYear: member.gradYear || '',
+        gpa: member.gpa || '',
+        school: member.school || '',
+        highlightUrl: member.highlightUrl || ''
       });
     }
   }, [isOpen, member, getStaffEvaluation]);
@@ -192,18 +203,18 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
   };
 
   const handleExportPortfolio = useCallback(() => {
-    const headers = ["Player", "Position", "Jersey", "Medical", "Fees Owed", "Staff Evaluations", "Bio"];
+    const headers = ["PLAYER PROFILE - THE SQUAD CERTIFIED", "", "Name", "Position", "Jersey", "Grad Year", "GPA", "School", "Highlights", "Clearance", "Evaluations", "Bio"];
     const row = [
-      member.name, member.position, member.jersey,
+      "", "",
+      member.name, member.position, member.jersey, member.gradYear, member.gpa, member.school, member.highlightUrl,
       member.medicalClearance ? 'Cleared' : 'Pending',
-      `$${member.amountOwed || 0}`,
       note.replace(/,/g, ';').replace(/\n/g, ' '),
       (member.notes || '').replace(/,/g, ';').replace(/\n/g, ' ')
     ];
     const csvContent = "data:text/csv;charset=utf-8," + [headers, row].map(e => e.join(",")).join("\n");
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `${member.name.replace(/\s+/g, '_')}_Portfolio.csv`);
+    link.setAttribute("download", `RECRUITING_PACK_${member.name.replace(/\s+/g, '_')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -211,11 +222,11 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 border-none shadow-2xl bg-white overflow-hidden">
-        <DialogTitle className="sr-only">Personnel Evaluation & Roster Update: {member.name}</DialogTitle>
+      <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 border-none shadow-2xl bg-white overflow-y-auto max-h-[90vh] custom-scrollbar">
+        <DialogTitle className="sr-only">Recruiting Intelligence Hub: {member.name}</DialogTitle>
         <div className="h-2 bg-black w-full" />
         <div className="flex flex-col lg:flex-row h-full">
-          <div className="w-full lg:w-5/12 bg-muted/20 p-8 lg:p-10 space-y-8 border-r overflow-y-auto custom-scrollbar max-h-[85vh]">
+          <div className="w-full lg:w-5/12 bg-muted/20 p-8 lg:p-10 space-y-8 border-r overflow-y-auto custom-scrollbar">
             <div className="flex flex-col items-center text-center space-y-6">
               <div className="relative group">
                 <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
@@ -227,9 +238,10 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
                   {isUpdatingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                 </Button>
               </div>
+              
               <div className="space-y-4 w-full">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Identity</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Identity & Roster</Label>
                   <Input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="h-12 rounded-xl font-black text-lg border-2" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -242,8 +254,31 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
                     <Input value={editForm.jersey} onChange={e => setEditForm({...editForm, jersey: e.target.value})} className="h-11 rounded-xl font-black border-2" />
                   </div>
                 </div>
-                <div className="space-y-2 text-left">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Public Squad Bio</Label>
+
+                <div className="pt-4 border-t border-muted-foreground/10 space-y-4">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-primary text-left block ml-1">Recruiting Data</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 text-left">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Class Year</Label>
+                      <Input value={editForm.gradYear} onChange={e => setEditForm({...editForm, gradYear: e.target.value})} className="h-11 rounded-xl font-bold border-2" placeholder="2028" />
+                    </div>
+                    <div className="space-y-2 text-left">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">GPA</Label>
+                      <Input value={editForm.gpa} onChange={e => setEditForm({...editForm, gpa: e.target.value})} className="h-11 rounded-xl font-bold border-2" placeholder="3.8" />
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-left">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current School</Label>
+                    <Input value={editForm.school} onChange={e => setEditForm({...editForm, school: e.target.value})} className="h-11 rounded-xl font-bold border-2" placeholder="Central High" />
+                  </div>
+                  <div className="space-y-2 text-left">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Highlight URL</Label>
+                    <Input value={editForm.highlightUrl} onChange={e => setEditForm({...editForm, highlightUrl: e.target.value})} className="h-11 rounded-xl font-bold border-2" placeholder="Hudl / YouTube link..." />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-left pt-4 border-t border-muted-foreground/10">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Public Bio</Label>
                   <Textarea value={editForm.notes} onChange={e => setEditForm({...editForm, notes: e.target.value})} className="min-h-[100px] rounded-2xl font-medium text-sm p-4 border-2 resize-none" placeholder="Athlete narrative..." />
                 </div>
               </div>
@@ -254,14 +289,14 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
               </div>
             </div>
           </div>
-          <div className="flex-1 p-8 lg:p-10 space-y-8 overflow-y-auto max-h-[85vh] custom-scrollbar bg-white">
+          <div className="flex-1 p-8 lg:p-10 space-y-8 overflow-y-auto bg-white">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <ShieldAlert className="h-5 w-5 text-primary" />
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Private Staff Evaluation</h4>
               </div>
               <p className="text-[10px] font-medium text-muted-foreground leading-relaxed italic border-l-2 border-primary/20 pl-4">
-                This evaluation ledger is strictly restricted to coaching staff and organization leads. Use this space for tactical aptitude logs and scouting benchmarks.
+                This evaluation ledger is strictly restricted to coaching staff. Log tactical aptitude, leadership metrics, and developmental milestones.
               </p>
               <Textarea 
                 placeholder="Log performance benchmarks, tactical aptitude, or recruitment observations..." 
@@ -274,7 +309,7 @@ function PersonnelAuditDialog({ member, isOpen, onOpenChange }: { member: Member
               <Button variant="outline" className="h-12 px-8 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button className="h-12 px-10 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-primary/20" onClick={handleSaveAll} disabled={isSaving}>
                 {isSaving ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : <Save className="h-6 w-6 mr-2" />}
-                Synchronize Personnel Record
+                Synchronize Recruiting Intelligence
               </Button>
             </div>
           </div>
@@ -592,7 +627,7 @@ export default function CoachesCornerPage() {
       {/* --- DIALOGS --- */}
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="rounded-[3rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto custom-scrollbar bg-white">
+        <DialogContent className="rounded-[3rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar bg-white">
           <DialogTitle className="sr-only">Document Architect</DialogTitle>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-12 space-y-10">
@@ -630,7 +665,7 @@ export default function CoachesCornerPage() {
       </Dialog>
 
       <Dialog open={isAddScoutingOpen} onOpenChange={setIsAddScoutingOpen}>
-        <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
+        <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white max-h-[90vh] overflow-y-auto">
           <DialogTitle className="sr-only">New Scouting Brief Initialization</DialogTitle>
           <div className="h-2 bg-black w-full" />
           <div className="flex flex-col lg:flex-row h-full">

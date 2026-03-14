@@ -65,6 +65,7 @@ function TeamRosterDialog({ teamId, teamName, isOpen, onOpenChange }: { teamId: 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl overflow-hidden p-0 bg-white">
+        <DialogTitle className="sr-only">{teamName} Roster</DialogTitle>
         <div className="h-2 bg-primary w-full" />
         <div className="p-8 space-y-6">
           <DialogHeader>
@@ -279,6 +280,13 @@ export default function LeaguesPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-3">
+                  {isStaff && activeLeague.creatorId === authUser?.uid && (
+                    <Button asChild variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest border-white/20 text-white bg-white/5 hover:bg-white/10">
+                      <Link href={`/leagues/registration/${activeLeague.id}`}>
+                        <ClipboardList className="h-4 w-4 mr-2" /> Registration Hub
+                      </Link>
+                    </Button>
+                  )}
                   {isStaff && activeLeague.creatorId === authUser?.uid && (
                     <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                       <DialogTrigger asChild>
