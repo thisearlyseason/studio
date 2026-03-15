@@ -21,10 +21,9 @@ import {
   FileSignature,
   Clock,
   ShieldCheck,
-  Stethoscope,
+  HeartPulse,
   Plane,
   Camera,
-  HeartPulse,
   Target,
   Trophy,
   Star,
@@ -336,7 +335,7 @@ export default function RosterPage() {
                 </div>
               </div>
               
-              <div className="flex-1 p-8 lg:p-12 space-y-10 bg-white">
+              <div className="flex-1 p-8 lg:p-12 space-y-10 bg-white text-foreground">
                 {isPro ? (
                   <>
                     <div className="space-y-6">
@@ -430,7 +429,7 @@ export default function RosterPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-2xl font-black uppercase tracking-tight">Pro Insights Locked</h3>
+                      <h3 className="text-2xl font-black uppercase tracking-tight text-foreground">Pro Insights Locked</h3>
                       <p className="text-muted-foreground font-medium text-sm max-w-sm mx-auto leading-relaxed">
                         Upgrade to <strong>Squad Pro</strong> to unlock recruiting portfolios, automated compliance tracking, and tactical staff evaluations.
                       </p>
