@@ -27,13 +27,9 @@ service cloud.firestore {
       return isSignedIn() && (
         isSuperAdmin() || 
         (exists(teamPath) && get(teamPath).data.ownerUserId == request.auth.uid) ||
-        (exists(memberPath) && get(memberPath).data.position in ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Organization Lead', 'Platform Admin', 'Squad Leader', 'Parent']) ||
+        (exists(memberPath) && get(memberPath).data.position in ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Organization Lead', 'Platform Admin', 'Squad Leader']) ||
         teamId.startsWith('demo_')
       );
-    }
-
-    function isRecruitingStaff(playerId) {
-      return isSignedIn() && (isSuperAdmin() || exists(/databases/$(database)/documents/users/$(request.auth.uid)));
     }
 
     // --- COLLECTION RULES ---
@@ -63,22 +59,22 @@ service cloud.firestore {
       
       match /recruitingProfile/{docId} {
         allow read: if true;
-        allow write: if isRecruitingStaff(playerId);
+        allow write: if isSignedIn();
       }
       
       match /evaluations/{evalId} {
         allow read: if true;
-        allow write: if isRecruitingStaff(playerId);
+        allow write: if isSignedIn();
       }
       
       match /videos/{videoId} {
         allow read: if true;
-        allow write: if isRecruitingStaff(playerId);
+        allow write: if isSignedIn();
       }
     }
 
     match /teams/{teamId} {
-      allow read: if isSignedIn() || teamId.startsWith('demo_');
+      allow read: if true; 
       allow create: if isSignedIn();
       allow update, delete: if isTeamStaff(teamId);
 
@@ -87,8 +83,8 @@ service cloud.firestore {
         allow write: if isTeamStaff(teamId) || isOwner(memberId) || teamId.startsWith('demo_');
         
         match /signatures/{sigId} {
-          allow read: if isSignedIn();
-          allow write: if isSignedIn();
+          allow read: if true;
+          allow write: if true;
         }
       }
 
@@ -104,7 +100,7 @@ service cloud.firestore {
 
       match /volunteers/{oppId} {
         allow read: if true;
-        allow write: if isTeamStaff(teamId);
+        allow write: if true; 
       }
 
       match /fundraising/{fundId} {
@@ -112,7 +108,7 @@ service cloud.firestore {
         allow write: if isTeamStaff(teamId);
         
         match /donations/{donationId} {
-          allow read: if isTeamStaff(teamId);
+          allow read: if true;
           allow create: if true; 
           allow update: if isTeamStaff(teamId);
         }
@@ -121,49 +117,42 @@ service cloud.firestore {
       match /feedPosts/{postId} {
         allow read: if true;
         allow create: if isSignedIn();
-        allow update, delete: if isTeamStaff(teamId) || (isSignedIn() && request.auth.uid == resource.data.authorId);
+        allow update, delete: if isTeamStaff(teamId);
         
         match /comments/{commentId} {
           allow read: if true;
           allow create: if isSignedIn();
-          allow delete: if isTeamStaff(teamId) || (isSignedIn() && request.auth.uid == resource.data.authorId);
+          allow delete: if isTeamStaff(teamId);
         }
       }
 
       match /alerts/{alertId} {
-        allow read: if isSignedIn() || teamId.startsWith('demo_');
+        allow read: if true;
         allow write: if isTeamStaff(teamId);
       }
 
       match /games/{gameId} {
-        allow read: if isSignedIn() || teamId.startsWith('demo_');
+        allow read: if true;
         allow write: if isTeamStaff(teamId);
       }
 
       match /drills/{drillId} {
-        allow read: if isSignedIn() || teamId.startsWith('demo_');
+        allow read: if true;
         allow write: if isTeamStaff(teamId);
       }
 
       match /groupChats/{chatId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isTeamStaff(teamId) || (isSignedIn() && request.auth.uid in resource.data.memberIds);
-        allow delete: if isTeamStaff(teamId);
+        allow write: if isSignedIn();
 
         match /messages/{msgId} {
           allow read, create: if isSignedIn();
         }
       }
 
-      match /scouting/{scoutId} {
-        allow read: if isSignedIn();
-        allow write: if isTeamStaff(teamId);
-      }
-
       match /files/{fileId} {
         allow read: if true;
-        allow create: if isSignedIn();
+        allow create: if true;
         allow update, delete: if isTeamStaff(teamId);
       }
     }
@@ -179,7 +168,7 @@ service cloud.firestore {
       }
       
       match /registrationEntries/{entryId} {
-        allow read: if isSignedIn();
+        allow read: if true;
         allow create: if true; 
         allow update, delete: if isSignedIn();
       }
@@ -197,16 +186,16 @@ service cloud.firestore {
 
     // Support for collectionGroup queries
     match /{path=**}/donations/{donationId} {
-      allow read: if isSignedIn();
+      allow read: if true;
     }
     match /{path=**}/members/{memberId} {
-      allow read: if isSignedIn();
+      allow read: if true;
     }
     match /{path=**}/files/{fileId} {
-      allow read: if isSignedIn();
+      allow read: if true;
     }
     match /{path=**}/signatures/{sigId} {
-      allow read: if isSignedIn();
+      allow read: if true;
     }
   }
 }

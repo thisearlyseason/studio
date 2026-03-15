@@ -51,7 +51,7 @@ import { format, isPast } from 'date-fns';
 
 function DonationAuditLedger({ fundId }: { fundId: string }) {
   const { activeTeam, db, confirmExternalDonation } = useTeam();
-  const q = useMemoFirebase(() => (db && activeTeam?.id) ? query(collection(db, 'teams', activeTeam.id, 'fundraising', fundId, 'donations'), orderBy('createdAt', 'desc')) : null, [db, activeTeam?.id, fundId]);
+  const q = useMemoFirebase(() => (db && activeTeam?.id && fundId) ? query(collection(db, 'teams', activeTeam.id, 'fundraising', fundId, 'donations'), orderBy('createdAt', 'desc')) : null, [db, activeTeam?.id, fundId]);
   const { data: donations } = useCollection<DonationEntry>(q);
 
   if (!donations || donations.length === 0) return <p className="text-[10px] text-center opacity-20 py-10 uppercase font-black">No donations recorded.</p>;
@@ -79,7 +79,7 @@ function DonationAuditLedger({ fundId }: { fundId: string }) {
 }
 
 export default function FundraisingPage() {
-  const { activeTeam, user, isStaff, addFundraisingOpportunity, signUpForFundraising, deleteFundraisingOpportunity, isPro, purchasePro } = useTeam();
+  const { activeTeam, user, isStaff, addFundraisingOpportunity, deleteFundraisingOpportunity, isPro, purchasePro } = useTeam();
   const db = useFirestore();
   
   const [filterMode, setFilterMode] = useState<'active' | 'past'>('active');
@@ -94,7 +94,7 @@ export default function FundraisingPage() {
   });
   const [configMethod, setConfigMethod] = useState<'external' | 'e-transfer'>('external');
 
-  const fundsQuery = useMemoFirebase(() => (activeTeam && db) ? query(collection(db, 'teams', activeTeam.id, 'fundraising'), orderBy('deadline', 'asc')) : null, [activeTeam?.id, db]);
+  const fundsQuery = useMemoFirebase(() => (activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'fundraising'), orderBy('deadline', 'asc')) : null, [activeTeam?.id, db]);
   const { data: rawCampaigns, isLoading } = useCollection<FundraisingOpportunity>(fundsQuery);
   const allCampaigns = rawCampaigns || [];
 
@@ -104,8 +104,8 @@ export default function FundraisingPage() {
   const displayedCampaigns = filterMode === 'active' ? activeCampaigns : pastCampaigns;
 
   const stats = useMemo(() => {
-    const totalRaised = allCampaigns.reduce((sum, f) => sum + f.currentAmount, 0);
-    const totalGoal = allCampaigns.reduce((sum, f) => sum + f.goalAmount, 0);
+    const totalRaised = allCampaigns.reduce((sum, f) => sum + (f.currentAmount || 0), 0);
+    const totalGoal = allCampaigns.reduce((sum, f) => sum + (f.goalAmount || 0), 0);
     const efficiency = totalGoal > 0 ? Math.round((totalRaised / totalGoal) * 100) : 0;
     const donorCount = allCampaigns.length * 12; // Approximation
     return { totalRaised, efficiency, donorCount };

@@ -658,8 +658,8 @@ export default function LeaguesPage() {
                       <Button 
                         onClick={() => isPro ? setIsSeasonOpen(true) : null} 
                         className={cn(
-                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2 border-black hover:bg-primary hover:text-white hover:border-primary",
-                          isPro ? "bg-white text-black" : "bg-white/50 text-muted-foreground/50 cursor-not-allowed"
+                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2",
+                          isPro ? "bg-white text-black border-black hover:bg-primary hover:text-white hover:border-primary" : "bg-white/50 text-muted-foreground/50 border-muted cursor-not-allowed"
                         )}
                       >
                         {!isPro && <Lock className="h-3 w-3 mr-2 text-red-600" />}
@@ -669,8 +669,8 @@ export default function LeaguesPage() {
                       <Button 
                         asChild={isPro} 
                         className={cn(
-                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2 border-black hover:bg-primary hover:text-white hover:border-primary",
-                          isPro ? "bg-white text-black" : "bg-white/50 text-muted-foreground/50 cursor-not-allowed"
+                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2",
+                          isPro ? "bg-white text-black border-black hover:bg-primary hover:text-white hover:border-primary" : "bg-white/50 text-muted-foreground/50 border-muted cursor-not-allowed"
                         )}
                       >
                         {isPro ? (
@@ -825,8 +825,8 @@ export default function LeaguesPage() {
                         key={method.id}
                         onClick={() => setInviteMethod(method.id as any)}
                         className={cn(
-                          "flex items-center gap-3 p-4 rounded-xl border-2 transition-all font-black text-[10px] uppercase hover:bg-primary hover:text-white hover:border-primary",
-                          inviteMethod === method.id ? "bg-primary border-primary text-white shadow-lg" : "bg-muted/30 border-transparent text-muted-foreground"
+                          "flex items-center gap-3 p-4 rounded-xl border-2 transition-all font-black text-[10px] uppercase",
+                          inviteMethod === method.id ? "bg-primary border-primary text-white shadow-lg" : "bg-muted/30 border-transparent text-muted-foreground hover:bg-primary hover:text-white hover:border-primary"
                         )}
                       >
                         <method.icon className="h-4 w-4" />
