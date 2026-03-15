@@ -536,7 +536,7 @@ function SquadDirectory({ league }: { league: League }) {
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Origin Location</Label><Input value={editForm.origin} onChange={e => setEditForm({...editForm, origin: e.target.value})} className="h-12" /></div>
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Name</Label><Input value={editForm.coachName} onChange={e => setEditForm({...editForm, coachName: e.target.value})} className="h-12" /></div>
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Email</Label><Input value={editForm.coachEmail} onChange={e => setEditForm({...editForm, coachEmail: e.target.value})} className="h-12" /></div>
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Phone</Label><Input value={editForm.coachPhone} onChange={e => setEditForm({...editForm, coachPhone: e.target.value})} className="h-12" /></div>
+            <div className="space-y-2"><Label className="text-[10px) font-black uppercase">Coach Phone</Label><Input value={editForm.coachPhone} onChange={e => setEditForm({...editForm, coachPhone: e.target.value})} className="h-12" /></div>
             <div className="space-y-2 col-span-full"><Label className="text-[10px] font-black uppercase">Organizer Notes</Label><Textarea value={editForm.organizerNotes} onChange={e => setEditForm({...editForm, organizerNotes: e.target.value})} className="h-32" /></div>
           </div>
           <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdate}>Synchronize Records</Button></DialogFooter>
@@ -784,7 +784,7 @@ export default function LeaguesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all" onClick={handleCreateLeague} disabled={isProcessing || !leagueName.trim()}>
+              <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-0.98 transition-all" onClick={handleCreateLeague} disabled={isProcessing || !leagueName.trim()}>
                 {isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Competitive Hub"}
               </Button>
             </DialogFooter>
@@ -822,7 +822,7 @@ export default function LeaguesPage() {
                       { id: 'portal', label: 'Public Portal', icon: Globe }
                     ].map(method => (
                       <button 
-                        key={method.id}
+                        key={method.id} 
                         onClick={() => setInviteMethod(method.id as any)}
                         className={cn(
                           "flex items-center gap-3 p-4 rounded-xl border-2 transition-all font-black text-[10px] uppercase",

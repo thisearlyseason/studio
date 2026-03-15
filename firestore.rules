@@ -137,17 +137,17 @@ service cloud.firestore {
       }
 
       match /alerts/{alertId} {
-        allow read: if isTeamMember(teamId);
+        allow read: if isSignedIn();
         allow write: if isTeamStaff(teamId);
       }
 
       match /games/{gameId} {
-        allow read: if isTeamMember(teamId);
+        allow read: if isSignedIn();
         allow write: if isTeamStaff(teamId);
       }
 
       match /drills/{drillId} {
-        allow read: if isTeamMember(teamId);
+        allow read: if isSignedIn();
         allow write: if isTeamStaff(teamId);
       }
 

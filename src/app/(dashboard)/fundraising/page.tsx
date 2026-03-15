@@ -156,32 +156,10 @@ export default function FundraisingPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-8 space-y-4 relative overflow-hidden group">
-          <TrendingUp className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
-          <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Raised</p>
-          <p className="text-4xl font-black">${stats.totalRaised.toLocaleString()}</p>
-        </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-8 space-y-4">
-          <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Active Goal Pacing</p>
-          <div className="space-y-2">
-            <p className="text-4xl font-black text-primary">{stats.efficiency}%</p>
-            <Progress value={stats.efficiency} className="h-1.5 bg-white/10" />
-          </div>
-        </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 space-y-4 ring-1 ring-black/5">
-          <p className="text-[10px] font-black uppercase text-muted-foreground">Campaign Count</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-4xl font-black text-foreground">{allCampaigns.length}</p>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase">Strategies</span>
-          </div>
-        </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-muted/20 p-8 space-y-4">
-          <div className="flex items-center gap-3">
-            <Users className="h-5 w-5 text-primary" />
-            <p className="text-[10px] font-black uppercase">Contributor Pulse</p>
-          </div>
-          <p className="text-4xl font-black text-foreground">{stats.donorCount}</p>
-        </Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-8 space-y-4 relative overflow-hidden group"><TrendingUp className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10 -rotate-12 group-hover:scale-110 transition-transform duration-700" /><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Raised</p><p className="text-4xl font-black">${stats.totalRaised.toLocaleString()}</p></Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-8 space-y-4"><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Active Goal Pacing</p><div className="space-y-2"><p className="text-4xl font-black text-primary">{stats.efficiency}%</p><Progress value={stats.efficiency} className="h-1.5 bg-white/10" /></div></Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 space-y-4 ring-1 ring-black/5"><p className="text-[10px] font-black uppercase text-muted-foreground">Campaign Count</p><div className="flex items-baseline gap-2"><p className="text-4xl font-black text-foreground">{allCampaigns.length}</p><span className="text-[10px] font-bold text-muted-foreground uppercase">Strategies</span></div></Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-muted/20 p-8 space-y-4"><div className="flex items-center gap-3"><Users className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase">Contributor Pulse</p></div><p className="text-4xl font-black text-foreground">{stats.donorCount}</p></Card>
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
