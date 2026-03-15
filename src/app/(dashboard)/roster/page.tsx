@@ -31,7 +31,9 @@ import {
   Star,
   Settings,
   Save,
-  UserCog
+  UserCog,
+  ExternalLink,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam, Member, TeamDocument } from '@/components/providers/team-provider';
@@ -200,6 +202,23 @@ export default function RosterPage() {
     }
   }, [selectedMember, isStaff, getStaffEvaluation]);
 
+  const recruitmentUrl = useMemo(() => {
+    if (!activeTeam) return '';
+    if (activeTeam.registrationProtocolId) {
+      return `${window.location.origin}/register/league/${activeTeam.id}?protocol=${activeTeam.registrationProtocolId}`;
+    }
+    return `${window.location.origin}/teams/join?code=${activeTeam.code}`;
+  }, [activeTeam]);
+
+  const handleCopyRecruitmentUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(recruitmentUrl);
+      toast({ title: "Recruitment Link Copied" });
+    } catch (e) {
+      toast({ title: "Copy Failed", variant: "destructive" });
+    }
+  };
+
   const calculateAgeGroup = (dob?: string) => {
     if (!dob) return null;
     const birthDate = new Date(dob);
@@ -289,16 +308,32 @@ export default function RosterPage() {
                 <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl p-0 overflow-y-auto">
                   <DialogTitle className="sr-only">Invite Teammates</DialogTitle>
                   <div className="h-2 bg-primary w-full" />
-                  <div className="p-8 space-y-6">
+                  <div className="p-8 space-y-8">
                     <DialogHeader>
-                      <DialogTitle className="text-2xl font-black uppercase tracking-tight">Recruitment Code</DialogTitle>
-                      <DialogDescription className="font-bold text-primary uppercase text-[10px]">Invite new teammates to {activeTeam.name}</DialogDescription>
+                      <DialogTitle className="text-3xl font-black uppercase tracking-tight">Recruit Hub</DialogTitle>
+                      <DialogDescription className="font-bold text-primary uppercase text-[10px]">Enroll new teammates to {activeTeam.name}</DialogDescription>
                     </DialogHeader>
-                    <div className="p-8 bg-primary/5 rounded-[2.5rem] text-center space-y-4 border-2 border-dashed border-primary/20 group cursor-pointer active:scale-95 transition-all" onClick={() => { navigator.clipboard.writeText(activeTeam.code); toast({ title: "Code Copied" }); }}>
-                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Official Join Code</p>
-                      <div className="flex items-center justify-center gap-4">
-                        <p className="text-5xl font-black text-primary tracking-widest">{activeTeam.code}</p>
-                        <Copy className="h-6 w-6 text-primary opacity-30" />
+                    
+                    <div className="space-y-6">
+                      <div className="p-8 bg-primary/5 rounded-[2.5rem] text-center space-y-4 border-2 border-dashed border-primary/20 group cursor-pointer active:scale-95 transition-all" onClick={() => { navigator.clipboard.writeText(activeTeam.code); toast({ title: "Code Copied" }); }}>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Squad Identity Code</p>
+                        <div className="flex items-center justify-center gap-4">
+                          <p className="text-5xl font-black text-primary tracking-widest">{activeTeam.code}</p>
+                          <Copy className="h-6 w-6 text-primary opacity-30" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Recruitment Pipeline Link</Label>
+                        <div className="flex gap-2">
+                          <Input value={recruitmentUrl} readOnly className="h-12 rounded-xl bg-muted/30 border-none font-bold text-xs truncate" />
+                          <Button size="icon" variant="outline" className="rounded-xl h-12 w-12 shrink-0 border-2" onClick={handleCopyRecruitmentUrl}><LinkIcon className="h-4 w-4" /></Button>
+                        </div>
+                        <p className="text-[9px] font-medium text-muted-foreground italic px-1 leading-relaxed">
+                          {activeTeam.registrationProtocolId 
+                            ? "This link sends recruits to your custom multi-step enrollment form." 
+                            : "This link sends recruits to the public hub to enter your squad code."}
+                        </p>
                       </div>
                     </div>
                   </div>

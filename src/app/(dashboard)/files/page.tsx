@@ -35,7 +35,8 @@ import {
   Clock,
   Shield,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  FolderOpen
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -180,54 +181,57 @@ export default function FilesPage() {
     return members.filter(m => m.userId === user.id || m.parentEmail === user.email);
   }, [members, user, isStaff]);
 
-  // Global query for club managers to see institutional files
+  // Global query for institutional files
   const institutionalFilesQuery = useMemoFirebase(() => {
-    if (!db || !isClubManager || !user?.id) return null;
+    if (!db || !user?.id) return null;
     return query(collectionGroup(db, 'files'), where('category', '==', 'Signed Certificate'));
-  }, [db, isClubManager, user?.id]);
+  }, [db, user?.id]);
 
-  const { data: globalFilesRaw } = useCollection<TeamFile>(institutionalFilesQuery);
+  const { data: allSignedFilesRaw } = useCollection<TeamFile>(institutionalFilesQuery);
 
-  // Local team files query
+  // Filter signed files based on permissions
+  const visibleSignedFiles = useMemo(() => {
+    const raw = allSignedFilesRaw || [];
+    return raw.filter(f => {
+      if (isClubManager || isSuperAdmin) return true;
+      if (isStaff && f.teamId === activeTeam?.id) return true;
+      const myMemberIds = signingMembers.map(m => m.id);
+      return f.memberId && myMemberIds.includes(f.memberId);
+    });
+  }, [allSignedFilesRaw, isClubManager, isSuperAdmin, isStaff, activeTeam?.id, signingMembers]);
+
+  // Group ALL visible signed files by Team > Type as requested: "Waivers > [Team Name] > [Waiver Type]"
+  const waiverFolders = useMemo(() => {
+    const map: Record<string, Record<string, TeamFile[]>> = {};
+    visibleSignedFiles.forEach(f => {
+      const teamName = f.teamName || 'Unknown Squad';
+      const docType = f.name.split(':')[0].replace('Signed', '').trim() || 'General Waiver';
+      
+      if (!map[teamName]) map[teamName] = {};
+      if (!map[teamName][docType]) map[teamName][docType] = [];
+      map[teamName][docType].push(f);
+    });
+    return map;
+  }, [visibleSignedFiles]);
+
+  // Local team non-certificate files
   const filesQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
     return query(collection(db, 'teams', activeTeam.id, 'files'), orderBy('date', 'desc'));
   }, [activeTeam?.id, db]);
 
   const { data: rawFiles } = useCollection<TeamFile>(filesQuery);
-  
-  const teamFiles = useMemo(() => {
+  const resourceFiles = useMemo(() => {
     const all = rawFiles || [];
-    return all.filter(f => {
-      const isCertificate = f.category === 'Signed Certificate';
-      if (isCertificate) {
-        if (isStaff || isSuperAdmin) return true;
-        const myMemberIds = signingMembers.map(m => m.id);
-        return f.memberId && myMemberIds.includes(f.memberId);
-      }
-      return !['Game Tape', 'Practice Session', 'Highlights'].includes(f.category);
-    });
-  }, [rawFiles, isStaff, isSuperAdmin, signingMembers]);
+    return all.filter(f => f.category !== 'Signed Certificate' && !['Game Tape', 'Practice Session', 'Highlights'].includes(f.category));
+  }, [rawFiles]);
 
-  // Group global files by team for the Institutional Vault
-  const filesByTeam = useMemo(() => {
-    if (!globalFilesRaw || !isClubManager) return {};
-    const map: Record<string, TeamFile[]> = {};
-    globalFilesRaw.forEach(f => {
-      const team = teams.find(t => t.id === f.teamId) || { name: 'Unknown Squad' };
-      const teamName = team.name || 'Unknown Squad';
-      if (!map[teamName]) map[teamName] = [];
-      map[teamName].push(f);
-    });
-    return map;
-  }, [globalFilesRaw, isClubManager, teams]);
-
-  const filteredFiles = useMemo(() => {
-    return teamFiles.filter(file => 
+  const filteredResources = useMemo(() => {
+    return resourceFiles.filter(file => 
       file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       file.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [teamFiles, searchTerm]);
+  }, [resourceFiles, searchTerm]);
 
   const docsQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
@@ -389,7 +393,7 @@ export default function FilesPage() {
         </section>
       )}
 
-      {isClubManager && Object.keys(filesByTeam).length > 0 && (
+      {Object.keys(waiverFolders).length > 0 && (
         <section className="space-y-6">
           <div className="flex items-center gap-3 px-2">
             <div className="bg-black p-2 rounded-xl text-white shadow-lg">
@@ -397,46 +401,70 @@ export default function FilesPage() {
             </div>
             <div>
               <h2 className="text-xl font-black uppercase tracking-tight">Institutional Vault</h2>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Waiver Audit Ledger</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Verified Tactical Folders</p>
             </div>
           </div>
           
-          <Accordion type="single" collapsible className="space-y-4">
-            {Object.entries(filesByTeam).map(([teamName, teamFiles]) => (
-              <AccordionItem key={teamName} value={teamName} className="border-none">
-                <AccordionTrigger className="bg-white p-6 rounded-[2rem] shadow-sm hover:no-underline ring-1 ring-black/5 [&[data-state=open]]:rounded-b-none transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-primary/5 p-3 rounded-2xl text-primary">
-                      <FolderClosed className="h-6 w-6" />
+          <div className="bg-muted/30 p-6 rounded-[3rem] border-2 border-dashed space-y-6">
+            <div className="flex items-center gap-2 px-4">
+              <FolderOpen className="h-4 w-4 text-primary" />
+              <span className="text-xs font-black uppercase tracking-widest">Waivers</span>
+            </div>
+            
+            <Accordion type="multiple" className="space-y-4">
+              {Object.entries(waiverFolders).map(([teamName, types]) => (
+                <AccordionItem key={teamName} value={teamName} className="border-none">
+                  <AccordionTrigger className="bg-white p-6 rounded-[2rem] shadow-sm hover:no-underline ring-1 ring-black/5 [&[data-state=open]]:rounded-b-none transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-primary/5 p-3 rounded-2xl text-primary">
+                        <Users className="h-6 w-6" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-black uppercase tracking-tight leading-none">{teamName}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
+                          {Object.values(types).flat().length} Executed Files
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-lg font-black uppercase tracking-tight leading-none">{teamName}</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">{teamFiles.length} Executed Mandates</p>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="bg-white p-6 pt-2 rounded-b-[2rem] shadow-md ring-1 ring-black/5 border-t">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {teamFiles.map(file => (
-                      <Card key={file.id} className="rounded-2xl border bg-muted/30 p-4 space-y-4 group">
-                        <div className="flex justify-between items-start">
-                          <div className="bg-white p-2 rounded-lg text-primary shadow-sm"><FileSignature className="h-4 w-4" /></div>
-                          <Badge className="bg-green-100 text-green-700 border-none font-black text-[7px] uppercase h-4">VERIFIED</Badge>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-black uppercase truncate">{file.name}</p>
-                          <p className="text-[8px] font-bold text-muted-foreground uppercase opacity-60 mt-1">{format(new Date(file.date), 'MMM d, yyyy')}</p>
-                        </div>
-                        <Button className="w-full h-9 rounded-xl font-black text-[9px] uppercase bg-black text-white hover:bg-primary transition-all" onClick={() => handleDownloadCertificate(file)}>
-                          <Download className="h-3 w-3 mr-2" /> Download Audit
-                        </Button>
-                      </Card>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                  </AccordionTrigger>
+                  <AccordionContent className="bg-white p-6 pt-4 rounded-b-[2rem] shadow-md ring-1 ring-black/5 border-t">
+                    <Accordion type="single" collapsible className="space-y-3">
+                      {Object.entries(types).map(([docType, files]) => (
+                        <AccordionItem key={docType} value={docType} className="border-none">
+                          <AccordionTrigger className="py-3 px-4 rounded-xl hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <FolderClosed className="h-4 w-4 text-primary opacity-40" />
+                              <span className="text-xs font-black uppercase tracking-widest">{docType}</span>
+                              <Badge className="h-4 px-1.5 text-[7px] bg-primary/10 text-primary border-none">{files.length}</Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-2 pl-8 pr-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {files.map(file => (
+                                <Card key={file.id} className="rounded-2xl border bg-muted/20 p-4 space-y-4 group hover:ring-1 hover:ring-primary transition-all">
+                                  <div className="flex justify-between items-start">
+                                    <div className="bg-white p-2 rounded-lg text-primary shadow-sm"><FileSignature className="h-4 w-4" /></div>
+                                    <Badge className="bg-green-100 text-green-700 border-none font-black text-[7px] uppercase h-4">VERIFIED</Badge>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-black uppercase truncate">{file.name.split('-').pop()?.trim() || file.name}</p>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase opacity-60 mt-1">{format(new Date(file.date), 'MMM d, yyyy')}</p>
+                                  </div>
+                                  <Button className="w-full h-9 rounded-xl font-black text-[9px] uppercase bg-black text-white hover:bg-primary transition-all" onClick={() => handleDownloadCertificate(file)}>
+                                    <Download className="h-3 w-3 mr-2" /> Download Cert
+                                  </Button>
+                                </Card>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </section>
       )}
 
@@ -446,7 +474,7 @@ export default function FilesPage() {
             <div className="bg-primary/10 p-2.5 rounded-xl text-primary">
               <FolderClosed className="h-5 w-5" />
             </div>
-            <h2 className="text-xl font-black uppercase tracking-tight">Archive & Vault</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight">Archive & Resources</h2>
           </div>
           <div className="relative flex-1 w-full sm:max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -460,51 +488,33 @@ export default function FilesPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredFiles.map(file => {
-            const isCertificate = file.category === 'Signed Certificate';
-            return (
-              <Card key={file.id} className={cn(
-                "group border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[2rem] overflow-hidden ring-1 ring-black/5 flex flex-col",
-                isCertificate ? "bg-primary/5 border-primary/20 ring-primary/10" : "bg-white"
-              )}>
-                <CardHeader className="p-6 pb-2">
-                  <div className="flex justify-between items-start">
-                    <div className={cn(
-                      "p-3 rounded-2xl shadow-sm transition-transform group-hover:scale-110",
-                      isCertificate ? "bg-primary text-white" : "bg-primary/5 text-primary"
-                    )}>
-                      {isCertificate ? <Shield className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
-                    </div>
-                    <Badge variant={isCertificate ? "default" : "outline"} className={cn(
-                      "text-[8px] font-black uppercase tracking-tighter px-2 h-5",
-                      !isCertificate && "border-primary/20 text-primary"
-                    )}>{file.category}</Badge>
+          {filteredResources.map(file => (
+            <Card key={file.id} className="group border-none shadow-sm hover:shadow-xl transition-all duration-500 rounded-[2rem] overflow-hidden ring-1 ring-black/5 flex flex-col bg-white">
+              <CardHeader className="p-6 pb-2">
+                <div className="flex justify-between items-start">
+                  <div className="p-3 rounded-2xl bg-primary/5 text-primary shadow-sm transition-transform group-hover:scale-110">
+                    <FileText className="h-6 w-6" />
                   </div>
-                </CardHeader>
-                <CardContent className="p-6 pt-2 flex-1 space-y-3">
-                  <div className="space-y-1">
-                    <h3 className="font-black text-sm uppercase tracking-tight truncate group-hover:text-primary transition-colors">{file.name}</h3>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-60">{file.size || 'N/A'} • {format(new Date(file.date), 'MMM d, yyyy')}</p>
-                  </div>
-                  {file.description && <p className="text-[10px] font-medium text-muted-foreground line-clamp-2 leading-relaxed italic">"{file.description}"</p>}
-                </CardContent>
-                <CardFooter className="p-6 pt-0 flex gap-2">
-                  {isCertificate ? (
-                    <Button className="flex-1 h-10 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95" onClick={() => handleDownloadCertificate(file)}>
-                      <Download className="h-3 w-3 mr-2" /> Download Cert
-                    </Button>
-                  ) : (
-                    <Button className="flex-1 h-10 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95" onClick={() => window.open(file.url, '_blank')}>
-                      View Resource
-                    </Button>
-                  )}
-                  {isStaff && <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive hover:bg-destructive/5 transition-colors" onClick={() => setFileToDelete(file.id)}><Trash2 className="h-4 w-4" /></Button>}
-                </CardFooter>
-              </Card>
-            );
-          })}
+                  <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter px-2 h-5 border-primary/20 text-primary">{file.category}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6 pt-2 flex-1 space-y-3">
+                <div className="space-y-1">
+                  <h3 className="font-black text-sm uppercase tracking-tight truncate group-hover:text-primary transition-colors">{file.name}</h3>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-60">{file.size || 'N/A'} • {format(new Date(file.date), 'MMM d, yyyy')}</p>
+                </div>
+                {file.description && <p className="text-[10px] font-medium text-muted-foreground line-clamp-2 leading-relaxed italic">"{file.description}"</p>}
+              </CardContent>
+              <CardFooter className="p-6 pt-0 flex gap-2">
+                <Button className="flex-1 h-10 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95" onClick={() => window.open(file.url, '_blank')}>
+                  View Resource
+                </Button>
+                {isStaff && <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive hover:bg-destructive/5 transition-colors" onClick={() => setFileToDelete(file.id)}><Trash2 className="h-4 w-4" /></Button>}
+              </CardFooter>
+            </Card>
+          ))}
 
-          {filteredFiles.length === 0 && pendingDocsForDisplay.length === 0 && (
+          {filteredResources.length === 0 && pendingDocsForDisplay.length === 0 && Object.keys(waiverFolders).length === 0 && (
             <div className="col-span-full py-32 text-center bg-muted/10 rounded-[3rem] border-2 border-dashed space-y-4 opacity-40">
               <FolderClosed className="h-16 w-16 mx-auto mb-2" />
               <p className="text-sm font-black uppercase tracking-[0.2em]">Repository Clear</p>

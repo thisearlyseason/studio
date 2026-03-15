@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -22,7 +23,10 @@ import {
   ArrowUpRight,
   Terminal,
   Mail,
-  Phone
+  Phone,
+  Copy,
+  ExternalLink,
+  Target
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -105,6 +109,23 @@ export default function TeamProfilePage() {
       setSelectedPlanId(activeTeam.planId || 'starter_squad');
     }
   }, [activeTeam]);
+
+  const recruitmentUrl = useMemo(() => {
+    if (!activeTeam) return '';
+    if (activeTeam.registrationProtocolId) {
+      return `${window.location.origin}/register/league/${activeTeam.id}?protocol=${activeTeam.registrationProtocolId}`;
+    }
+    return `${window.location.origin}/teams/join?code=${activeTeam.code}`;
+  }, [activeTeam]);
+
+  const handleCopyRecruitmentUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(recruitmentUrl);
+      toast({ title: "Link Copied", description: "Recruitment URL copied to clipboard." });
+    } catch (e) {
+      toast({ title: "Copy Failed", variant: "destructive" });
+    }
+  };
 
   if (!mounted || !activeTeam) {
     return (
@@ -412,31 +433,39 @@ export default function TeamProfilePage() {
         </div>
 
         <aside className="space-y-8">
-          <Card className="rounded-[2rem] border-none shadow-xl bg-primary text-primary-foreground overflow-hidden">
+          <Card className="rounded-[2rem] border-none shadow-xl bg-primary text-primary-foreground overflow-hidden group">
             <CardContent className="p-8 space-y-6">
               <div className="space-y-1">
-                <Badge className="bg-white/20 text-white border-none font-black uppercase tracking-widest text-[8px] h-5 px-2">Recruitment</Badge>
-                <h3 className="text-2xl font-black tracking-tight">Recruit Teammates</h3>
+                <Badge className="bg-white/20 text-white border-none font-black uppercase tracking-widest text-[8px] h-5 px-2">Recruitment Hub</Badge>
+                <h3 className="text-2xl font-black tracking-tight uppercase">Recruit Teammates</h3>
                 <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Growth & Enrollment</p>
               </div>
-              <div className="p-6 bg-white/10 rounded-2xl border border-white/10 space-y-3 text-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Joining Code</p>
-                <p className="text-4xl font-black tracking-[0.2em]">{activeTeam.code}</p>
+              
+              <div className="p-6 bg-white/10 rounded-2xl border border-white/10 space-y-3 text-center transition-all group-hover:bg-white/20">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Squad Identity Code</p>
+                <div className="flex items-center justify-center gap-4">
+                  <p className="text-4xl font-black tracking-[0.2em]">{activeTeam.code}</p>
+                  <button onClick={async () => { await navigator.clipboard.writeText(activeTeam.code); toast({ title: "Code Copied" }); }}>
+                    <Copy className="h-5 w-5 text-white/40 hover:text-white" />
+                  </button>
+                </div>
               </div>
-              <Button variant="secondary" className="w-full h-12 rounded-xl font-black bg-white text-primary" onClick={async () => {
-                try {
-                  if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(activeTeam.code);
-                    toast({ title: "Copied!" });
-                  } else {
-                    throw new Error("Blocked");
-                  }
-                } catch (e) {
-                  toast({ title: "Copy Failed", description: activeTeam.code });
-                }
-              }}>
-                Copy Join Link
-              </Button>
+
+              <div className="space-y-3">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 px-1">Recruitment Pipeline</p>
+                <Button variant="secondary" className="w-full h-12 rounded-xl font-black bg-white text-primary flex items-center justify-between px-6" onClick={handleCopyRecruitmentUrl}>
+                  <span className="text-[10px] uppercase tracking-widest">Copy Recruitment Link</span>
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+                <div className="bg-black/20 p-4 rounded-xl border border-white/5 flex items-start gap-3">
+                  <Target className="h-4 w-4 text-white/40 mt-0.5" />
+                  <p className="text-[9px] font-medium text-white/60 leading-relaxed italic">
+                    {activeTeam.registrationProtocolId 
+                      ? "Recruits will be sent to your custom enrollment pipeline." 
+                      : "Recruits will be sent to the public hub to enter your squad code."}
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </aside>

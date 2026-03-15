@@ -89,6 +89,7 @@ export type Team = {
   createdAt?: string;
   teamName?: string;
   isDemo?: boolean;
+  registrationProtocolId?: string; // Tracks if a specific team registration form exists
 };
 
 export type Member = {
@@ -263,6 +264,8 @@ export type TeamFile = {
   signatureId?: string;
   memberId?: string;
   documentId?: string;
+  teamId?: string;
+  teamName?: string;
 };
 
 export type League = {
@@ -729,14 +732,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name: `Signed: ${docData.title} - ${targetMember.name}`,
       type: 'pdf', size: 'Digital Certificate', sizeBytes: 0, url: '#',
       category: 'Signed Certificate', description: `Verified execution of ${docData.title}. Signed as "${signatureText}".`,
-      date: new Date().toISOString(), authorId: userProfile.id, targetMemberId: targetMember.id, documentId: docId,
-      signatureId: sigId
+      date: new Date().toISOString(), authorId: userProfile.id, memberId: targetMember.id, documentId: docId,
+      teamId: activeTeam.id, teamName: activeTeam.name, signatureId: sigId
     }));
     
     await batch.commit(); 
     toast({ title: "Compliance Verified", description: "Record added to roster." });
     return true;
-  }, [activeTeam?.id, userProfile, db, members]);
+  }, [activeTeam, userProfile, db, members]);
 
   const createTeamDocument = useCallback(async (data: any) => {
     if (!activeTeam?.id || !firebaseUser) return;
@@ -832,23 +835,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toast({ title: "Standings Ledger Exported" });
   }, [householdEvents]);
 
-  const assignManualPlan = useCallback(async (uid: string, pid: string, q: number) => {
+  const assignManualPlan = useCallback(async (userId: string, planId: string, quota: number) => {
     if (!isSuperAdmin) return;
-    await updateDoc(doc(db, 'users', uid), { activePlanId: pid, proTeamLimit: q, planSource: 'manual' });
+    await updateDoc(doc(db, 'users', userId), { activePlanId: planId, proTeamLimit: quota, planSource: 'manual' });
     toast({ title: "Quota Provisioned" });
   }, [db, isSuperAdmin]);
 
   const deleteTeam = useCallback(async (teamId: string) => {
     if (!firebaseUser) return;
     const batch = writeBatch(db);
-    
-    // Remove from user's memberships
     batch.delete(doc(db, 'users', firebaseUser.uid, 'teamMemberships', teamId));
-    
-    // Standard delete doesn't recursive delete subcollections in rules but we initiate it here
-    // for the root doc to satisfy the immediate UI feedback.
     batch.delete(doc(db, 'teams', teamId));
-    
     await batch.commit();
     toast({ title: "Squad Decommissioned", description: "Team data removal protocol initiated." });
   }, [db, firebaseUser]);
@@ -866,7 +863,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     seenAlertIds,
     formatTime: (date: string | Date) => { try { return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return 'TBD'; } },
     createNewTeam: async (name: string, type: any, pos: string, description?: string, planId?: string) => { if (!firebaseUser) return ''; const tid = `team_${Date.now()}`; const code = Math.random().toString(36).substring(2, 8).toUpperCase(); const batch = writeBatch(db); batch.set(doc(db, 'teams', tid), clean({ id: tid, teamName: name, teamCode: code, type, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), isPro: planId !== 'starter_squad', planId: planId || 'starter_squad' })); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', joinedAt: new Date().toISOString(), jersey: 'HQ' })); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name, teamCode: code, role: 'Admin', isPro: planId !== 'starter_squad', planId: planId || 'starter_squad', ownerUserId: firebaseUser.uid })); await batch.commit(); return tid; },
-    joinTeamWithCode: async (code: string, pid: string, pos: string) => { if (!firebaseUser) return false; const q = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1)); const s = await getDocs(q); if (s.empty) return false; const tid = s.docs[0].id; const t = s.docs[0].data(); const batch = writeBatch(db); batch.update(doc(db, 'players', pid), { joinedTeamIds: arrayUnion(tid) }); batch.set(doc(db, 'teams', tid, 'members', pid), clean({ id: pid, userId: firebaseUser.uid, playerId: pid, teamId: tid, role: 'Member', position: pos, name: pid.startsWith('p_') ? userProfile?.name : 'Child', joinedAt: new Date().toISOString(), jersey: 'TBD' })); batch.set(db, doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: t.teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: !!t.isPro, planId: t.planId || 'starter_squad', ownerUserId: t.ownerUserId })); await batch.commit(); return true; },
+    joinTeamWithCode: async (code: string, pid: string, pos: string) => { if (!firebaseUser) return false; const q = query(collection(db, 'teams'), where('teamCode', '==', code.toUpperCase()), limit(1)); const s = await getDocs(q); if (s.empty) return false; const tid = s.docs[0].id; const t = s.docs[0].data(); const batch = writeBatch(db); batch.update(doc(db, 'players', pid), { joinedTeamIds: arrayUnion(tid) }); batch.set(doc(db, 'teams', tid, 'members', pid), clean({ id: pid, userId: firebaseUser.uid, playerId: pid, teamId: tid, role: 'Member', position: pos, name: pid.startsWith('p_') ? userProfile?.name : 'Teammate', joinedAt: new Date().toISOString(), jersey: 'TBD' })); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: t.teamName, teamCode: code.toUpperCase(), role: 'Member', isPro: !!t.isPro, planId: t.planId || 'starter_squad', ownerUserId: t.ownerUserId })); await batch.commit(); return true; },
     deleteTeam,
     registerChild: async (f: string, l: string, d: string) => { if (!firebaseUser) return ''; const ref = await addDoc(collection(db, 'players'), clean({ firstName: f, lastName: l, dateOfBirth: d, isMinor: true, parentId: firebaseUser.uid, createdAt: new Date().toISOString() })); return ref.id; },
     upgradeChildToLogin: async (cid: string) => { await updateDoc(doc(db, 'players', cid), { hasLogin: true }); },
@@ -908,7 +905,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     deleteDrill: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'drills', id)); },
     addScoutingReport: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'scouting'), clean(d)); },
     deleteScoutingReport: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'scouting', id)); },
-    addFile: async (n: string, t: string, s: number, u: string, c: string, d?: string) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: n, type: t, size: (s / 1048576).toFixed(2) + ' MB', sizeBytes: s, url: u, category: c, description: d, date: new Date().toISOString() })); },
+    addFile: async (n: string, t: string, s: number, u: string, c: string, d?: string) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'files'), clean({ name: n, type: t, size: (s / 1048576).toFixed(2) + ' MB', sizeBytes: s, url: u, category: c, description: d, date: new Date().toISOString(), teamId: activeTeam.id, teamName: activeTeam.name })); },
     deleteFile: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'files', id)); },
     markMediaAsViewed: async (id: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { [`viewedBy.${userProfile.id}`]: true }); },
     addMediaComment: async (id: string, text: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'files', id), { comments: arrayUnion({ id: `c_${Date.now()}`, authorId: userProfile.id, authorName: userProfile.name, text, createdAt: new Date().toISOString() }) }); },
