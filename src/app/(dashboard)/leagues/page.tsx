@@ -536,7 +536,7 @@ function SquadDirectory({ league }: { league: League }) {
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Origin Location</Label><Input value={editForm.origin} onChange={e => setEditForm({...editForm, origin: e.target.value})} className="h-12" /></div>
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Name</Label><Input value={editForm.coachName} onChange={e => setEditForm({...editForm, coachName: e.target.value})} className="h-12" /></div>
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Email</Label><Input value={editForm.coachEmail} onChange={e => setEditForm({...editForm, coachEmail: e.target.value})} className="h-12" /></div>
-            <div className="space-y-2"><Label className="text-[10px) font-black uppercase">Coach Phone</Label><Input value={editForm.coachPhone} onChange={e => setEditForm({...editForm, coachPhone: e.target.value})} className="h-12" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Phone</Label><Input value={editForm.coachPhone} onChange={e => setEditForm({...editForm, coachPhone: e.target.value})} className="h-12" /></div>
             <div className="space-y-2 col-span-full"><Label className="text-[10px] font-black uppercase">Organizer Notes</Label><Textarea value={editForm.organizerNotes} onChange={e => setEditForm({...editForm, organizerNotes: e.target.value})} className="h-32" /></div>
           </div>
           <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdate}>Synchronize Records</Button></DialogFooter>

@@ -22,7 +22,7 @@ export interface UseCollectionResult<T> {
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Hardened with strictly defensive path guards to prevent internal assertion errors.
+ * Hardened with strictly defensive path guards and stable unsubscription logic.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -32,6 +32,7 @@ export function useCollection<T = any>(
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
   const isMounted = useRef(true);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -52,8 +53,7 @@ export function useCollection<T = any>(
       path = 'query';
     }
 
-    // CRITICAL GUARD: Do not establish listeners on uninitialized, root, or malformed paths
-    // This prevents the FIRESTORE INTERNAL ASSERTION FAILED error during state transitions.
+    // CRITICAL GUARD: Do not establish listeners on uninitialized or malformed paths
     if (!path || path === '/' || path === '' || path.includes('undefined') || path.includes('//')) {
       setData(null);
       setIsLoading(false);
@@ -63,47 +63,58 @@ export function useCollection<T = any>(
     setIsLoading(true);
     setError(null);
 
-    const unsubscribe = onSnapshot(
-      memoizedTargetRefOrQuery,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        if (!isMounted.current) return;
-        const results: ResultItemType[] = [];
-        snapshot.forEach((doc) => {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        });
-        setData(results);
-        setError(null);
-        setIsLoading(false);
-      },
-      (err: FirestoreError) => {
-        if (!isMounted.current) return;
-        
-        // Suppress transient errors during rapid state transitions or lack of auth
-        if (err.code === 'permission-denied' && (path === 'plans' || path === 'features')) {
-           setIsLoading(false);
-           return;
-        }
-
-        if (err.code === 'failed-precondition' || path.includes('undefined')) {
+    try {
+      const unsubscribe = onSnapshot(
+        memoizedTargetRefOrQuery,
+        (snapshot: QuerySnapshot<DocumentData>) => {
+          if (!isMounted.current) return;
+          const results: ResultItemType[] = [];
+          snapshot.forEach((doc) => {
+            results.push({ ...(doc.data() as T), id: doc.id });
+          });
+          setData(results);
+          setError(null);
           setIsLoading(false);
-          return;
+        },
+        (err: FirestoreError) => {
+          if (!isMounted.current) return;
+          
+          // Suppress transient errors during rapid state transitions
+          if (err.code === 'permission-denied' && (path === 'plans' || path === 'features')) {
+             setIsLoading(false);
+             return;
+          }
+
+          if (err.code === 'failed-precondition' || path.includes('undefined')) {
+            setIsLoading(false);
+            return;
+          }
+
+          const contextualError = new FirestorePermissionError({
+            operation: 'list',
+            path: path || 'collection',
+          });
+
+          setError(contextualError);
+          setData(null);
+          setIsLoading(false);
+          errorEmitter.emit('permission-error', contextualError);
         }
-
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path: path || 'collection',
-        });
-
-        setError(contextualError);
-        setData(null);
-        setIsLoading(false);
-        errorEmitter.emit('permission-error', contextualError);
-      }
-    );
+      );
+      unsubscribeRef.current = unsubscribe;
+    } catch (e) {
+      setIsLoading(false);
+    }
 
     return () => {
       isMounted.current = false;
-      unsubscribe();
+      if (unsubscribeRef.current) {
+        // Wrap in try/catch to handle SDK internal assertion errors during teardown
+        try {
+          unsubscribeRef.current();
+        } catch (e) {}
+        unsubscribeRef.current = null;
+      }
     };
   }, [memoizedTargetRefOrQuery]);
 
