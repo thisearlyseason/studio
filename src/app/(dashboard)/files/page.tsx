@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -33,11 +34,12 @@ import {
   ArrowRight,
   Clock,
   Shield,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { useTeam, TeamFile, TeamDocument, DocumentSignature, Member } from '@/components/providers/team-provider';
+import { useTeam, TeamFile, TeamDocument, DocumentSignature, Member, Team } from '@/components/providers/team-provider';
 import { 
   Dialog, 
   DialogContent, 
@@ -63,11 +65,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where, doc, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, getDocs, collectionGroup } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 function DocumentSigningDialog({ doc: d, onSign, members, onComplete }: { doc: TeamDocument, onSign: (id: string, sig: string, mid: string) => Promise<boolean>, members: Member[], onComplete: () => void }) {
   const [signature, setSignature] = useState('');
@@ -157,7 +160,7 @@ function DocumentSigningDialog({ doc: d, onSign, members, onComplete }: { doc: T
 }
 
 export default function FilesPage() {
-  const { activeTeam, addFile, deleteFile, user, isPro, purchasePro, isSuperAdmin, isStaff, members, signTeamDocument } = useTeam();
+  const { activeTeam, addFile, deleteFile, user, isPro, purchasePro, isSuperAdmin, isStaff, isClubManager, members, teams, signTeamDocument } = useTeam();
   const db = useFirestore();
   
   const [mounted, setMounted] = useState(false);
@@ -177,7 +180,15 @@ export default function FilesPage() {
     return members.filter(m => m.userId === user.id || m.parentEmail === user.email);
   }, [members, user, isStaff]);
 
-  // Queries
+  // Global query for club managers to see institutional files
+  const institutionalFilesQuery = useMemoFirebase(() => {
+    if (!db || !isClubManager || !user?.id) return null;
+    return query(collectionGroup(db, 'files'), where('category', '==', 'Signed Certificate'));
+  }, [db, isClubManager, user?.id]);
+
+  const { data: globalFilesRaw } = useCollection<TeamFile>(institutionalFilesQuery);
+
+  // Local team files query
   const filesQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
     return query(collection(db, 'teams', activeTeam.id, 'files'), orderBy('date', 'desc'));
@@ -190,7 +201,6 @@ export default function FilesPage() {
     return all.filter(f => {
       const isCertificate = f.category === 'Signed Certificate';
       if (isCertificate) {
-        // Show certificate only if user is staff or it belongs to them/their children
         if (isStaff || isSuperAdmin) return true;
         const myMemberIds = signingMembers.map(m => m.id);
         return f.memberId && myMemberIds.includes(f.memberId);
@@ -198,6 +208,19 @@ export default function FilesPage() {
       return !['Game Tape', 'Practice Session', 'Highlights'].includes(f.category);
     });
   }, [rawFiles, isStaff, isSuperAdmin, signingMembers]);
+
+  // Group global files by team for the Institutional Vault
+  const filesByTeam = useMemo(() => {
+    if (!globalFilesRaw || !isClubManager) return {};
+    const map: Record<string, TeamFile[]> = {};
+    globalFilesRaw.forEach(f => {
+      const team = teams.find(t => t.id === f.teamId) || { name: 'Unknown Squad' };
+      const teamName = team.name || 'Unknown Squad';
+      if (!map[teamName]) map[teamName] = [];
+      map[teamName].push(f);
+    });
+    return map;
+  }, [globalFilesRaw, isClubManager, teams]);
 
   const filteredFiles = useMemo(() => {
     return teamFiles.filter(file => 
@@ -238,15 +261,11 @@ export default function FilesPage() {
 
   const pendingDocsForDisplay = useMemo(() => {
     if (!documents) return [];
-    
-    // We group by document, but only if SOME eligible member hasn't signed it
     return documents.filter(d => {
       const isParentalWaiver = d.id === 'default_parental';
-      
       return signingMembers.some(m => {
         const isAdult = m.birthdate && differenceInYears(new Date(), new Date(m.birthdate)) >= 18;
         if (isParentalWaiver && isAdult) return false;
-        
         const isAssigned = d.assignedTo.includes('all') || d.assignedTo.includes(m.id);
         const alreadySigned = signedDocIds[m.id]?.includes(d.id);
         return isAssigned && !alreadySigned;
@@ -367,6 +386,57 @@ export default function FilesPage() {
               </Card>
             ))}
           </div>
+        </section>
+      )}
+
+      {isClubManager && Object.keys(filesByTeam).length > 0 && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-3 px-2">
+            <div className="bg-black p-2 rounded-xl text-white shadow-lg">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-tight">Institutional Vault</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Waiver Audit Ledger</p>
+            </div>
+          </div>
+          
+          <Accordion type="single" collapsible className="space-y-4">
+            {Object.entries(filesByTeam).map(([teamName, teamFiles]) => (
+              <AccordionItem key={teamName} value={teamName} className="border-none">
+                <AccordionTrigger className="bg-white p-6 rounded-[2rem] shadow-sm hover:no-underline ring-1 ring-black/5 [&[data-state=open]]:rounded-b-none transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/5 p-3 rounded-2xl text-primary">
+                      <FolderClosed className="h-6 w-6" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-lg font-black uppercase tracking-tight leading-none">{teamName}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">{teamFiles.length} Executed Mandates</p>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="bg-white p-6 pt-2 rounded-b-[2rem] shadow-md ring-1 ring-black/5 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {teamFiles.map(file => (
+                      <Card key={file.id} className="rounded-2xl border bg-muted/30 p-4 space-y-4 group">
+                        <div className="flex justify-between items-start">
+                          <div className="bg-white p-2 rounded-lg text-primary shadow-sm"><FileSignature className="h-4 w-4" /></div>
+                          <Badge className="bg-green-100 text-green-700 border-none font-black text-[7px] uppercase h-4">VERIFIED</Badge>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black uppercase truncate">{file.name}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase opacity-60 mt-1">{format(new Date(file.date), 'MMM d, yyyy')}</p>
+                        </div>
+                        <Button className="w-full h-9 rounded-xl font-black text-[9px] uppercase bg-black text-white hover:bg-primary transition-all" onClick={() => handleDownloadCertificate(file)}>
+                          <Download className="h-3 w-3 mr-2" /> Download Audit
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </section>
       )}
 
