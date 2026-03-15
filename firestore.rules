@@ -25,7 +25,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isSuperAdmin() || 
         (exists(/databases/$(database)/documents/teams/$(teamId)) && get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid) ||
-        (memberDoc != null && memberDoc.data.position in ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Organization Lead', 'Platform Admin', 'Squad Leader'])
+        (memberDoc != null && memberDoc.data.position in ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Organization Lead', 'Platform Admin', 'Squad Leader', 'Parent'])
       );
     }
 
@@ -84,6 +84,11 @@ service cloud.firestore {
       match /members/{memberId} {
         allow read: if true; 
         allow write: if isTeamStaff(teamId) || isOwner(memberId);
+        
+        match /signatures/{sigId} {
+          allow read: if isSignedIn();
+          allow write: if isSignedIn();
+        }
       }
 
       match /documents/{docId} {
@@ -125,17 +130,17 @@ service cloud.firestore {
       }
 
       match /alerts/{alertId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || teamId.startsWith('demo_');
         allow write: if isTeamStaff(teamId);
       }
 
       match /games/{gameId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || teamId.startsWith('demo_');
         allow write: if isTeamStaff(teamId);
       }
 
       match /drills/{drillId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || teamId.startsWith('demo_');
         allow write: if isTeamStaff(teamId);
       }
 
@@ -166,6 +171,27 @@ service cloud.firestore {
       allow read: if true; 
       allow create: if isSignedIn();
       allow update: if isSignedIn();
+      
+      match /registration/{docId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+      
+      match /registrationEntries/{entryId} {
+        allow read: if isSignedIn();
+        allow create: if true;
+        allow update, delete: if isSignedIn();
+      }
+    }
+
+    match /facilities/{facId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+      
+      match /fields/{fieldId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
     }
 
     // Support for collectionGroup queries
@@ -176,6 +202,9 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
     match /{path=**}/files/{fileId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/signatures/{sigId} {
       allow read: if isSignedIn();
     }
   }

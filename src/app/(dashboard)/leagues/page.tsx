@@ -658,8 +658,8 @@ export default function LeaguesPage() {
                       <Button 
                         onClick={() => isPro ? setIsSeasonOpen(true) : null} 
                         className={cn(
-                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center hover:bg-primary hover:text-white",
-                          isPro ? "bg-white text-black" : "bg-white/50 text-muted-foreground/50 border-2 cursor-not-allowed"
+                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2 border-black hover:bg-primary hover:text-white hover:border-primary",
+                          isPro ? "bg-white text-black" : "bg-white/50 text-muted-foreground/50 cursor-not-allowed"
                         )}
                       >
                         {!isPro && <Lock className="h-3 w-3 mr-2 text-red-600" />}
@@ -668,10 +668,9 @@ export default function LeaguesPage() {
                       
                       <Button 
                         asChild={isPro} 
-                        variant="secondary" 
                         className={cn(
-                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center hover:bg-primary hover:text-white",
-                          isPro ? "bg-white text-black" : "bg-white/50 text-muted-foreground/50 border-2 cursor-not-allowed"
+                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2 border-black hover:bg-primary hover:text-white hover:border-primary",
+                          isPro ? "bg-white text-black" : "bg-white/50 text-muted-foreground/50 cursor-not-allowed"
                         )}
                       >
                         {isPro ? (
@@ -689,8 +688,7 @@ export default function LeaguesPage() {
                       </Button>
 
                       <Button 
-                        variant="secondary" 
-                        className="h-12 px-8 rounded-xl font-black text-xs uppercase bg-white text-black border-2 border-transparent shadow-sm hover:bg-primary hover:text-white transition-all" 
+                        className="h-12 px-8 rounded-xl font-black text-xs uppercase bg-white text-black border-2 border-black shadow-sm hover:bg-primary hover:text-white hover:border-primary transition-all" 
                         onClick={() => setIsInviteOpen(true)}
                       >
                         <UserPlus className="h-4 w-4 mr-2" /> Recruit Teams
