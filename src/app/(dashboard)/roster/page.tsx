@@ -33,7 +33,8 @@ import {
   Save,
   UserCog,
   ExternalLink,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTeam, Member, TeamDocument } from '@/components/providers/team-provider';
@@ -81,92 +82,8 @@ const POSITION_OPTIONS = [
   'Squad Leader'
 ];
 
-function MemberComplianceLedger({ teamId, memberId, birthdate, activeProtocols }: { teamId: string, memberId: string, birthdate?: string, activeProtocols: string[] }) {
-  const db = useFirestore();
-  const q = useMemoFirebase(() => {
-    if (!db || !teamId || !memberId) return null;
-    return query(collection(db, 'teams', teamId, 'members', memberId, 'signatures'), orderBy('signedAt', 'desc'));
-  }, [db, teamId, memberId]);
-
-  const { data: signatures, isLoading } = useCollection(q);
-
-  const isAdult = useMemo(() => {
-    if (!birthdate) return false;
-    return differenceInYears(new Date(), new Date(birthdate)) >= 18;
-  }, [birthdate]);
-
-  const handleDownload = (sig: any) => {
-    const content = `CERTIFICATE OF VERIFIED SIGNATURE\n\nDocument: ${sig.title}\nTimestamp: ${sig.signedAt}\nLegal Signature: "${sig.signatureText}"\n\nThis document was digitally executed within the SquadForge platform.`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Signed_${sig.title.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin mx-auto text-primary" />;
-
-  const sigDocIds = (signatures || []).map(s => s.docId);
-
-  return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-3">Institutional Compliance</p>
-        <div className="grid grid-cols-1 gap-2">
-          {STANDARD_WAIVERS.map(w => {
-            // Standard waivers are ALWAYS active for all squads in this version
-            if (w.minorOnly && isAdult) return null;
-            
-            const isSigned = sigDocIds.includes(w.docId);
-            
-            return (
-              <div key={w.id} className={cn(
-                "flex items-center justify-between p-3 rounded-xl border transition-all",
-                isSigned ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-white/5 border-white/10 text-white/40"
-              )}>
-                <div className="flex items-center gap-3">
-                  <w.icon className="h-4 w-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{w.label}</span>
-                </div>
-                {isSigned ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4 opacity-20" />}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-3 pt-4 border-t border-white/10">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Verified Audit Logs</p>
-        {signatures?.map(sig => (
-          <div key={sig.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 group/sig">
-            <div className="min-w-0">
-              <p className="font-black text-[10px] uppercase text-white truncate">{sig.title || 'Waiver'}</p>
-              <div className="flex items-center gap-2 opacity-40 mt-0.5">
-                <Clock className="h-2 w-2" />
-                <span className="text-[8px] font-bold uppercase">{format(new Date(sig.signedAt), 'MMM d, yyyy')}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg opacity-0 group-hover/sig:opacity-100 text-white" onClick={() => handleDownload(sig)}>
-                <Download className="h-3 w-3" />
-              </Button>
-              <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-            </div>
-          </div>
-        ))}
-        {(!signatures || signatures.length === 0) && (
-          <p className="text-[9px] font-bold text-white/30 uppercase text-center py-2 italic">No additional signatures recorded.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function RosterPage() {
-  const { activeTeam, user, members, isMembersLoading, isStaff, updateStaffEvaluation, getStaffEvaluation, updateMember } = useTeam();
+  const { activeTeam, user, members, isMembersLoading, isStaff, updateStaffEvaluation, getStaffEvaluation, updateMember, purchasePro } = useTeam();
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -181,9 +98,17 @@ export default function RosterPage() {
   // Fetch team protocols to see what's "turned on"
   const docsQuery = useMemoFirebase(() => (db && activeTeam?.id) ? query(collection(db, 'teams', activeTeam.id, 'documents')) : null, [db, activeTeam?.id]);
   const { data: teamDocs } = useCollection<TeamDocument>(docsQuery);
-  const activeProtocols = useMemo(() => (teamDocs || []).map(d => d.id), [teamDocs]);
+  
+  // Filter for ONLY active protocols
+  const activeProtocolsMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    (teamDocs || []).forEach(d => {
+      if (d.isActive !== false) map[d.id] = true;
+    });
+    return map;
+  }, [teamDocs]);
 
-  // Fetch signatures for Vital Stats specifically
+  // Fetch signatures for compliance tracking
   const memberSigsQuery = useMemoFirebase(() => {
     if (!db || !activeTeam?.id || !selectedMember?.id) return null;
     return query(collection(db, 'teams', activeTeam.id, 'members', selectedMember.id, 'signatures'));
@@ -279,6 +204,7 @@ export default function RosterPage() {
     );
   }
 
+  const isPro = activeTeam.isPro;
   const filteredRoster = members.filter(member => member.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleSaveNote = async () => {
@@ -399,105 +325,123 @@ export default function RosterPage() {
                     </div>
                   </div>
 
-                  <div className="w-full space-y-4 pt-4 border-t border-white/10">
-                    <MemberComplianceLedger 
-                      teamId={activeTeam.id} 
-                      memberId={selectedMember.id} 
-                      birthdate={selectedMember.birthdate} 
-                      activeProtocols={activeProtocols}
-                    />
-                  </div>
-
-                  <div className="w-full pt-4 border-t border-white/10 space-y-4">
-                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
-                      <span>Recruiting Portfolio</span>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10" onClick={handleExportPortfolio}><Download className="h-4 w-4" /></Button>
+                  {isPro && (
+                    <div className="w-full pt-4 border-t border-white/10 space-y-4">
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
+                        <span>Recruiting Portfolio</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10" onClick={handleExportPortfolio}><Download className="h-4 w-4" /></Button>
+                      </div>
+                      <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] shadow-xl hover:bg-white/90" onClick={handleExportPortfolio}>Generate Recruiting Pack</Button>
                     </div>
-                    <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] shadow-xl hover:bg-white/90" onClick={handleExportPortfolio}>Generate Recruiting Pack</Button>
-                  </div>
+                  )}
                 </div>
               </div>
               
               <div className="flex-1 p-8 lg:p-12 space-y-10 bg-white">
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Award className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Athlete Narrative</h4></div>
-                  <div className="bg-muted/30 p-6 rounded-[2.5rem] border-2 border-dashed">
-                    <p className="text-sm font-medium leading-relaxed italic text-foreground/80">
-                      {selectedMember.notes || "This athlete has not yet established a squad bio. Visit Settings to update."}
-                    </p>
-                  </div>
-                </div>
+                {isPro ? (
+                  <>
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Award className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Athlete Narrative</h4></div>
+                      <div className="bg-muted/30 p-6 rounded-[2.5rem] border-2 border-dashed">
+                        <p className="text-sm font-medium leading-relaxed italic text-foreground/80">
+                          {selectedMember.notes || "This athlete has not yet established a squad bio. Visit Settings to update."}
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Star className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Operational Skills & Achievements</h4></div>
-                  <div className="flex flex-wrap gap-2">
-                    {(selectedMember.skills || ['Speed', 'Communication', 'Technical Control']).map((skill, idx) => (
-                      <Badge key={idx} variant="secondary" className="rounded-xl px-4 py-1.5 font-black text-[10px] uppercase">{skill}</Badge>
-                    ))}
-                    {(selectedMember.achievements || ['MVP 2023', 'District Finals 2024']).map((award, idx) => (
-                      <Badge key={idx} className="bg-amber-100 text-amber-700 border-none rounded-xl px-4 py-1.5 font-black text-[10px] uppercase flex items-center gap-2">
-                        <Trophy className="h-3 w-3" /> {award}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Star className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Operational Skills & Achievements</h4></div>
+                      <div className="flex flex-wrap gap-2">
+                        {(selectedMember.skills || ['Speed', 'Communication', 'Technical Control']).map((skill, idx) => (
+                          <Badge key={idx} variant="secondary" className="rounded-xl px-4 py-1.5 font-black text-[10px] uppercase">{skill}</Badge>
+                        ))}
+                        {(selectedMember.achievements || ['MVP 2023', 'District Finals 2024']).map((award, idx) => (
+                          <Badge key={idx} className="bg-amber-100 text-amber-700 border-none rounded-xl px-4 py-1.5 font-black text-[10px] uppercase flex items-center gap-2">
+                            <Trophy className="h-3 w-3" /> {award}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><ShieldCheck className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Vital Stats</h4></div>
-                    <div className="grid grid-cols-1 gap-3">
-                      {STANDARD_WAIVERS.map(w => {
-                        const isAdult = selectedMember.birthdate && differenceInYears(new Date(), new Date(selectedMember.birthdate)) >= 18;
-                        if (w.minorOnly && isAdult) return null;
-                        const isSigned = signedDocIds.includes(w.docId);
-                        
-                        return (
-                          <div key={w.id} className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
-                            <span className="text-[10px] font-black uppercase opacity-40">{w.label}</span>
-                            {isSigned ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <XCircle className="h-5 w-5 text-destructive" />}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><ShieldCheck className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Vital Stats</h4></div>
+                        <div className="grid grid-cols-1 gap-3">
+                          {STANDARD_WAIVERS.map(w => {
+                            // Only show if the protocol is ACTIVE in the team's documents
+                            if (!activeProtocolsMap[w.docId]) return null;
+                            
+                            const isAdult = selectedMember.birthdate && differenceInYears(new Date(), new Date(selectedMember.birthdate)) >= 18;
+                            if (w.minorOnly && isAdult) return null;
+                            const isSigned = signedDocIds.includes(w.docId);
+                            
+                            return (
+                              <div key={w.id} className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                                <span className="text-[10px] font-black uppercase opacity-40">{w.label}</span>
+                                {isSigned ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <XCircle className="h-5 w-5 text-destructive" />}
+                              </div>
+                            );
+                          })}
+                          <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                            <span className="text-[10px] font-black uppercase opacity-40">Age Group</span>
+                            <span className="text-sm font-black uppercase">{calculateAgeGroup(selectedMember.birthdate) || 'U18'}</span>
                           </div>
-                        );
-                      })}
-                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
-                        <span className="text-[10px] font-black uppercase opacity-40">Age Group</span>
-                        <span className="text-sm font-black uppercase">{calculateAgeGroup(selectedMember.birthdate) || 'U18'}</span>
+                          <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                            <span className="text-[10px] font-black uppercase opacity-40">Grad Class</span>
+                            <span className="text-sm font-black uppercase">{selectedMember.gradYear || '2028'}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
-                        <span className="text-[10px] font-black uppercase opacity-40">Grad Class</span>
-                        <span className="text-sm font-black uppercase">{selectedMember.gradYear || '2028'}</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><GraduationCap className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Institutional Audit</h4></div>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
-                        <span className="text-[10px] font-black uppercase opacity-40">Active Dues</span>
-                        <span className={cn("text-sm font-black", selectedMember.feesPaid ? "text-green-600" : "text-primary")}>${selectedMember.amountOwed || 0}</span>
-                      </div>
-                      <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
-                        <span className="text-[10px] font-black uppercase opacity-40">Academic GPA</span>
-                        <span className="text-sm font-black uppercase">{selectedMember.gpa || '3.8'}</span>
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><GraduationCap className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Institutional Audit</h4></div>
+                        <div className="grid grid-cols-1 gap-3">
+                          <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                            <span className="text-[10px] font-black uppercase opacity-40">Active Dues</span>
+                            <span className={cn("text-sm font-black", selectedMember.feesPaid ? "text-green-600" : "text-primary")}>${selectedMember.amountOwed || 0}</span>
+                          </div>
+                          <div className="bg-muted/30 p-4 rounded-2xl flex items-center justify-between border border-transparent">
+                            <span className="text-[10px] font-black uppercase opacity-40">Academic GPA</span>
+                            <span className="text-sm font-black uppercase">{selectedMember.gpa || '3.8'}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {isStaff && (
-                  <div className="space-y-6 pt-10 border-t">
-                    <div className="flex items-center gap-3 text-primary"><ShieldAlert className="h-5 w-5" /><h4 className="text-xs font-black uppercase tracking-[0.2em]">Elite Personnel Evaluation</h4></div>
-                    <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-6">
-                      <Textarea 
-                        placeholder="Log tactical performance reviews, coachability notes, or scout observations..." 
-                        value={staffNote} 
-                        onChange={e => setStaffNote(e.target.value)} 
-                        className="min-h-[150px] bg-white rounded-2xl border-none font-bold p-6 text-base shadow-inner resize-none" 
-                      />
-                      <Button className="w-full h-14 rounded-xl text-xs font-black uppercase shadow-lg shadow-primary/20" onClick={handleSaveNote} disabled={isSavingNote}>
-                        {isSavingNote ? <Loader2 className="h-5 w-5 animate-spin" /> : "Commit Evaluation"}
-                      </Button>
+                    {isStaff && (
+                      <div className="space-y-6 pt-10 border-t">
+                        <div className="flex items-center gap-3 text-primary"><ShieldAlert className="h-5 w-5" /><h4 className="text-xs font-black uppercase tracking-[0.2em]">Elite Personnel Evaluation</h4></div>
+                        <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-6">
+                          <Textarea 
+                            placeholder="Log tactical performance reviews, coachability notes, or scout observations..." 
+                            value={staffNote} 
+                            onChange={e => setStaffNote(e.target.value)} 
+                            className="min-h-[150px] bg-white rounded-2xl border-none font-bold p-6 text-base shadow-inner resize-none" 
+                          />
+                          <Button className="w-full h-14 rounded-xl text-xs font-black uppercase shadow-lg shadow-primary/20" onClick={handleSaveNote} disabled={isSavingNote}>
+                            {isSavingNote ? <Loader2 className="h-5 w-5 animate-spin" /> : "Commit Evaluation"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+                    <div className="bg-primary/10 p-8 rounded-[3rem] relative">
+                      <Lock className="h-16 w-16 text-primary" />
+                      <div className="absolute -top-2 -right-2 bg-black text-white p-2 rounded-full border-4 border-white shadow-xl">
+                        <Zap className="h-4 w-4 fill-current" />
+                      </div>
                     </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black uppercase tracking-tight">Pro Insights Locked</h3>
+                      <p className="text-muted-foreground font-medium text-sm max-w-sm mx-auto leading-relaxed">
+                        Upgrade to **Squad Pro** to unlock recruiting portfolios, automated compliance tracking, and tactical staff evaluations.
+                      </p>
+                    </div>
+                    <Button onClick={purchasePro} className="rounded-full px-10 h-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all">
+                      Unlock Elite Hub
+                    </Button>
                   </div>
                 )}
               </div>
