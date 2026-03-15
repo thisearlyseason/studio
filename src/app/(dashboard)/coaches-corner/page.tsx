@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -84,7 +85,7 @@ const DEFAULT_PROTOCOLS = [
   { id: 'travel', label: 'Travel Consent', icon: Plane, type: 'waiver' },
   { id: 'parental', label: 'Parental Waiver', icon: ShieldCheck, type: 'waiver' },
   { id: 'photography', label: 'Photography Release', icon: Camera, type: 'waiver' },
-  { id: 'tournament', label: 'Tournament Master', icon: Scale, type: 'waiver' }
+  { id: 'tournament', label: 'Tournament Master', icon: Scale, type: 'tournament_waiver' }
 ];
 
 function SignatureList({ teamId, documentId }: { teamId: string, documentId: string }) {
@@ -394,7 +395,7 @@ export default function CoachesCornerPage() {
             <DialogHeader>
               <div className="flex justify-between items-start">
                 <div><DialogTitle className="text-2xl font-black uppercase">{selectedDoc?.title}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-primary">Compliance Audit</DialogDescription></div>
-                <Button variant="outline" className="rounded-xl h-9 px-4 font-black uppercase text-[10px] border-2 transition-all active:scale-95 bg-white text-black hover:bg-black hover:text-white" onClick={() => selectedDoc && exportSignaturesCSV(selectedDoc.id)}><Download className="h-3 w-3 mr-2" /> CSV</Button>
+                <Button variant="outline" className="rounded-xl h-9 px-4 font-black uppercase text-[10px] border-2 transition-all active:scale-95 bg-white text-black hover:bg-black hover:text-white border-black" onClick={() => selectedDoc && exportSignaturesCSV(selectedDoc.id)}><Download className="h-3 w-3 mr-2" /> CSV</Button>
               </div>
             </DialogHeader>
             <div className="space-y-4">
@@ -426,6 +427,7 @@ export default function CoachesCornerPage() {
                     <SelectItem value="waiver" className="font-bold">Liability Waiver</SelectItem>
                     <SelectItem value="policy" className="font-bold">Institutional Policy</SelectItem>
                     <SelectItem value="info" className="font-bold">Information Release</SelectItem>
+                    <SelectItem value="tournament_waiver" className="font-bold">Tournament Master Agreement</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

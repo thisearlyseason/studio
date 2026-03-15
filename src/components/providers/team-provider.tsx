@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -134,7 +135,7 @@ export type TeamDocument = {
   teamId: string;
   title: string;
   content: string;
-  type: 'waiver' | 'policy' | 'info';
+  type: 'waiver' | 'policy' | 'info' | 'tournament_waiver';
   assignedTo: string[];
   signatureCount: number;
   createdAt: string;
@@ -178,6 +179,7 @@ export type TeamEvent = {
     userId: string;
   }>;
   invitedTeamEmails?: Record<string, string>;
+  dailyWindows?: any[];
 };
 
 export type TeamAlert = {
@@ -578,7 +580,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     const unsubscribes: (() => void)[] = [];
 
-    // Sync standard team events
     Array.from(relevantTeamIds).forEach(tid => {
       const q = query(collection(db, 'teams', tid, 'events'), orderBy('date', 'asc'));
       const unsub = onSnapshot(q, (snap) => {
@@ -587,13 +588,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const teamEvents = snap.docs.map(d => ({ id: d.id, teamId: tid, ...d.data() } as TeamEvent));
           return [...otherEvents, ...teamEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         });
-      }, (error) => {
-        console.warn(`Event sync failed for team ${tid}:`, error);
       });
       unsubscribes.push(unsub);
     });
 
-    // Sync specific league matches involving the user's teams
     const leaguesQ = query(collection(db, 'leagues'));
     const leagueUnsub = onSnapshot(leaguesQ, (snap) => {
       const allLeagueGames: TeamEvent[] = [];
@@ -685,9 +683,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
     await updateDoc(finalRef, { status });
     
-    // Create notification alert for new member acceptance
     if (status === 'accepted' && activeTeam) {
-      await createAlert("Enrollment Confirmed", "A new recruit has been officially approved for the roster.", 'coaches');
+      await createAlert("Enrollment Confirmed", "A new recruit has been officially approved for the roster.", 'everyone');
     }
     
     toast({ title: status === 'accepted' ? "Recruit Enrolled" : "Application Declined" });

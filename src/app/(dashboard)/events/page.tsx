@@ -100,17 +100,17 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
                   <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-primary" /><span className="truncate">{event.location}</span></div>
                 </div>
                 <Button variant="outline" className="w-full h-12 rounded-xl border-white/20 bg-white/5 text-white hover:bg-primary hover:border-transparent font-black uppercase text-[10px] tracking-widest transition-all" onClick={handleSyncToCalendar}>
-                  <CalendarIcon className="h-4 w-4 mr-2" /> Add to Calendar
+                  <CalendarIcon className="h-4 w-4 mr-2 text-white" /> <span className="text-white">Add to Calendar</span>
                 </Button>
               </div>
 
               <div className="space-y-4 pt-4 border-t border-white/10">
                 <p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-4">Tactical RSVP</p>
                 <div className="grid grid-cols-1 gap-2">
-                  <button onClick={() => updateRSVP(event.id, 'going')} className={cn("h-12 rounded-xl font-black text-xs uppercase flex items-center justify-center transition-all", myRsvp === 'going' ? "bg-primary text-white" : "bg-white/5 border border-white/10 text-white")}>Going</button>
+                  <button onClick={() => updateRSVP(event.id, 'going')} className={cn("h-12 rounded-xl font-black text-xs uppercase flex items-center justify-center transition-all", myRsvp === 'going' ? "bg-primary text-white border-none" : "bg-white/5 border border-white/10 text-white")}>Going</button>
                   <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => updateRSVP(event.id, 'maybe')} className={cn("h-12 rounded-xl font-black text-xs uppercase flex items-center justify-center transition-all", myRsvp === 'maybe' ? "bg-amber-500 text-white" : "bg-white/5 border border-white/10 text-white")}>Maybe</button>
-                    <button onClick={() => updateRSVP(event.id, 'declined')} className={cn("h-12 rounded-xl font-black text-xs uppercase flex items-center justify-center transition-all", myRsvp === 'declined' ? "bg-red-600 text-white" : "bg-white/5 border border-white/10 text-white")}>Decline</button>
+                    <button onClick={() => updateRSVP(event.id, 'maybe')} className={cn("h-12 rounded-xl font-black text-xs uppercase flex items-center justify-center transition-all", myRsvp === 'maybe' ? "bg-amber-500 text-white border-none" : "bg-white/5 border border-white/10 text-white")}>Maybe</button>
+                    <button onClick={() => updateRSVP(event.id, 'declined')} className={cn("h-12 rounded-xl font-black text-xs uppercase flex items-center justify-center transition-all", myRsvp === 'declined' ? "bg-red-600 text-white border-none" : "bg-white/5 border border-white/10 text-white")}>Decline</button>
                   </div>
                 </div>
               </div>
@@ -128,7 +128,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
             )}
           </div>
           
-          <div className="flex-1 p-8 lg:p-10 bg-background">
+          <div className="flex-1 p-8 lg:p-10 bg-background text-foreground">
             <Tabs defaultValue="attendance" className="w-full">
               <TabsList className="bg-muted/50 h-auto p-1.5 rounded-2xl border w-full flex-wrap gap-1 mb-8">
                 <TabsTrigger value="attendance" className="rounded-xl font-black text-xs uppercase px-6 flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Attendance</TabsTrigger>
@@ -302,9 +302,9 @@ export default function EventsPage() {
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex gap-2 mb-1.5"><Badge className="text-[7px] uppercase font-black bg-primary">Elite Series</Badge><Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">MULTIDAY</Badge></div>
-                          <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors">{event.title}</h3>
+                          <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors uppercase">{event.title}</h3>
                           <div className="flex items-center gap-4 mt-1">
-                            <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location || 'Location TBD'}</p>
                             <p className="text-[8px] font-black text-primary uppercase">{formatDateRange(event.date, event.endDate)}</p>
                           </div>
                         </div>
@@ -325,7 +325,7 @@ export default function EventsPage() {
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="flex gap-2 mb-1.5"><Badge className="text-[7px] uppercase font-black">{(event.eventType || 'Activity')}</Badge><Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{event.startTime}</Badge></div>
-                            <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors">{event.title}</h3>
+                            <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors uppercase">{event.title}</h3>
                             <div className="flex items-center gap-4 mt-1">
                               <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
                               <p className="text-[8px] font-black text-primary uppercase">{formatDateRange(event.date, event.endDate)}</p>

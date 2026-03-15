@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -94,7 +95,7 @@ function BracketVisualizer({ games }: { games: TournamentGame[] }) {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="font-black text-[10px] uppercase" onClick={handleDownload}>
+        <Button size="sm" variant="outline" className="font-black text-[10px] uppercase border-black text-black hover:bg-black hover:text-white" onClick={handleDownload}>
           <Download className="h-3 w-3 mr-2" /> Download Bracket
         </Button>
       </div>
@@ -255,7 +256,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0"><ChevronLeft className="h-6 w-6" /></Button>
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-6 w-6" /></Button>
           <div>
             <Badge className="bg-primary text-white border-none font-black uppercase text-[10px] h-6 px-3 shadow-lg">Live Series</Badge>
             <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tight mt-1">{event.title}</h1>
@@ -268,8 +269,8 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
         <div className="flex items-center gap-3">
           {isOrganizer && (
             <>
-              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black hover:bg-black hover:text-white transition-all shadow-sm" onClick={initGenModal}><Sparkles className="h-4 w-4 mr-2" /> Itinerary</Button>
-              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black hover:bg-black hover:text-white transition-all shadow-sm" onClick={() => setIsEditOpen(true)}><Edit3 className="h-4 w-4 mr-2" /> Roster</Button>
+              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black border-black hover:bg-black hover:text-white transition-all shadow-sm" onClick={initGenModal}><Sparkles className="h-4 w-4 mr-2" /> Itinerary</Button>
+              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black border-black hover:bg-black hover:text-white transition-all shadow-sm" onClick={() => setIsEditOpen(true)}><Edit3 className="h-4 w-4 mr-2" /> Roster</Button>
             </>
           )}
         </div>
@@ -281,11 +282,11 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           
           <div className="grid grid-cols-1 gap-3">
             <Button variant="outline" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] border-none hover:bg-primary hover:text-white transition-all shadow-xl" onClick={handleAddCalendar}>
-              <CalendarIcon className="h-4 w-4 mr-2" /> Add to Calendar
+              <CalendarIcon className="h-4 w-4 mr-2 text-black group-hover:text-white" /> <span className="text-black group-hover:text-white">Add to Calendar</span>
             </Button>
             {isOrganizer && (
               <Button variant="outline" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] border-none hover:bg-primary hover:text-white transition-all shadow-xl" onClick={() => exportAttendanceCSV(event.id)}>
-                <Download className="h-4 w-4 mr-2" /> Export RSVP Ledger
+                <Download className="h-4 w-4 mr-2 text-black group-hover:text-white" /> <span className="text-black group-hover:text-white">Export RSVP Ledger</span>
               </Button>
             )}
           </div>
@@ -578,9 +579,9 @@ export default function TournamentsPage({ preSelectedTournament, onExit }: { pre
               </div>
               <div className="flex-1 p-10 flex items-center justify-between">
                 <div className="space-y-3">
-                  <h3 className="text-4xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{tournament.title}</h3>
+                  <h3 className="text-4xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors uppercase">{tournament.title}</h3>
                   <div className="flex items-center gap-6">
-                    <p className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> {tournament.location}</p>
+                    <p className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> {tournament.location || 'Location TBD'}</p>
                     <p className="text-[10px] font-black text-primary uppercase tracking-widest">
                       {format(new Date(tournament.date), 'MMM d')} - {format(new Date(tournament.endDate || tournament.date), 'MMM d, yyyy')}
                     </p>
