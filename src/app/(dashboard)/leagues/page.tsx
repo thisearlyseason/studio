@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -635,7 +634,7 @@ export default function LeaguesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Competitive Ledger</Badge><h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Leagues</h1></div>
         {!activeLeague && isStaff && (
-          <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl" onClick={() => setIsCreateOpen(true)}><Plus className="h-5 w-5 mr-2" /> Start New League</Button>
+          <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl hover:bg-primary hover:text-white transition-all" onClick={() => setIsCreateOpen(true)}><Plus className="h-5 w-5 mr-2" /> Start New League</Button>
         )}
       </div>
 

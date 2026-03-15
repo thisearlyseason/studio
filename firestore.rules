@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -22,11 +21,10 @@ service cloud.firestore {
     }
 
     function isTeamStaff(teamId) {
-      let teamDoc = get(/databases/$(database)/documents/teams/$(teamId));
       let memberDoc = get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
       return isSignedIn() && (
         isSuperAdmin() || 
-        (teamDoc != null && (teamDoc.data.ownerUserId == request.auth.uid || teamDoc.data.createdBy == request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/teams/$(teamId)) && get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid) ||
         (memberDoc != null && memberDoc.data.position in ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Organization Lead', 'Platform Admin', 'Squad Leader'])
       );
     }
@@ -79,42 +77,36 @@ service cloud.firestore {
     }
 
     match /teams/{teamId} {
-      allow get: if true; 
-      allow list: if isSignedIn();
+      allow read: if isSignedIn() || teamId.startsWith('demo_');
       allow create: if isSignedIn();
       allow update, delete: if isTeamStaff(teamId);
 
       match /members/{memberId} {
-        allow read, list: if true; 
-        allow create: if isSignedIn(); 
-        allow update, delete: if isTeamStaff(teamId) || isOwner(memberId);
+        allow read: if true; 
+        allow write: if isTeamStaff(teamId) || isOwner(memberId);
       }
 
       match /documents/{docId} {
-        allow read, list: if true; 
-        allow create: if isSignedIn();
-        allow update, delete: if isTeamStaff(teamId);
+        allow read: if true;
+        allow write: if isTeamStaff(teamId);
       }
 
       match /events/{eventId} {
-        allow get: if true; 
-        allow read, list: if true; 
-        allow create: if isSignedIn();
-        allow update: if true;
-        allow delete: if isTeamStaff(teamId);
+        allow read: if true;
+        allow write: if isTeamStaff(teamId);
       }
 
       match /volunteers/{oppId} {
         allow read: if true;
-        allow create, update, delete: if isTeamStaff(teamId);
+        allow write: if isTeamStaff(teamId);
       }
 
       match /fundraising/{fundId} {
         allow read: if true;
-        allow create, update, delete: if isTeamStaff(teamId);
+        allow write: if isTeamStaff(teamId);
         
         match /donations/{donationId} {
-          allow read, list: if isTeamStaff(teamId);
+          allow read: if isTeamStaff(teamId);
           allow create: if true; 
           allow update: if isTeamStaff(teamId);
         }
@@ -171,10 +163,20 @@ service cloud.firestore {
     }
 
     match /leagues/{leagueId} {
-      allow get: if true; 
-      allow list: if isSignedIn();
+      allow read: if true; 
       allow create: if isSignedIn();
       allow update: if isSignedIn();
+    }
+
+    // Support for collectionGroup queries
+    match /{path=**}/donations/{donationId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/members/{memberId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/files/{fileId} {
+      allow read: if isSignedIn();
     }
   }
 }
