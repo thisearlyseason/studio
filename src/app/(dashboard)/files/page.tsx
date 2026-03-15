@@ -36,7 +36,8 @@ import {
   Shield,
   Loader2,
   ChevronDown,
-  FolderOpen
+  FolderOpen,
+  Signature
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -73,20 +74,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-const DEFAULT_PROTOCOLS = [
-  { id: 'default_medical', title: 'Medical Clearance', type: 'waiver' },
-  { id: 'default_travel', title: 'Travel Consent', type: 'waiver' },
-  { id: 'default_parental', title: 'Parental Waiver', type: 'waiver' },
-  { id: 'default_photography', title: 'Photography Release', type: 'waiver' },
-  { id: 'default_tournament', title: 'Tournament Waiver', type: 'tournament_waiver' }
-];
-
 function DocumentSigningDialog({ doc: d, onSign, members, onComplete }: { doc: any, onSign: (id: string, sig: string, mid: string) => Promise<boolean>, members: Member[], onComplete: () => void }) {
   const [signature, setSignature] = useState('');
   const [targetMemberId, setTargetMemberId] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Auto-select if only one member is available
+  useEffect(() => {
+    if (members.length === 1 && !targetMemberId) {
+      setTargetMemberId(members[0].id);
+    }
+  }, [members, targetMemberId]);
 
   const handleSign = async () => {
     if (!signature.trim() || !agreed || !targetMemberId) return;
@@ -125,7 +125,7 @@ function DocumentSigningDialog({ doc: d, onSign, members, onComplete }: { doc: a
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Executing Signature For</Label>
               <Select value={targetMemberId} onValueChange={setTargetMemberId}>
-                <SelectTrigger className="h-12 rounded-xl border-2 font-bold focus:border-primary/20 transition-all"><SelectValue placeholder="Select roster member..." /></SelectTrigger>
+                <SelectTrigger className="h-12 rounded-xl border-2 font-bold focus:border-primary/20 transition-all"><SelectValue placeholder="Select who is signing..." /></SelectTrigger>
                 <SelectContent className="rounded-xl">
                   {members.map(m => (
                     <SelectItem key={m.id} value={m.id} className="font-bold">{m.name} ({m.position})</SelectItem>
@@ -177,19 +177,30 @@ export default function FilesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadCategory, setUploadCategory] = useState<string>('Compliance');
   const [uploadDescription, setUploadDescription] = useState('');
-  const [signedDocIds, setSignedDocIds] = useState<Record<string, string[]>>({});
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter members list for parent to include themselves and their children
+  // 1. Refine signingMembers based on ROLE requirements
   const signingMembers = useMemo(() => {
-    if (!user) return [];
-    if (!members) return [];
-    if (isStaff) return members;
-    return members.filter(m => m.userId === user.id || m.parentEmail === user.email);
-  }, [members, user, isStaff]);
+    if (!user || !members) return [];
+    
+    // Players only see themselves
+    if (user.role === 'adult_player') {
+      return members.filter(m => m.userId === user.id);
+    }
+    
+    // Parents see their children AND themselves if they are on the roster
+    if (user.role === 'parent') {
+      return members.filter(m => m.userId === user.id || m.parentEmail === user.email);
+    }
 
-  // Global query for institutional files
+    // Staff/Admin can see all for auditing, but the dialog logic will handle the specific signers
+    if (isStaff || isSuperAdmin) return members;
+
+    return [];
+  }, [members, user, isStaff, isSuperAdmin]);
+
+  // 2. Global query for institutional files (real-time certificates)
   const institutionalFilesQuery = useMemoFirebase(() => {
     if (!db || !user?.id) return null;
     return query(collectionGroup(db, 'files'), where('category', '==', 'Signed Certificate'));
@@ -197,7 +208,7 @@ export default function FilesPage() {
 
   const { data: allSignedFilesRaw } = useCollection<TeamFile>(institutionalFilesQuery);
 
-  // Filter signed files based on permissions
+  // 3. Filter signed files based on permissions
   const visibleSignedFiles = useMemo(() => {
     const raw = allSignedFilesRaw || [];
     return raw.filter(f => {
@@ -208,7 +219,19 @@ export default function FilesPage() {
     });
   }, [allSignedFilesRaw, isClubManager, isSuperAdmin, isStaff, activeTeam?.id, signingMembers]);
 
-  // Group ALL visible signed files by Team > Type as requested: "Waivers > [Team Name] > [Waiver Type]"
+  // 4. Derive signed status in REAL-TIME from the visible certificates
+  const realTimeSignedDocIds = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    signingMembers.forEach(m => map[m.id] = []);
+    visibleSignedFiles.forEach(f => {
+      if (f.memberId && f.documentId && map[f.memberId]) {
+        map[f.memberId].push(f.documentId);
+      }
+    });
+    return map;
+  }, [visibleSignedFiles, signingMembers]);
+
+  // Group ALL visible signed files by Team > Type
   const waiverFolders = useMemo(() => {
     const map: Record<string, Record<string, TeamFile[]>> = {};
     visibleSignedFiles.forEach(f => {
@@ -248,34 +271,9 @@ export default function FilesPage() {
 
   const { data: documents } = useCollection<TeamDocument>(docsQuery);
 
-  const checkSigs = useCallback(async () => {
-    if (!activeTeam || signingMembers.length === 0 || !db) return;
-    const results: Record<string, string[]> = {};
-    
-    for (const m of signingMembers) {
-      const signedIds: string[] = [];
-      
-      // Check all docs in the team's documents collection
-      const docsSnap = await getDocs(collection(db, 'teams', activeTeam.id, 'documents'));
-      for (const d of docsSnap.docs) {
-        const sigSnap = await getDocs(query(collection(db, 'teams', activeTeam.id, 'documents', d.id, 'signatures'), where('memberId', '==', m.id)));
-        if (!sigSnap.empty) signedIds.push(d.id);
-      }
-
-      results[m.id] = signedIds;
-    }
-    setSignedDocIds(results);
-  }, [activeTeam, signingMembers, db]);
-
-  useEffect(() => {
-    setMounted(true);
-    checkSigs();
-  }, [checkSigs, documents]);
-
   const pendingDocsForDisplay = useMemo(() => {
-    if (!documents || !activeTeam) return [];
+    if (!documents || !activeTeam || signingMembers.length === 0) return [];
     
-    // Only show documents that are marked as isActive: true
     const activeDocs = documents.filter(d => d.isActive !== false);
     
     return activeDocs.filter(d => {
@@ -287,11 +285,15 @@ export default function FilesPage() {
         
         // Assignment check
         const isAssigned = d.assignedTo?.includes('all') || d.assignedTo?.includes(m.id);
-        const alreadySigned = signedDocIds[m.id]?.includes(d.id);
+        const alreadySigned = realTimeSignedDocIds[m.id]?.includes(d.id);
         return isAssigned && !alreadySigned;
       });
     });
-  }, [documents, signedDocIds, signingMembers, activeTeam]);
+  }, [documents, realTimeSignedDocIds, signingMembers, activeTeam]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!mounted || !activeTeam) return null;
 
@@ -338,9 +340,8 @@ export default function FilesPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0 sm:max-w-xl">
-                <DialogTitle className="sr-only">Archive Administrative Resource</DialogTitle>
                 <div className="h-2 bg-primary w-full" />
-                <div className="p-8 lg:p-10 space-y-8 overflow-y-auto max-h-[90vh] custom-scrollbar">
+                <div className="p-8 lg:p-10 space-y-8">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-black uppercase tracking-tight">Archive Resource</DialogTitle>
                     <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Enroll administrative resources</DialogDescription>
@@ -397,10 +398,10 @@ export default function FilesPage() {
                       const isAdult = m.birthdate && differenceInYears(new Date(), new Date(m.birthdate)) >= 18;
                       if (d.id === 'default_parental' && isAdult) return false;
                       const isAssigned = d.assignedTo?.includes('all') || d.assignedTo?.includes(m.id);
-                      const signed = signedDocIds[m.id]?.includes(d.id);
+                      const signed = realTimeSignedDocIds[m.id]?.includes(d.id);
                       return isAssigned && !signed;
                     })} 
-                    onComplete={checkSigs} 
+                    onComplete={() => {}} 
                   />
                 </CardContent>
               </Card>
