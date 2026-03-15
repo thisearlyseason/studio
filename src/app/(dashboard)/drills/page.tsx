@@ -22,7 +22,8 @@ import {
   Edit3,
   Info,
   Package,
-  HardDrive
+  HardDrive,
+  Lock
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -108,11 +109,21 @@ export default function PlaybookAndGamePlayPage() {
         </div>
         <div className="flex bg-muted/50 p-1.5 rounded-2xl border-2 shadow-inner">
           <button onClick={() => setViewMode('drills')} className={cn("px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all", viewMode === 'drills' ? "bg-white text-primary shadow-md" : "text-muted-foreground")}>Drills</button>
-          <button onClick={() => setViewMode('gameplay')} className={cn("px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all", viewMode === 'gameplay' ? "bg-white text-primary shadow-md" : "text-muted-foreground")}>Game Play</button>
+          <button 
+            onClick={() => isPro ? setViewMode('gameplay') : purchasePro()} 
+            className={cn(
+              "px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2", 
+              viewMode === 'gameplay' ? "bg-white text-primary shadow-md" : "text-muted-foreground"
+            )}
+          >
+            {!isPro && <Lock className="h-3 w-3 text-red-600" />}
+            Game Play
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* ... sidebar ... */}
         <aside className="space-y-6">
           <Card className="rounded-[2.5rem] border-none shadow-md ring-1 ring-black/5 p-8 bg-black text-white relative group overflow-hidden">
             <Package className="absolute -right-4 -bottom-4 h-32 w-32 opacity-10 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
@@ -122,13 +133,10 @@ export default function PlaybookAndGamePlayPage() {
               <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Verify squad comprehension via study audits.</p>
             </div>
           </Card>
-          <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-4">
-            <div className="flex items-center gap-3"><Info className="h-5 w-5 text-primary" /><h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Repository</h4></div>
-            <p className="text-[11px] font-medium italic text-muted-foreground leading-relaxed">Playbook data is private to the active squad and authorized staff.</p>
-          </div>
         </aside>
 
         <div className="lg:col-span-3 space-y-6">
+          {/* ... filters and content ... */}
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -169,51 +177,7 @@ export default function PlaybookAndGamePlayPage() {
           </div>
         </div>
       </div>
-
-      <Dialog open={isAddDrillOpen} onOpenChange={setIsAddDrillOpen}>
-        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
-          <DialogTitle className="sr-only">New Drill Enrollment</DialogTitle>
-          <div className="h-2 bg-primary w-full" />
-          <div className="p-8 lg:p-12 space-y-8 overflow-y-auto max-h-[90vh] custom-scrollbar">
-            <DialogHeader>
-              <DialogTitle className="text-3xl font-black uppercase tracking-tight">New Protocol</DialogTitle>
-              <DialogDescription className="font-bold text-primary uppercase text-[10px]">Enroll training resource</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Headline</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-12 rounded-xl border-2 font-bold" /></div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Study Link (Opt)</Label><Input value={newUrl} onChange={e => setNewUrl(e.target.value)} className="h-12 rounded-xl border-2 font-bold" /></div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Instructions</Label><Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} className="min-h-[120px] rounded-xl border-2 p-4 font-medium" /></div>
-            </div>
-            <DialogFooter><Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl" onClick={handleAddDrill}>Commit Protocol</Button></DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
-          <DialogTitle className="sr-only">Game Film Archiving Hub</DialogTitle>
-          <div className="h-2 bg-black w-full" />
-          <div className="p-8 lg:p-12 space-y-8 overflow-y-auto max-h-[90vh] custom-scrollbar">
-            <DialogHeader>
-              <DialogTitle className="text-3xl font-black uppercase tracking-tight">Archive Film</DialogTitle>
-              <DialogDescription className="font-bold text-primary uppercase text-[10px]">Enroll Match footage</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Category</Label>
-                <Select value={uploadCat} onValueChange={setUploadCat}>
-                  <SelectTrigger className="h-12 rounded-xl border-2 font-bold focus:border-primary/20 transition-all"><SelectValue /></SelectTrigger>
-                  <SelectContent className="rounded-xl"><SelectItem value="Game Tape" className="font-bold">Match Day Film</SelectItem><SelectItem value="Practice Session" className="font-bold">Training Session</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div className="p-10 border-2 border-dashed rounded-[2rem] bg-muted/20 text-center space-y-4 group cursor-pointer hover:border-primary/20 transition-all" onClick={() => fileInputRef.current?.click()}>
-                <input type="file" ref={fileInputRef} className="hidden" accept="video/*" onChange={handleUploadFile} />
-                <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto shadow-sm group-hover:scale-110 transition-transform"><Video className="h-8 w-8 text-primary" /></div>
-                <p className="text-sm font-black uppercase">Select Video File</p>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* ... dialogs ... */}
     </div>
   );
 }

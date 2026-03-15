@@ -224,11 +224,15 @@ export type VolunteerOpportunity = {
   location: string;
   slots: number;
   hoursPerSlot: number;
+  isShareable?: boolean;
   signups: Record<string, {
     userId: string;
     userName: string;
+    email?: string;
+    phone?: string;
     status: 'pending' | 'verified';
     verifiedHours?: number;
+    isConfirmed?: boolean;
   }>;
 };
 
@@ -239,7 +243,21 @@ export type FundraisingOpportunity = {
   goalAmount: number;
   currentAmount: number;
   deadline: string;
+  isShareable?: boolean;
+  externalLink?: string;
+  eTransferDetails?: string;
   participants: Record<string, boolean>;
+};
+
+export type DonationEntry = {
+  id: string;
+  donorName: string;
+  email?: string;
+  phone?: string;
+  amount: number;
+  method: 'external' | 'e-transfer';
+  status: 'pending' | 'confirmed';
+  createdAt: string;
 };
 
 export type EquipmentItem = {
@@ -457,11 +475,15 @@ interface TeamContextType {
   resetSquadData: (categories: string[]) => Promise<void>;
   addVolunteerOpportunity: (data: any) => Promise<void>;
   signUpForVolunteer: (oppId: string) => Promise<void>;
+  publicSignUpForVolunteer: (teamId: string, oppId: string, data: any) => Promise<void>;
   verifyVolunteerHours: (oppId: string, userId: string, hours: number) => Promise<void>;
+  confirmVolunteerAttendance: (oppId: string, userId: string, confirmed: boolean) => Promise<void>;
   deleteVolunteerOpportunity: (oppId: string) => Promise<void>;
   addFundraisingOpportunity: (data: any) => Promise<void>;
   signUpForFundraising: (fundId: string) => Promise<void>;
   updateFundraisingAmount: (fundId: string, amount: number) => Promise<void>;
+  confirmExternalDonation: (fundId: string, donationId: string, amount: number) => Promise<void>;
+  submitPublicDonation: (teamId: string, fundId: string, data: any) => Promise<void>;
   deleteFundraisingOpportunity: (fundId: string) => Promise<void>;
   addEquipmentItem: (data: any) => Promise<void>;
   updateEquipmentItem: (id: string, updates: any) => Promise<void>;
@@ -787,7 +809,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     let docData: any = null;
     const standard = DEFAULT_PROTOCOLS.find(p => p.id === docId);
     
-    // Check if there is an overridden version in the team's documents collection first
     const docRef = doc(db, 'teams', activeTeam.id, 'documents', docId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -1008,6 +1029,79 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toast({ title: "Global Fees Synchronized" });
   }, [db]);
 
+  const addVolunteerOpportunity = useCallback(async (data: any) => {
+    if (!activeTeam?.id) return;
+    await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ 
+      ...data, signups: {}, createdAt: new Date().toISOString() 
+    }));
+  }, [activeTeam?.id, db]);
+
+  const signUpForVolunteer = useCallback(async (oppId: string) => {
+    if (!activeTeam?.id || !userProfile) return;
+    await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), { 
+      [`signups.${userProfile.id}`]: { userId: userProfile.id, userName: userProfile.name, status: 'pending' } 
+    });
+  }, [activeTeam?.id, userProfile, db]);
+
+  const publicSignUpForVolunteer = useCallback(async (teamId: string, oppId: string, data: any) => {
+    const oppRef = doc(db, 'teams', teamId, 'volunteers', oppId);
+    const id = `public_${Date.now()}`;
+    await updateDoc(oppRef, { 
+      [`signups.${id}`]: { 
+        userId: id, 
+        userName: data.name, 
+        email: data.email, 
+        phone: data.phone, 
+        status: 'pending' 
+      } 
+    });
+  }, [db]);
+
+  const confirmVolunteerAttendance = useCallback(async (oppId: string, userId: string, confirmed: boolean) => {
+    if (!activeTeam?.id) return;
+    await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), { 
+      [`signups.${userId}.isConfirmed`]: confirmed 
+    });
+  }, [activeTeam?.id, db]);
+
+  const addFundraisingOpportunity = useCallback(async (data: any) => {
+    if (!activeTeam?.id) return;
+    await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ 
+      ...data, currentAmount: 0, participants: {}, createdAt: new Date().toISOString() 
+    }));
+  }, [activeTeam?.id, db]);
+
+  const submitPublicDonation = useCallback(async (teamId: string, fundId: string, data: any) => {
+    const fundRef = doc(db, 'teams', teamId, 'fundraising', fundId);
+    const id = `don_${Date.now()}`;
+    const entry: DonationEntry = {
+      id,
+      donorName: data.name,
+      email: data.email,
+      phone: data.phone,
+      amount: parseFloat(data.amount),
+      method: data.method,
+      status: data.method === 'external' ? 'confirmed' : 'pending',
+      createdAt: new Date().toISOString()
+    };
+    
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'teams', teamId, 'fundraising', fundId, 'donations', id), clean(entry));
+    if (entry.status === 'confirmed') {
+      batch.update(fundRef, { currentAmount: increment(entry.amount) });
+    }
+    await batch.commit();
+  }, [db]);
+
+  const confirmExternalDonation = useCallback(async (fundId: string, donationId: string, amount: number) => {
+    if (!activeTeam?.id) return;
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'teams', activeTeam.id, 'fundraising', fundId, 'donations', donationId), { status: 'confirmed' });
+    batch.update(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), { currentAmount: increment(amount) });
+    await batch.commit();
+    toast({ title: "Donation Verified", description: "Funds added to campaign total." });
+  }, [activeTeam?.id, db]);
+
   const contextValue = useMemo(() => ({
     db,
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
@@ -1055,13 +1149,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     deleteChat: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'groupChats', id)); },
     hideChatForUser: async (id: string) => { if (activeTeam?.id && firebaseUser) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', id), { [`hiddenFor.${firebaseUser.uid}`]: true }); },
     resetSquadData: async (cats: string[]) => { if (!activeTeam?.id) return; const b = writeBatch(db); for (const c of cats) { const s = await getDocs(collection(db, `teams/${activeTeam.id}/${c}`)); s.docs.forEach(d => b.delete(d.ref)); } await b.commit(); },
-    addVolunteerOpportunity: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'volunteers'), clean({ ...d, signups: {}, createdAt: new Date().toISOString() })); },
-    signUpForVolunteer: async (id: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id), { [`signups.${userProfile.id}`]: { userId: userProfile.id, userName: userProfile.name, status: 'pending' } }); },
-    verifyVolunteerHours: async (id: string, uid: string, h: number) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id), { [`signups.${uid}.status`]: 'verified', [`signups.${uid}.verifiedHours`]: h }); },
+    addVolunteerOpportunity,
+    signUpForVolunteer,
+    publicSignUpForVolunteer,
+    verifyVolunteerHours,
+    confirmVolunteerAttendance,
     deleteVolunteerOpportunity: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'volunteers', id)); },
-    addFundraisingOpportunity: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...d, currentAmount: 0, participants: {}, createdAt: new Date().toISOString() })); },
-    signUpForFundraising: async (id: string) => { if (activeTeam?.id && userProfile) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id), { [`participants.${userProfile.id}`]: true }); },
-    updateFundraisingAmount: async (id: string, a: number) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id), { currentAmount: increment(a) }); },
+    addFundraisingOpportunity,
+    signUpForFundraising,
+    updateFundraisingAmount,
+    confirmExternalDonation,
+    submitPublicDonation,
     deleteFundraisingOpportunity: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id)); },
     addEquipmentItem: async (d: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'equipment'), clean({ ...d, availableQuantity: d.totalQuantity, assignments: {}, status: 'Active' })); },
     updateEquipmentItem: async (id: string, u: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), clean(u)); },
@@ -1108,7 +1206,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     addLeaguePayment,
     updateLeagueTeamDetails,
     updateLeagueGlobalFees
-  }), [userProfile, activeTeam?.id, activeTeam?.isPro, activeTeam?.planId, isStaff, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, deployClubProtocol, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, assignManualPlan, deleteTeam, router, addIncident, deleteIncident, addLeaguePayment, updateLeagueTeamDetails, updateLeagueGlobalFees, updateTeamDocument]);
+  }), [userProfile, activeTeam?.id, activeTeam?.isPro, activeTeam?.planId, isStaff, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, deployClubProtocol, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, assignManualPlan, deleteTeam, router, addIncident, deleteIncident, addLeaguePayment, updateLeagueTeamDetails, updateLeagueGlobalFees, updateTeamDocument, addVolunteerOpportunity, signUpForVolunteer, publicSignUpForVolunteer, verifyVolunteerHours, confirmVolunteerAttendance, addFundraisingOpportunity, signUpForFundraising, updateFundraisingAmount, confirmExternalDonation, submitPublicDonation]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
