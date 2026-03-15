@@ -194,8 +194,18 @@ export default function HowToGuidePage() {
     ]
   };
 
+  const BLOCK_INSTITUTIONAL_PROTOCOLS = {
+    title: "13. Institutional Protocols & Mandates",
+    icon: ShieldCheck,
+    steps: [
+      { step: "Master Waiver Architect", detail: <>In the <strong>Club Hub &rarr; Global Compliance</strong> tab, use <strong>Deploy Global Protocol</strong> to define a mandate for the entire club.</> },
+      { step: "Atomic Deployment", detail: <>Select the squads that must adhere to this mandate. The system pushes the document to every squad's library simultaneously.</> },
+      { step: "Verified Execution", detail: <>Monitor the <strong>Institutional Vault</strong> to see real-time signature counts. Each team's coach is alerted to the mandatory protocol execution.</> }
+    ]
+  };
+
   const BLOCK_RECRUITMENT_PORTAL = {
-    title: "13. Public Recruitment Portal",
+    title: "14. Public Recruitment Portal",
     icon: ClipboardList,
     steps: [
       { step: "Form Architect", detail: <>In <strong>Leagues &rarr; Registration</strong>, build custom forms for medical history and digital waivers.</> },
@@ -204,7 +214,7 @@ export default function HowToGuidePage() {
   };
 
   const BLOCK_FLEET_LOGISTICS = {
-    title: "14. Fleet & Asset Vault",
+    title: "15. Fleet & Asset Vault",
     icon: Package,
     steps: [
       { step: "Resource Booking", detail: <>Enroll venues in the <strong>Facilities</strong> hub. Assign them to events to block off time globally.</> },
@@ -266,7 +276,7 @@ export default function HowToGuidePage() {
       sections: [
         BLOCK_DEPLOYMENT, BLOCK_SCHEDULING, BLOCK_COMMUNICATION, BLOCK_SCOREKEEPING, BLOCK_PLAYBOOK, 
         BLOCK_PRO_ACTIVATION, BLOCK_TOURNAMENT_ENGINE, BLOCK_FILM_COMPLIANCE, BLOCK_FEES_GOVERNANCE, 
-        BLOCK_HIGH_PRIORITY, BLOCK_SCOUTING_AI, BLOCK_CLUB_HUB, BLOCK_RECRUITMENT_PORTAL, BLOCK_FLEET_LOGISTICS
+        BLOCK_HIGH_PRIORITY, BLOCK_SCOUTING_AI, BLOCK_CLUB_HUB, BLOCK_INSTITUTIONAL_PROTOCOLS, BLOCK_RECRUITMENT_PORTAL, BLOCK_FLEET_LOGISTICS
       ]
     },
     player: {

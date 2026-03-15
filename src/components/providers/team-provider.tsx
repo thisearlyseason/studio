@@ -143,6 +143,7 @@ export type TeamDocument = {
   assignedTo: string[];
   signatureCount: number;
   createdAt: string;
+  isClubMaster?: boolean;
 };
 
 export type DocumentSignature = {
@@ -402,6 +403,7 @@ interface TeamContextType {
   createTeamDocument: (data: any) => Promise<void>;
   updateTeamDocument: (docId: string, data: any) => Promise<void>;
   deleteTeamDocument: (docId: string) => Promise<void>;
+  deployClubProtocol: (data: any, teamIds: string[]) => Promise<void>;
   updateStaffEvaluation: (memberId: string, note: string) => Promise<void>;
   getStaffEvaluation: (memberId: string) => Promise<string>;
   addEvent: (data: any) => Promise<boolean>;
@@ -744,6 +746,36 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     await createAlert(`Protocol Required: ${data.title}`, `Strategic compliance document published. Please visit Library to execute.`, 'everyone');
   }, [activeTeam?.id, firebaseUser, db, createAlert]);
 
+  const deployClubProtocol = useCallback(async (data: any, teamIds: string[]) => {
+    if (!firebaseUser) return;
+    const batch = writeBatch(db);
+    const now = new Date().toISOString();
+    
+    teamIds.forEach(tid => {
+      const docRef = doc(collection(db, 'teams', tid, 'documents'));
+      batch.set(docRef, clean({
+        ...data,
+        id: docRef.id,
+        teamId: tid,
+        signatureCount: 0,
+        createdAt: now,
+        isClubMaster: true
+      }));
+      
+      const alertRef = doc(collection(db, 'teams', tid, 'alerts'));
+      batch.set(alertRef, clean({
+        title: `Institutional Protocol: ${data.title}`,
+        message: `A mandatory club-wide protocol has been deployed. Visit Library to execute.`,
+        audience: 'everyone',
+        createdAt: now,
+        createdBy: firebaseUser.uid
+      }));
+    });
+    
+    await batch.commit();
+    toast({ title: "Club Protocol Deployed", description: `Mandate pushed to ${teamIds.length} squads.` });
+  }, [firebaseUser, db]);
+
   const exportSignaturesCSV = useCallback(async (documentId: string) => {
     if (!activeTeam?.id) return;
     const s = await getDocs(collection(db, 'teams', activeTeam.id, 'documents', documentId, 'signatures'));
@@ -846,6 +878,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     signTeamDocument, createTeamDocument,
     updateTeamDocument: async (id: string, data: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'documents', id), clean(data)); },
     deleteTeamDocument: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'documents', id)); },
+    deployClubProtocol,
     updateStaffEvaluation: async (mid: string, note: string) => { if (activeTeam?.id) await setDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation'), { note, updatedAt: new Date().toISOString() }); },
     getStaffEvaluation: async (mid: string) => { if (!activeTeam?.id) return ''; const s = await getDoc(doc(db, 'teams', activeTeam.id, 'members', mid, 'private', 'evaluation')); return s.exists() ? s.data().note : ''; },
     addEvent: async (d: any) => { if (!activeTeam?.id) return false; await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean({ ...d, teamId: activeTeam.id })); return true; },
@@ -907,7 +940,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     exportAttendanceCSV,
     exportTournamentStandingsCSV,
     assignManualPlan
-  }), [userProfile, activeTeam?.id, activeTeam?.isPro, activeTeam?.planId, isStaff, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, assignManualPlan, deleteTeam, router]);
+  }), [userProfile, activeTeam?.id, activeTeam?.isPro, activeTeam?.planId, isStaff, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, deployClubProtocol, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, assignManualPlan, deleteTeam, router]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }

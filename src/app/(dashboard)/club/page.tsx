@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useTeam, Team, Member, TeamDocument, DocumentSignature } from '@/components/providers/team-provider';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -31,7 +31,9 @@ import {
   FileText,
   Clock,
   Download,
-  AlertCircle
+  AlertCircle,
+  FileSignature,
+  Target
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -56,6 +58,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -65,7 +68,7 @@ import { collectionGroup, query, where, orderBy } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ClubManagementPage() {
-  const { teams, user, isClubManager, createNewTeam, setActiveTeam, updateUser, deleteTeam } = useTeam();
+  const { teams, user, isClubManager, createNewTeam, setActiveTeam, updateUser, deleteTeam, deployClubProtocol } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -73,7 +76,9 @@ export default function ClubManagementPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [isEditClubOpen, setIsEditOpen] = useState(false);
+  const [isDeployProtocolOpen, setIsDeployProtocolOpen] = useState(false);
   const [clubForm, setClubForm] = useState({ name: user?.clubName || '', description: user?.clubDescription || '' });
+  const [protocolForm, setProtocolForm] = useState({ title: '', content: '', type: 'waiver' as any });
   const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
 
   // TACTICAL AUDIT: Identify squads where user has management authority
@@ -146,6 +151,23 @@ export default function ClubManagementPage() {
     await updateUser({ clubName: clubForm.name, clubDescription: clubForm.description });
     setIsEditOpen(false);
     toast({ title: "Club Protocol Synchronized" });
+  };
+
+  const handleDeployProtocol = async () => {
+    if (!protocolForm.title || !protocolForm.content) return;
+    setIsCreating(true);
+    try {
+      await deployClubProtocol({ 
+        title: protocolForm.title, 
+        content: protocolForm.content, 
+        type: protocolForm.type,
+        assignedTo: ['all'] 
+      }, clubTeamIds);
+      setIsDeployProtocolOpen(false);
+      setProtocolForm({ title: '', content: '', type: 'waiver' });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleCreateTeam = async () => {
@@ -344,9 +366,55 @@ export default function ClubManagementPage() {
         </TabsContent>
 
         <TabsContent value="compliance" className="space-y-8 animate-in fade-in duration-500">
-          <div className="flex items-center gap-3 px-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-black uppercase tracking-tight">Institutional Vault</h2>
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-black uppercase tracking-tight">Institutional Vault</h2>
+            </div>
+            <Dialog open={isDeployProtocolOpen} onOpenChange={setIsDeployProtocolOpen}>
+              <DialogTrigger asChild>
+                <Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20">
+                  <Plus className="h-4 w-4 mr-2" /> Deploy Global Protocol
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-[2.5rem] sm:max-w-lg p-0 overflow-hidden border-none shadow-2xl">
+                <DialogTitle className="sr-only">Deploy Institutional Mandate</DialogTitle>
+                <div className="h-2 bg-primary w-full" />
+                <div className="p-8 space-y-8">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-black uppercase tracking-tight">Deploy Mandate</DialogTitle>
+                    <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Push protocol to all club squads</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase ml-1">Title</Label>
+                      <Input value={protocolForm.title} onChange={e => setProtocolForm({...protocolForm, title: e.target.value})} className="h-12 rounded-xl border-2 font-bold" placeholder="e.g. Club Membership Agreement" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase ml-1">Type</Label>
+                      <Select value={protocolForm.type} onValueChange={v => setProtocolForm({...protocolForm, type: v})}>
+                        <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="waiver" className="font-bold">Liability Waiver</SelectItem>
+                          <SelectItem value="policy" className="font-bold">Institutional Policy</SelectItem>
+                          <SelectItem value="info" className="font-bold">Information Release</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase ml-1">Protocol Content</Label>
+                      <Textarea value={protocolForm.content} onChange={e => setProtocolForm({...protocolForm, content: e.target.value})} className="min-h-[150px] rounded-xl border-2 font-medium" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button className="w-full h-14 rounded-2xl font-black shadow-xl" onClick={handleDeployProtocol} disabled={isCreating || !protocolForm.title}>
+                      {isCreating ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Target className="h-5 w-5 mr-2" />}
+                      Deploy to All Squads
+                    </Button>
+                  </DialogFooter>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -354,7 +422,10 @@ export default function ClubManagementPage() {
               <Card key={doc.id} className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden flex flex-col group hover:ring-primary/20 transition-all">
                 <CardHeader className="p-8 pb-4">
                   <div className="flex justify-between items-start">
-                    <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest border-primary/20 text-primary">{doc.type}</Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest border-primary/20 text-primary">{doc.type}</Badge>
+                      {doc.isClubMaster && <Badge className="bg-black text-white border-none font-black text-[8px] uppercase tracking-widest px-2">CLUB MASTER</Badge>}
+                    </div>
                     <div className="bg-primary/5 p-2 rounded-lg text-primary shadow-inner">
                       <FileText className="h-4 w-4" />
                     </div>
@@ -383,6 +454,7 @@ export default function ClubManagementPage() {
               <div className="col-span-full py-24 text-center border-2 border-dashed rounded-[3rem] bg-muted/10 opacity-40">
                 <FileText className="h-12 w-12 mx-auto mb-4" />
                 <p className="text-sm font-black uppercase tracking-widest">No institutional protocols established.</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-tighter mt-2">Use the "Deploy Global Protocol" action to initialize mandates.</p>
               </div>
             )}
           </div>
