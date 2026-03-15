@@ -1016,8 +1016,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true), 
     hasFeature: (fid: string) => { const plan = plans.find(p => p.id === (activeTeam?.planId || 'starter_squad')); return !!plan?.features?.[fid]; }, 
     alerts, unreadAlertsCount, 
-    markAlertAsSeen: (id: string) => { setSeenAlertIds(prev => [...new Set([...prev, id])]); localStorage.setItem('squad_seen_alerts_ids', JSON.stringify([...seenAlertIds, id])); },
-    markAllAlertsAsSeen: () => { const ids = alerts.map(a => a.id); setSeenAlertIds(ids); localStorage.setItem('squad_seen_alerts_ids', JSON.stringify(ids)); },
+    markAlertAsSeen: (id: string) => { 
+      setSeenAlertIds(prev => {
+        const next = [...new Set([...prev, id])];
+        localStorage.setItem('squad_seen_alerts_ids', JSON.stringify(next));
+        return next;
+      }); 
+    },
+    markAllAlertsAsSeen: () => { 
+      const ids = alerts.map(a => a.id); 
+      setSeenAlertIds(ids); 
+      localStorage.setItem('squad_seen_alerts_ids', JSON.stringify(ids)); 
+    },
     seenAlertIds,
     formatTime: (date: string | Date) => { try { return new Date(date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return 'TBD'; } },
     createNewTeam: async (name: string, type: any, pos: string, description?: string, planId?: string) => { if (!firebaseUser) return ''; const tid = `team_${Date.now()}`; const code = Math.random().toString(36).substring(2, 8).toUpperCase(); const batch = writeBatch(db); batch.set(doc(db, 'teams', tid), clean({ id: tid, teamName: name, teamCode: code, type, ownerUserId: firebaseUser.uid, createdAt: new Date().toISOString(), isPro: planId !== 'starter_squad', planId: planId || 'starter_squad' })); batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({ id: firebaseUser.uid, userId: firebaseUser.uid, teamId: tid, role: 'Admin', position: pos, name: userProfile?.name || 'Coach', joinedAt: new Date().toISOString(), jersey: 'HQ' })); batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ teamId: tid, teamName: name, teamCode: code, role: 'Admin', isPro: planId !== 'starter_squad', planId: planId || 'starter_squad', ownerUserId: firebaseUser.uid })); await batch.commit(); return tid; },
