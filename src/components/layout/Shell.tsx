@@ -441,6 +441,56 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                           </div>
                         </div>
 
+                        {(isClubManager || isParent) && (
+                          <div className="space-y-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary px-2">Management Hubs</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {isClubManager && (
+                                <Link 
+                                  href="/club"
+                                  onClick={() => setIsMoreMenuOpen(false)}
+                                  className={cn(
+                                    "flex items-center justify-between p-4 rounded-2xl border bg-primary text-white transition-all active:scale-[0.98]",
+                                    pathname === '/club' ? "ring-2 ring-white ring-offset-2 ring-offset-primary" : ""
+                                  )}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className="bg-white/20 p-2 rounded-xl text-white">
+                                      <Building className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black uppercase tracking-widest">Club Hub</span>
+                                      <span className="text-[8px] font-bold text-white/60 uppercase">Institutional Analytics</span>
+                                    </div>
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 text-white/20" />
+                                </Link>
+                              )}
+                              {isParent && (
+                                <Link 
+                                  href="/family"
+                                  onClick={() => setIsMoreMenuOpen(false)}
+                                  className={cn(
+                                    "flex items-center justify-between p-4 rounded-2xl border bg-black text-white transition-all active:scale-[0.98]",
+                                    pathname === '/family' ? "ring-2 ring-primary ring-offset-2" : ""
+                                  )}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className="bg-primary/20 p-2 rounded-xl text-primary">
+                                      <Baby className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black uppercase tracking-widest">Family Hub</span>
+                                      <span className="text-[8px] font-bold text-white/40 uppercase">Household Command</span>
+                                    </div>
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 text-white/20" />
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {isStaff && (
                           <div className="space-y-3">
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary px-2">Command Hub</p>
@@ -453,20 +503,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                                     href={tab.href}
                                     onClick={() => setIsMoreMenuOpen(false)}
                                     className={cn(
-                                      "flex items-center justify-between p-4 rounded-2xl border bg-black text-white transition-all active:scale-[0.98]",
-                                      pathname === tab.href ? "ring-2 ring-primary ring-offset-2" : ""
+                                      "flex items-center justify-between p-4 rounded-2xl border bg-muted/30 text-foreground transition-all active:scale-[0.98]",
+                                      pathname === tab.href ? "bg-white ring-2 ring-primary ring-offset-2" : ""
                                     )}
                                   >
                                     <div className="flex items-center gap-4">
-                                      <div className="bg-primary/20 p-2 rounded-xl text-primary">
+                                      <div className="bg-primary/10 p-2 rounded-xl text-primary">
                                         <tab.icon className="h-5 w-5" />
                                       </div>
                                       <div className="flex flex-col">
                                         <span className="text-xs font-black uppercase tracking-widest">{tab.name}</span>
-                                        <span className="text-[8px] font-bold text-white/40 uppercase">{tab.desc}</span>
+                                        <span className="text-[8px] font-bold text-muted-foreground uppercase">{tab.desc}</span>
                                       </div>
                                     </div>
-                                    {isLocked ? <Lock className="h-4 w-4 text-white/20" /> : <ChevronRight className="h-4 w-4 text-white/20" />}
+                                    {isLocked ? <Lock className="h-4 w-4 text-muted-foreground/20" /> : <ChevronRight className="h-4 w-4 text-muted-foreground/20" />}
                                   </Link>
                                 );
                               })}
