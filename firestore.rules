@@ -66,6 +66,10 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update, delete: if isTeamStaff(teamId);
 
+      match /incidents/{incidentId} {
+        allow read, write: if isTeamStaff(teamId);
+      }
+
       match /registration/{docId} {
         allow read: if true;
       }
@@ -197,7 +201,7 @@ service cloud.firestore {
       allow get: if true; 
       allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if true; // Public scoring entry
+      allow update: if isLeagueOrganizer(leagueId);
       
       match /registrationEntries/{entryId} {
         allow create: if true;
@@ -234,6 +238,10 @@ service cloud.firestore {
 
     match /{path=**}/members/{memberId} {
       allow read, list: if isSignedIn();
+    }
+
+    match /{path=**}/incidents/{incidentId} {
+      allow read: if isSignedIn();
     }
   }
 }

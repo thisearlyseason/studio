@@ -44,7 +44,13 @@ import {
   Hash,
   Copy,
   Link as LinkIcon,
-  Trash2
+  Trash2,
+  DollarSign,
+  CreditCard,
+  History,
+  AlertCircle,
+  Phone,
+  Map
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -156,7 +162,6 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
         <DialogTitle className="sr-only">Season Architect Protocol</DialogTitle>
-        <DialogDescription className="sr-only">Configure league season parameters and venue allocation.</DialogDescription>
         <div className="h-2 bg-primary w-full" />
         <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
           <DialogHeader>
@@ -222,16 +227,6 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
                     ))}
                   </div>
                 </div>
-                
-                {config.selectedVenues.length > 0 && (
-                  <div className="space-y-4 animate-in slide-in-from-top-4">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Assign Fields/Courts</Label>
-                    <div className="bg-muted/20 rounded-2xl p-4 border-2 border-dashed space-y-2 text-center">
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase py-4">Selected venues will be used for auto-balancing.</p>
-                      <Button type="button" variant="outline" className="w-full h-10 rounded-xl font-black uppercase text-[10px]" onClick={() => setConfig({...config, selectedFields: ['Field 1', 'Field 2', 'Court A']})}>Map Standard Resources</Button>
-                    </div>
-                  </div>
-                )}
               </section>
             </div>
 
@@ -244,9 +239,6 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
                   onSelect={(dates) => setConfig({...config, blackoutDates: dates || []})}
                   className="rounded-xl border-none"
                 />
-                <div className="w-full mt-4 pt-4 border-t">
-                  <p className="text-[9px] font-black uppercase text-muted-foreground px-2">{config.blackoutDates.length} Dates Booked Off</p>
-                </div>
               </div>
             </aside>
           </div>
@@ -355,16 +347,194 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
                   <ChevronRight className="h-4 w-4 opacity-20" />
                 </Card>
               ))}
-              {gamesOnSelectedDate.length === 0 && (
-                <div className="py-20 text-center border-2 border-dashed rounded-[2.5rem] opacity-30">
-                  <CalendarDays className="h-10 w-10 mx-auto mb-2" />
-                  <p className="text-xs font-black uppercase">No matches scheduled for this date.</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function LeagueFinances({ league }: { league: League }) {
+  const { addLeaguePayment, updateLeagueGlobalFees } = useTeam();
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isFeesOpen, setIsFeesOpen] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount: '', type: 'Registration', memo: '' });
+  const [feesForm, setFeesForm] = useState({ registration: league.globalFees?.registration?.toString() || '0' });
+
+  const handleAddPayment = async () => {
+    if (!selectedTeamId || !paymentForm.amount) return;
+    await addLeaguePayment(league.id, selectedTeamId, {
+      amount: parseFloat(paymentForm.amount),
+      type: paymentForm.type,
+      memo: paymentForm.memo,
+      date: new Date().toISOString()
+    });
+    setIsPaymentOpen(false);
+    setPaymentForm({ amount: '', type: 'Registration', memo: '' });
+  };
+
+  const handleUpdateFees = async () => {
+    await updateLeagueGlobalFees(league.id, { registration: parseFloat(feesForm.registration) });
+    setIsFeesOpen(false);
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-3">
+          <DollarSign className="h-5 w-5 text-primary" />
+          <h3 className="text-xl font-black uppercase tracking-tight">Institutional Finance</h3>
+        </div>
+        <Button onClick={() => setIsFeesOpen(true)} variant="outline" className="rounded-xl h-10 border-2 font-black uppercase text-[10px]"><Settings className="h-4 w-4 mr-2" /> Fee Structure</Button>
+      </div>
+
+      <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b">
+              <tr>
+                <th className="px-8 py-5">Squad</th>
+                <th className="px-4 py-5">Total Fees</th>
+                <th className="px-4 py-5">Paid</th>
+                <th className="px-4 py-5">Balance</th>
+                <th className="px-4 py-5">Status</th>
+                <th className="px-8 py-5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {Object.entries(league.teams).map(([id, team]) => {
+                const fin = league.finances?.[id] || { totalOwed: league.globalFees?.registration || 0, totalPaid: 0, status: 'unpaid', payments: [] };
+                const balance = fin.totalOwed - fin.totalPaid;
+                
+                return (
+                  <tr key={id} className="hover:bg-muted/5 transition-colors">
+                    <td className="px-8 py-6">
+                      <p className="font-black text-sm uppercase">{team.teamName}</p>
+                    </td>
+                    <td className="px-4 py-6 font-bold text-sm">${fin.totalOwed.toLocaleString()}</td>
+                    <td className="px-4 py-6 font-bold text-sm text-green-600">${fin.totalPaid.toLocaleString()}</td>
+                    <td className="px-4 py-6 font-black text-sm text-primary">${balance.toLocaleString()}</td>
+                    <td className="px-4 py-6">
+                      <Badge className={cn(
+                        "font-black text-[8px] uppercase border-none",
+                        fin.status === 'paid' ? "bg-green-100 text-green-700" : fin.status === 'partial' ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
+                      )}>{fin.status}</Badge>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <Button size="sm" variant="ghost" className="rounded-xl h-9 px-4 font-black uppercase text-[10px] border" onClick={() => { setSelectedTeamId(id); setIsPaymentOpen(true); }}>Log Payment</Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Log Squad Payment</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Amount ($)</Label>
+              <Input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="h-12 text-lg font-black" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Fee Type</Label>
+              <Input value={paymentForm.type} onChange={e => setPaymentForm({...paymentForm, type: e.target.value})} className="h-12 font-bold" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Memo / Details</Label>
+              <Textarea value={paymentForm.memo} onChange={e => setPaymentForm({...paymentForm, memo: e.target.value})} className="h-20" />
+            </div>
+          </div>
+          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleAddPayment}>Post to Ledger</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isFeesOpen} onOpenChange={setIsFeesOpen}>
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">League Fee Architect</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Base Registration Fee ($)</Label>
+              <Input type="number" value={feesForm.registration} onChange={e => setFeesForm({...feesForm, registration: e.target.value})} className="h-12 text-lg font-black" />
+            </div>
+          </div>
+          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateFees}>Synchronize Fees</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SquadDirectory({ league }: { league: League }) {
+  const { updateLeagueTeamDetails } = useTeam();
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ origin: '', coachName: '', coachEmail: '', coachPhone: '', organizerNotes: '' });
+
+  const teams = Object.entries(league.teams).map(([id, data]) => ({ id, ...data }));
+
+  const handleUpdate = async () => {
+    if (!selectedTeamId) return;
+    await updateLeagueTeamDetails(league.id, selectedTeamId, editForm);
+    setIsEditOpen(false);
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex items-center gap-3 px-2">
+        <Users className="h-5 w-5 text-primary" />
+        <h3 className="text-xl font-black uppercase tracking-tight">Squad Directory</h3>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {teams.map(team => (
+          <Card key={team.id} className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden group transition-all hover:shadow-2xl">
+            <CardHeader className="p-8 pb-4">
+              <div className="flex justify-between items-start mb-4">
+                <Avatar className="h-16 w-16 rounded-2xl border-2 border-background shadow-md">
+                  <AvatarImage src={team.teamLogoUrl} />
+                  <AvatarFallback className="font-black text-xl">{team.teamName[0]}</AvatarFallback>
+                </Avatar>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => { setSelectedTeamId(team.id); setEditForm({ origin: team.origin || '', coachName: team.coachName || '', coachEmail: team.coachEmail || '', coachPhone: team.coachPhone || '', organizerNotes: team.organizerNotes || '' }); setIsEditOpen(true); }}><Edit3 className="h-5 w-5" /></Button>
+              </div>
+              <CardTitle className="text-2xl font-black uppercase tracking-tight">{team.teamName}</CardTitle>
+              <p className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2 mt-1"><Map className="h-3 w-3" /> {team.origin || 'Origin Undefined'}</p>
+            </CardHeader>
+            <CardContent className="p-8 pt-4 space-y-6">
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center gap-3 text-xs font-bold"><Users className="h-4 w-4 text-muted-foreground" /> <span>Coach: {team.coachName || 'Unassigned'}</span></div>
+                <div className="flex items-center gap-3 text-xs font-bold"><Mail className="h-4 w-4 text-muted-foreground" /> <span className="truncate">{team.coachEmail || 'No Email'}</span></div>
+                <div className="flex items-center gap-3 text-xs font-bold"><Phone className="h-4 w-4 text-muted-foreground" /> <span>{team.coachPhone || 'No Phone'}</span></div>
+              </div>
+              {team.organizerNotes && (
+                <div className="bg-primary/5 p-4 rounded-2xl border-2 border-dashed border-primary/20">
+                  <p className="text-[10px] font-black uppercase text-primary mb-1">Organizer Notes</p>
+                  <p className="text-[10px] font-medium italic text-muted-foreground leading-relaxed line-clamp-3">"{team.organizerNotes}"</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="rounded-[3rem] p-8 max-w-2xl overflow-y-auto max-h-[90vh]">
+          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Squad Metadata</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Origin Location</Label><Input value={editForm.origin} onChange={e => setEditForm({...editForm, origin: e.target.value})} className="h-12" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Name</Label><Input value={editForm.coachName} onChange={e => setEditForm({...editForm, coachName: e.target.value})} className="h-12" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Email</Label><Input value={editForm.coachEmail} onChange={e => setEditForm({...editForm, coachEmail: e.target.value})} className="h-12" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Phone</Label><Input value={editForm.coachPhone} onChange={e => setEditForm({...editForm, coachPhone: e.target.value})} className="h-12" /></div>
+            <div className="space-y-2 col-span-full"><Label className="text-[10px] font-black uppercase">Organizer Notes</Label><Textarea value={editForm.organizerNotes} onChange={e => setEditForm({...editForm, organizerNotes: e.target.value})} className="h-32" /></div>
+          </div>
+          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdate}>Synchronize Records</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -494,43 +664,50 @@ export default function LeaguesPage() {
             </CardContent>
           </Card>
 
-          <div className="bg-muted/50 p-1.5 rounded-2xl border-2 inline-flex w-full md:w-auto">
+          <div className="bg-muted/50 p-1.5 rounded-2xl border-2 inline-flex w-full md:w-auto overflow-x-auto">
             <Button variant={activeTab === 'standings' ? 'default' : 'ghost'} className="rounded-xl flex-1 md:flex-none font-black text-[10px] uppercase px-8" onClick={() => setActiveTab('standings')}>Standings</Button>
-            {isOrganizer && <Button variant={activeTab === 'command' ? 'default' : 'ghost'} className="rounded-xl flex-1 md:flex-none font-black text-[10px] uppercase px-8" onClick={() => setActiveTab('command')}>League Command</Button>}
+            {isOrganizer && (
+              <>
+                <Button variant={activeTab === 'command' ? 'default' : 'ghost'} className="rounded-xl flex-1 md:flex-none font-black text-[10px] uppercase px-8" onClick={() => setActiveTab('command')}>Schedule Hub</Button>
+                <Button variant={activeTab === 'finances' ? 'default' : 'ghost'} className="rounded-xl flex-1 md:flex-none font-black text-[10px] uppercase px-8" onClick={() => setActiveTab('finances')}>Fiscal Ledger</Button>
+                <Button variant={activeTab === 'directory' ? 'default' : 'ghost'} className="rounded-xl flex-1 md:flex-none font-black text-[10px] uppercase px-8" onClick={() => setActiveTab('directory')}>Squad Directory</Button>
+              </>
+            )}
           </div>
 
-          {activeTab === 'standings' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="flex items-center justify-between px-2"><div className="flex items-center gap-2"><TableIcon className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">League Standings</h3></div></div>
-                <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
-                  <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b"><tr><th className="px-8 py-5">Squad</th><th className="px-4 py-5 text-center">W</th><th className="px-4 py-5 text-center">L</th><th className="px-4 py-5 text-center">T</th><th className="px-8 py-5 text-right text-primary">PTS</th></tr></thead>
-                        <tbody className="divide-y">{sortedStandings.map((team, idx) => (<tr key={team.id} className={cn("hover:bg-primary/5 transition-colors group", team.id === activeTeam?.id && "bg-primary/5")}><td className="px-8 py-6"><div className="flex items-center gap-4"><span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span><div className="flex items-center gap-3"><Avatar className="h-10 w-10 rounded-xl border shadow-inner shrink-0"><AvatarImage src={team.teamLogoUrl} className="object-cover" /><AvatarFallback className="font-black text-xs">{team.teamName?.[0] || 'T'}</AvatarFallback></Avatar><div className="flex flex-col min-w-0"><div className="flex items-center gap-2"><span className="font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors truncate">{team.teamName}</span></div></div></div></div></td><td className="px-4 py-6 text-center font-bold text-sm">{team.wins}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.losses}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.ties}</td><td className="px-8 py-6 text-right font-black text-lg text-primary">{team.points}</td></tr>))}</tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <aside className="space-y-6">
-                <div className="flex items-center gap-2 px-2"><CalendarDays className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">My Squad Itinerary</h3></div>
-                <div className="space-y-3">
-                  {activeLeague.schedule?.filter(g => !g.isCompleted && (g.team1 === activeTeam?.name || g.team2 === activeTeam?.name)).slice(0, 5).map((game) => (
-                    <Card key={game.id} className="rounded-2xl border-none shadow-md ring-1 ring-black/5 p-4 bg-white group">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex justify-between items-center"><span className="text-[10px] font-black text-primary uppercase tracking-widest">{game.time}</span><span className="text-[10px] font-bold text-muted-foreground">{game.date}</span></div>
-                        <div className="flex items-center justify-center gap-4"><span className="font-black text-xs uppercase truncate max-w-[80px]">{game.team1}</span><span className="opacity-20 text-[10px] font-black">VS</span><span className="font-black text-xs uppercase truncate max-w-[80px] text-right">{game.team2}</span></div>
+          <Tabs value={activeTab} className="mt-0">
+            <TabsContent value="standings" className="mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex items-center justify-between px-2"><div className="flex items-center gap-2"><TableIcon className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">League Standings</h3></div></div>
+                  <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                          <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b"><tr><th className="px-8 py-5">Squad</th><th className="px-4 py-5 text-center">W</th><th className="px-4 py-5 text-center">L</th><th className="px-4 py-5 text-center">T</th><th className="px-8 py-5 text-right text-primary">PTS</th></tr></thead>
+                          <tbody className="divide-y">{sortedStandings.map((team, idx) => (<tr key={team.id} className={cn("hover:bg-primary/5 transition-colors group", team.id === activeTeam?.id && "bg-primary/5")}><td className="px-8 py-6"><div className="flex items-center gap-4"><span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span><div className="flex items-center gap-3"><Avatar className="h-10 w-10 rounded-xl border shadow-inner shrink-0"><AvatarImage src={team.teamLogoUrl} className="object-cover" /><AvatarFallback className="font-black text-xs">{team.teamName?.[0] || 'T'}</AvatarFallback></Avatar><div className="flex flex-col min-w-0"><div className="flex items-center gap-2"><span className="font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors truncate">{team.teamName}</span></div></div></div></div></td><td className="px-4 py-6 text-center font-bold text-sm">{team.wins}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.losses}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.ties}</td><td className="px-8 py-6 text-right font-black text-lg text-primary">{team.points}</td></tr>))}</tbody>
+                        </table>
                       </div>
-                    </Card>
-                  ))}
-                  {(!activeLeague.schedule || activeLeague.schedule.length === 0) && <div className="text-center py-10 bg-muted/10 rounded-2xl border-2 border-dashed opacity-40 text-[10px] font-black uppercase">Schedule Pending</div>}
+                    </CardContent>
+                  </Card>
                 </div>
-              </aside>
-            </div>
-          ) : (
-            <div className="space-y-10">
+                <aside className="space-y-6">
+                  <div className="flex items-center gap-2 px-2"><CalendarDays className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">My Squad Itinerary</h3></div>
+                  <div className="space-y-3">
+                    {activeLeague.schedule?.filter(g => !g.isCompleted && (g.team1 === activeTeam?.name || g.team2 === activeTeam?.name)).slice(0, 5).map((game) => (
+                      <Card key={game.id} className="rounded-2xl border-none shadow-md ring-1 ring-black/5 p-4 bg-white group">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex justify-between items-center"><span className="text-[10px] font-black text-primary uppercase tracking-widest">{game.time}</span><span className="text-[10px] font-bold text-muted-foreground">{game.date}</span></div>
+                          <div className="flex items-center justify-center gap-4"><span className="font-black text-xs uppercase truncate max-w-[80px]">{game.team1}</span><span className="opacity-20 text-[10px] font-black">VS</span><span className="font-black text-xs uppercase truncate max-w-[80px] text-right">{game.team2}</span></div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </aside>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="command" className="mt-0 space-y-10">
               <LeagueOverview league={activeLeague} schedule={activeLeague.schedule || []} />
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -561,51 +738,30 @@ export default function LeaguesPage() {
                                   <Badge className={cn(
                                     "border-none font-black text-[8px] uppercase px-2 h-5",
                                     invite.status === 'pending' ? "bg-amber-100 text-amber-700" : invite.status === 'accepted' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                                  )}>
-                                    {invite.status}
-                                  </Badge>
+                                  )}>{invite.status}</Badge>
                                 </td>
                                 <td className="px-8 py-6 text-right">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/5" onClick={() => deleteLeagueInvite(invite.id)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/5" onClick={() => deleteLeagueInvite(invite.id)}><Trash2 className="h-4 w-4" /></Button>
                                 </td>
                               </tr>
                             ))}
-                            {(!invites || invites.length === 0) && (
-                              <tr>
-                                <td colSpan={3} className="py-12 text-center opacity-30 text-[10px] font-black uppercase">No active invitations</td>
-                              </tr>
-                            )}
                           </tbody>
                         </table>
                       </div>
                     </CardContent>
                   </Card>
                 </section>
-
-                <aside className="space-y-6">
-                  <div className="flex items-center gap-3 px-2">
-                    <Zap className="h-5 w-5 text-primary" />
-                    <h3 className="text-xl font-black uppercase tracking-tight">Recruitment Pulse</h3>
-                  </div>
-                  <Card className="rounded-[2.5rem] bg-primary text-white p-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-6 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform">
-                      <ArrowUpRight className="h-24 w-24" />
-                    </div>
-                    <div className="space-y-4 relative z-10">
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Strategic Tip</p>
-                      <h4 className="text-2xl font-black uppercase tracking-tight leading-tight">Leverage the Portal</h4>
-                      <p className="text-xs font-medium text-white/80 leading-relaxed italic">
-                        "Sharing your public registration portal ensures all squads submit verified rosters and medical releases before match day one."
-                      </p>
-                      <Button variant="secondary" className="w-full bg-white text-primary font-black uppercase text-[10px]" onClick={copyPortal}>Copy Portal URL</Button>
-                    </div>
-                  </Card>
-                </aside>
               </div>
-            </div>
-          )}
+            </TabsContent>
+
+            <TabsContent value="finances" className="mt-0">
+              <LeagueFinances league={activeLeague} />
+            </TabsContent>
+
+            <TabsContent value="directory" className="mt-0">
+              <SquadDirectory league={activeLeague} />
+            </TabsContent>
+          </Tabs>
         </div>
       ) : (
         <div className="text-center py-24 bg-muted/10 border-2 border-dashed rounded-[3rem] space-y-6"><div className="bg-white w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl relative"><Shield className="h-10 w-10 text-primary opacity-20" /><Trophy className="absolute -top-2 -right-2 h-8 w-8 text-amber-500 animate-bounce" /></div><div className="space-y-2"><h3 className="text-2xl font-black uppercase tracking-tight">Competitive Desert</h3><p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-sm:px-4 max-w-sm mx-auto">Your squad hasn't joined a league yet. Start your own or accept a challenge to enter the standings.</p></div></div>
@@ -615,13 +771,11 @@ export default function LeaguesPage() {
       
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
-          <DialogDescription className="sr-only">Form to establish a new competitive league hub.</DialogDescription>
           <div className="h-2 bg-primary w-full" /><div className="p-8 lg:p-12 space-y-10"><DialogHeader><div className="flex items-center gap-4 mb-2"><div className="bg-primary/10 p-3 rounded-2xl text-primary"><Shield className="h-6 w-6" /></div><div><DialogTitle className="text-3xl font-black uppercase tracking-tight">League Identity</DialogTitle><DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Establish a new competitive hub</DialogDescription></div></div></DialogHeader><div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Official League Name</Label><Input placeholder="e.g. Regional Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl font-bold border-2" /></div></div><DialogFooter className="pt-4"><Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl" onClick={handleCreateLeague} disabled={isProcessing || !leagueName.trim()}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Competitive Hub"}</Button></DialogFooter></div></DialogContent>
       </Dialog>
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white">
-          <DialogTitle className="sr-only">Expand Competition Menu</DialogTitle>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-10 space-y-8">
             <DialogHeader>
@@ -646,12 +800,6 @@ export default function LeaguesPage() {
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Email</Label>
                     <Input placeholder="coach@opposingteam.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className="h-12 rounded-xl font-bold border-2" />
                   </div>
-                  <div className="bg-primary/5 p-4 rounded-xl border-2 border-dashed border-primary/20 space-y-2">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2"><Info className="h-3 w-3" /> Tactical Note</p>
-                    <p className="text-[10px] font-medium leading-relaxed italic text-muted-foreground">
-                      {inviteMethod === 'manual' ? "Directly adds team to standings." : "Dispatches a digital invitation requiring team confirmation."}
-                    </p>
-                  </div>
                 </div>
               )}
 
@@ -662,7 +810,6 @@ export default function LeaguesPage() {
                     <span className="text-6xl font-black tracking-widest text-primary font-mono cursor-pointer hover:scale-105 transition-transform">{activeLeague?.inviteCode}</span>
                     <Copy className="h-8 w-8 text-primary/20" />
                   </div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-4">Share this code with team organizers to join instantly.</p>
                 </div>
               )}
 
@@ -671,9 +818,6 @@ export default function LeaguesPage() {
                   <div className="bg-primary/5 p-8 rounded-[2rem] border-2 border-dashed border-primary/20 space-y-4">
                     <Globe className="h-12 w-12 text-primary mx-auto opacity-40" />
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Public Portal Access</p>
-                    <div className="bg-white p-3 rounded-xl border font-mono text-xs truncate shadow-inner">
-                      {window.location.origin}/register/league/{activeLeague?.id}
-                    </div>
                     <Button className="w-full h-12 rounded-xl font-black uppercase text-[10px]" onClick={copyPortal}><LinkIcon className="h-4 w-4 mr-2" /> Copy Link</Button>
                   </div>
                 </div>
@@ -685,9 +829,6 @@ export default function LeaguesPage() {
                 <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleRecruitmentAction} disabled={isProcessing || !inviteTeamName.trim()}>
                   {isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : (inviteMethod === 'manual' ? "Enroll Squad Directly" : "Dispatch Digital Invite")}
                 </Button>
-              )}
-              {(inviteMethod === 'code' || inviteMethod === 'portal') && (
-                <Button variant="outline" className="w-full h-14 rounded-2xl font-black uppercase text-[10px] border-2" onClick={() => setIsInviteOpen(false)}>Done</Button>
               )}
             </DialogFooter>
           </div>

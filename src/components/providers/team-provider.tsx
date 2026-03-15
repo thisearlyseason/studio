@@ -90,6 +90,7 @@ export type Team = {
   teamName?: string;
   isDemo?: boolean;
   registrationProtocolId?: string;
+  origin?: string;
 };
 
 export type Member = {
@@ -197,6 +198,23 @@ export type TeamAlert = {
   createdBy: string;
 };
 
+export type TeamIncident = {
+  id: string;
+  teamId: string;
+  teamName: string;
+  title: string;
+  date: string;
+  location: string;
+  peopleInvolved: string;
+  description: string;
+  outcome: string;
+  emergencyServicesCalled: boolean;
+  contactInfo: string;
+  witnessInfo: string;
+  createdAt: string;
+  createdBy: string;
+};
+
 export type VolunteerOpportunity = {
   id: string;
   title: string;
@@ -279,7 +297,29 @@ export type League = {
     losses: number;
     ties: number;
     points: number;
+    origin?: string;
+    coachName?: string;
+    coachEmail?: string;
+    coachPhone?: string;
+    organizerNotes?: string;
+    waiversStatus?: string;
   }>;
+  finances: Record<string, {
+    totalOwed: number;
+    totalPaid: number;
+    status: 'unpaid' | 'partial' | 'paid';
+    payments: Array<{
+      id: string;
+      amount: number;
+      date: string;
+      type: string;
+      memo: string;
+    }>;
+  }>;
+  globalFees?: {
+    registration: number;
+    custom?: Array<{ title: string; amount: number }>;
+  };
   creatorId: string;
   registrationEnabled?: boolean;
   schedule?: TournamentGame[];
@@ -473,6 +513,11 @@ interface TeamContextType {
   exportAttendanceCSV: (eventId: string) => Promise<void>;
   exportTournamentStandingsCSV: (tournamentId: string) => Promise<void>;
   assignManualPlan: (userId: string, planId: string, quota: number) => Promise<void>;
+  addIncident: (data: any) => Promise<void>;
+  deleteIncident: (id: string) => Promise<void>;
+  addLeaguePayment: (leagueId: string, teamId: string, data: any) => Promise<void>;
+  updateLeagueTeamDetails: (leagueId: string, teamId: string, updates: any) => Promise<void>;
+  updateLeagueGlobalFees: (leagueId: string, fees: any) => Promise<void>;
 }
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -717,7 +762,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         await updateDoc(leagueRef, {
           [`teams.recruit_${entryId}`]: {
             teamName,
-            wins: 0, losses: 0, ties: 0, points: 0
+            wins: 0, losses: 0, ties: 0, points: 0,
+            coachName: entryData.answers?.['name'] || entryData.answers?.['fullName'],
+            coachEmail: entryData.answers?.['email'],
+            origin: entryData.answers?.['location'] || entryData.answers?.['origin']
+          },
+          [`finances.recruit_${entryId}`]: {
+            totalOwed: 0,
+            totalPaid: 0,
+            status: 'unpaid',
+            payments: []
           }
         });
       }
@@ -877,6 +931,57 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     toast({ title: "Squad Decommissioned", description: "Team data removal protocol initiated." });
   }, [db, firebaseUser]);
 
+  const addIncident = useCallback(async (data: any) => {
+    if (!activeTeam?.id || !firebaseUser) return;
+    await addDoc(collection(db, 'teams', activeTeam.id, 'incidents'), clean({
+      ...data,
+      teamId: activeTeam.id,
+      teamName: activeTeam.name,
+      createdAt: new Date().toISOString(),
+      createdBy: firebaseUser.uid
+    }));
+    toast({ title: "Incident Logged", description: "Safe and secure record established." });
+  }, [activeTeam, firebaseUser, db]);
+
+  const deleteIncident = useCallback(async (id: string) => {
+    if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'incidents', id));
+  }, [activeTeam, db]);
+
+  const addLeaguePayment = useCallback(async (leagueId: string, teamId: string, data: any) => {
+    const leagueRef = doc(db, 'leagues', leagueId);
+    const snap = await getDoc(leagueRef);
+    if (!snap.exists()) return;
+    
+    const finances = snap.data().finances || {};
+    const teamFin = finances[teamId] || { totalOwed: 0, totalPaid: 0, status: 'unpaid', payments: [] };
+    
+    const newPayment = { id: `pay_${Date.now()}`, ...data };
+    const updatedPayments = [...teamFin.payments, newPayment];
+    const newTotalPaid = teamFin.totalPaid + data.amount;
+    const newStatus = newTotalPaid >= teamFin.totalOwed ? 'paid' : (newTotalPaid > 0 ? 'partial' : 'unpaid');
+
+    await updateDoc(leagueRef, {
+      [`finances.${teamId}.payments`]: updatedPayments,
+      [`finances.${teamId}.totalPaid`]: newTotalPaid,
+      [`finances.${teamId}.status`]: newStatus
+    });
+    toast({ title: "Payment Recorded" });
+  }, [db]);
+
+  const updateLeagueTeamDetails = useCallback(async (leagueId: string, teamId: string, updates: any) => {
+    const leagueRef = doc(db, 'leagues', leagueId);
+    await updateDoc(leagueRef, {
+      [`teams.${teamId}`]: updates
+    });
+    toast({ title: "Team Details Updated" });
+  }, [db]);
+
+  const updateLeagueGlobalFees = useCallback(async (leagueId: string, fees: any) => {
+    const leagueRef = doc(db, 'leagues', leagueId);
+    await updateDoc(leagueRef, { globalFees: fees });
+    toast({ title: "Global Fees Synchronized" });
+  }, [db]);
+
   const contextValue = useMemo(() => ({
     db,
     user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading,
@@ -940,12 +1045,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     deleteFacility: async (id: string) => { await deleteDoc(doc(db, 'facilities', id)); },
     addField: async (fid: string, n: string) => { await addDoc(collection(db, 'facilities', fid, 'fields'), clean({ name: n, facilityId: fid, createdAt: new Date().toISOString() })); },
     deleteField: async (fid: string, id: string) => { await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); },
-    createLeague: async (n: string) => { if (activeTeam?.id && firebaseUser) { const r = doc(collection(db, 'leagues')); const code = Math.random().toString(36).substring(2, 8).toUpperCase(); await setDoc(r, clean({ id: r.id, name: n, sport: activeTeam.sport, teams: { [activeTeam.id]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }, creatorId: firebaseUser.uid, inviteCode: code })); return r.id; } return ''; },
+    createLeague: async (n: string) => { if (activeTeam?.id && firebaseUser) { const r = doc(collection(db, 'leagues')); const code = Math.random().toString(36).substring(2, 8).toUpperCase(); await setDoc(r, clean({ id: r.id, name: n, sport: activeTeam.sport, teams: { [activeTeam.id]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }, finances: { [activeTeam.id]: { totalOwed: 0, totalPaid: 0, status: 'unpaid', payments: [] } }, creatorId: firebaseUser.uid, inviteCode: code })); return r.id; } return ''; },
     updateLeagueSchedule: async (lid: string, s: TournamentGame[]) => { await updateDoc(doc(db, 'leagues', lid), { schedule: s }); },
     inviteTeamToLeague: async (lid: string, ln: string, e: string, tn?: string) => { await addDoc(collection(db, 'leagues', 'global', 'invites'), clean({ leagueId: lid, leagueName: ln, invitedEmail: e, teamName: tn, status: 'pending', createdAt: new Date().toISOString() })); },
     deleteLeagueInvite: async (id: string) => { await deleteDoc(doc(db, 'leagues', 'global', 'invites', id)); },
     acceptLeagueInvite: async (iid: string, lid: string) => { if (activeTeam?.id) { const b = writeBatch(db); b.update(doc(db, 'leagues', 'global', 'invites', iid), { status: 'accepted' }); b.update(doc(db, 'leagues', lid), { [`teams.${activeTeam.id}`]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }); await b.commit(); } },
-    manuallyAddTeamToLeague: async (lid: string, n: string, e?: string, l?: string) => { await updateDoc(doc(db, 'leagues', lid), { [`teams.manual_${Date.now()}`]: { teamName: n, coachEmail: e, teamLogoUrl: l, wins: 0, losses: 0, ties: 0, points: 0 } }); },
+    manuallyAddTeamToLeague: async (lid: string, n: string, e?: string, l?: string) => { await updateDoc(doc(db, 'leagues', lid), { [`teams.manual_${Date.now()}`]: { teamName: n, coachEmail: e, teamLogoUrl: l, wins: 0, losses: 0, ties: 0, points: 0 }, [`finances.manual_${Date.now()}`]: { totalOwed: 0, totalPaid: 0, status: 'unpaid', payments: [] } }); },
     saveLeagueRegistrationConfig: async (lid: string, u: any) => { const pid = u.id || 'config'; await setDoc(doc(db, 'leagues', lid, 'registration', pid), clean({ ...u, id: pid }), { merge: true }); },
     submitRegistrationEntry: async (tid: string, pid: string, a: any, v: number, s?: string, type: any = 'leagues') => { await addDoc(collection(db, type, tid, 'registrationEntries'), clean({ league_id: tid, protocol_id: pid, answers: a, status: 'pending', created_at: new Date().toISOString(), form_version: v, waiver_signed_text: s, target_type: type })); },
     assignEntryToTeam: async (lid: string, eid: string, tid: string | null) => { await updateDoc(doc(db, 'leagues', lid, 'registrationEntries', eid), { assigned_team_id: tid, status: tid ? 'assigned' : 'pending' }); },
@@ -964,8 +1069,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     exportSignaturesCSV,
     exportAttendanceCSV,
     exportTournamentStandingsCSV,
-    assignManualPlan
-  }), [userProfile, activeTeam?.id, activeTeam?.isPro, activeTeam?.planId, isStaff, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, deployClubProtocol, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, assignManualPlan, deleteTeam, router]);
+    assignManualPlan,
+    addIncident,
+    deleteIncident,
+    addLeaguePayment,
+    updateLeagueTeamDetails,
+    updateLeagueGlobalFees
+  }), [userProfile, activeTeam?.id, activeTeam?.isPro, activeTeam?.planId, isStaff, teams, isTeamsLoading, isSeedingDemo, members, isMembersLoading, currentMember, isSuperAdmin, household, householdEvents, householdBalance, myChildren, plans, isPlansLoading, proQuotaStatus, isPaywallOpen, firebaseUser?.uid, db, signTeamDocument, createTeamDocument, deployClubProtocol, respondToAssignment, createAlert, deleteAlert, exportSignaturesCSV, exportAttendanceCSV, exportTournamentStandingsCSV, assignManualPlan, deleteTeam, router, addIncident, deleteIncident, addLeaguePayment, updateLeagueTeamDetails, updateLeagueGlobalFees]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
