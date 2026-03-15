@@ -169,21 +169,21 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
         <div className="h-2 bg-primary w-full" />
         <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
           <DialogHeader>
-            <DialogTitle className="text-3xl font-black uppercase tracking-tight">Season Architect</DialogTitle>
+            <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Season Architect</DialogTitle>
             <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-2">Institutional Scheduling Engine</DialogDescription>
           </DialogHeader>
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 text-foreground">
             <div className="lg:col-span-7 space-y-10">
               <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Timeline & Parameters</h3>
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Season Start</Label><Input type="date" value={config.startDate} onChange={e => setConfig({...config, startDate: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Season End</Label><Input type="date" value={config.endDate} onChange={e => setConfig({...config, endDate: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Season Start</Label><Input type="date" value={config.startDate} onChange={e => setConfig({...config, startDate: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Season End</Label><Input type="date" value={config.endDate} onChange={e => setConfig({...config, endDate: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
                 </div>
                 
                 <div className="space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Schedule Days</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Schedule Days</Label>
                   <div className="flex flex-wrap gap-2">
                     {DAYS_OF_WEEK.map(day => (
                       <button
@@ -202,9 +202,9 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Games/Team</Label><Input type="number" value={config.gamesPerTeam} onChange={e => setConfig({...config, gamesPerTeam: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Games/Team</Label><Input type="number" value={config.gamesPerTeam} onChange={e => setConfig({...config, gamesPerTeam: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Double Headers</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Double Headers</Label>
                     <div className="flex items-center gap-3 h-12">
                       <button type="button" onClick={() => setConfig({...config, doubleHeaders: !config.doubleHeaders})} className={cn("h-7 w-12 rounded-full transition-all relative", config.doubleHeaders ? "bg-primary" : "bg-muted")}>
                         <div className={cn("absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all", config.doubleHeaders ? "left-6" : "left-1")} />
@@ -218,7 +218,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
               <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Resource Allocation</h3>
                 <div className="space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Select Active Venues</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Select Active Venues</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {facilities?.map(f => (
                       <div key={f.id} className={cn("p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between", config.selectedVenues.includes(f.id) ? "border-primary bg-primary/5 shadow-sm" : "border-muted/50 hover:border-muted")} onClick={() => toggleVenue(f.id)}>
@@ -438,10 +438,10 @@ function LeagueFinances({ league }: { league: League }) {
       </Card>
 
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-8 bg-white">
           <DialogTitle className="sr-only">Log Squad Payment</DialogTitle>
-          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Log Squad Payment</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update institutional fiscal ledger</DialogDescription></DialogHeader>
-          <div className="space-y-4 py-4">
+          <DialogHeader><DialogTitle className="text-2xl font-black uppercase text-foreground">Log Squad Payment</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update institutional fiscal ledger</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-4 text-foreground">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase">Amount ($)</Label>
               <Input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="h-12 text-lg font-black" />
@@ -460,10 +460,10 @@ function LeagueFinances({ league }: { league: League }) {
       </Dialog>
 
       <Dialog open={isFeesOpen} onOpenChange={setIsFeesOpen}>
-        <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+        <DialogContent className="rounded-3xl border-none shadow-2xl p-8 bg-white">
           <DialogTitle className="sr-only">League Fee Architect</DialogTitle>
-          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">League Fee Architect</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Configure global registration costs</DialogDescription></DialogHeader>
-          <div className="space-y-4 py-4">
+          <DialogHeader><DialogTitle className="text-2xl font-black uppercase text-foreground">League Fee Architect</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Configure global registration costs</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-4 text-foreground">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase">Base Registration Fee ($)</Label>
               <Input type="number" value={feesForm.registration} onChange={e => setFeesForm({...feesForm, registration: e.target.value})} className="h-12 text-lg font-black" />
@@ -529,15 +529,15 @@ function SquadDirectory({ league }: { league: League }) {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="rounded-[3rem] p-8 max-w-2xl overflow-y-auto max-h-[90vh]">
+        <DialogContent className="rounded-[3rem] p-8 max-w-2xl overflow-y-auto max-h-[90vh] bg-white text-foreground">
           <DialogTitle className="sr-only">Squad Metadata</DialogTitle>
           <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Squad Metadata</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update coach and location data</DialogDescription></DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Origin Location</Label><Input value={editForm.origin} onChange={e => setEditForm({...editForm, origin: e.target.value})} className="h-12" /></div>
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Name</Label><Input value={editForm.coachName} onChange={e => setEditForm({...editForm, coachName: e.target.value})} className="h-12" /></div>
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Email</Label><Input value={editForm.coachEmail} onChange={e => setEditForm({...editForm, coachEmail: e.target.value})} className="h-12" /></div>
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Phone</Label><Input value={editForm.coachPhone} onChange={e => setEditForm({...editForm, coachPhone: e.target.value})} className="h-12" /></div>
-            <div className="space-y-2 col-span-full"><Label className="text-[10px] font-black uppercase">Organizer Notes</Label><Textarea value={editForm.organizerNotes} onChange={e => setEditForm({...editForm, organizerNotes: e.target.value})} className="h-32" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Origin Location</Label><Input value={editForm.origin} onChange={e => setEditForm({...editForm, origin: e.target.value})} className="h-12 border-2" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Name</Label><Input value={editForm.coachName} onChange={e => setEditForm({...editForm, coachName: e.target.value})} className="h-12 border-2" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Email</Label><Input value={editForm.coachEmail} onChange={e => setEditForm({...editForm, coachEmail: e.target.value})} className="h-12 border-2" /></div>
+            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Coach Phone</Label><Input value={editForm.coachPhone} onChange={e => setEditForm({...editForm, coachPhone: e.target.value})} className="h-12 border-2" /></div>
+            <div className="space-y-2 col-span-full"><Label className="text-[10px] font-black uppercase">Organizer Notes</Label><Textarea value={editForm.organizerNotes} onChange={e => setEditForm({...editForm, organizerNotes: e.target.value})} className="h-32 border-2" /></div>
           </div>
           <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdate}>Synchronize Records</Button></DialogFooter>
         </DialogContent>
@@ -669,8 +669,8 @@ export default function LeaguesPage() {
                       <Button 
                         asChild={isPro} 
                         className={cn(
-                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2 hover:bg-primary hover:text-white hover:border-primary",
-                          isPro ? "bg-white text-black border-black" : "bg-white/50 text-muted-foreground/50 border-muted cursor-not-allowed"
+                          "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2",
+                          isPro ? "bg-white text-black border-black hover:bg-primary hover:text-white hover:border-primary" : "bg-white/50 text-muted-foreground/50 border-muted cursor-not-allowed"
                         )}
                       >
                         {isPro ? (
@@ -768,7 +768,7 @@ export default function LeaguesPage() {
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-10 space-y-8">
             <DialogHeader>
-              <DialogTitle className="text-3xl font-black uppercase tracking-tight">League Architect</DialogTitle>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">League Architect</DialogTitle>
               <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Initialize Competitive Infrastructure</DialogDescription>
             </DialogHeader>
             <div className="space-y-6">
@@ -826,7 +826,7 @@ export default function LeaguesPage() {
                         onClick={() => setInviteMethod(method.id as any)}
                         className={cn(
                           "flex items-center gap-3 p-4 rounded-xl border-2 transition-all font-black text-[10px] uppercase",
-                          inviteMethod === method.id ? "bg-primary border-primary text-white shadow-lg" : "bg-muted/30 border-transparent text-muted-foreground hover:bg-primary hover:text-white hover:border-primary"
+                          inviteMethod === method.id ? "bg-primary border-primary text-white shadow-lg" : "bg-muted/30 border-transparent text-muted-foreground hover:border-primary hover:text-white hover:border-primary"
                         )}
                       >
                         <method.icon className="h-4 w-4" />

@@ -317,7 +317,6 @@ interface TeamContextType {
   myChildren: PlayerProfile[];
   hasFeature: (id: string) => boolean;
   
-  // Recruiting Pack Functions
   getRecruitingProfile: (playerId: string) => Promise<RecruitingProfile | null>;
   updateRecruitingProfile: (playerId: string, data: Partial<RecruitingProfile>) => Promise<void>;
   getAthleticMetrics: (playerId: string) => Promise<AthleticMetrics | null>;

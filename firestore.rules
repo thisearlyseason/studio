@@ -137,26 +137,26 @@ service cloud.firestore {
       }
 
       match /alerts/{alertId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || teamId.startsWith('demo_');
         allow write: if isTeamStaff(teamId);
       }
 
       match /games/{gameId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || teamId.startsWith('demo_');
         allow write: if isTeamStaff(teamId);
       }
 
       match /drills/{drillId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || teamId.startsWith('demo_');
         allow write: if isTeamStaff(teamId);
       }
 
       match /groupChats/{chatId} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read: if isSignedIn() || teamId.startsWith('demo_');
+        allow write: if isSignedIn() || teamId.startsWith('demo_');
 
         match /messages/{msgId} {
-          allow read, create: if isSignedIn();
+          allow read, create: if isSignedIn() || teamId.startsWith('demo_');
         }
       }
 

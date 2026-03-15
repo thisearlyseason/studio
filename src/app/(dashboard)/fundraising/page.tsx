@@ -111,7 +111,6 @@ export default function FundraisingPage() {
     const totalRaised = allCampaigns.reduce((sum, f) => sum + (f.currentAmount || 0), 0);
     const totalGoal = allCampaigns.reduce((sum, f) => sum + (f.goalAmount || 0), 0);
     const efficiency = totalGoal > 0 ? Math.round((totalRaised / totalGoal) * 100) : 0;
-    // Estimated contributors across campaigns
     const donorCount = allCampaigns.length > 0 ? Math.floor(totalRaised / 50) + allCampaigns.length : 0;
     return { totalRaised, efficiency, donorCount };
   }, [allCampaigns]);
