@@ -284,6 +284,7 @@ export type TeamFile = {
   documentId?: string;
   teamId?: string;
   teamName?: string;
+  waiverType?: string;
 };
 
 export type League = {
@@ -547,6 +548,13 @@ const STAFF_POSITIONS = [
   'Squad Leader'
 ];
 
+const DEFAULT_PROTOCOLS = [
+  { id: 'default_medical', title: 'Medical Clearance', type: 'waiver', content: 'I verify that the athlete is physically cleared for participation in all squad activities. I accept all medical risks and verify current insurance coverage.' },
+  { id: 'default_travel', title: 'Travel Consent', type: 'waiver', content: 'Consent for the athlete to travel with the team to sanctioned events, including away games and tournaments. I accept responsibility for coordination of transportation.' },
+  { id: 'default_parental', title: 'Parental Waiver', type: 'waiver', content: 'General liability release for minor participation. I agree to hold the organization and its staff harmless from standard athletic risks.' },
+  { id: 'default_photography', title: 'Photography Release', type: 'waiver', content: 'Consent for the team to use images or video of the athlete for internal coordination, training, and recruitment portfolios.' }
+];
+
 export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isAuthResolved } = useFirebase();
   const db = useFirestore();
@@ -753,7 +761,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     await updateDoc(finalRef, { status });
     
-    // If accepted in a league context, add them to the teams map
     if (status === 'accepted') {
       const leagueRef = doc(db, 'leagues', contextId);
       const leagueSnap = await getDoc(leagueRef);
@@ -786,10 +793,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const signTeamDocument = useCallback(async (docId: string, signatureText: string, targetMemberId: string) => {
     if (!activeTeam?.id || !userProfile) return false;
-    const docRef = doc(db, 'teams', activeTeam.id, 'documents', docId);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) return false;
-    const docData = docSnap.data() as TeamDocument;
+    
+    let docData: any = null;
+    const standard = DEFAULT_PROTOCOLS.find(p => p.id === docId);
+    if (standard) {
+      docData = standard;
+    } else {
+      const docRef = doc(db, 'teams', activeTeam.id, 'documents', docId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        docData = docSnap.data();
+      }
+    }
+
+    if (!docData) return false;
     const targetMember = members.find(m => m.id === targetMemberId);
     if (!targetMember) return false;
 
@@ -805,14 +822,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       id: sigId, docId, title: docData.title, signedAt: new Date().toISOString(), signatureText
     }));
     
-    batch.update(docRef, { signatureCount: increment(1) });
+    if (!standard) {
+      batch.update(doc(db, 'teams', activeTeam.id, 'documents', docId), { signatureCount: increment(1) });
+    }
     
     const certId = `cert_${docId}_${targetMember.id}`;
     batch.set(doc(db, 'teams', activeTeam.id, 'files', certId), clean({
       id: certId,
       name: `Signed: ${docData.title} - ${targetMember.name}`,
       type: 'pdf', size: 'Digital Certificate', sizeBytes: 0, url: '#',
-      category: 'Signed Certificate', description: `Verified execution of ${docData.title}. Signed as "${signatureText}".`,
+      category: 'Signed Certificate', 
+      waiverType: docData.title,
+      description: `Verified execution of ${docData.title}. Signed as "${signatureText}".`,
       date: new Date().toISOString(), authorId: userProfile.id, memberId: targetMember.id, documentId: docId,
       teamId: activeTeam.id, teamName: activeTeam.name, signatureId: sigId
     }));

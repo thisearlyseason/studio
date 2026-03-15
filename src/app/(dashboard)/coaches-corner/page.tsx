@@ -27,7 +27,8 @@ import {
   ShieldAlert,
   Edit3,
   Settings,
-  Info
+  Info,
+  Shield
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -42,6 +43,13 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+const DEFAULT_PROTOCOLS = [
+  { id: 'default_medical', title: 'Medical Clearance', type: 'waiver' },
+  { id: 'default_travel', title: 'Travel Consent', type: 'waiver' },
+  { id: 'default_parental', title: 'Parental Waiver', type: 'waiver' },
+  { id: 'default_photography', title: 'Photography Release', type: 'waiver' }
+];
 
 function IncidentLog({ teamId }: { teamId: string }) {
   const { addIncident, deleteIncident } = useTeam();
@@ -129,8 +137,7 @@ function IncidentLog({ teamId }: { teamId: string }) {
 }
 
 export default function CoachesCornerPage() {
-  const { activeTeam, isStaff, createTeamDocument, updateTeamDocument, deleteTeamDocument } = useTeam();
-  const db = useFirestore();
+  const { activeTeam, isStaff, createTeamDocument, updateTeamDocument, deleteTeamDocument, db } = useTeam();
   const [activeTab, setActiveTab] = useState('compliance');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
@@ -159,7 +166,28 @@ export default function CoachesCornerPage() {
 
       <Tabs value={activeTab} className="mt-0">
         <TabsContent value="compliance" className="space-y-10 mt-0">
-          <div className="space-y-6 pt-4">
+          <section className="space-y-6 pt-4">
+            <div className="flex items-center gap-3 px-2">
+              <Shield className="h-5 w-5 text-primary" />
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Institutional Protocols</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {DEFAULT_PROTOCOLS.map(proto => (
+                <Card key={proto.id} className="rounded-3xl border-none shadow-sm bg-muted/20 p-6 flex items-center justify-between group">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border"><CheckCircle2 className="h-5 w-5 text-primary" /></div>
+                    <div>
+                      <p className="font-black text-sm uppercase">{proto.title}</p>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Auto-Synchronized System Mandate</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20 text-primary">CORE</Badge>
+                </Card>
+              ))}
+            </div>
+          </section>
+
+          <div className="space-y-6 pt-10 border-t">
             <div className="flex justify-between items-center px-2">
               <div className="flex items-center gap-2">
                 <FileSignature className="h-5 w-5 text-primary" />

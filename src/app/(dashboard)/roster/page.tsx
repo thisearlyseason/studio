@@ -117,7 +117,7 @@ function MemberComplianceLedger({ teamId, memberId, birthdate, activeProtocols }
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-3">Institutional Compliance</p>
         <div className="grid grid-cols-1 gap-2">
           {STANDARD_WAIVERS.map(w => {
-            if (!activeProtocols.includes(w.docId)) return null;
+            // Standard waivers are ALWAYS active for all squads in this version
             if (w.minorOnly && isAdult) return null;
             
             const isSigned = sigDocIds.includes(w.docId);
@@ -446,7 +446,7 @@ export default function RosterPage() {
                   <div className="space-y-6">
                     <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><ShieldCheck className="h-5 w-5" /></div><h4 className="text-xs font-black uppercase tracking-[0.2em]">Vital Stats</h4></div>
                     <div className="grid grid-cols-1 gap-3">
-                      {STANDARD_WAIVERS.filter(w => activeProtocols.includes(w.docId)).map(w => {
+                      {STANDARD_WAIVERS.map(w => {
                         const isAdult = selectedMember.birthdate && differenceInYears(new Date(), new Date(selectedMember.birthdate)) >= 18;
                         if (w.minorOnly && isAdult) return null;
                         const isSigned = signedDocIds.includes(w.docId);

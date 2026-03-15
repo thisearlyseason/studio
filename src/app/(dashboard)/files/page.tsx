@@ -73,7 +73,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-function DocumentSigningDialog({ doc: d, onSign, members, onComplete }: { doc: TeamDocument, onSign: (id: string, sig: string, mid: string) => Promise<boolean>, members: Member[], onComplete: () => void }) {
+const DEFAULT_PROTOCOLS = [
+  { id: 'default_medical', title: 'Medical Clearance', type: 'waiver' },
+  { id: 'default_travel', title: 'Travel Consent', type: 'waiver' },
+  { id: 'default_parental', title: 'Parental Waiver', type: 'waiver' },
+  { id: 'default_photography', title: 'Photography Release', type: 'waiver' }
+];
+
+function DocumentSigningDialog({ doc: d, onSign, members, onComplete }: { doc: any, onSign: (id: string, sig: string, mid: string) => Promise<boolean>, members: Member[], onComplete: () => void }) {
   const [signature, setSignature] = useState('');
   const [targetMemberId, setTargetMemberId] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -205,7 +212,7 @@ export default function FilesPage() {
     const map: Record<string, Record<string, TeamFile[]>> = {};
     visibleSignedFiles.forEach(f => {
       const teamName = f.teamName || 'Unknown Squad';
-      const docType = f.name.split(':')[0].replace('Signed', '').trim() || 'General Waiver';
+      const docType = f.waiverType || f.name.split(':')[0].replace('Signed', '').trim() || 'General Waiver';
       
       if (!map[teamName]) map[teamName] = {};
       if (!map[teamName][docType]) map[teamName][docType] = [];
@@ -246,13 +253,20 @@ export default function FilesPage() {
     
     for (const m of signingMembers) {
       const signedIds: string[] = [];
+      
+      // Check custom docs
       const docsSnap = await getDocs(collection(db, 'teams', activeTeam.id, 'documents'));
       for (const d of docsSnap.docs) {
         const sigSnap = await getDocs(query(collection(db, 'teams', activeTeam.id, 'documents', d.id, 'signatures'), where('memberId', '==', m.id)));
-        if (!sigSnap.empty) {
-          signedIds.push(d.id);
-        }
+        if (!sigSnap.empty) signedIds.push(d.id);
       }
+
+      // Check default docs
+      for (const p of DEFAULT_PROTOCOLS) {
+        const sigSnap = await getDocs(query(collection(db, 'teams', activeTeam.id, 'documents', p.id, 'signatures'), where('memberId', '==', m.id)));
+        if (!sigSnap.empty) signedIds.push(p.id);
+      }
+
       results[m.id] = signedIds;
     }
     setSignedDocIds(results);
@@ -264,8 +278,9 @@ export default function FilesPage() {
   }, [checkSigs, documents]);
 
   const pendingDocsForDisplay = useMemo(() => {
-    if (!documents) return [];
-    return documents.filter(d => {
+    const allAvailableDocs = [...(documents || []), ...DEFAULT_PROTOCOLS.map(p => ({ ...p, assignedTo: ['all'], createdAt: new Date().toISOString(), signatureCount: 0, teamId: activeTeam?.id || '' } as any))];
+    
+    return allAvailableDocs.filter(d => {
       const isParentalWaiver = d.id === 'default_parental';
       return signingMembers.some(m => {
         const isAdult = m.birthdate && differenceInYears(new Date(), new Date(m.birthdate)) >= 18;
@@ -275,7 +290,7 @@ export default function FilesPage() {
         return isAssigned && !alreadySigned;
       });
     });
-  }, [documents, signedDocIds, signingMembers]);
+  }, [documents, signedDocIds, signingMembers, activeTeam?.id]);
 
   if (!mounted || !activeTeam) return null;
 
