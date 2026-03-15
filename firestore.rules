@@ -217,7 +217,7 @@ service cloud.firestore {
     }
 
     match /plans/{planId} {
-      allow read: if isSignedIn();
+      allow read: if true; // Allow public read for pricing/seeding checks
       allow write: if isSuperAdmin(); 
     }
 

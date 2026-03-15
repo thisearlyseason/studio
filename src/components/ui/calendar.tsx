@@ -16,23 +16,23 @@ function Calendar({
   ...props
 }: CalendarProps) {
   return (
-    <div className="relative w-fit mx-auto">
+    <div className="relative w-fit mx-auto bg-white rounded-3xl p-4 shadow-sm border ring-1 ring-black/5">
       <DayPicker
         showOutsideDays={showOutsideDays}
-        className={cn("p-3", className)}
+        className={cn("p-0", className)}
         classNames={{
           months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
           month: "space-y-4 w-full",
-          month_caption: "flex justify-center pt-1 relative items-center mb-4",
+          month_caption: "flex justify-center pt-1 relative items-center mb-4 px-10",
           caption_label: "text-sm font-black uppercase tracking-widest",
-          nav: "flex items-center justify-center gap-1 absolute top-1 right-0",
+          nav: "flex items-center justify-between absolute top-1 left-0 right-0 px-2",
           button_previous: cn(
             buttonVariants({ variant: "outline" }),
-            "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 rounded-full z-10"
+            "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 rounded-full z-10 transition-all active:scale-95"
           ),
           button_next: cn(
             buttonVariants({ variant: "outline" }),
-            "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 rounded-full z-10"
+            "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 rounded-full z-10 transition-all active:scale-95"
           ),
           month_grid: "w-full border-collapse space-y-1",
           weekdays: "flex",

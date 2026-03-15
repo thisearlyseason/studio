@@ -42,8 +42,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       setIsDemoInitializing(true);
       const seed = async () => {
         try {
-          await seedGuestDemoTeam(db, user.uid, demoPlanId);
-          window.location.replace('/dashboard');
+          // Verify user still signed in before seeding
+          if (auth.currentUser) {
+            await seedGuestDemoTeam(db, user.uid, demoPlanId);
+            window.location.replace('/dashboard');
+          }
         } catch (e) {
           console.error("Demo failure:", e);
           setIsDemoInitializing(false);
@@ -51,7 +54,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       };
       seed();
     }
-  }, [mounted, user, teams.length, db, isDemoInitializing, searchParams]);
+  }, [mounted, user, teams.length, db, isDemoInitializing, searchParams, auth]);
 
   // --- AUTH GUARDS (Optimized for Mobile Demo stability) ---
   useEffect(() => {

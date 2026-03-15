@@ -125,7 +125,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
       });
       await updateLeagueSchedule(league.id, schedule);
       onOpenChange(false);
-      toast({ title: "Season Deployed", description: `${schedule.length} matches distributed evenly.` });
+      toast({ title: "Season Deployed", description: `${schedule.length} matches distributed."` });
     } catch (e) {
       toast({ title: "Generation Failed", variant: "destructive" });
     } finally {
@@ -151,6 +151,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
         <DialogTitle className="sr-only">Season Architect Protocol</DialogTitle>
+        <DialogDescription className="sr-only">Configure league season parameters and venue allocation.</DialogDescription>
         <div className="h-2 bg-primary w-full" />
         <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
           <DialogHeader>
@@ -232,14 +233,12 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
             <aside className="lg:col-span-5 space-y-6">
               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Blackout Dates</h3>
               <div className="bg-white border-2 rounded-[2rem] p-4 shadow-inner flex flex-col items-center">
-                <div className="relative w-fit">
-                  <Calendar 
-                    mode="multiple"
-                    selected={config.blackoutDates}
-                    onSelect={(dates) => setConfig({...config, blackoutDates: dates || []})}
-                    className="rounded-xl border-none"
-                  />
-                </div>
+                <Calendar 
+                  mode="multiple"
+                  selected={config.blackoutDates}
+                  onSelect={(dates) => setConfig({...config, blackoutDates: dates || []})}
+                  className="rounded-xl border-none"
+                />
                 <div className="w-full mt-4 pt-4 border-t">
                   <p className="text-[9px] font-black uppercase text-muted-foreground px-2">{config.blackoutDates.length} Dates Booked Off</p>
                 </div>
@@ -450,7 +449,7 @@ export default function LeaguesPage() {
                           <span>Registration Hub</span>
                         </Link>
                       </Button>
-                      <Button variant="outline" className="h-12 px-8 rounded-xl font-black text-xs uppercase bg-white text-black border-2 border-white/20 hover:bg-primary hover:border-transparent transition-all shadow-sm" onClick={() => setIsInviteOpen(true)}><UserPlus className="h-4 w-4 mr-2" /> Invite Team</Button>
+                      <Button variant="secondary" className="h-12 px-8 rounded-xl font-black text-xs uppercase bg-white text-black border-2 border-transparent shadow-sm" onClick={() => setIsInviteOpen(true)}><UserPlus className="h-4 w-4 mr-2" /> Invite Team</Button>
                     </>
                   )}
                   <Button asChild variant="ghost" className="h-12 px-6 rounded-xl font-black text-xs uppercase text-white/60 hover:text-white"><Link href={`/leagues/spectator/${activeLeague.id}`} target="_blank"><ExternalLink className="h-4 w-4 mr-2" /> Public Portal</Link></Button>
@@ -507,11 +506,15 @@ export default function LeaguesPage() {
       {activeLeague && <SeasonSchedulerDialog league={activeLeague} isOpen={isSeasonOpen} onOpenChange={setIsSeasonOpen} />}
       
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white"><div className="h-2 bg-primary w-full" /><div className="p-8 lg:p-12 space-y-10"><DialogHeader><div className="flex items-center gap-4 mb-2"><div className="bg-primary/10 p-3 rounded-2xl text-primary"><Shield className="h-6 w-6" /></div><div><DialogTitle className="text-3xl font-black uppercase tracking-tight">League Identity</DialogTitle><DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Establish a new competitive hub</DialogDescription></div></div></DialogHeader><div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Official League Name</Label><Input placeholder="e.g. Regional Varsity Premier" leagueName={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl font-bold border-2" /></div></div><DialogFooter className="pt-4"><Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl" onClick={handleCreateLeague} disabled={isProcessing || !leagueName.trim()}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Competitive Hub"}</Button></DialogFooter></div></DialogContent>
+        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+          <DialogDescription className="sr-only">Form to establish a new competitive league hub.</DialogDescription>
+          <div className="h-2 bg-primary w-full" /><div className="p-8 lg:p-12 space-y-10"><DialogHeader><div className="flex items-center gap-4 mb-2"><div className="bg-primary/10 p-3 rounded-2xl text-primary"><Shield className="h-6 w-6" /></div><div><DialogTitle className="text-3xl font-black uppercase tracking-tight">League Identity</DialogTitle><DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Establish a new competitive hub</DialogDescription></div></div></DialogHeader><div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Official League Name</Label><Input placeholder="e.g. Regional Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl font-bold border-2" /></div></div><DialogFooter className="pt-4"><Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl" onClick={handleCreateLeague} disabled={isProcessing || !leagueName.trim()}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Competitive Hub"}</Button></DialogFooter></div></DialogContent>
       </Dialog>
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-lg p-0 border-none shadow-2xl overflow-hidden"><div className="h-2 bg-primary w-full" /><div className="bg-primary/5 p-8 border-b"><DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight text-foreground">Expand Competition</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Enroll verified squads</DialogDescription></DialogHeader></div><div className="p-8 space-y-6 bg-white"><div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Coach Email</Label><Input placeholder="coach@opposingteam.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className="h-12 rounded-xl font-bold border-2" /></div><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleSendInvite} disabled={isProcessing || !inviteEmail.trim()}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Dispatch Digital Invite"}</Button></div></DialogContent>
+        <DialogContent className="rounded-[2.5rem] sm:max-w-lg p-0 border-none shadow-2xl overflow-hidden">
+          <DialogDescription className="sr-only">Send digital invitations to opposing squad coaches.</DialogDescription>
+          <div className="h-2 bg-primary w-full" /><div className="bg-primary/5 p-8 border-b"><DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight text-foreground">Expand Competition</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Enroll verified squads</DialogDescription></DialogHeader></div><div className="p-8 space-y-6 bg-white"><div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Coach Email</Label><Input placeholder="coach@opposingteam.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className="h-12 rounded-xl font-bold border-2" /></div><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleSendInvite} disabled={isProcessing || !inviteEmail.trim()}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Dispatch Digital Invite"}</Button></div></DialogContent>
       </Dialog>
     </div>
   );
