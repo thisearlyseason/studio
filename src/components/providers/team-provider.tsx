@@ -736,9 +736,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const signUpForFundraising = useCallback(async (fundId: string) => {
     if (!activeTeamId || !firebaseUser || !db) return;
     await updateDoc(doc(db, 'teams', activeTeamId, 'fundraising', fundId), {
-      [`finances.${firebaseUser.uid}`]: { userId: firebaseUser.uid, userName: firebaseUser.displayName, status: 'joined', contributed: 0, createdAt: new Date().toISOString() }
+      [`finances.${firebaseUser.uid}`]: { userId: firebaseUser.uid, userName: firebaseUser.displayName || userProfile?.name || 'Teammate', status: 'joined', contributed: 0, createdAt: new Date().toISOString() }
     });
-  }, [activeTeamId, firebaseUser, db]);
+  }, [activeTeamId, firebaseUser, db, userProfile]);
 
   const confirmExternalDonation = useCallback(async (fundId: string, donationId: string, amount: number) => {
     if (!activeTeamId || !db) return;
