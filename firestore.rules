@@ -84,7 +84,7 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if true; 
       allow create: if isSignedIn();
-      allow update, delete: if isTeamStaff(teamId);
+      allow update, delete: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
 
       match /members/{memberId} {
         allow read: if true; 
@@ -98,12 +98,12 @@ service cloud.firestore {
 
       match /documents/{docId} {
         allow read: if true;
-        allow write: if isTeamStaff(teamId);
+        allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
       match /events/{eventId} {
         allow read: if true;
-        allow write: if isTeamStaff(teamId);
+        allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
       match /volunteers/{oppId} {
@@ -113,40 +113,40 @@ service cloud.firestore {
 
       match /fundraising/{fundId} {
         allow read: if true;
-        allow write: if isTeamStaff(teamId);
+        allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
         
         match /donations/{donationId} {
           allow read: if true;
           allow create: if true; 
-          allow update: if isTeamStaff(teamId);
+          allow update: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
         }
       }
 
       match /feedPosts/{postId} {
         allow read: if true;
-        allow create: if isTeamStaff(teamId);
-        allow update, delete: if isTeamStaff(teamId);
+        allow create: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
+        allow update, delete: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
         
         match /comments/{commentId} {
           allow read: if true;
           allow create: if isSignedIn();
-          allow delete: if isTeamStaff(teamId) || isOwner(request.auth.uid);
+          allow delete: if isTeamStaff(teamId) || isOwner(request.auth.uid) || teamId.matches('^demo_.*');
         }
       }
 
       match /alerts/{alertId} {
-        allow read: if isTeamMember(teamId);
-        allow write: if isTeamStaff(teamId);
+        allow read: if true;
+        allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
       match /games/{gameId} {
-        allow read: if isTeamMember(teamId);
-        allow write: if isTeamStaff(teamId);
+        allow read: if true;
+        allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
       match /drills/{drillId} {
-        allow read: if isTeamMember(teamId);
-        allow write: if isTeamStaff(teamId);
+        allow read: if true;
+        allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
       match /groupChats/{chatId} {
@@ -161,7 +161,7 @@ service cloud.firestore {
       match /files/{fileId} {
         allow read: if true;
         allow create: if true;
-        allow update, delete: if isTeamStaff(teamId);
+        allow update, delete: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
     }
 

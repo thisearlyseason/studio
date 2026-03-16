@@ -150,7 +150,7 @@ export default function FundraisingPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Squad Capital</Badge>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Fundraising</h1>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground">Fundraising</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Institutional Capital Mobilization</p>
         </div>
         {isStaff && (
@@ -234,7 +234,7 @@ export default function FundraisingPage() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-3xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{fund.title}</h3>
+                  <h3 className="text-3xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors uppercase">{fund.title}</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <Clock className="h-3 w-3 text-muted-foreground" />
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -267,7 +267,7 @@ export default function FundraisingPage() {
           );
         })}
         {displayedCampaigns.length === 0 && (
-          <div className="col-span-full py-32 text-center border-2 border-dashed rounded-[3rem] bg-muted/10 opacity-40">
+          <div className="col-span-full py-32 text-center border-2 border-dashed rounded-[3rem] bg-muted/10 opacity-40 text-foreground">
             <BarChart3 className="h-16 w-16 mx-auto mb-4" />
             <p className="text-sm font-black uppercase tracking-widest">No strategies found in this sector.</p>
           </div>
