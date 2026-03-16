@@ -564,7 +564,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return ['Coach', 'Assistant Coach', 'Team Representative', 'Manager'].includes(currentMember?.position || '');
   }, [activeTeam, firebaseUser, members]);
 
-  // 4. Tactical Methods (useCallback hooks)
+  const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || ''), [userProfile?.activePlanId]);
+  const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
+
+  // 4. Tactical Methods
   const getRecruitingProfile = useCallback(async (playerId: string) => {
     if (!playerId || !db) return null;
     const s = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'));
@@ -942,7 +945,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [db, activeTeam]);
 
   const hideChatForUser = useCallback(async (chatId: string) => {
-    // Hidden locally
+    // Logic for hiding chat locally
   }, []);
 
   const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => {
@@ -987,7 +990,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
     isStaff,
     isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
-    isSuperAdmin: userProfile?.email === 'thisearlyseason@gmail.com', isClubManager: ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || ''),
+    isSuperAdmin, isClubManager,
     householdEvents, householdBalance, myChildren, plans, proQuotaStatus: { current: 0, limit: 0, remaining: 0, exceeded: false },
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true),
     hasFeature: (id: string) => true, alerts, unreadAlertsCount,
@@ -1019,7 +1022,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }), [
     userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser, db, 
     householdEvents, householdBalance, myChildren, plans, isPaywallOpen, isSeedingDemo, seenAlertIds, alerts, unreadAlertsCount, isStaff,
-    getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
+    isSuperAdmin, isClubManager, getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
     getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,
     toggleRecruitingProfile, updateStaffEvaluation, getStaffEvaluation, createNewTeam, joinTeamWithCode,

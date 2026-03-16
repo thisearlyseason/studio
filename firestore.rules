@@ -29,25 +29,25 @@ service cloud.firestore {
     }
 
     // --- Global Infrastructure ---
-    // Simplified recursive matching for authenticated organizational access
+    // Using recursive wildcards to ensure authenticated organizational access to subcollections
 
     match /team_memberships/{id} {
       allow read, write: if isSignedIn();
     }
 
-    match /teams/{allPaths=**} {
+    match /teams/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /leagues/{allPaths=**} {
+    match /leagues/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /players/{allPaths=**} {
+    match /players/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /facilities/{allPaths=**} {
+    match /facilities/{document=**} {
       allow read, write: if isSignedIn();
     }
 
