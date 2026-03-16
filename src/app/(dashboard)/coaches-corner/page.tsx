@@ -38,7 +38,8 @@ import {
   UserPlus,
   ArrowUpRight,
   Download,
-  Share2
+  Share2,
+  Play
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -55,6 +56,8 @@ import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const DEFAULT_PROTOCOLS = [
   { id: 'default_medical', title: 'Medical Clearance', type: 'waiver' },
@@ -177,7 +180,7 @@ function RecruitingProfileManager({ member }: { member: Member }) {
 
         <aside className="space-y-6">
           <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-8 space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-6 opacity-10 -rotate-12"><Target className="h-24 w-24" /></div>
+            <div className="absolute top-0 right-0 p-6 opacity-10 -rotate-12 pointer-events-none"><Target className="h-24 w-24" /></div>
             <div className="relative z-10 space-y-4">
               <Badge className="bg-primary text-white border-none font-black text-[8px] h-5 px-3">PIPELINE STATUS</Badge>
               <h4 className="text-xl font-black uppercase">{profile.status || 'PROSPECTING'}</h4>
