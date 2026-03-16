@@ -1,12 +1,3 @@
-/**
- * SquadForge Security Rules
- *
- * Core Philosophy:
- * This ruleset enforces a strict membership and ownership model. Data access is primarily 
- * governed by a user's presence in a team (verified via a membership subcollection) or 
- * direct document ownership.
- */
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -21,69 +12,42 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    function isTeamMember(teamId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/teams/$(teamId)/teamMembers/$(request.auth.uid));
-    }
-
-    function isTeamAdmin(teamId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/teams/$(teamId)/admins/$(request.auth.uid));
-    }
-
     // --- Collection Rules ---
 
     match /userProfiles/{userId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if false;
+      allow read, write: if isOwner(userId);
+    }
 
-      match /hiddenChats/{chatId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
-        allow delete: if isExistingOwner(userId);
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      match /teamMemberships/{tid} {
+        allow read, write: if isOwner(userId);
       }
     }
 
     match /teams/{teamId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isTeamAdmin(teamId);
-      
+      allow read, write: if isSignedIn();
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
     match /leagues/{leagueId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      
+      allow read, write: if isSignedIn();
       match /{allPaths=**} {
-        allow get, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
     match /facilities/{facilityId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
-      
-      match /fields/{fieldId} {
+      allow read, write: if isSignedIn();
+      match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
     match /players/{playerId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
-      
+      allow read, write: if isSignedIn();
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
