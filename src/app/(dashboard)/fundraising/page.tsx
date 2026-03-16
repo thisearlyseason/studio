@@ -279,46 +279,46 @@ export default function FundraisingPage() {
           <DialogTitle className="sr-only">Campaign Deployment Strategy</DialogTitle>
           <DialogDescription className="sr-only">Configure multi-channel payment protocols for fundraising</DialogDescription>
           <div className="h-2 bg-primary w-full" />
-          <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
+          <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar text-foreground">
             <DialogHeader>
               <div className="flex items-center gap-4 mb-2">
                 <div className="bg-primary/10 p-3 rounded-2xl text-primary"><Zap className="h-6 w-6" /></div>
                 <div>
-                  <DialogTitle className="text-3xl font-black uppercase tracking-tight">Campaign Strategy</DialogTitle>
+                  <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Campaign Strategy</DialogTitle>
                   <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Deploy a new capital mobilization strategy</DialogDescription>
                 </div>
               </div>
             </DialogHeader>
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Campaign Title</Label>
-                <Input placeholder="e.g. 2024 Nationals Travel Fund" value={newFund.title} onChange={e => setNewFund({...newFund, title: e.target.value})} className="h-14 rounded-2xl border-2 font-bold focus:border-primary/20 transition-all shadow-inner" />
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Campaign Title</Label>
+                <Input placeholder="e.g. 2024 Nationals Travel Fund" value={newFund.title} onChange={e => setNewFund({...newFund, title: e.target.value})} className="h-14 rounded-2xl border-2 font-bold focus:border-primary/20 transition-all shadow-inner text-foreground" />
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Goal ($)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Goal ($)</Label>
                   <Input type="number" value={newFund.goal} onChange={e => setNewFund({...newFund, goal: e.target.value})} className="h-14 rounded-2xl border-2 font-black text-xl text-primary" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Deadline</Label>
-                  <Input type="date" value={newFund.deadline} onChange={e => setNewFund({...newFund, deadline: e.target.value})} className="h-14 rounded-2xl border-2 font-black" />
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Deadline</Label>
+                  <Input type="date" value={newFund.deadline} onChange={e => setNewFund({...newFund, deadline: e.target.value})} className="h-14 rounded-2xl border-2 font-black text-foreground" />
                 </div>
               </div>
               
               <div className="space-y-4 pt-4 border-t">
-                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Configure Payment Protocol</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Configure Payment Protocol</Label>
                 <RadioGroup value={configMethod} onValueChange={(v: any) => setConfigMethod(v)} className="grid grid-cols-2 gap-4">
                   <div className={cn("p-4 rounded-xl border-2 transition-all cursor-pointer", configMethod === 'external' ? "border-primary bg-primary/5 shadow-sm" : "border-muted")} onClick={() => setConfigMethod('external')}>
                     <div className="flex items-center gap-2 mb-1">
                       <RadioGroupItem value="external" id="c_ext" />
-                      <Label htmlFor="c_ext" className="font-black text-[10px] uppercase cursor-pointer">Digital Hub</Label>
+                      <Label htmlFor="c_ext" className="font-black text-[10px] uppercase cursor-pointer text-foreground">Digital Hub</Label>
                     </div>
                     <p className="text-[8px] font-medium text-muted-foreground uppercase">External redirect</p>
                   </div>
                   <div className={cn("p-4 rounded-xl border-2 transition-all cursor-pointer", configMethod === 'e-transfer' ? "border-primary bg-primary/5 shadow-sm" : "border-muted")} onClick={() => setConfigMethod('e-transfer')}>
                     <div className="flex items-center gap-2 mb-1">
                       <RadioGroupItem value="e-transfer" id="c_et" />
-                      <Label htmlFor="c_et" className="font-black text-[10px] uppercase cursor-pointer">E-Transfer</Label>
+                      <Label htmlFor="c_et" className="font-black text-[10px] uppercase cursor-pointer text-foreground">E-Transfer</Label>
                     </div>
                     <p className="text-[8px] font-medium text-muted-foreground uppercase">Manual verification</p>
                   </div>
@@ -326,21 +326,21 @@ export default function FundraisingPage() {
 
                 {configMethod === 'external' && (
                   <div className="space-y-2 animate-in slide-in-from-top-2">
-                    <Label className="text-[10px] font-black uppercase ml-1">Digital Payment URL</Label>
-                    <Input placeholder="Stripe, PayPal, Venmo URL..." value={newFund.externalLink} onChange={e => setNewFund({...newFund, externalLink: e.target.value})} className="h-12 rounded-xl border-2 bg-muted/10 font-bold" />
+                    <Label className="text-[10px] font-black uppercase ml-1 text-foreground">Digital Payment URL</Label>
+                    <Input placeholder="Stripe, PayPal, Venmo URL..." value={newFund.externalLink} onChange={e => setNewFund({...newFund, externalLink: e.target.value})} className="h-12 rounded-xl border-2 bg-muted/10 font-bold text-foreground" />
                   </div>
                 )}
 
                 {configMethod === 'e-transfer' && (
                   <div className="space-y-2 animate-in slide-in-from-top-2">
-                    <Label className="text-[10px] font-black uppercase ml-1">E-Transfer Protocol</Label>
-                    <Textarea placeholder="Recipient email and security instructions..." value={newFund.eTransferDetails} onChange={e => setNewFund({...newFund, eTransferDetails: e.target.value})} className="min-h-[80px] rounded-2xl border-2 font-medium bg-muted/10 resize-none p-4" />
+                    <Label className="text-[10px] font-black uppercase ml-1 text-foreground">E-Transfer Protocol</Label>
+                    <Textarea placeholder="Recipient email and security instructions..." value={newFund.eTransferDetails} onChange={e => setNewFund({...newFund, eTransferDetails: e.target.value})} className="min-h-[80px] rounded-2xl border-2 font-medium bg-muted/10 resize-none p-4 text-foreground" />
                   </div>
                 )}
 
                 <div className="flex items-center justify-between p-5 bg-primary/5 rounded-[2rem] border-2 border-dashed border-primary/20 mt-4">
                   <div>
-                    <p className="text-xs font-black uppercase leading-tight">Public Enrollment</p>
+                    <p className="text-xs font-black uppercase leading-tight text-foreground">Public Enrollment</p>
                     <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter mt-1">Enable unauthenticated portal links</p>
                   </div>
                   <Switch checked={newFund.isShareable} onCheckedChange={v => setNewFund({...newFund, isShareable: v})} />
@@ -348,7 +348,7 @@ export default function FundraisingPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all" onClick={handleAddCampaign} disabled={isProcessing || !newFund.title || !newFund.goal}>
+              <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all border-none" onClick={handleAddCampaign} disabled={isProcessing || !newFund.title || !newFund.goal}>
                 {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Authorize Deployment"}
               </Button>
             </DialogFooter>
@@ -366,7 +366,7 @@ export default function FundraisingPage() {
               <div className="flex items-center gap-4">
                 <div className="bg-black p-3 rounded-2xl text-white shadow-lg"><History className="h-6 w-6" /></div>
                 <div>
-                  <DialogTitle className="text-2xl font-black uppercase tracking-tight">Campaign Audit</DialogTitle>
+                  <DialogTitle className="text-2xl font-black uppercase tracking-tight text-foreground">Campaign Audit</DialogTitle>
                   <DialogDescription className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest">Verify and confirm manual receipts</DialogDescription>
                 </div>
               </div>
@@ -375,7 +375,7 @@ export default function FundraisingPage() {
               {selectedFundId && <DonationAuditLedger fundId={selectedFundId} />}
             </div>
             <DialogFooter>
-              <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-[10px] border-2" onClick={() => setIsAuditOpen(false)}>Close Audit Hub</Button>
+              <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-[10px] border-2 text-foreground" onClick={() => setIsAuditOpen(false)}>Close Audit Hub</Button>
             </DialogFooter>
           </div>
         </DialogContent>
