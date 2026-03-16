@@ -1,7 +1,8 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useTeam, League, LeagueInvite, Member, TournamentGame, Facility, Field } from '@/components/providers/team-provider';
+import { useTeam, League, LeagueInvite, Facility, Field, TournamentGame } from '@/components/providers/team-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -78,7 +79,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { generateLeagueSchedule } from '@/lib/scheduler-utils';
 import { Calendar } from '@/components/ui/calendar';
-import { format, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 
 const DAYS_OF_WEEK = [
   { id: 1, label: 'Mon' },
@@ -92,7 +93,7 @@ const DAYS_OF_WEEK = [
 
 function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: League, isOpen: boolean, onOpenChange: (o: boolean) => void }) {
   const { user: authUser } = useUser();
-  const { db, activeTeam, updateLeagueSchedule } = useTeam();
+  const { db, updateLeagueSchedule } = useTeam();
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [config, setConfig] = useState({
@@ -557,7 +558,7 @@ export default function LeaguesPage() {
   const { user: authUser, isAuthResolved } = useUser();
   const { 
     activeTeam, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, 
-    isStaff, isPro, deleteLeagueInvite 
+    isStaff, isPro, deleteLeagueInvite, respondToAssignment 
   } = useTeam();
   const db = useFirestore();
   const router = useRouter();
@@ -572,7 +573,7 @@ export default function LeaguesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('standings');
 
-  const leaguesQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'leagues'), where(`teams.${activeTeam.id}`, '!=', null)) : null, [isAuthResolved, activeTeam?.id, db]);
+  const leaguesQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'leagues'), where('memberTeamIds', 'array-contains', activeTeam.id)) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: rawLeagues, isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
   const leagues = rawLeagues || [];
   const activeLeague = leagues[0] || null;
