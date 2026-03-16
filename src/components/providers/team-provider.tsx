@@ -468,11 +468,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   // --- RECRUITING FUNCTIONS ---
   const getRecruitingProfile = async (playerId: string) => {
+    if (!playerId || !db) return null;
     const s = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'));
     return s.exists() ? (s.data() as RecruitingProfile) : null;
   };
 
   const updateRecruitingProfile = async (playerId: string, data: Partial<RecruitingProfile>) => {
+    if (!playerId || !db) return;
     await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'), {
       ...data,
       playerId,
@@ -481,33 +483,40 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const getAthleticMetrics = async (playerId: string) => {
+    if (!playerId || !db) return null;
     const s = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics'));
     return s.exists() ? (s.data() as AthleticMetrics) : null;
   };
 
   const updateAthleticMetrics = async (playerId: string, data: Partial<AthleticMetrics>) => {
+    if (!playerId || !db) return;
     await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics'), data, { merge: true });
   };
 
   const getPlayerStats = async (playerId: string) => {
+    if (!playerId || !db) return [];
     const s = await getDocs(collection(db, 'players', playerId, 'recruitingProfile', 'stats'));
     return s.docs.map(d => ({ id: d.id, ...d.data() } as PlayerStat));
   };
 
   const addPlayerStat = async (playerId: string, data: Partial<PlayerStat>) => {
+    if (!playerId || !db) return;
     await addDoc(collection(db, 'players', playerId, 'recruitingProfile', 'stats'), clean(data));
   };
 
   const deletePlayerStat = async (playerId: string, statId: string) => {
+    if (!playerId || !db) return;
     await deleteDoc(doc(db, 'players', playerId, 'recruitingProfile', 'stats', statId));
   };
 
   const getEvaluations = async (playerId: string) => {
+    if (!playerId || !db) return [];
     const s = await getDocs(collection(db, 'players', playerId, 'evaluations'));
     return s.docs.map(d => ({ id: d.id, ...d.data() } as PlayerEvaluation));
   };
 
   const addEvaluation = async (playerId: string, data: Partial<PlayerEvaluation>) => {
+    if (!playerId || !db) return;
     await addDoc(collection(db, 'players', playerId, 'evaluations'), clean({
       ...data,
       evaluatorId: firebaseUser?.uid,
@@ -516,20 +525,24 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const getRecruitingContact = async (playerId: string) => {
+    if (!playerId || !db) return null;
     const s = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'contact'));
     return s.exists() ? (s.data() as RecruitingContact) : null;
   };
 
   const updateRecruitingContact = async (playerId: string, data: Partial<RecruitingContact>) => {
+    if (!playerId || !db) return;
     await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'contact'), data, { merge: true });
   };
 
   const getPlayerVideos = async (playerId: string) => {
+    if (!playerId || !db) return [];
     const s = await getDocs(collection(db, 'players', playerId, 'videos'));
     return s.docs.map(d => ({ id: d.id, ...d.data() } as PlayerVideo));
   };
 
   const addPlayerVideo = async (playerId: string, data: Partial<PlayerVideo>) => {
+    if (!playerId || !db) return;
     await addDoc(collection(db, 'players', playerId, 'videos'), clean({
       ...data,
       createdAt: serverTimestamp()
@@ -537,20 +550,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const deletePlayerVideo = async (playerId: string, videoId: string) => {
+    if (!playerId || !db) return;
     await deleteDoc(doc(db, 'players', playerId, 'videos', videoId));
   };
 
   const toggleRecruitingProfile = async (playerId: string, enabled: boolean) => {
+    if (!playerId || !db) return;
     await updateDoc(doc(db, 'players', playerId), { recruitingProfileEnabled: enabled });
   };
 
   const updateStaffEvaluation = async (memberId: string, notes: string) => {
-    if (!activeTeam?.id) return;
+    if (!activeTeam?.id || !db) return;
     await updateDoc(doc(db, 'teams', activeTeam.id, 'members', memberId), { notes });
   };
 
   const getStaffEvaluation = async (memberId: string) => {
-    if (!activeTeam?.id) return '';
+    if (!activeTeam?.id || !db) return '';
     const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'members', memberId));
     return snap.exists() ? (snap.data().notes || '') : '';
   };
@@ -604,7 +619,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [alerts, seenAlertIds]);
 
   const createNewTeam = async (name: string, type: any, pos: string, description?: string, planId?: string) => {
-    if (!firebaseUser) return '';
+    if (!firebaseUser || !db) return '';
     const tid = `team_${Date.now()}`;
     const batch = writeBatch(db);
     
@@ -625,7 +640,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }));
 
     batch.set(doc(db, 'teams', tid, 'members', firebaseUser.uid), clean({
-      id: firebaseUser.uid, userId: firebaseUser.uid, name: firebaseUser.displayName,
+      id: firebaseUser.uid, userId: firebaseUser.uid, playerId: `p_${firebaseUser.uid}`, name: firebaseUser.displayName,
       role: 'Admin', position: pos, joinedAt: new Date().toISOString()
     }));
 
@@ -634,7 +649,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   };
 
   const joinTeamWithCode = async (code: string, playerId: string, position: string) => {
-    if (!firebaseUser) return false;
+    if (!firebaseUser || !db) return false;
     const q = query(collection(db, 'teams'), where('teamCode', '==', code), limit(1));
     const snap = await getDocs(q);
     if (snap.empty) {

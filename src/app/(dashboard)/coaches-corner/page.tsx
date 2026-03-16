@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTeam, TeamDocument, Member, PlayerProfile, RecruitingProfile, AthleticMetrics, PlayerStat, PlayerEvaluation, RecruitingContact, PlayerVideo } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -84,28 +83,38 @@ function RecruitingProfileManager({ member }: { member: Member }) {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!member.playerId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const [p, m, s, e, c, v] = await Promise.all([
-      getRecruitingProfile(member.playerId),
-      getAthleticMetrics(member.playerId),
-      getPlayerStats(member.playerId),
-      getEvaluations(member.playerId),
-      getRecruitingContact(member.playerId),
-      getPlayerVideos(member.playerId)
-    ]);
-    if (p) setProfile(p);
-    if (m) setMetrics(m);
-    setStats(s);
-    setEvaluations(e);
-    if (c) setContact(c);
-    setVideos(v);
-    setLoading(false);
-  };
+    try {
+      const [p, m, s, e, c, v] = await Promise.all([
+        getRecruitingProfile(member.playerId),
+        getAthleticMetrics(member.playerId),
+        getPlayerStats(member.playerId),
+        getEvaluations(member.playerId),
+        getRecruitingContact(member.playerId),
+        getPlayerVideos(member.playerId)
+      ]);
+      if (p) setProfile(p);
+      if (m) setMetrics(m);
+      setStats(s);
+      setEvaluations(e);
+      if (c) setContact(c);
+      setVideos(v);
+    } catch (error) {
+      console.error("Error loading athlete pack:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [member.playerId, getRecruitingProfile, getAthleticMetrics, getPlayerStats, getEvaluations, getRecruitingContact, getPlayerVideos]);
 
-  useEffect(() => { loadData(); }, [member.playerId]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleUpdateProfile = async () => {
+    if (!member.playerId) return;
     await updateRecruitingProfile(member.playerId, profile);
     await updateAthleticMetrics(member.playerId, metrics);
     await updateRecruitingContact(member.playerId, contact);
@@ -114,6 +123,20 @@ function RecruitingProfileManager({ member }: { member: Member }) {
   };
 
   if (loading) return <div className="p-12 text-center animate-pulse"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /><p className="text-[10px] font-black uppercase mt-4">Opening Tactical Folder...</p></div>;
+
+  if (!member.playerId) {
+    return (
+      <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center space-y-6 bg-muted/10 border-2 border-dashed rounded-[3rem] p-10">
+        <ShieldAlert className="h-16 w-16 text-destructive opacity-40" />
+        <div>
+          <h3 className="text-xl font-black uppercase">Identity Link Missing</h3>
+          <p className="text-xs font-bold uppercase tracking-widest mt-1 text-muted-foreground max-w-xs mx-auto">
+            This member does not have a linked player profile. Ensure they joined via a valid recruitment link.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

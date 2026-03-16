@@ -37,9 +37,9 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
 
   return {
     members: [
-      { id: `m1_${teamId}`, userId: `u1_${teamId}`, name: `Jordan Smith ${teamSuffix}`, role: 'Member', position: 'Forward', jersey: '10', medicalClearance: true, amountOwed: 0, feesPaid: true, totalFees: 1250, avatar: `https://picsum.photos/seed/m1${teamId}/150/150`, gradYear: '2026', gpa: '3.9', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo1', notes: 'Elite finisher with explosive first step.', skills: ['Scoring', 'Speed', 'Agility'], achievements: ['State MVP', 'All-City First Team'] },
-      { id: `m2_${teamId}`, userId: `u2_${teamId}`, name: `Alex Rivera ${teamSuffix}`, role: 'Member', position: 'Midfield', jersey: '22', medicalClearance: true, amountOwed: 450, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m2${teamId}/150/150`, gradYear: '2027', gpa: '3.7', school: 'Heights High', highlightUrl: 'https://youtube.com/watch?v=demo2', notes: 'Visionary playmaker with exceptional passing range.', skills: ['Vision', 'Passing', 'Control'], achievements: ['District Champion'] },
-      { id: `m3_${teamId}`, userId: `u3_${teamId}`, name: `Sam Taylor ${teamSuffix}`, role: 'Member', position: 'Defender', jersey: '04', medicalClearance: false, amountOwed: 1250, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m3${teamId}/150/150`, gradYear: '2026', gpa: '3.8', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo3', notes: 'Physical presence with strong aerial capability.', skills: ['Strength', 'Tackling', 'Heading'], achievements: ['Defensive Player of Year'] }
+      { id: `m1_${teamId}`, userId: `u1_${teamId}`, playerId: `p_u1_${teamId}`, name: `Jordan Smith ${teamSuffix}`, role: 'Member', position: 'Forward', jersey: '10', medicalClearance: true, amountOwed: 0, feesPaid: true, totalFees: 1250, avatar: `https://picsum.photos/seed/m1${teamId}/150/150`, gradYear: '2026', gpa: '3.9', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo1', notes: 'Elite finisher with explosive first step.', skills: ['Scoring', 'Speed', 'Agility'], achievements: ['State MVP', 'All-City First Team'] },
+      { id: `m2_${teamId}`, userId: `u2_${teamId}`, playerId: `p_u2_${teamId}`, name: `Alex Rivera ${teamSuffix}`, role: 'Member', position: 'Midfield', jersey: '22', medicalClearance: true, amountOwed: 450, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m2${teamId}/150/150`, gradYear: '2027', gpa: '3.7', school: 'Heights High', highlightUrl: 'https://youtube.com/watch?v=demo2', notes: 'Visionary playmaker with exceptional passing range.', skills: ['Vision', 'Passing', 'Control'], achievements: ['District Champion'] },
+      { id: `m3_${teamId}`, userId: `u3_${teamId}`, playerId: `p_u3_${teamId}`, name: `Sam Taylor ${teamSuffix}`, role: 'Member', position: 'Defender', jersey: '04', medicalClearance: false, amountOwed: 1250, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m3${teamId}/150/150`, gradYear: '2026', gpa: '3.8', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo3', notes: 'Physical presence with strong aerial capability.', skills: ['Strength', 'Tackling', 'Heading'], achievements: ['Defensive Player of Year'] }
     ],
     games: [
       { id: `g1_${teamId}`, opponent: 'Tigers', date: yesterday, myScore: 12, opponentScore: 8, result: 'Win', location: 'City Arena' }
@@ -49,7 +49,7 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
       { id: `e2_${teamId}`, title: `Tactical Drill Session ${teamSuffix}`, eventType: 'practice', date: later, startTime: '4:00 PM', location: 'Field 2', description: 'Focused on set pieces.' }
     ],
     drills: [
-      { id: `d1_${teamId}`, title: `Zone Defense Protocol ${teamSuffix}`, description: 'Master the 3-2 alignment.', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+      { id: `d1_${teamId}`, title: `Zone Defense Protocol ${teamSuffix}`, description: 'Master the 3-2 alignment.', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9XcQp8' }
     ],
     scouting: [
       { id: `s1_${teamId}`, opponentName: 'The Jaguars', strengths: 'Fast transitions', weaknesses: 'High defensive line', keysToVictory: 'Exploit long balls.', date: yesterday }
@@ -126,7 +126,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     }));
 
     batch.set(doc(db, 'teams', tid, 'members', userId), clean({
-      id: userId, userId, teamId: tid, name: `Guest ${pos}`, role, position: pos, jersey: isParentDemo ? 'HQ' : '22',
+      id: userId, userId, teamId: tid, playerId: `p_${userId}`, name: `Guest ${pos}`, role, position: pos, jersey: isParentDemo ? 'HQ' : '22',
       joinedAt: now, isDemo: true, avatar: `https://picsum.photos/seed/${userId}/150/150`,
       notes: 'Primary tactical coordinator for the demo squad.'
     }));
