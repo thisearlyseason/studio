@@ -115,6 +115,9 @@ service cloud.firestore {
     match /{path=**}/invites/{inviteId} {
       allow read: if isSignedIn();
     }
+    match /{path=**}/registrationEntries/{entryId} {
+      allow read, write: if isSignedIn();
+    }
 
   }
 }

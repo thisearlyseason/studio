@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -278,7 +277,7 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
         </div>
         <div className="bg-muted/50 p-1 rounded-xl border flex items-center shadow-inner">
           <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('list')} className="h-8 px-4 rounded-lg font-black text-[10px] uppercase"><List className="h-3.5 w-3.5 mr-2" /> List</Button>
-          <Button variant={viewMode === 'calendar' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('calendar')} className="h-8 px-4 rounded-lg font-black text-[10px] uppercase"><CalendarIcon className="h-3.5 w-3.5 mr-2" /> Calendar</Button>
+          <Button variant={viewMode === 'calendar' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('calendar')} className="h-8 px-4 rounded-lg font-black text-[10px] uppercase"><CalendarDaysIcon className="h-3.5 w-3.5 mr-2" /> Calendar</Button>
         </div>
       </div>
 
@@ -649,7 +648,7 @@ export default function LeaguesPage() {
       {activeLeague ? (
         <div className="space-y-8 animate-in fade-in duration-700">
           <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-black text-white relative group">
-            <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700"><Shield className="h-48 w-48" /></div>
+            <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700"><ShieldCheck className="h-48 w-48" /></div>
             <CardContent className="p-10 relative z-10">
               <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="flex items-center gap-6">
@@ -774,12 +773,12 @@ export default function LeaguesPage() {
         <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl p-0 overflow-hidden bg-white text-foreground">
           <DialogTitle className="sr-only">League Architect Protocol</DialogTitle>
           <DialogDescription className="sr-only">Initialize a new competitive league hub</DialogDescription>
-          <DialogHeader className="p-8 lg:p-10 pb-4">
-            <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">League Architect</DialogTitle>
-            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Initialize Competitive Infrastructure</DialogDescription>
-          </DialogHeader>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-10 space-y-8">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">League Architect</DialogTitle>
+              <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Initialize Competitive Infrastructure</DialogDescription>
+            </DialogHeader>
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">League Name</Label>
@@ -806,12 +805,12 @@ export default function LeaguesPage() {
         <DialogContent className="rounded-[3rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
           <DialogTitle className="sr-only">Recruitment Pipeline Protocol</DialogTitle>
           <DialogDescription className="sr-only">Enroll participating teams via multiple channels</DialogDescription>
-          <DialogHeader className="p-8 lg:p-12 pb-4">
-            <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Recruit Teams</DialogTitle>
-            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Multi-Channel Enrollment Suite</DialogDescription>
-          </DialogHeader>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar text-foreground">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Recruit Teams</DialogTitle>
+              <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Multi-Channel Enrollment Suite</DialogDescription>
+            </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div className="space-y-4">
