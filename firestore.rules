@@ -39,16 +39,7 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    // Hardened League Rules to allow listing global invitations and registration pools
-    match /leagues/{leagueId} {
-      allow read, write: if isSignedIn();
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-    
-    // Explicit match for the global shared document
-    match /leagues/global/{allPaths=**} {
+    match /leagues/{document=**} {
       allow read, write: if isSignedIn();
     }
 
