@@ -31,20 +31,32 @@ service cloud.firestore {
     // --- Global Infrastructure ---
     // Normalized to recursive matching for consistent authenticated access
 
-    match /leagues/{allPaths=**} {
+    match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
-    match /teams/{allPaths=**} {
+    match /teams/{teamId} {
       allow read, write: if isSignedIn();
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
-    match /players/{allPaths=**} {
+    match /players/{playerId} {
       allow read, write: if isSignedIn();
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
-    match /facilities/{allPaths=**} {
+    match /facilities/{facilityId} {
       allow read, write: if isSignedIn();
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
     match /team_memberships/{id} {
