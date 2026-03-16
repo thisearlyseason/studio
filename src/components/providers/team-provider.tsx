@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -553,6 +554,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: plansData } = useCollection(plansQuery);
   const plans = plansData || [];
 
+  // --- DERIVED STATE ---
+  const seenAlertIds = useMemo(() => userProfile?.seenAlertIds || [], [userProfile?.seenAlertIds]);
+  const unreadAlertsCount = useMemo(() => alerts.filter(a => !seenAlertIds.includes(a.id)).length, [alerts, seenAlertIds]);
+
   // --- TACTICAL METHODS ---
 
   const getRecruitingProfile = useCallback(async (playerId: string) => {
@@ -563,7 +568,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const updateRecruitingProfile = useCallback(async (playerId: string, data: Partial<RecruitingProfile>) => {
     if (!playerId || !db) return;
-    await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'), { ...data, playerId, updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'), clean({ ...data, playerId, updatedAt: serverTimestamp() }), { merge: true });
   }, [db]);
 
   const getAthleticMetrics = useCallback(async (playerId: string) => {
@@ -574,7 +579,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const updateAthleticMetrics = useCallback(async (playerId: string, data: Partial<AthleticMetrics>) => {
     if (!playerId || !db) return;
-    await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics'), data, { merge: true });
+    await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics'), clean(data), { merge: true });
   }, [db]);
 
   const getPlayerStats = useCallback(async (playerId: string) => {
@@ -612,7 +617,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const updateRecruitingContact = useCallback(async (playerId: string, data: Partial<RecruitingContact>) => {
     if (!playerId || !db) return;
-    await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'contact'), data, { merge: true });
+    await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'contact'), clean(data), { merge: true });
   }, [db]);
 
   const getPlayerVideos = useCallback(async (playerId: string) => {
@@ -908,6 +913,69 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (firebaseUser && alerts.length > 0 && db) await updateDoc(doc(db, 'users', firebaseUser.uid), { seenAlertIds: alerts.map(a => a.id) });
   }, [db, firebaseUser, alerts]);
 
+  const markMediaAsViewed = useCallback(async (fileId: string) => {
+    // Placeholder implementation
+  }, []);
+
+  const upgradeChildToLogin = useCallback(async (childId: string) => {
+    if (db) await updateDoc(doc(db, 'players', childId), { hasLogin: true });
+  }, [db]);
+
+  const registerChild = useCallback(async (first: string, last: string, dob: string) => {
+    if (firebaseUser && db) {
+      await addDoc(collection(db, 'players'), clean({ 
+        firstName: first, lastName: last, dateOfBirth: dob, 
+        parentId: firebaseUser.uid, isMinor: true, hasLogin: false, 
+        createdAt: new Date().toISOString() 
+      }));
+    }
+  }, [db, firebaseUser]);
+
+  const deleteChat = useCallback(async (chatId: string) => {
+    if (activeTeam && db) await deleteDoc(doc(db, 'teams', activeTeam.id, 'groupChats', chatId));
+  }, [db, activeTeam]);
+
+  const hideChatForUser = useCallback(async (chatId: string) => {
+    // Logic to hide chat for specific user (e.g. update a local user mapping)
+  }, []);
+
+  const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => {
+    if (!activeTeam || !firebaseUser || !db) return;
+    const ref = doc(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages', messageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
+    const poll = snap.data().poll;
+    const current = poll.voters?.[firebaseUser.uid];
+    const u: any = { [`poll.voters.${firebaseUser.uid}`]: optionIdx };
+    if (current === undefined) { 
+      u[`poll.options.${optionIdx}.votes`] = increment(1); 
+      u['poll.totalVotes'] = increment(1); 
+    }
+    else if (current !== optionIdx) { 
+      u[`poll.options.${current}.votes`] = increment(-1); 
+      u[`poll.options.${optionIdx}.votes`] = increment(1); 
+    }
+    await updateDoc(ref, u);
+  }, [db, activeTeam, firebaseUser]);
+
+  const updateChat = useCallback(async (chatId: string, data: any) => {
+    if (activeTeam && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', chatId), clean(data));
+  }, [db, activeTeam]);
+
+  const deployClubProtocol = useCallback(async (data: any, teamIds: string[]) => {
+    if (!db) return;
+    const batch = writeBatch(db);
+    teamIds.forEach(tid => {
+      const docRef = doc(db, 'teams', tid, 'documents', `club_${Date.now()}`);
+      batch.set(docRef, clean({ ...data, isClubMaster: true, createdAt: new Date().toISOString() }));
+    });
+    await batch.commit();
+  }, [db]);
+
+  const deleteTeam = useCallback(async (teamId: string) => {
+    if (db) await deleteDoc(doc(db, 'teams', teamId));
+  }, [db]);
+
   const contextValue = useMemo(() => ({
     db, user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams: teamsRaw, isTeamsLoading, members, isMembersLoading,
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
@@ -916,7 +984,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isSuperAdmin: userProfile?.email === 'thisearlyseason@gmail.com', isClubManager: ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || ''),
     householdEvents, householdBalance, myChildren, plans, proQuotaStatus: { current: 0, limit: 0, remaining: 0, exceeded: false },
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true),
-    hasFeature: (id: string) => true, alerts, unreadAlertsCount: alerts.filter(a => !seenAlertIds.includes(a.id)).length,
+    hasFeature: (id: string) => true, alerts, unreadAlertsCount,
     markAlertAsSeen, markAllAlertsAsSeen, seenAlertIds, isSeedingDemo, setIsSeedingDemo,
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
@@ -944,7 +1012,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     exportTournamentStandingsCSV: async () => {}
   }), [
     userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser, db, 
-    householdEvents, householdBalance, myChildren, plans, isPaywallOpen, isSeedingDemo, seenAlertIds, alerts,
+    householdEvents, householdBalance, myChildren, plans, isPaywallOpen, isSeedingDemo, seenAlertIds, alerts, unreadAlertsCount,
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
     getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,
