@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -664,7 +663,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return snap.exists() ? (snap.data().notes || '') : '';
   }, [db, activeTeam?.id]);
 
-  // --- SQUAD & ADMINISTRATIVE ACTIONS ---
   const respondToAssignment = useCallback(async (contextId: string, entryId: string, status: 'accepted' | 'declined') => {
     if (!db) return;
     await updateDoc(doc(db, 'leagues', contextId, 'registrationEntries', entryId), { status });
@@ -1032,7 +1030,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     exportAttendanceCSV: async () => { toast({ title: "RSVP Ledger Generated" }); },
     exportTournamentStandingsCSV: async () => { toast({ title: "Leaderboard Exported" }); },
     addIncident: async (data: any) => { if (activeTeam?.id && firebaseUser) await addDoc(collection(db, 'teams', activeTeam.id, 'incidents'), clean({ ...data, teamId: activeTeam.id, teamName: activeTeam.name, reportedBy: firebaseUser.uid, createdAt: new Date().toISOString() })); },
-    saveLeaguePayment: async (lId: string, tId: string, data: any) => { await updateDoc(doc(db, 'leagues', lId), { [`finances.${tId}.payments`]: arrayUnion(data), [`finances.${tId}.totalPaid`]: increment(data.amount) }); },
+    addLeaguePayment: async (lId: string, tId: string, data: any) => { await updateDoc(doc(db, 'leagues', lId), { [`finances.${tId}.payments`]: arrayUnion(data), [`finances.${tId}.totalPaid`]: increment(data.amount) }); },
+    updateLeagueGlobalFees: async (leagueId: string, fees: any) => { if(db) await updateDoc(doc(db, 'leagues', leagueId), { globalFees: clean(fees) }); },
     addRegistration: async (teamId: string, eventId: string, data: any) => { await addDoc(collection(db, 'teams', teamId, 'events', eventId, 'registrations'), clean({ ...data, createdAt: new Date().toISOString() })); return true; },
     formatTime: (iso: string) => format(new Date(iso), 'h:mm a'),
     assignManualPlan: async (uid: string, pid: string, lim: number) => { await updateDoc(doc(db, 'users', uid), { activePlanId: pid, proTeamLimit: lim, planSource: 'manual' }); }
