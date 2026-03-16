@@ -530,7 +530,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   }, [firebaseUser?.uid, db, isAuthResolved]);
 
-  // 2. State and Derived Values (Defined before functions that use them)
+  // 2. Base Queries & Data
   const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
   const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
   const teamsRaw = useMemo(() => (teamsData || []).map(m => ({ ...m, id: m.teamId || m.id, name: m.name || m.teamName || 'Squad' })), [teamsData]);
@@ -553,6 +553,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: plansData } = useCollection(plansQuery);
   const plans = plansData || [];
 
+  // 3. Derived State
   const seenAlertIds = useMemo(() => userProfile?.seenAlertIds || [], [userProfile?.seenAlertIds]);
   const unreadAlertsCount = useMemo(() => alerts.filter(a => !seenAlertIds.includes(a.id)).length, [alerts, seenAlertIds]);
 
@@ -563,7 +564,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return ['Coach', 'Assistant Coach', 'Team Representative', 'Manager'].includes(currentMember?.position || '');
   }, [activeTeam, firebaseUser, members]);
 
-  // 3. Tactical Methods (useCallback hooks)
+  // 4. Tactical Methods (useCallback hooks)
   const getRecruitingProfile = useCallback(async (playerId: string) => {
     if (!playerId || !db) return null;
     const s = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'));
