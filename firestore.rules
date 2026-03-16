@@ -31,8 +31,7 @@ service cloud.firestore {
     // --- ACL Hub ---
 
     match /team_memberships/{membershipId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     // --- Team & Roster Hubs ---
