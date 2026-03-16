@@ -29,7 +29,7 @@ service cloud.firestore {
     }
 
     // --- Global Infrastructure ---
-    // Normalized to recursive matching for consistent authenticated access
+    // Normalized to recursive matching for consistent authenticated access across the hierarchy
 
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
