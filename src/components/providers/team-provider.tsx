@@ -507,10 +507,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [householdBalance, setHouseholdBalance] = useState(0);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
-  // 1. Initial State Derived Variables
-  const seenAlertIds = useMemo(() => userProfile?.seenAlertIds || [], [userProfile?.seenAlertIds]);
-
-  // 2. Core Profile Listener
+  // Core Listeners
   useEffect(() => {
     if (!firebaseUser?.uid || !db || !isAuthResolved) return;
     return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
@@ -533,7 +530,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   }, [firebaseUser?.uid, db, isAuthResolved]);
 
-  // 3. Base Queries & Data
+  // Base Derived State
+  const seenAlertIds = useMemo(() => userProfile?.seenAlertIds || [], [userProfile?.seenAlertIds]);
+
   const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
   const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
   const teamsRaw = useMemo(() => (teamsData || []).map(m => ({ ...m, id: m.teamId || m.id, name: m.name || m.teamName || 'Squad' })), [teamsData]);
@@ -568,7 +567,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || ''), [userProfile?.activePlanId]);
   const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
 
-  // 4. Tactical Methods (useCallback definitions)
+  // Tactical Methods
   const getRecruitingProfile = useCallback(async (playerId: string) => {
     if (!playerId || !db) return null;
     const s = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'));
@@ -712,13 +711,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const signUpForFundraising = useCallback(async (fundId: string) => {
     if (!activeTeam?.id || !firebaseUser || !db) return;
     await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), {
-      [`finances.${firebaseUser.uid}`]: {
-        userId: firebaseUser.uid,
-        userName: firebaseUser.displayName,
-        status: 'joined',
-        contributed: 0,
-        createdAt: new Date().toISOString()
-      }
+      [`finances.${firebaseUser.uid}`]: { userId: firebaseUser.uid, userName: firebaseUser.displayName, status: 'joined', contributed: 0, createdAt: new Date().toISOString() }
     });
   }, [activeTeam?.id, firebaseUser, db]);
 
@@ -788,10 +781,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (activeTeam?.id && db) {
       const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'equipment', id));
       if (snap.exists()) {
-        const qty = snap.data().assignments[userId]?.quantity || 0;
+        const assignments = snap.data().assignments || {};
+        const qty = assignments[userId]?.quantity || 0;
         const batch = writeBatch(db);
         batch.update(doc(db, 'teams', activeTeam.id, 'equipment', id), {
-          [`assignments.${userId}`]: arrayRemove(snap.data().assignments[userId]) as any,
+          [`assignments.${userId}`]: delete assignments[userId] && assignments,
           availableQuantity: increment(qty)
         });
         await batch.commit();
@@ -986,26 +980,44 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (db) await deleteDoc(doc(db, 'teams', teamId));
   }, [db]);
 
-  // 5. Build Context
+  const markMediaAsViewed = useCallback(async (fileId: string) => {
+    // Logic for marking media viewed
+  }, []);
+
+  const manageSubscription = useCallback(async () => {
+    // Subscription management logic
+  }, []);
+
+  const resolveQuota = useCallback(async (selectedTeamIds: string[]) => {
+    // Quota resolution logic
+  }, []);
+
+  const exportAttendanceCSV = useCallback(async (eventId: string) => {
+    // Export attendance logic
+  }, []);
+
+  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => {
+    // Export standings logic
+  }, []);
+
+  const formatTime = useCallback((iso: string) => format(new Date(iso), 'h:mm a'), []);
+
   const contextValue = useMemo(() => ({
     db, user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams: teamsRaw, isTeamsLoading, members, isMembersLoading,
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
-    isStaff,
-    isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
-    isSuperAdmin, isClubManager,
-    householdEvents, householdBalance, myChildren, plans, proQuotaStatus: { current: 0, limit: 0, remaining: 0, exceeded: false },
+    isStaff, isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
+    isSuperAdmin, isClubManager, householdEvents, householdBalance, myChildren, plans, proQuotaStatus: { current: 0, limit: 0, remaining: 0, exceeded: false },
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true),
     hasFeature: (id: string) => true, alerts, unreadAlertsCount,
     markAlertAsSeen, markAllAlertsAsSeen, seenAlertIds, isSeedingDemo, setIsSeedingDemo,
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
     getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,
-    toggleRecruitingProfile, updateStaffEvaluation, getStaffEvaluation,
-    createNewTeam, joinTeamWithCode, createLeague, signUpForVolunteer, addEquipmentItem,
-    respondToAssignment, assignEntryToTeam, toggleRegistrationPaymentStatus, updateLeagueSchedule,
-    inviteTeamToLeague, manuallyAddTeamToLeague, deleteLeagueInvite, updateLeagueTeamDetails,
-    addLeaguePayment, updateLeagueGlobalFees, deleteChat, hideChatForUser, votePoll, updateChat,
-    deployClubProtocol, deleteTeam, markMediaAsViewed: async (fId: string) => {}, upgradeChildToLogin, registerChild,
+    toggleRecruitingProfile, updateStaffEvaluation, getStaffEvaluation, createNewTeam, joinTeamWithCode,
+    createLeague, signUpForVolunteer, addEquipmentItem, respondToAssignment, assignEntryToTeam, 
+    toggleRegistrationPaymentStatus, updateLeagueSchedule, inviteTeamToLeague, manuallyAddTeamToLeague, 
+    deleteLeagueInvite, updateLeagueTeamDetails, addLeaguePayment, updateLeagueGlobalFees, deleteChat, 
+    hideChatForUser, votePoll, updateChat, deployClubProtocol, deleteTeam, markMediaAsViewed, upgradeChildToLogin, registerChild, markAlertAsSeen, markAllAlertsAsSeen,
     updateUser, updateMember, updateTeamDetails, updateTeamHero, updateTeamPlan,
     signTeamDocument, createTeamDocument, updateTeamDocument, addEvent, updateEvent,
     deleteEvent, updateRSVP, addMessage, resetSquadData, verifyVolunteerHours,
@@ -1016,11 +1028,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     createAlert, deleteAlert, addDrill, addFile, deleteFile, addFacility, deleteFacility,
     addField, deleteField, addVolunteerOpportunity, updateEquipmentItem, deleteEquipmentItem,
     assignEquipment, returnEquipment,
-    formatTime: (iso: string) => format(new Date(iso), 'h:mm a'),
-    manageSubscription: async () => {},
-    resolveQuota: async () => {},
-    exportAttendanceCSV: async () => {},
-    exportTournamentStandingsCSV: async () => {}
+    formatTime, manageSubscription, resolveQuota, exportAttendanceCSV, exportTournamentStandingsCSV
   }), [
     userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser, db, 
     householdEvents, householdBalance, myChildren, plans, isPaywallOpen, isSeedingDemo, seenAlertIds, alerts, unreadAlertsCount, isStaff,
@@ -1031,7 +1039,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     createLeague, signUpForVolunteer, addEquipmentItem, respondToAssignment, assignEntryToTeam, 
     toggleRegistrationPaymentStatus, updateLeagueSchedule, inviteTeamToLeague, manuallyAddTeamToLeague, 
     deleteLeagueInvite, updateLeagueTeamDetails, addLeaguePayment, updateLeagueGlobalFees, deleteChat, 
-    hideChatForUser, votePoll, updateChat, deployClubProtocol, deleteTeam, upgradeChildToLogin, registerChild, markAlertAsSeen, markAllAlertsAsSeen,
+    hideChatForUser, votePoll, updateChat, deployClubProtocol, deleteTeam, upgradeChildToLogin, registerChild,
     updateUser, updateMember, updateTeamDetails, updateTeamHero, updateTeamPlan,
     signTeamDocument, createTeamDocument, updateTeamDocument, addEvent, updateEvent,
     deleteEvent, updateRSVP, addMessage, resetSquadData, verifyVolunteerHours,
@@ -1041,7 +1049,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     signPublicTournamentWaiver, submitMatchScore, submitLeagueMatchScore, disputeMatchScore,
     createAlert, deleteAlert, addDrill, addFile, deleteFile, addFacility, deleteFacility,
     addField, deleteField, addVolunteerOpportunity, updateEquipmentItem, deleteEquipmentItem,
-    assignEquipment, returnEquipment
+    assignEquipment, returnEquipment,
+    formatTime, manageSubscription, resolveQuota, exportAttendanceCSV, exportTournamentStandingsCSV
   ]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
