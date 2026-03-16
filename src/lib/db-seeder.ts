@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -64,6 +63,9 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
     ],
     facilities: [
       { id: `fac1_${teamId}`, name: 'Elite Sports Complex', address: '100 Athlete Way', notes: 'Gate code: 1234', clubId: userId }
+    ],
+    alerts: [
+      { id: `a1_${teamId}`, title: 'Venue Change', message: 'Tomorrow\'s match moved to Court 4 due to maintenance.', audience: 'everyone', createdAt: yesterday, createdBy: userId }
     ]
   };
 };
@@ -112,6 +114,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       parentCommentsEnabled: true, parentChatEnabled: true, createdAt: now, createdBy: userId
     }));
 
+    // SECURITY ACL SYNC
+    batch.set(doc(db, 'team_memberships', `${tid}_${userId}`), clean({
+      teamId: tid, userId, teamName: config.name, role, isPro: config.isPro, joinedAt: now
+    }));
+
     batch.set(doc(db, 'users', userId, 'teamMemberships', tid), clean({
       teamId: tid, teamName: config.name, teamCode: tid.slice(-6).toUpperCase(), role,
       isPro: config.isPro, planId: config.isPro ? actualPlanId : 'starter_squad', isDemo: true, joinedAt: now,
@@ -134,6 +141,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     data.feed.forEach(p => batch.set(doc(db, 'teams', tid, 'feedPosts', p.id), clean({ ...p, teamId: tid })));
     data.documents.forEach(d => batch.set(doc(db, 'teams', tid, 'documents', d.id), clean(d)));
     data.facilities.forEach(f => batch.set(doc(db, 'facilities', f.id), clean(f)));
+    data.alerts.forEach(a => batch.set(doc(db, 'teams', tid, 'alerts', a.id), clean(a)));
 
     if (isParentDemo) {
       const childId = `child_${tid}`;

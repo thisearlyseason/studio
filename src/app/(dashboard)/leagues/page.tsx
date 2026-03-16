@@ -440,8 +440,10 @@ function LeagueFinances({ league }: { league: League }) {
 
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
         <DialogContent className="rounded-3xl border-none shadow-2xl p-8 bg-white text-foreground">
-          <DialogTitle className="text-2xl font-black uppercase">Log Squad Payment</DialogTitle>
-          <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update institutional fiscal ledger</DialogDescription>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase">Log Squad Payment</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update institutional fiscal ledger</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-foreground">Amount ($)</Label>
@@ -462,11 +464,13 @@ function LeagueFinances({ league }: { league: League }) {
 
       <Dialog open={isFeesOpen} onOpenChange={setIsFeesOpen}>
         <DialogContent className="rounded-3xl border-none shadow-2xl p-8 bg-white text-foreground">
-          <DialogTitle className="text-2xl font-black uppercase">League Fee Architect</DialogTitle>
-          <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Configure global registration costs</DialogDescription>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase">League Fee Architect</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Configure global registration costs</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-[10px) font-black uppercase tracking-widest text-foreground">Base Registration Fee ($)</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-foreground">Base Registration Fee ($)</Label>
               <Input type="number" value={feesForm.registration} onChange={e => setFeesForm({...feesForm, registration: e.target.value})} className="h-12 text-lg font-black text-foreground" />
             </div>
           </div>
@@ -531,8 +535,10 @@ function SquadDirectory({ league }: { league: League }) {
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="rounded-[3rem] p-8 max-w-2xl overflow-y-auto max-h-[90vh] bg-white text-foreground">
-          <DialogTitle className="text-2xl font-black uppercase">Squad Metadata</DialogTitle>
-          <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update coach and location data</DialogDescription>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase">Squad Metadata</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Update coach and location data</DialogDescription>
+          </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-foreground">Origin Location</Label><Input value={editForm.origin} onChange={e => setEditForm({...editForm, origin: e.target.value})} className="h-12 border-2 text-foreground" /></div>
             <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-foreground">Coach Name</Label><Input value={editForm.coachName} onChange={e => setEditForm({...editForm, coachName: e.target.value})} className="h-12 border-2 text-foreground" /></div>
@@ -765,14 +771,12 @@ export default function LeaguesPage() {
       {/* CREATE LEAGUE DIALOG */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl p-0 overflow-hidden bg-white text-foreground">
-          <DialogTitle className="sr-only">League Architect Protocol</DialogTitle>
-          <DialogDescription className="sr-only">Initialize new competitive infrastructure</DialogDescription>
+          <DialogHeader className="p-8 lg:p-10 pb-4">
+            <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">League Architect</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Initialize Competitive Infrastructure</DialogDescription>
+          </DialogHeader>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-10 space-y-8">
-            <DialogHeader>
-              <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">League Architect</DialogTitle>
-              <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Initialize Competitive Infrastructure</DialogDescription>
-            </DialogHeader>
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">League Name</Label>
@@ -797,22 +801,12 @@ export default function LeaguesPage() {
       {/* RECRUITMENT DIALOG */}
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
         <DialogContent className="rounded-[3rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
-          <DialogTitle className="sr-only">Recruit Teams</DialogTitle>
-          <DialogDescription className="sr-only">Multi-channel enrollment suite for league recruitment</DialogDescription>
+          <DialogHeader className="p-8 lg:p-12 pb-4">
+            <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Recruit Teams</DialogTitle>
+            <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Multi-Channel Enrollment Suite</DialogDescription>
+          </DialogHeader>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar text-foreground">
-            <DialogHeader>
-              <div className="flex items-center gap-4 mb-2">
-                <div className="bg-primary/10 p-3 rounded-2xl text-primary">
-                  <UserPlus className="h-6 w-6" />
-                </div>
-                <div>
-                  <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Recruit Teams</DialogTitle>
-                  <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Multi-Channel Enrollment Suite</DialogDescription>
-                </div>
-              </div>
-            </DialogHeader>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div className="space-y-4">
@@ -851,7 +845,7 @@ export default function LeaguesPage() {
                 {inviteMethod === 'manual' && (
                   <div className="space-y-4">
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-foreground">Squad Name</Label><Input value={inviteTeamName} onChange={e => setInviteTeamName(e.target.value)} placeholder="e.g. City Tigers" className="h-12 border-2 text-foreground" /></div>
-                    <div className="space-y-2"><Label className="text-[10px) font-black uppercase text-foreground">Coach Contact (Opt)</Label><Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="coach@email.com" className="h-12 border-2 text-foreground" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-foreground">Coach Contact (Opt)</Label><Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="coach@email.com" className="h-12 border-2 text-foreground" /></div>
                     <Button className="w-full h-14 rounded-xl font-black uppercase text-xs shadow-lg hover:bg-primary hover:text-white transition-all border-none" onClick={handleRecruitmentAction} disabled={isProcessing || !inviteTeamName.trim()}>{isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Authorize Manual Entry"}</Button>
                   </div>
                 )}
