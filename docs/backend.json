@@ -1,14 +1,14 @@
 {
   "entities": {
-    "User": {
+    "UserProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
+      "title": "UserProfile",
       "type": "object",
-      "description": "Represents a user account in the SquadForge application, including profile information and notification preferences.",
+      "description": "A user's profile information within the SquadForge application, including personal details and preferences.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the User entity."
+          "description": "Unique identifier for the UserProfile entity."
         },
         "fullName": {
           "type": "string",
@@ -16,25 +16,25 @@
         },
         "email": {
           "type": "string",
-          "description": "The email address of the user, used for login and communication.",
+          "description": "The user's email address.",
           "format": "email"
         },
         "phone": {
           "type": "string",
-          "description": "The optional phone number of the user."
+          "description": "The user's optional phone number."
         },
         "avatarUrl": {
           "type": "string",
-          "description": "The URL to the user's optional profile avatar image.",
+          "description": "URL to the user's optional avatar image.",
           "format": "uri"
         },
         "notificationsEnabled": {
           "type": "boolean",
-          "description": "A flag indicating if the user has globally enabled push notifications."
+          "description": "Indicates if the user has globally enabled push notifications."
         },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp when the user account was created.",
+          "description": "Timestamp when the user profile was created.",
           "format": "date-time"
         }
       },
@@ -50,7 +50,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Team",
       "type": "object",
-      "description": "Represents a sports team or group within the SquadForge application.",
+      "description": "Represents a sports team within the SquadForge application, managed by users.",
       "properties": {
         "id": {
           "type": "string",
@@ -62,20 +62,20 @@
         },
         "sport": {
           "type": "string",
-          "description": "The sport associated with the team (e.g., 'Basketball', 'Soccer')."
+          "description": "The sport associated with the team."
         },
         "teamLogoUrl": {
           "type": "string",
-          "description": "The URL to the team's optional logo image.",
+          "description": "URL to the team's optional logo image.",
           "format": "uri"
         },
         "teamCode": {
           "type": "string",
-          "description": "A unique 6-character alphanumeric code for joining the team."
+          "description": "A unique 6-character alphanumeric code used for joining the team."
         },
         "createdBy": {
           "type": "string",
-          "description": "Reference to the User who created this team. (Relationship: User 1:N Team)"
+          "description": "Reference to the UserProfile ID of the user who created this team. (Relationship: UserProfile 1:N Team)"
         },
         "createdAt": {
           "type": "string",
@@ -86,48 +86,44 @@
       "required": [
         "id",
         "teamName",
-        "sport",
         "teamCode",
         "createdBy",
         "createdAt"
       ]
     },
-    "TeamMembership": {
+    "TeamMember": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "TeamMembership",
+      "title": "TeamMember",
       "type": "object",
-      "description": "Represents a user's membership within a specific team, including their role and team-specific details.",
+      "description": "Represents a specific user's membership within a team, including their role and team-specific details.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the TeamMembership entity."
+          "description": "Unique identifier for the TeamMember entity."
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the User who is a member. (Relationship: User 1:N TeamMembership)"
+          "description": "Reference to the UserProfile ID of the member. (Relationship: UserProfile 1:N TeamMember)"
         },
         "teamId": {
           "type": "string",
-          "description": "Reference to the Team this membership belongs to. (Relationship: Team 1:N TeamMembership)"
+          "description": "Reference to the Team ID this member belongs to. (Relationship: Team 1:N TeamMember)"
         },
         "role": {
           "type": "string",
-          "description": "The role of the user within this specific team ('Admin' or 'Member').",
-          "items": {
-            "type": "string"
-          }
+          "description": "The member's role within the team (e.g., 'Admin', 'Member')."
         },
         "position": {
           "type": "string",
-          "description": "The user's playing position within the team (optional, editable by admins)."
+          "description": "The member's position on the team (optional)."
         },
         "jerseyNumber": {
           "type": "number",
-          "description": "The user's jersey number within the team (optional, editable by admins)."
+          "description": "The member's jersey number (optional)."
         },
         "joinedAt": {
           "type": "string",
-          "description": "Timestamp when the user joined this team.",
+          "description": "Timestamp when the user joined this specific team.",
           "format": "date-time"
         }
       },
@@ -143,7 +139,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Post",
       "type": "object",
-      "description": "Represents a post in a team's activity feed, which can be created by a user or automatically by the system.",
+      "description": "An entry in a team's activity feed, which can include text, an image, or a linked event.",
       "properties": {
         "id": {
           "type": "string",
@@ -151,52 +147,49 @@
         },
         "teamId": {
           "type": "string",
-          "description": "Reference to the Team this post belongs to. (Relationship: Team 1:N Post)"
+          "description": "Reference to the Team ID this post belongs to. (Relationship: Team 1:N Post)"
         },
         "authorId": {
           "type": "string",
-          "description": "Reference to the User who authored the post. For system posts, this could be null or a system user ID. (Relationship: User 1:N Post)"
-        },
-        "type": {
-          "type": "string",
-          "description": "The type of post, indicating if it's a user-generated post or an automated system notification (e.g., 'userPost', 'eventCreated', 'eventUpdated', 'memberJoined').",
-          "items": {
-            "type": "string"
-          }
+          "description": "Reference to the UserProfile ID of the user who authored this post. (Relationship: UserProfile 1:N Post)"
         },
         "content": {
           "type": "string",
-          "description": "The text content of the post."
+          "description": "The main text content of the post."
         },
         "imageUrl": {
           "type": "string",
-          "description": "The URL of an optional single image attached to the post.",
+          "description": "URL to an optional single image attached to the post.",
           "format": "uri"
         },
         "linkedEventId": {
           "type": "string",
-          "description": "Optional reference to an Event if this post is related to an event. (Relationship: Event 1:N Post)"
+          "description": "Optional reference to an Event ID if the post is linking to an event. (Relationship: Event 1:N Post)"
         },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the post was created.",
           "format": "date-time"
+        },
+        "isSystemPost": {
+          "type": "boolean",
+          "description": "Indicates if the post was automatically generated by the system (e.g., event created, member joined)."
         }
       },
       "required": [
         "id",
         "teamId",
         "authorId",
-        "type",
         "content",
-        "createdAt"
+        "createdAt",
+        "isSystemPost"
       ]
     },
     "Comment": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Comment",
       "type": "object",
-      "description": "Represents a comment made on a Post in the team's activity feed.",
+      "description": "A comment made on a specific post in the team feed.",
       "properties": {
         "id": {
           "type": "string",
@@ -204,11 +197,11 @@
         },
         "postId": {
           "type": "string",
-          "description": "Reference to the Post this comment belongs to. (Relationship: Post 1:N Comment)"
+          "description": "Reference to the Post ID this comment belongs to. (Relationship: Post 1:N Comment)"
         },
         "authorId": {
           "type": "string",
-          "description": "Reference to the User who authored the comment. (Relationship: User 1:N Comment)"
+          "description": "Reference to the UserProfile ID of the user who authored this comment. (Relationship: UserProfile 1:N Comment)"
         },
         "content": {
           "type": "string",
@@ -232,7 +225,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Event",
       "type": "object",
-      "description": "Represents a scheduled event for a team, created by an Admin.",
+      "description": "A scheduled event for a team, created by an admin.",
       "properties": {
         "id": {
           "type": "string",
@@ -240,11 +233,11 @@
         },
         "teamId": {
           "type": "string",
-          "description": "Reference to the Team this event belongs to. (Relationship: Team 1:N Event)"
+          "description": "Reference to the Team ID this event belongs to. (Relationship: Team 1:N Event)"
         },
         "title": {
           "type": "string",
-          "description": "The title or name of the event."
+          "description": "The title of the event."
         },
         "date": {
           "type": "string",
@@ -271,7 +264,7 @@
         },
         "createdBy": {
           "type": "string",
-          "description": "Reference to the User (Admin) who created this event. (Relationship: User 1:N Event)"
+          "description": "Reference to the UserProfile ID of the admin who created this event. (Relationship: UserProfile 1:N Event)"
         },
         "createdAt": {
           "type": "string",
@@ -293,7 +286,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "RSVP",
       "type": "object",
-      "description": "Records a user's response to an event invitation.",
+      "description": "A user's response to an event invitation, indicating their attendance status.",
       "properties": {
         "id": {
           "type": "string",
@@ -301,18 +294,15 @@
         },
         "eventId": {
           "type": "string",
-          "description": "Reference to the Event this RSVP is for. (Relationship: Event 1:N RSVP)"
+          "description": "Reference to the Event ID this RSVP is for. (Relationship: Event 1:N RSVP)"
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the User who made the RSVP. (Relationship: User 1:N RSVP)"
+          "description": "Reference to the UserProfile ID of the user who provided the RSVP. (Relationship: UserProfile 1:N RSVP)"
         },
         "status": {
           "type": "string",
-          "description": "The user's RSVP status for the event ('Going', 'Not Going', 'Maybe').",
-          "items": {
-            "type": "string"
-          }
+          "description": "The user's RSVP status (e.g., 'Going', 'Not Going', 'Maybe')."
         },
         "updatedAt": {
           "type": "string",
@@ -332,7 +322,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Availability",
       "type": "object",
-      "description": "Records a team member's self-reported unavailability for a specific date.",
+      "description": "Records a user's declared unavailability for a specific date within a team.",
       "properties": {
         "id": {
           "type": "string",
@@ -340,11 +330,11 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the User reporting unavailability. (Relationship: User 1:N Availability)"
+          "description": "Reference to the UserProfile ID of the user marking unavailability. (Relationship: UserProfile 1:N Availability)"
         },
         "teamId": {
           "type": "string",
-          "description": "Reference to the Team this unavailability applies to. (Relationship: Team 1:N Availability)"
+          "description": "Reference to the Team ID this availability applies to. (Relationship: Team 1:N Availability)"
         },
         "date": {
           "type": "string",
@@ -353,15 +343,7 @@
         },
         "status": {
           "type": "string",
-          "description": "The availability status, typically 'unavailable'.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the unavailability was recorded.",
-          "format": "date-time"
+          "description": "The status of availability, fixed to 'unavailable'."
         }
       },
       "required": [
@@ -369,15 +351,14 @@
         "userId",
         "teamId",
         "date",
-        "status",
-        "createdAt"
+        "status"
       ]
     },
     "File": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "File",
       "type": "object",
-      "description": "Represents a file uploaded and shared within a team.",
+      "description": "A shared file uploaded by a team member to a specific team.",
       "properties": {
         "id": {
           "type": "string",
@@ -385,36 +366,29 @@
         },
         "teamId": {
           "type": "string",
-          "description": "Reference to the Team this file belongs to. (Relationship: Team 1:N File)"
+          "description": "Reference to the Team ID this file belongs to. (Relationship: Team 1:N File)"
         },
         "fileUrl": {
           "type": "string",
-          "description": "The URL where the file is stored.",
+          "description": "URL to the uploaded file in storage.",
           "format": "uri"
         },
         "fileName": {
           "type": "string",
           "description": "The original name of the uploaded file."
         },
-        "fileType": {
-          "type": "string",
-          "description": "The type of the file (e.g., 'pdf', 'jpg', 'png').",
-          "items": {
-            "type": "string"
-          }
-        },
-        "fileSize": {
-          "type": "number",
-          "description": "The size of the file in bytes."
-        },
         "uploadedBy": {
           "type": "string",
-          "description": "Reference to the User who uploaded the file. (Relationship: User 1:N File)"
+          "description": "Reference to the UserProfile ID of the user who uploaded the file. (Relationship: UserProfile 1:N File)"
         },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the file was uploaded.",
           "format": "date-time"
+        },
+        "fileExtension": {
+          "type": "string",
+          "description": "The file extension (e.g., 'pdf', 'jpg', 'png')."
         }
       },
       "required": [
@@ -422,16 +396,16 @@
         "teamId",
         "fileUrl",
         "fileName",
-        "fileType",
         "uploadedBy",
-        "createdAt"
+        "createdAt",
+        "fileExtension"
       ]
     },
     "GroupChat": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "GroupChat",
       "type": "object",
-      "description": "Represents a group chat within a team, allowing multiple members to communicate.",
+      "description": "A group messaging chat room within a specific team.",
       "properties": {
         "id": {
           "type": "string",
@@ -439,7 +413,7 @@
         },
         "teamId": {
           "type": "string",
-          "description": "Reference to the Team this chat belongs to. (Relationship: Team 1:N GroupChat)"
+          "description": "Reference to the Team ID this chat belongs to. (Relationship: Team 1:N GroupChat)"
         },
         "name": {
           "type": "string",
@@ -447,11 +421,11 @@
         },
         "createdBy": {
           "type": "string",
-          "description": "Reference to the User who created this group chat. (Relationship: User 1:N GroupChat)"
+          "description": "Reference to the UserProfile ID of the user who created this chat. (Relationship: UserProfile 1:N GroupChat)"
         },
         "memberIds": {
           "type": "array",
-          "description": "An array of User IDs who are members of this group chat. (Relationship: User N:N GroupChat)",
+          "description": "An array of UserProfile IDs of members participating in this chat. (Relationship: UserProfile N:N GroupChat)",
           "items": {
             "type": "string"
           }
@@ -463,7 +437,7 @@
         },
         "isDeleted": {
           "type": "boolean",
-          "description": "A flag indicating if the chat has been globally deleted by an admin. False by default."
+          "description": "Boolean flag indicating if the chat has been globally deleted by an admin. False by default."
         }
       },
       "required": [
@@ -480,7 +454,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ChatMessage",
       "type": "object",
-      "description": "Represents a single message or poll within a GroupChat.",
+      "description": "An individual message or poll within a group chat.",
       "properties": {
         "id": {
           "type": "string",
@@ -488,18 +462,15 @@
         },
         "chatId": {
           "type": "string",
-          "description": "Reference to the GroupChat this message belongs to. (Relationship: GroupChat 1:N ChatMessage)"
+          "description": "Reference to the GroupChat ID this message belongs to. (Relationship: GroupChat 1:N ChatMessage)"
         },
         "authorId": {
           "type": "string",
-          "description": "Reference to the User who sent this message. (Relationship: User 1:N ChatMessage)"
+          "description": "Reference to the UserProfile ID of the user who sent this message. (Relationship: UserProfile 1:N ChatMessage)"
         },
         "type": {
           "type": "string",
-          "description": "The type of the chat message ('text' or 'poll').",
-          "items": {
-            "type": "string"
-          }
+          "description": "The type of chat message (e.g., 'text', 'poll')."
         },
         "content": {
           "type": "string",
@@ -507,7 +478,7 @@
         },
         "pollId": {
           "type": "string",
-          "description": "Optional reference to a Poll if the message type is 'poll'. (Relationship: Poll 1:1 ChatMessage)"
+          "description": "Optional reference to a Poll ID if the message type is 'poll'. (Relationship: Poll 1:N ChatMessage)"
         },
         "createdAt": {
           "type": "string",
@@ -527,7 +498,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserChatHidden",
       "type": "object",
-      "description": "Records when a specific user has hidden a group chat from their view, without globally deleting it.",
+      "description": "Records that a specific user has hidden a group chat from their view.",
       "properties": {
         "id": {
           "type": "string",
@@ -535,11 +506,11 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the User who hid the chat. (Relationship: User 1:N UserChatHidden)"
+          "description": "Reference to the UserProfile ID of the user who hid the chat. (Relationship: UserProfile 1:N UserChatHidden)"
         },
         "chatId": {
           "type": "string",
-          "description": "Reference to the GroupChat that was hidden. (Relationship: GroupChat 1:N UserChatHidden)"
+          "description": "Reference to the GroupChat ID that was hidden. (Relationship: GroupChat 1:N UserChatHidden)"
         },
         "hiddenAt": {
           "type": "string",
@@ -558,7 +529,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Poll",
       "type": "object",
-      "description": "Represents a poll created within a group chat for team members to vote on.",
+      "description": "A poll created within a group chat for decision-making.",
       "properties": {
         "id": {
           "type": "string",
@@ -566,7 +537,7 @@
         },
         "chatId": {
           "type": "string",
-          "description": "Reference to the GroupChat where this poll was created. (Relationship: GroupChat 1:N Poll)"
+          "description": "Reference to the GroupChat ID this poll belongs to. (Relationship: GroupChat 1:N Poll)"
         },
         "question": {
           "type": "string",
@@ -574,14 +545,14 @@
         },
         "options": {
           "type": "array",
-          "description": "An array of string options for the poll. Minimum 2, maximum 6 options.",
+          "description": "An array of strings representing the possible options for the poll (minimum 2, maximum 6).",
           "items": {
             "type": "string"
           }
         },
         "createdBy": {
           "type": "string",
-          "description": "Reference to the User who created this poll. (Relationship: User 1:N Poll)"
+          "description": "Reference to the UserProfile ID of the user who created this poll. (Relationship: UserProfile 1:N Poll)"
         },
         "createdAt": {
           "type": "string",
@@ -590,7 +561,7 @@
         },
         "isClosed": {
           "type": "boolean",
-          "description": "A flag indicating if the poll is closed and no longer accepting votes. False by default."
+          "description": "Boolean flag indicating if the poll is closed and no longer accepting votes."
         }
       },
       "required": [
@@ -603,27 +574,27 @@
         "isClosed"
       ]
     },
-    "PollVote": {
+    "Vote": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PollVote",
+      "title": "Vote",
       "type": "object",
-      "description": "Records a single user's vote on a specific poll option.",
+      "description": "A user's selection for a specific poll option.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the PollVote entity."
+          "description": "Unique identifier for the Vote entity."
         },
         "pollId": {
           "type": "string",
-          "description": "Reference to the Poll this vote is for. (Relationship: Poll 1:N PollVote)"
+          "description": "Reference to the Poll ID this vote is for. (Relationship: Poll 1:N Vote)"
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the User who cast this vote. (Relationship: User 1:N PollVote)"
+          "description": "Reference to the UserProfile ID of the user who cast the vote. (Relationship: UserProfile 1:N Vote)"
         },
         "selectedOptionIndex": {
           "type": "number",
-          "description": "The index of the option (from the Poll's 'options' array) that the user voted for."
+          "description": "The zero-based index of the chosen option from the Poll's options array."
         },
         "updatedAt": {
           "type": "string",
@@ -649,23 +620,13 @@
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}",
+        "path": "/userProfiles/{userId}",
         "definition": {
-          "entityName": "User",
+          "entityName": "UserProfile",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Root collection for user profiles. Each document ID (`userId`) corresponds to the Firebase Authentication UID, ensuring path-based ownership. Users can only read/write their own profile."
-        }
-      },
-      {
-        "path": "/users/{userId}/hiddenChats/{chatId}",
-        "definition": {
-          "entityName": "UserChatHidden",
-          "schema": {
-            "$ref": "#/backend/entities/UserChatHidden"
-          },
-          "description": "Subcollection storing records of chats hidden by a specific user. The `userId` in the path ensures that only the owner can access their hidden chat preferences. No additional denormalized fields are required for authorization beyond the path-based ownership."
+          "description": "Stores user's private profile information. The document ID (`userId`) matches the user's authentication UID. Access is restricted to the owner (`request.auth.uid == userId`)."
         }
       },
       {
@@ -675,17 +636,47 @@
           "schema": {
             "$ref": "#/backend/entities/Team"
           },
-          "description": "Root collection for all teams. Each document represents a team. Includes a denormalized 'members' map (`members: { [userId: string]: 'admin' | 'member' }`) for authorization independence, listing all team members and their roles. This map is crucial for quick rule evaluations on team membership without `get()` calls."
+          "description": "Stores core team information and metadata. The document includes a denormalized 'teamAdminIds' array for efficient admin access checks at the team level. Read access is allowed for validating 'teamCode' during joining, otherwise restricted to team members. Write access is restricted to team admins."
         }
       },
       {
-        "path": "/teams/{teamId}/members/{userId}",
+        "path": "/teams/{teamId}/teamMembers/{userId}",
         "definition": {
-          "entityName": "TeamMembership",
+          "entityName": "TeamMember",
           "schema": {
-            "$ref": "#/backend/entities/TeamMembership"
+            "$ref": "#/backend/entities/TeamMember"
           },
-          "description": "Subcollection representing a user's membership within a specific team. The `userId` in the path corresponds to the member's UID. This document contains detailed member information (role, position, jerseyNumber) specific to the team. Access is controlled by the parent 'team' document's 'members' map."
+          "description": "Stores a specific user's membership details and role ('Admin' or 'Member') within a team. The document ID (`userId`) matches the user's UID. All team members can read these documents. A user can update their own document, and team admins can update any member's document in their team. Crucial for establishing team-scoped authorization.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (team member)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/teams/{teamId}/admins/{userId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/TeamMember"
+          },
+          "description": "A sentinel collection containing a document for each user who is an 'Admin' of the associated team. Used for efficient security rule checks (`exists()`) for admin privileges within a team, avoiding `get()` calls. This collection is kept in sync with the 'role' field in the 'teamMembers' subcollection.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (team admin)."
+            }
+          ]
         }
       },
       {
@@ -695,7 +686,17 @@
           "schema": {
             "$ref": "#/backend/entities/Post"
           },
-          "description": "Subcollection for team activity feed posts. Includes denormalized 'team_members' map for authorization independence, inherited from the parent team, allowing rules to check team membership directly."
+          "description": "Stores individual posts for a team's activity feed. Includes `teamId` and `authorId`. Read/create access for all team members. Update/delete access by the author or a team admin.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "postId",
+              "description": "The unique identifier of the post."
+            }
+          ]
         }
       },
       {
@@ -705,7 +706,21 @@
           "schema": {
             "$ref": "#/backend/entities/Comment"
           },
-          "description": "Subcollection for comments on a specific post. Includes denormalized 'teamId' and 'team_members' map for authorization independence, inherited from the grandparent team, allowing rules to check team membership directly without traversing ancestors."
+          "description": "Stores comments made on specific team posts. Includes `teamId`, `postId`, and `authorId`. Read/create access for all team members. Update/delete access by the author or a team admin.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "postId",
+              "description": "The unique identifier of the post the comment belongs to."
+            },
+            {
+              "name": "commentId",
+              "description": "The unique identifier of the comment."
+            }
+          ]
         }
       },
       {
@@ -715,17 +730,41 @@
           "schema": {
             "$ref": "#/backend/entities/Event"
           },
-          "description": "Subcollection for team events. Includes denormalized 'team_members' map for authorization independence, inherited from the parent team, allowing rules to check team membership directly."
+          "description": "Stores scheduled events for a team. Includes `teamId` and `createdBy`. Read access for all team members. Create/update/delete access restricted to team admins.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "eventId",
+              "description": "The unique identifier of the event."
+            }
+          ]
         }
       },
       {
-        "path": "/teams/{teamId}/events/{eventId}/rsvps/{rsvpId}",
+        "path": "/teams/{teamId}/events/{eventId}/rsvps/{userId}",
         "definition": {
           "entityName": "RSVP",
           "schema": {
             "$ref": "#/backend/entities/RSVP"
           },
-          "description": "Subcollection for RSVPs to a specific event. Includes denormalized 'teamId' and 'team_members' map for authorization independence, inherited from the grandparent team, allowing rules to check team membership directly. Each RSVP document's ID (`rsvpId`) should be the `userId` for uniqueness and easy lookup."
+          "description": "Stores a user's RSVP status for a specific event. The document ID (`userId`) ensures only one RSVP per user per event. Includes `teamId`, `eventId`, and `userId`. Read access for all team members. Create/update access restricted to the `userId` associated with the RSVP.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "eventId",
+              "description": "The unique identifier of the event."
+            },
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who provided the RSVP."
+            }
+          ]
         }
       },
       {
@@ -735,7 +774,17 @@
           "schema": {
             "$ref": "#/backend/entities/Availability"
           },
-          "description": "Subcollection for team members' availability. Includes denormalized 'team_members' map for authorization independence, inherited from the parent team, allowing rules to check team membership directly. Each Availability document's ID (`availabilityId`) should be the `userId` + `date` for uniqueness and easy lookup."
+          "description": "Records a user's declared unavailability for a specific date within a team. The document ID (`availabilityId`) can be a composite like `userId_YYYY-MM-DD` for uniqueness. Includes `teamId`, `userId`, and `date`. Read access for all team members. Create/update/delete access restricted to the `userId` associated with the availability.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "availabilityId",
+              "description": "A unique identifier for the availability entry, typically a composite of userId and date."
+            }
+          ]
         }
       },
       {
@@ -745,7 +794,17 @@
           "schema": {
             "$ref": "#/backend/entities/File"
           },
-          "description": "Subcollection for files shared within a team. Includes denormalized 'team_members' map for authorization independence, inherited from the parent team, allowing rules to check team membership directly."
+          "description": "Stores information about files shared within a team. Includes `teamId` and `uploadedBy`. Read access for all team members. Create/delete access restricted to the uploader or a team admin.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "fileId",
+              "description": "The unique identifier of the file."
+            }
+          ]
         }
       },
       {
@@ -755,17 +814,61 @@
           "schema": {
             "$ref": "#/backend/entities/GroupChat"
           },
-          "description": "Subcollection for group chats within a team. Includes denormalized 'team_members' map for authorization independence, inherited from the parent team. The 'memberIds' array is replaced by a 'chat_members' map (`chat_members: { [userId: string]: boolean }`) for efficient rule evaluation without `get()` calls, enabling QAPs for chat access."
+          "description": "Stores information about group chats within a team. Includes `teamId`, `createdBy`, and a `memberIds` array for denormalized chat-specific authorization. The `isDeleted` flag supports global deletion by admins. Read access if `request.auth.uid` is in `memberIds` and `isDeleted` is false. Create by any team member. Update (e.g., `isDeleted` status) by the `createdBy` user or a team admin.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "chatId",
+              "description": "The unique identifier of the group chat."
+            }
+          ]
         }
       },
       {
-        "path": "/teams/{teamId}/groupChats/{chatId}/messages/{messageId}",
+        "path": "/teams/{teamId}/groupChats/{chatId}/chatMessages/{messageId}",
         "definition": {
           "entityName": "ChatMessage",
           "schema": {
             "$ref": "#/backend/entities/ChatMessage"
           },
-          "description": "Subcollection for messages within a group chat. Includes denormalized 'teamId', 'team_members' map, and 'chat_members' map for authorization independence, inherited from the grandparent team and parent chat, allowing rules to check both team and chat membership directly."
+          "description": "Stores individual messages within a group chat. Includes `teamId`, `chatId`, `authorId`, and a denormalized `chatMemberIds` array (copied from parent `GroupChat`) for authorization independence. Read/create access if `request.auth.uid` is in `chatMemberIds`. Update/delete access restricted to the `authorId`.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "chatId",
+              "description": "The unique identifier of the group chat."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique identifier of the chat message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/hiddenChats/{chatId}",
+        "definition": {
+          "entityName": "UserChatHidden",
+          "schema": {
+            "$ref": "#/backend/entities/UserChatHidden"
+          },
+          "description": "Records that a specific user has hidden a group chat from their view. This is a user-private collection, with access restricted to the owner (`request.auth.uid == userId`). Used for members' 'self-delete' of chats.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who hid the chat."
+            },
+            {
+              "name": "chatId",
+              "description": "The unique identifier of the group chat that was hidden."
+            }
+          ]
         }
       },
       {
@@ -775,20 +878,52 @@
           "schema": {
             "$ref": "#/backend/entities/Poll"
           },
-          "description": "Subcollection for polls created within a group chat. Includes denormalized 'teamId', 'team_members' map, and 'chat_members' map for authorization independence, inherited from the grandparent team and parent chat, allowing rules to check both team and chat membership directly."
+          "description": "Stores poll information within a group chat. Includes `teamId`, `chatId`, `createdBy`, and a denormalized `chatMemberIds` array (copied from parent `GroupChat`) for authorization independence. Read/create access if `request.auth.uid` is in `chatMemberIds`. Update access (e.g., closing the poll) restricted to `createdBy` or a team admin.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "chatId",
+              "description": "The unique identifier of the group chat."
+            },
+            {
+              "name": "pollId",
+              "description": "The unique identifier of the poll."
+            }
+          ]
         }
       },
       {
-        "path": "/teams/{teamId}/groupChats/{chatId}/polls/{pollId}/votes/{voteId}",
+        "path": "/teams/{teamId}/groupChats/{chatId}/polls/{pollId}/votes/{userId}",
         "definition": {
-          "entityName": "PollVote",
+          "entityName": "Vote",
           "schema": {
-            "$ref": "#/backend/entities/PollVote"
+            "$ref": "#/backend/entities/Vote"
           },
-          "description": "Subcollection for votes on a specific poll. Includes denormalized 'teamId', 'team_members' map, 'chatId', 'chat_members' map, and 'poll_isClosed' boolean for authorization independence, inherited from ancestor documents, allowing rules to check membership and poll status directly. Each PollVote document's ID (`voteId`) should be the `userId` for uniqueness and easy lookup per poll."
+          "description": "Stores a user's vote for a specific poll option. The document ID (`userId`) ensures only one vote per user per poll. Includes `teamId`, `chatId`, `pollId`, `userId`, denormalized `chatMemberIds` (copied from parent `GroupChat`), and denormalized `pollIsClosed` (copied from parent `Poll`) for authorization independence. Read access for chat members. Create/update access restricted to the `userId` if the poll is not closed.",
+          "params": [
+            {
+              "name": "teamId",
+              "description": "The unique identifier of the team."
+            },
+            {
+              "name": "chatId",
+              "description": "The unique identifier of the group chat."
+            },
+            {
+              "name": "pollId",
+              "description": "The unique identifier of the poll."
+            },
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who cast the vote."
+            }
+          ]
         }
       }
     ],
-    "reasoning": "The recommended Firestore structure for SquadForge prioritizes security, scalability, and debuggability by strictly adhering to the core design principles. The primary goal is **Authorization Independence**, which is achieved through comprehensive denormalization of authorization contexts, and **Structural Segregation** to simplify security rules.\n\n**Addressing the user's reported error:** The error `FirestorePermissionError: Missing or insufficient permissions: The following request was denied by Firestore Security Rules: { ..., \"method\": \"list\", \"path\": \"/databases/(default)/documents/leagues/global/invites\" }` indicates a permission issue on a path `/leagues/global/invites`. However, the provided application requirements and entity definitions do not contain any mention of 'leagues' or 'invites'. Therefore, this structure is designed exclusively based on the provided 'Application Data Entities & Auth Info' and 'App requirements'. It is assumed that the reported error path is either from a legacy feature, an unrelated part of the application, or an entity not included in this design scope.\n\n**Authorization Independence (CRITICAL) via Denormalization:**\nTo eliminate `get()` calls in security rules and enable atomic operations, crucial authorization data is denormalized directly into the documents that require it for access control:\n\n1.  **Team-Level Authorization:** Each `Team` document (`/teams/{teamId}`) will store a `members` map (e.g., `{\"uid1\": \"admin\", \"uid2\": \"member\"}`). This map is then denormalized into *all documents within that team's subcollections* (Posts, Comments, Events, RSVPs, Availability, Files, GroupChats, ChatMessages, Polls, PollVotes) as `team_members`. This means a rule for a Post (`/teams/{teamId}/posts/{postId}`) can check `request.auth.uid in resource.data.team_members` directly, without needing to `get()` the parent `Team` document.\n\n2.  **GroupChat-Level Authorization:** Similarly, each `GroupChat` document (`/teams/{teamId}/groupChats/{chatId}`) will store a `chat_members` map (e.g., `{\"uid1\": true, \"uid2\": true}`). This map is denormalized into all documents within that chat's subcollections (ChatMessages, Polls, PollVotes) as `chat_members`.\n\n3.  **Poll Status Denormalization:** For `PollVote` documents, the `poll_isClosed` status from the parent `Poll` document is denormalized as `poll_isClosed` to allow rules to enforce voting restrictions without a `get()` call.\n\n4.  **Implicit `teamId` and `chatId`:** For deeply nested subcollections like Comments, RSVPs, ChatMessages, Polls, and PollVotes, the `teamId` and `chatId` (where applicable) are explicitly added to the document's fields. This ensures consistent queryability and local context for rules, without traversing parent paths.\n\n**Structural Segregation (Homogeneous Security Posture):**\n\n*   **User-Specific Data:** Private data for individual users, such as `User` profiles and `UserChatHidden` preferences, are stored under a user's dedicated path (`/users/{userId}/...`). This ensures that only the authenticated user (`request.auth.uid`) can access their own data, simplifying rules considerably.\n*   **Team-Specific Data:** All data belonging to a team (Posts, Events, Files, Chats, etc.) are organized as subcollections under `/teams/{teamId}/...`. This clearly segments team data and allows security rules to enforce team-level membership and role-based access for all documents within a given team's hierarchy.\n*   **Team Membership:** `TeamMembership` documents, which define a user's role and details within a specific team, are stored in a subcollection (`/teams/{teamId}/members/{userId}`). This centralizes roster data and allows efficient lookups of a user's role within a team.\n\n**QAPs (Rules are not Filters):**\n\nBy denormalizing `team_members` and `chat_members` maps into documents, the structure inherently supports Querying All Possibilities (QAPs). For example, to list posts for a given team, a client can query `/teams/{teamId}/posts` with a filter like `where('team_members.' + auth.uid, 'exists', true)` (or `== 'member'` / `'admin'`). This ensures that only documents accessible to the authenticated user are returned by the query, preventing security rules from acting as filters post-query, which is inefficient and insecure. The `list` operation for user-specific data (e.g., hidden chats) directly uses `request.auth.uid` in the path, adhering to QAP principles.\n\nThis robust design ensures that security rules are simple, explicit, and highly performant, directly aligning with the core design principles."
+    "reasoning": "The Firestore structure is designed following the core principles of Authorization Independence, Clarity of Intent, DBAC (Database Access Control), QAPs (Query-Agnostic Permissions), and Invariants. The primary goal is to minimize security rule complexity and enhance debuggability by avoiding `get()` calls in rules and ensuring all `list` operations are secure.\n\n**1. Authorization Independence via Denormalization:**\n*   **Team Membership & Roles:** Instead of relying on a `get()` call to a parent `TeamMember` document to determine a user's role or membership for every operation within a team, we employ a two-pronged approach:\n    *   **Membership Check:** For basic `read` access to any subcollection within a team (e.g., posts, events, files), rules will use `exists(/teams/$(teamId)/teamMembers/$(request.auth.uid))`. This is an efficient check for the presence of a membership document, confirming the user is part of the team, without fetching the document's content.\n    *   **Role Check (Admin Status):** To check if a user is an 'Admin' for sensitive operations (e.g., creating events, deleting posts), a dedicated subcollection `/teams/{teamId}/admins/{userId}` is introduced. This collection contains a lightweight document for each admin. Rules can then use `exists(/teams/$(teamId)/admins/$(request.auth.uid))` to verify admin status without a `get()` call or denormalizing admin lists onto every document. Additionally, for rules specific to the `Team` document itself, the `Team` document will include a `teamAdminIds` array, which needs to be kept in sync with the `/teams/{teamId}/admins` collection via Cloud Functions.\n*   **Group Chat Membership:** For `GroupChat` documents, the `memberIds` array is denormalized directly onto the document. For its subcollections (`ChatMessage`, `Poll`, `Vote`), the `chatMemberIds` array will be denormalized from the parent `GroupChat` document onto each child document. This ensures that access to chat-specific data (messages, polls, votes) can be determined directly from the `resource.data` of the document being accessed, without requiring a `get()` to the parent chat.\n*   **Poll Status:** For `Vote` documents, the `pollIsClosed` status will be denormalized from the parent `Poll` document. This allows rules to prevent votes on closed polls by checking `resource.data.pollIsClosed` directly, again avoiding `get()` calls.\n\n**2. QAPs (Query-Agnostic Permissions) for Secure List Operations:**\n*   **Path-Based Ownership:** User-specific data, such as `/userProfiles/{userId}` and `/userProfiles/{userId}/hiddenChats/{chatId}`, is structured with `userId` as a top-level or sub-collection path parameter. This inherently scopes `list` queries to the authenticated user's data (`request.auth.uid == userId`), making them QAP-compliant.\n*   **Team-Scoped Data:** All team-related data (posts, events, chats, etc.) are nested under `/teams/{teamId}/...`. A `list` query on any of these subcollections (e.g., `/teams/{teamId}/posts`) will implicitly filter by `teamId`. The security rules then only need to verify that `request.auth.uid` is a member of that specific `teamId` using the `exists(/teams/$(teamId)/teamMembers/$(request.auth.uid))` check. This ensures that users can only list data for teams they belong to, without requiring client-side filtering or inefficient rule evaluation.\n*   **Team Discovery:** Users cannot `list` all `teams`. Instead, they can only join a team if they know its `teamCode`. Once a user has joined a team, they can retrieve their associated `TeamMember` documents via a query (e.g., `db.collectionGroup('teamMembers').where('userId', '==', request.auth.uid)`), which then gives them the `teamId`s they belong to, allowing them to construct valid, secure queries for team-specific data.\n\nThis design prioritizes embedding authorization context directly into the relevant documents or providing direct `exists()` checks via dedicated collections, significantly simplifying Firestore Security Rules and ensuring robust, scalable access control."
   }
 }
