@@ -33,9 +33,10 @@ import { cn } from '@/lib/utils';
  * respecting the target audience.
  */
 export function AlertOverlay() {
-  const { alerts, unreadAlertsCount, seenAlertIds, markAlertAsSeen, isStaff, isPlayer, isParent } = useTeam();
+  const { alerts, seenAlertIds, markAlertAsSeen, isStaff, isPlayer, isParent } = useTeam();
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [locallyAcknowledgedIds, setLocallyAcknowledgedIds] = useState<string[]>([]);
 
   // Tactical logic to find the next unread alert
   const findNextAlert = useCallback(() => {
@@ -47,8 +48,8 @@ export function AlertOverlay() {
       return false;
     });
 
-    return myAlerts.find(a => !seenAlertIds.includes(a.id));
-  }, [alerts, seenAlertIds, isStaff, isPlayer, isParent]);
+    return myAlerts.find(a => !seenAlertIds.includes(a.id) && !locallyAcknowledgedIds.includes(a.id));
+  }, [alerts, seenAlertIds, locallyAcknowledgedIds, isStaff, isPlayer, isParent]);
 
   useEffect(() => {
     if (isAlertOpen) return;
@@ -60,12 +61,13 @@ export function AlertOverlay() {
       const timer = setTimeout(() => setIsAlertOpen(true), 500);
       return () => clearTimeout(timer);
     }
-  }, [unreadAlertsCount, findNextAlert, isAlertOpen]);
+  }, [findNextAlert, isAlertOpen]);
 
   const handleUnderstood = () => {
     if (currentAlertId) {
-      markAlertAsSeen(currentAlertId);
       // Immediate local state update to prevent pop-back
+      setLocallyAcknowledgedIds(prev => [...prev, currentAlertId]);
+      markAlertAsSeen(currentAlertId);
       setIsAlertOpen(false);
       setCurrentAlertId(null);
     }
@@ -308,30 +310,30 @@ export function CreateAlertButton() {
           </DialogHeader>
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Target Roster Segment</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Target Roster Segment</Label>
               <Select value={audience} onValueChange={(v: any) => setAudience(v)}>
                 <SelectTrigger className="h-14 rounded-2xl border-2 font-black shadow-inner focus:ring-primary/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-2">
-                  <SelectItem value="everyone" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3"><Users className="h-4 w-4 text-primary" /> Global Roster</div></SelectItem>
-                  <SelectItem value="coaches" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3"><Shield className="h-4 w-4 text-primary" /> Command Staff Only</div></SelectItem>
-                  <SelectItem value="players" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3"><GraduationCap className="h-4 w-4 text-primary" /> Athletes Only</div></SelectItem>
-                  <SelectItem value="parents" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3"><Baby className="h-4 w-4 text-primary" /> Guardians Only</div></SelectItem>
+                  <SelectItem value="everyone" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3 text-foreground"><Users className="h-4 w-4 text-primary" /> Global Roster</div></SelectItem>
+                  <SelectItem value="coaches" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3 text-foreground"><Shield className="h-4 w-4 text-primary" /> Command Staff Only</div></SelectItem>
+                  <SelectItem value="players" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3 text-foreground"><GraduationCap className="h-4 w-4 text-primary" /> Athletes Only</div></SelectItem>
+                  <SelectItem value="parents" className="font-black uppercase text-[10px] py-3"><div className="flex items-center gap-3 text-foreground"><Baby className="h-4 w-4 text-primary" /> Guardians Only</div></SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Directive Headline</Label>
-              <Input placeholder="e.g. Mandatory Venue Update" value={title} onChange={e => setTitle(e.target.value)} className="rounded-2xl h-14 border-2 font-black text-base shadow-inner" />
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Directive Headline</Label>
+              <Input placeholder="e.g. Mandatory Venue Update" value={title} onChange={e => setTitle(e.target.value)} className="rounded-2xl h-14 border-2 font-black text-base shadow-inner text-foreground" />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Instructions</Label>
-              <Textarea placeholder="Define the urgent context and requirements..." value={message} onChange={e => setMessage(e.target.value)} className="rounded-[1.5rem] min-h-[150px] border-2 font-medium p-6 bg-muted/10 focus:bg-white transition-all shadow-inner resize-none" />
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Operational Instructions</Label>
+              <Textarea placeholder="Define the urgent context and requirements..." value={message} onChange={e => setMessage(e.target.value)} className="rounded-[1.5rem] min-h-[150px] border-2 font-medium p-6 bg-muted/10 focus:bg-white transition-all shadow-inner resize-none text-foreground" />
             </div>
           </div>
           <DialogFooter>
-            <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all" onClick={handleCreate} disabled={!title || !message}>
+            <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all border-none" onClick={handleCreate} disabled={!title || !message}>
               Dispatch Strategic Broadcast
             </Button>
           </DialogFooter>

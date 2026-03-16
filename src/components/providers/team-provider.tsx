@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -43,6 +42,7 @@ export type UserProfile = {
   isDemo?: boolean;
   activePlanId?: string | null;
   proTeamLimit?: number | null;
+  seenAlertIds?: string[];
 };
 
 export type PlayerProfile = {
@@ -525,8 +525,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           activePlanId: data.activePlanId,
           proTeamLimit: data.proTeamLimit || 0,
           createdAt: data.createdAt,
-          isDemo: data.isDemo
+          isDemo: data.isDemo,
+          seenAlertIds: data.seenAlertIds || []
         });
+        setSeenAlertIds(data.seenAlertIds || []);
       }
     });
   }, [firebaseUser?.uid, db, isAuthResolved]);
@@ -801,8 +803,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     householdEvents, householdBalance, myChildren, plans, proQuotaStatus: { current: 0, limit: 0, remaining: 0, exceeded: false },
     isPaywallOpen, setIsPaywallOpen, purchasePro: () => setIsPaywallOpen(true),
     hasFeature: (id: string) => true, alerts, unreadAlertsCount,
-    markAlertAsSeen: (id: string) => setSeenAlertIds(p => [...new Set([...p, id])]),
-    markAllAlertsAsSeen: () => setSeenAlertIds(alerts.map(a => a.id)),
+    markAlertAsSeen: async (id: string) => {
+      setSeenAlertIds(p => [...new Set([...p, id])]);
+      if (firebaseUser) {
+        await updateDoc(doc(db, 'users', firebaseUser.uid), {
+          seenAlertIds: arrayUnion(id)
+        });
+      }
+    },
+    markAllAlertsAsSeen: async () => {
+      const ids = alerts.map(a => a.id);
+      setSeenAlertIds(ids);
+      if (firebaseUser && ids.length > 0) {
+        await updateDoc(doc(db, 'users', firebaseUser.uid), {
+          seenAlertIds: ids
+        });
+      }
+    },
     seenAlertIds, isSeedingDemo, setIsSeedingDemo,
     
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
@@ -953,7 +970,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,
     toggleRecruitingProfile, updateStaffEvaluation, getStaffEvaluation, createNewTeam, joinTeamWithCode,
     signUpForVolunteer, addEquipmentItem, createLeague, respondToAssignment, assignEntryToTeam, 
-    toggleRegistrationPaymentStatus
+    toggleRegistrationPaymentStatus, seenAlertIds, alerts, unreadAlertsCount
   ]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
