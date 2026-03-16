@@ -509,7 +509,55 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [seenAlertIds, setSeenAlertIds] = useState<string[]>([]);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
-  // --- RECRUITING FUNCTIONS ---
+  // --- CORE SYSTEM STATES & QUERIES ---
+  useEffect(() => {
+    if (!firebaseUser?.uid || !db || !isAuthResolved) return;
+    return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setUserProfile({
+          id: firebaseUser.uid,
+          name: data.fullName || data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          avatar: data.avatarUrl || data.avatar || '',
+          role: data.role || 'adult_player',
+          activePlanId: data.activePlanId,
+          proTeamLimit: data.proTeamLimit || 0,
+          createdAt: data.createdAt,
+          isDemo: data.isDemo
+        });
+      }
+    });
+  }, [firebaseUser?.uid, db, isAuthResolved]);
+
+  const plansQuery = useMemoFirebase(() => (db && isAuthResolved) ? collection(db, 'plans') : null, [db, isAuthResolved]);
+  const { data: plansData } = useCollection(plansQuery);
+  const plans = plansData || [];
+
+  const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
+  const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
+  const teamsRaw = useMemo(() => (teamsData || []).map(m => ({ ...m, id: m.teamId || m.id, name: m.name || m.teamName || 'Squad' })), [teamsData]);
+
+  useEffect(() => {
+    if (teamsRaw.length > 0 && !activeTeamId) setActiveTeamId(teamsRaw[0].id);
+  }, [teamsRaw, activeTeamId]);
+
+  const activeTeam = useMemo(() => teamsRaw.find(t => t.id === activeTeamId) || teamsRaw[0] || null, [teamsRaw, activeTeamId]);
+
+  const membersQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'members')) : null, [isAuthResolved, activeTeam?.id, db]);
+  const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
+  const members = useMemo(() => membersData || [], [membersData]);
+
+  const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
+  const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
+  const alerts = alertsData || [];
+
+  const unreadAlertsCount = useMemo(() => {
+    return alerts.filter(a => !seenAlertIds.includes(a.id)).length;
+  }, [alerts, seenAlertIds]);
+
+  // --- RECRUITING & PROFILE ACTIONS ---
   const getRecruitingProfile = useCallback(async (playerId: string) => {
     if (!playerId || !db) return null;
     const s = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'));
@@ -603,16 +651,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [db]);
 
   const updateStaffEvaluation = useCallback(async (memberId: string, notes: string) => {
-    if (!activeTeamId || !db) return;
-    await updateDoc(doc(db, 'teams', activeTeamId, 'members', memberId), { notes });
-  }, [db, activeTeamId]);
+    if (!activeTeam?.id || !db) return;
+    await updateDoc(doc(db, 'teams', activeTeam.id, 'members', memberId), { notes });
+  }, [db, activeTeam?.id]);
 
   const getStaffEvaluation = useCallback(async (memberId: string) => {
-    if (!activeTeamId || !db) return '';
-    const snap = await getDoc(doc(db, 'teams', activeTeamId, 'members', memberId));
+    if (!activeTeam?.id || !db) return '';
+    const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'members', memberId));
     return snap.exists() ? (snap.data().notes || '') : '';
-  }, [db, activeTeamId]);
+  }, [db, activeTeam?.id]);
 
+  // --- SQUAD & ADMINISTRATIVE ACTIONS ---
   const respondToAssignment = useCallback(async (contextId: string, entryId: string, status: 'accepted' | 'declined') => {
     if (!db) return;
     await updateDoc(doc(db, 'leagues', contextId, 'registrationEntries', entryId), { status });
@@ -640,7 +689,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString()
     }));
 
-    // ACL SYNC
     batch.set(doc(db, 'team_memberships', `${tid}_${firebaseUser.uid}`), clean({
       teamId: tid, userId: firebaseUser.uid, role: 'Admin', joinedAt: new Date().toISOString()
     }));
@@ -743,54 +791,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }));
   }, [activeTeam?.id, db]);
 
-  // --- CORE SYSTEM ---
-  useEffect(() => {
-    if (!firebaseUser?.uid || !db || !isAuthResolved) return;
-    return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setUserProfile({
-          id: firebaseUser.uid,
-          name: data.fullName || data.name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          avatar: data.avatarUrl || data.avatar || '',
-          role: data.role || 'adult_player',
-          activePlanId: data.activePlanId,
-          proTeamLimit: data.proTeamLimit || 0,
-          createdAt: data.createdAt,
-          isDemo: data.isDemo
-        });
-      }
-    });
-  }, [firebaseUser?.uid, db, isAuthResolved]);
-
-  const plansQuery = useMemoFirebase(() => (db && isAuthResolved) ? collection(db, 'plans') : null, [db, isAuthResolved]);
-  const { data: plansData } = useCollection(plansQuery);
-  const plans = plansData || [];
-
-  const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
-  const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
-  const teamsRaw = useMemo(() => (teamsData || []).map(m => ({ ...m, id: m.teamId || m.id, name: m.name || m.teamName || 'Squad' })), [teamsData]);
-
-  useEffect(() => {
-    if (teamsRaw.length > 0 && !activeTeamId) setActiveTeamId(teamsRaw[0].id);
-  }, [teamsRaw, activeTeamId]);
-
-  const activeTeam = useMemo(() => teamsRaw.find(t => t.id === activeTeamId) || teamsRaw[0] || null, [teamsRaw, activeTeamId]);
-
-  const membersQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'members')) : null, [isAuthResolved, activeTeam?.id, db]);
-  const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
-  const members = useMemo(() => membersData || [], [membersData]);
-
-  const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
-  const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
-  const alerts = alertsData || [];
-
-  const unreadAlertsCount = useMemo(() => {
-    return alerts.filter(a => !seenAlertIds.includes(a.id)).length;
-  }, [alerts, seenAlertIds]);
-
+  // --- CONTEXT ASSEMBLY ---
   const contextValue = useMemo(() => ({
     db, user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams: teamsRaw, isTeamsLoading, members, isMembersLoading,
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
@@ -804,7 +805,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     markAllAlertsAsSeen: () => setSeenAlertIds(alerts.map(a => a.id)),
     seenAlertIds, isSeedingDemo, setIsSeedingDemo,
     
-    // Recruiting Pack
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
     getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,
@@ -922,30 +922,39 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     },
     manageSubscription: async () => { toast({ title: "Redirecting to Stripe..." }); },
     resolveQuota: async (ids: string[]) => { toast({ title: "Tiers Synchronized" }); },
-    createAlert: async (title: string, message: string, audience: any) => { if (activeTeam) await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser?.uid })); },
-    deleteAlert: async (id: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'alerts', id)); },
+    createAlert: async (title: string, message: string, audience: any) => { if (activeTeam?.id) await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title, message, audience, createdAt: new Date().toISOString(), createdBy: firebaseUser?.uid })); },
+    deleteAlert: async (id: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'alerts', id)); },
     exportAttendanceCSV: async () => { toast({ title: "RSVP Ledger Generated" }); },
     exportTournamentStandingsCSV: async () => { toast({ title: "Leaderboard Exported" }); },
-    addIncident: async (data: any) => { if (activeTeam && firebaseUser) await addDoc(collection(db, 'teams', activeTeam.id, 'incidents'), clean({ ...data, teamId: activeTeam.id, teamName: activeTeam.name, reportedBy: firebaseUser.uid, createdAt: new Date().toISOString() })); },
+    addIncident: async (data: any) => { if (activeTeam?.id && firebaseUser) await addDoc(collection(db, 'teams', activeTeam.id, 'incidents'), clean({ ...data, teamId: activeTeam.id, teamName: activeTeam.name, reportedBy: firebaseUser.uid, createdAt: new Date().toISOString() })); },
     addLeaguePayment: async (lId: string, tId: string, data: any) => { await updateDoc(doc(db, 'leagues', lId), { [`finances.${tId}.payments`]: arrayUnion(data), [`finances.${tId}.totalPaid`]: increment(data.amount) }); },
     updateLeagueGlobalFees: async (lId: string, fees: any) => { await updateDoc(doc(db, 'leagues', lId), { globalFees: fees }); },
     purchasePro: () => setIsPaywallOpen(true),
     updateLeagueTeamDetails: async (lId: string, tId: string, u: any) => { await updateDoc(doc(db, 'leagues', lId), { [`teams.${tId}`]: u }); },
     manuallyAddTeamToLeague: async (lId: string, name: string, email?: string) => { await updateDoc(doc(db, 'leagues', lId), { [`teams.manual_${Date.now()}`]: { teamName: name, coachEmail: email, wins: 0, losses: 0, ties: 0, points: 0 } }); },
     deleteLeagueInvite: async (id: string) => { await deleteDoc(doc(db, 'leagues', 'global', 'invites', id)); },
-    addRegistration: async (tId: string, eId: string, data: any) => { await addDoc(collection(db, 'teams', tId, 'events', eId, 'registrations'), clean({ ...data, createdAt: new Date().toISOString() })); return true; },
-    deleteChat: async (cId: string) => { if (activeTeam) await deleteDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cId)); },
+    addRegistration: async (teamId: string, eventId: string, data: any) => { await addDoc(collection(db, 'teams', teamId, 'events', eventId, 'registrations'), clean({ ...data, createdAt: new Date().toISOString() })); return true; },
+    deleteChat: async (cId: string) => { if (activeTeam?.id) await deleteDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cId)); },
     hideChatForUser: async (cId: string) => { if (firebaseUser) await setDoc(doc(db, 'users', firebaseUser.uid, 'hiddenChats', cId), { chatId: cId, userId: firebaseUser.uid, hiddenAt: new Date().toISOString() }); },
-    votePoll: async (cId: string, mId: string, idx: number) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cId, 'messages', mId), { [`poll.voters.${firebaseUser?.uid}`]: idx, [`poll.options.${idx}.votes`]: increment(1), ['poll.totalVotes']: increment(1) }); },
+    votePoll: async (cId: string, mId: string, idx: number) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cId, 'messages', mId), { [`poll.voters.${firebaseUser?.uid}`]: idx, [`poll.options.${idx}.votes`] : increment(1), ['poll.totalVotes']: increment(1) }); },
     formatTime: (iso: string) => format(new Date(iso), 'h:mm a'),
-    updateChat: async (cId: string, data: any) => { if (activeTeam) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cId), clean(data)); },
+    updateChat: async (cId: string, data: any) => { if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cId), clean(data)); },
     deployClubProtocol: async (data: any, tIds: string[]) => { const batch = writeBatch(db); tIds.forEach(tid => batch.set(doc(db, 'teams', tid, 'documents', `club_${Date.now()}`), clean({ ...data, isClubMaster: true, teamId: tid, createdAt: new Date().toISOString() }))); await batch.commit(); },
     deleteTeam: async (tid: string) => { await deleteDoc(doc(db, 'teams', tid)); },
-    markMediaAsViewed: async (fId: string) => { if (activeTeam && firebaseUser) await setDoc(doc(db, 'teams', activeTeam.id, 'files', fId, 'views', firebaseUser.uid), { userId: firebaseUser.uid, viewedAt: new Date().toISOString() }); },
+    markMediaAsViewed: async (fId: string) => { if (activeTeam?.id && firebaseUser) await setDoc(doc(db, 'teams', activeTeam.id, 'files', fId, 'views', firebaseUser.uid), { userId: firebaseUser.uid, viewedAt: new Date().toISOString() }); },
     upgradeChildToLogin: async (cid: string) => { await updateDoc(doc(db, 'players', cid), { hasLogin: true }); },
     registerChild: async (first: string, last: string, dob: string) => { if (firebaseUser) await addDoc(collection(db, 'players'), clean({ firstName: first, lastName: last, dateOfBirth: dob, parentId: firebaseUser.uid, isMinor: true, hasLogin: false, createdAt: new Date().toISOString() })); },
     assignManualPlan: async (uid: string, pid: string, lim: number) => { await updateDoc(doc(db, 'users', uid), { activePlanId: pid, proTeamLimit: lim, planSource: 'manual' }); }
-  }), [userProfile, activeTeamId, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser, db, householdEvents, householdBalance, myChildren, plans, isPaywallOpen, isSeedingDemo, getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics, getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation, getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo, toggleRecruitingProfile, updateStaffEvaluation, getStaffEvaluation, createNewTeam, joinTeamWithCode, signUpForVolunteer, addEquipmentItem, createLeague, respondToAssignment, assignEntryToTeam, toggleRegistrationPaymentStatus]);
+  }), [
+    userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser, db, 
+    householdEvents, householdBalance, myChildren, plans, isPaywallOpen, isSeedingDemo,
+    getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
+    getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
+    getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,
+    toggleRecruitingProfile, updateStaffEvaluation, getStaffEvaluation, createNewTeam, joinTeamWithCode,
+    signUpForVolunteer, addEquipmentItem, createLeague, respondToAssignment, assignEntryToTeam, 
+    toggleRegistrationPaymentStatus
+  ]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
 }
