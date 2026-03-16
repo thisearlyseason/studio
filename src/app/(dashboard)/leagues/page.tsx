@@ -69,7 +69,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, updateDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -466,7 +466,7 @@ function LeagueFinances({ league }: { league: League }) {
           <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Configure global registration costs</DialogDescription>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-foreground">Base Registration Fee ($)</Label>
+              <Label className="text-[10px) font-black uppercase tracking-widest text-foreground">Base Registration Fee ($)</Label>
               <Input type="number" value={feesForm.registration} onChange={e => setFeesForm({...feesForm, registration: e.target.value})} className="h-12 text-lg font-black text-foreground" />
             </div>
           </div>
@@ -851,7 +851,7 @@ export default function LeaguesPage() {
                 {inviteMethod === 'manual' && (
                   <div className="space-y-4">
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-foreground">Squad Name</Label><Input value={inviteTeamName} onChange={e => setInviteTeamName(e.target.value)} placeholder="e.g. City Tigers" className="h-12 border-2 text-foreground" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-foreground">Coach Contact (Opt)</Label><Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="coach@email.com" className="h-12 border-2 text-foreground" /></div>
+                    <div className="space-y-2"><Label className="text-[10px) font-black uppercase text-foreground">Coach Contact (Opt)</Label><Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="coach@email.com" className="h-12 border-2 text-foreground" /></div>
                     <Button className="w-full h-14 rounded-xl font-black uppercase text-xs shadow-lg hover:bg-primary hover:text-white transition-all border-none" onClick={handleRecruitmentAction} disabled={isProcessing || !inviteTeamName.trim()}>{isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Authorize Manual Entry"}</Button>
                   </div>
                 )}

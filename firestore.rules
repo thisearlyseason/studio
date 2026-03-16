@@ -24,18 +24,16 @@ service cloud.firestore {
       return isSignedIn() && (
         teamId.matches('^demo_.*') ||
         isSuperAdmin() ||
-        (exists(/databases/$(database)/documents/teams/$(teamId)) && get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid) ||
-        (exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) && (
+        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) && (
           get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin' ||
           get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.position in ['Coach', 'Assistant Coach', 'Manager', 'Team Representative']
-        ))
+        )
       );
     }
 
     function isTeamMember(teamId) {
       return isSignedIn() && (
         teamId.matches('^demo_.*') ||
-        isTeamStaff(teamId) ||
         exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
       );
     }
@@ -135,17 +133,17 @@ service cloud.firestore {
       }
 
       match /alerts/{alertId} {
-        allow read: if true;
+        allow read: if isSignedIn();
         allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
       match /games/{gameId} {
-        allow read: if true;
+        allow read: if isSignedIn();
         allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
       match /drills/{drillId} {
-        allow read: if true;
+        allow read: if isSignedIn();
         allow write: if isTeamStaff(teamId) || teamId.matches('^demo_.*');
       }
 
