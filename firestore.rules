@@ -72,7 +72,7 @@ service cloud.firestore {
 
     // --- Leagues Hierarchy ---
     match /leagues/{leagueId} {
-      allow read: if isSignedIn() || isAnonymous();
+      allow read: if isSignedIn();
       allow create: if isSignedIn() || isAnonymous();
       allow update, delete: if isSignedIn() || isAnonymous();
       
