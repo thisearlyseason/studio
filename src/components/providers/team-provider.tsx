@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -633,7 +634,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return s.exists() ? (s.data() as AthleticMetrics) : null;
   }, [db]);
 
-  const updateAthleticMetrics = useCallback(async (playerId: string, data: Partial<Metric>) => {
+  const updateAthleticMetrics = useCallback(async (playerId: string, data: Partial<AthleticMetrics>) => {
     if (!playerId || !db) return;
     await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics'), clean(data), { merge: true });
   }, [db]);
@@ -659,6 +660,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const s = await getDocs(collection(db, 'players', playerId, 'evaluations'));
     return s.docs.map(d => ({ id: d.id, ...d.data() } as PlayerEvaluation));
   }, [db]);
+
+  const addEvaluation = useCallback(async (playerId: string, data: Partial<PlayerEvaluation>) => {
+    if (!playerId || !db) return;
+    await addDoc(collection(db, 'players', playerId, 'evaluations'), clean({
+      ...data,
+      evaluatorId: firebaseUser?.uid,
+      createdAt: serverTimestamp()
+    }));
+  }, [db, firebaseUser]);
 
   const getRecruitingContact = useCallback(async (playerId: string) => {
     if (!playerId || !db) return null;
