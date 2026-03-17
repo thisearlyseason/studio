@@ -28,19 +28,19 @@ service cloud.firestore {
       }
     }
 
-    match /teams/{allPaths=**} {
+    match /teams/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /leagues/{allPaths=**} {
+    match /leagues/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /players/{allPaths=**} {
+    match /players/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /facilities/{allPaths=**} {
+    match /facilities/{document=**} {
       allow read, write: if isSignedIn();
     }
 
@@ -49,12 +49,12 @@ service cloud.firestore {
     }
 
     // Global Catalog Rules - Publicly readable for enrollment/onboarding
-    match /plans/{allPaths=**} {
+    match /plans/{planId} {
       allow read: if true;
       allow write: if isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
     }
 
-    match /features/{allPaths=**} {
+    match /features/{featureId} {
       allow read: if true;
       allow write: if isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
     }
@@ -64,7 +64,7 @@ service cloud.firestore {
       allow write: if false; // Managed by backend webhooks
     }
 
-    // --- Collection Group Rules for Auditing ---
+    // --- Collection Group Rules for Auditing & Cross-Squad Views ---
 
     match /{path=**}/signatures/{docId} {
       allow read: if isSignedIn();
@@ -79,6 +79,18 @@ service cloud.firestore {
     }
 
     match /{path=**}/incidents/{incidentId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/events/{eventId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/files/{fileId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/documents/{docId} {
       allow read: if isSignedIn();
     }
 

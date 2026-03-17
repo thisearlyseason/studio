@@ -745,9 +745,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const signPublicTournamentWaiver = useCallback(async (teamId: string, eventId: string, tournamentTeamName: string, coachName: string) => {
     if (!db) return false;
-    const agreementId = `agree_${Date.now()}`;
     await updateDoc(doc(db, 'teams', teamId, 'events', eventId), {
-      [`teamAgreements.${tournamentTeamName}`]: { agreed: true, captainName: coachName, signedAt: new Date().toISOString(), agreementId }
+      [`teamAgreements.${tournamentTeamName}`]: { agreed: true, captainName: coachName, signedAt: new Date().toISOString() }
     });
     return true;
   }, [db]);
