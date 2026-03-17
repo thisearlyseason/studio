@@ -91,12 +91,14 @@ service cloud.firestore {
     // --- Global Catalog ---
     match /plans/{planId} {
       allow read: if true;
+      allow write: if isAnonymous(); // Allow seeder to populate catalog
     }
     match /features/{featureId} {
       allow read: if true;
+      allow write: if isAnonymous(); // Allow seeder to populate catalog
     }
 
-    // --- Collection Groups ---
+    // --- Collection Groups (Recursive wildcard matching handles most of this, but group queries need explicit matches) ---
     match /{path=**}/events/{eventId} {
       allow read: if isSignedIn();
     }

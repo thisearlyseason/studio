@@ -77,6 +77,19 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
 };
 
 /**
+ * SEED GLOBAL PLANS
+ */
+const SEED_CATALOG = (batch: any, db: Firestore) => {
+  const plans = [
+    { id: 'starter_squad', name: 'Starter Squad', billingType: 'free', features: { live_feed_read: true, basic_scheduling: true } },
+    { id: 'squad_pro', name: 'Squad Pro', billingType: 'monthly', features: { live_feed_read: true, live_feed_post: true, tournament_itinerary: true, film_compliance: true, stats_basic: true, scouting_ai: true } },
+    { id: 'elite_teams', name: 'Elite Teams', billingType: 'monthly', features: { live_feed_read: true, live_feed_post: true, tournament_itinerary: true, film_compliance: true, stats_basic: true, scouting_ai: true, club_hub: true, equipment_vault: true, facility_fleet: true } },
+    { id: 'elite_league', name: 'Elite League', billingType: 'monthly', features: { live_feed_read: true, live_feed_post: true, tournament_itinerary: true, film_compliance: true, stats_basic: true, scouting_ai: true, club_hub: true, equipment_vault: true, facility_fleet: true, league_registration: true } }
+  ];
+  plans.forEach(p => batch.set(doc(db, 'plans', p.id), p));
+};
+
+/**
  * HIGH-SPEED ATOMIC SEEDER
  */
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
@@ -86,7 +99,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const isEliteDemo = ['elite_teams', 'elite_league', 'squad_organization'].includes(planId);
   const isProTier = planId !== 'starter_squad' && !isParentDemo && !isPlayerDemo;
   
-  const actualPlanId = (isParentDemo || isPlayerDemo) ? 'squad_pro' : (isLeagueDemo ? 'elite_league' : planId);
+  const actualPlanId = (isParentDemo || isPlayerDemo) ? 'squad_pro' : (isLeagueDemo ? 'elite_league' : (planId === 'squad_organization' ? 'elite_teams' : planId));
   const userRole = isParentDemo ? 'parent' : (isPlayerDemo ? 'adult_player' : 'coach');
   const pos = isParentDemo ? 'Parent' : (isPlayerDemo ? 'Player' : 'Coach');
   
@@ -95,6 +108,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   const batch = writeBatch(db);
   const now = new Date().toISOString();
+
+  // Seed Plans first so hasFeature works
+  SEED_CATALOG(batch, db);
 
   // 1. Core Profile
   batch.set(doc(db, 'users', userId), clean({
@@ -105,11 +121,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   const teamConfigs = isEliteDemo 
     ? [
-        { id: `demo_a_${userId.slice(-4)}`, name: 'Metro Elite Alpha', suffix: 'Alpha', isPro: true },
-        { id: `demo_b_${userId.slice(-4)}`, name: 'Metro Elite Beta', suffix: 'Beta', isPro: true }
+        { id: `demo_a_${userId.slice(-4)}`, name: 'Metro Elite Alpha', suffix: 'Alpha', isPro: true, plan: actualPlanId },
+        { id: `demo_b_${userId.slice(-4)}`, name: 'Metro Elite Beta', suffix: 'Beta', isPro: true, plan: actualPlanId }
       ]
     : [
-        { id: `demo_${planId}_${userId.slice(-4)}`, name: isProTier ? 'Elite Demo Squad' : 'Grassroots Demo', suffix: '', isPro: isProTier }
+        { id: `demo_${planId}_${userId.slice(-4)}`, name: isProTier ? 'Elite Demo Squad' : 'Grassroots Demo', suffix: '', isPro: isProTier, plan: actualPlanId }
       ];
 
   // 2. Seed each team
@@ -118,7 +134,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     
     batch.set(doc(db, 'teams', tid), clean({
       id: tid, teamName: config.name, teamCode: tid.slice(-6).toUpperCase(),
-      ownerUserId: userId, isPro: config.isPro, planId: config.isPro ? actualPlanId : 'starter_squad', sport: 'Multi-Sport', isDemo: true,
+      ownerUserId: userId, isPro: config.isPro, planId: config.plan, sport: 'Multi-Sport', isDemo: true,
       parentCommentsEnabled: true, parentChatEnabled: true, createdAt: now, createdBy: userId,
       heroImageUrl: `https://picsum.photos/seed/${tid}hero/1200/400`,
       teamLogoUrl: `https://picsum.photos/seed/${tid}logo/200/200`
@@ -131,7 +147,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
     batch.set(doc(db, 'users', userId, 'teamMemberships', tid), clean({
       teamId: tid, name: config.name, teamCode: tid.slice(-6).toUpperCase(), role,
-      isPro: config.isPro, planId: config.isPro ? actualPlanId : 'starter_squad', isDemo: true, joinedAt: now,
+      isPro: config.isPro, planId: config.plan, isDemo: true, joinedAt: now,
       ownerUserId: userId
     }));
 

@@ -554,10 +554,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return ['Coach', 'Assistant Coach', 'Team Representative', 'Manager'].includes(currentMember?.position || '');
   }, [activeTeam, firebaseUser, members]);
 
-  const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || ''), [userProfile?.activePlanId]);
   const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
+  const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || '') || isSuperAdmin, [userProfile?.activePlanId, isSuperAdmin]);
 
   const formatTime = (iso: string) => { try { return format(new Date(iso), 'h:mm a'); } catch (e) { return '--:--'; } };
+
+  const hasFeature = useCallback((featureId: string) => {
+    if (isSuperAdmin) return true;
+    const planId = activeTeam?.planId || userProfile?.activePlanId || 'starter_squad';
+    const plan = plans.find(p => p.id === planId);
+    return !!plan?.features?.[featureId];
+  }, [activeTeam?.planId, userProfile?.activePlanId, plans, isSuperAdmin]);
 
   // --- 4. TACTICAL METHODS ---
   const getRecruitingProfile = useCallback(async (playerId: string) => { if (!db) return null; const snap = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile')); return snap.exists() ? (snap.data() as RecruitingProfile) : null; }, [db]);
@@ -725,7 +732,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isStaff, isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
     isSuperAdmin, isClubManager, householdEvents: householdEvents || [], householdBalance: 0, myChildren, plans, proQuotaStatus: { current: 0, limit: 0, remaining: 0, exceeded: false },
     isPaywallOpen, setIsPaywallOpen, purchasePro,
-    hasFeature: (id: string) => true, alerts, unreadAlertsCount,
+    hasFeature, alerts, unreadAlertsCount,
     markAlertAsSeen, markAllAlertsAsSeen, seenAlertIds, isSeedingDemo, setIsSeedingDemo,
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
@@ -750,7 +757,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }), [
     db, userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser,
     isStaff, householdEvents, myChildren, plans, isPaywallOpen, isSeedingDemo,
-    seenAlertIds, alerts, unreadAlertsCount, isSuperAdmin, isClubManager,
+    seenAlertIds, alerts, unreadAlertsCount, isSuperAdmin, isClubManager, hasFeature,
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
     getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,

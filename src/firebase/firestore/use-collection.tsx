@@ -66,7 +66,7 @@ export function useCollection<T = any>(
         path = (memoizedTargetRefOrQuery as CollectionReference).path;
       } else {
         const iq = memoizedTargetRefOrQuery as unknown as InternalQuery;
-        path = iq._query?.path?.canonicalString?.() || '';
+        path = iq._query?.path?.canonicalString?.() || iq._query?.path?.toString?.() || '';
       }
     } catch (e) {
       path = 'unknown';
