@@ -32,19 +32,19 @@ service cloud.firestore {
     }
 
     // Broad recursive rules for organizational units to ensure deep nested access
-    match /teams/{document=**} {
+    match /teams/{allPaths=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /leagues/{document=**} {
+    match /leagues/{allPaths=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /facilities/{document=**} {
+    match /facilities/{allPaths=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /players/{document=**} {
+    match /players/{allPaths=**} {
       allow read, write: if isSignedIn();
     }
 

@@ -763,34 +763,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [activeTeamId, db]);
 
-  const deleteChat = useCallback(async (chatId: string) => {
-    if (!activeTeamId || !db) return;
-    await deleteDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId));
-  }, [db, activeTeamId]);
-
-  const hideChatForUser = useCallback(async (chatId: string) => {
-    if (!activeTeamId || !firebaseUser || !db) return;
-    await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), { memberIds: arrayRemove(firebaseUser.uid) });
-  }, [db, activeTeamId, firebaseUser]);
-
-  const updateChat = useCallback(async (chatId: string, data: any) => {
-    if (!activeTeamId || !db) return;
-    await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), clean(data));
-  }, [db, activeTeamId]);
-
-  const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => {
-    if (!activeTeamId || !firebaseUser || !db) return;
-    const ref = doc(db, 'teams', activeTeamId, 'groupChats', chatId, 'messages', messageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
-    const poll = snap.data().poll;
-    const current = poll.voters?.[firebaseUser.uid];
-    const u: any = { [`poll.voters.${firebaseUser.uid}`]: optionIdx };
-    if (current === undefined) { u[`poll.options.${optionIdx}.votes`] = increment(1); u['poll.totalVotes'] = increment(1); }
-    else if (current !== optionIdx) { u[`poll.options.${current}.votes`] = increment(-1); u[`poll.options.${optionIdx}.votes`] = increment(1); }
-    await updateDoc(ref, u);
-  }, [db, activeTeamId, firebaseUser]);
-
   const createLeague = useCallback(async (name: string) => {
     if (!firebaseUser || !db || !activeTeam) return '';
     const lid = `league_${Date.now()}`;
