@@ -48,12 +48,12 @@ service cloud.firestore {
     }
 
     // Global Catalog Rules - Publicly readable for pricing/marketing
-    match /plans/{planId} {
+    match /plans/{document=**} {
       allow read: if true;
       allow write: if isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
     }
 
-    match /features/{featureId} {
+    match /features/{document=**} {
       allow read: if true;
       allow write: if isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
     }
