@@ -494,11 +494,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isAuthResolved } = useUser();
   const db = useFirestore();
   
+  // 1. Core State Hooks
   const [activeTeamId, setManualActiveTeamId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
+  // 2. Auth Profile Listener
   useEffect(() => {
     if (!firebaseUser || !db) { setUserProfile(null); return; }
     return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
@@ -506,6 +508,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   }, [firebaseUser, db]);
 
+  // 3. Teams and Membership Logic
   const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
   const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
   
@@ -517,6 +520,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const activeTeam = useMemo(() => teamsRaw.find(t => t.id === activeTeamId) || teamsRaw[0] || null, [teamsRaw, activeTeamId]);
 
+  // 4. Data Hooks (Members, Alerts, Plans, etc)
   const membersQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'members')) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
   const members = useMemo(() => membersData || [], [membersData]);
@@ -545,6 +549,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
 
+  // 5. Role and Entitlement Logic
   const isStaff = useMemo(() => {
     if (!activeTeam || !firebaseUser) return false;
     if (activeTeam.role === 'Admin') return true;
@@ -555,15 +560,43 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
   const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || '') || isSuperAdmin, [userProfile?.activePlanId, isSuperAdmin]);
 
-  const formatTime = (iso: string) => { try { return format(new Date(iso), 'h:mm a'); } catch (e) { return '--:--'; } };
+  const proQuotaStatus = useMemo(() => {
+    if (!userProfile?.id) return { current: 0, limit: 0, remaining: 0, exceeded: false };
+    const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro);
+    const limit = userProfile.proTeamLimit || 0;
+    return {
+      current: ownedProTeams.length,
+      limit: limit,
+      remaining: Math.max(0, limit - ownedProTeams.length),
+      exceeded: ownedProTeams.length > limit && limit > 0
+    };
+  }, [teamsRaw, userProfile]);
 
   const hasFeature = useCallback((featureId: string) => {
     if (isSuperAdmin) return true;
-    if (isPlansLoading && (activeTeam?.isPro || userProfile?.activePlanId !== 'starter_squad')) return true;
-    const planId = activeTeam?.planId || userProfile?.activePlanId || 'starter_squad';
-    const plan = plans.find(p => p.id === planId);
-    return !!plan?.features?.[featureId];
-  }, [activeTeam?.planId, userProfile?.activePlanId, plans, isSuperAdmin, isPlansLoading]);
+    
+    const currentPlanId = activeTeam?.planId || userProfile?.activePlanId || 'starter_squad';
+    const plan = plans.find(p => p.id === currentPlanId);
+    
+    // Explicit plan feature check
+    if (plan) return !!plan.features?.[featureId];
+    
+    // Entitlement-based fallbacks for demo/seeding/loading states
+    const isProTier = activeTeam?.isPro || currentPlanId !== 'starter_squad';
+    const isEliteTier = ['elite_teams', 'elite_league'].includes(currentPlanId);
+    
+    if (isEliteTier) return true;
+    if (isProTier) {
+      const proFeatures = ['live_feed_read', 'live_feed_post', 'tournament_itinerary', 'film_compliance', 'stats_basic', 'scouting_ai'];
+      return proFeatures.includes(featureId);
+    }
+    
+    // Starter Fallback
+    return ['live_feed_read', 'basic_scheduling'].includes(featureId);
+  }, [activeTeam, userProfile, plans, isSuperAdmin]);
+
+  // 6. Tactical Methods
+  const formatTime = (iso: string) => { try { return format(new Date(iso), 'h:mm a'); } catch (e) { return '--:--'; } };
 
   const getRecruitingProfile = useCallback(async (playerId: string) => { if (!db) return null; const snap = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile')); return snap.exists() ? (snap.data() as RecruitingProfile) : null; }, [db]);
   const updateRecruitingProfile = useCallback(async (playerId: string, data: Partial<RecruitingProfile>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'), { ...clean(data), updatedAt: serverTimestamp() }, { merge: true }); }, [db]);
@@ -727,7 +760,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     db, user: userProfile, activeTeam, setActiveTeam: (t: Team) => setManualActiveTeamId(t.id), teams: teamsRaw, isTeamsLoading, members, isMembersLoading,
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
     isStaff, isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
-    isSuperAdmin, isClubManager, householdEvents: householdEvents || [], householdBalance: 0, myChildren, plans, isPlansLoading, proQuotaStatus: { current: 0, limit: 0, remaining: 0, exceeded: false },
+    isSuperAdmin, isClubManager, householdEvents: householdEvents || [], householdBalance: 0, myChildren, plans, isPlansLoading, proQuotaStatus,
     isPaywallOpen, setIsPaywallOpen, purchasePro,
     hasFeature, alerts, unreadAlertsCount,
     markAlertAsSeen, markAllAlertsAsSeen, seenAlertIds, isSeedingDemo, setIsSeedingDemo,
@@ -754,7 +787,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }), [
     db, userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser,
     isStaff, householdEvents, myChildren, plans, isPlansLoading, isPaywallOpen, isSeedingDemo,
-    seenAlertIds, alerts, unreadAlertsCount, isSuperAdmin, isClubManager, hasFeature,
+    seenAlertIds, alerts, unreadAlertsCount, isSuperAdmin, isClubManager, hasFeature, proQuotaStatus,
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
     getRecruitingContact, updateRecruitingContact, getPlayerVideos, addPlayerVideo, deletePlayerVideo,

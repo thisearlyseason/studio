@@ -236,9 +236,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       teams: teamConfigs.reduce((acc, c) => ({ ...acc, [c.id]: { teamName: c.name, wins: 2, losses: 1, points: 6 } }), {}),
       inviteCode: 'LEAGUE1', createdAt: now
     }));
-    batch.update(doc(db, 'teams', teamConfigs[0].id), { [`leagueIds.${lid}`]: true });
     
-    // Seed an invite to global/invites to ensure permission evaluation
+    // Explicit Invite Seeding for League Portal
     const inviteId = `invite_${userId.slice(-4)}`;
     batch.set(doc(db, 'leagues', 'global', 'invites', inviteId), {
       id: inviteId,
