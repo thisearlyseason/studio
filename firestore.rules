@@ -28,29 +28,33 @@ service cloud.firestore {
       }
     }
 
-    match /teams/{document=**} {
+    match /teams/{allPaths=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /leagues/{document=**} {
+    match /leagues/{allPaths=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /players/{document=**} {
+    match /players/{allPaths=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /facilities/{document=**} {
+    match /facilities/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /team_memberships/{membershipId} {
       allow read, write: if isSignedIn();
     }
 
     // Global Catalog Rules - Publicly readable for enrollment/onboarding
-    match /plans/{document=**} {
+    match /plans/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
     }
 
-    match /features/{document=**} {
+    match /features/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
     }
