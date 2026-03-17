@@ -93,6 +93,22 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
 
+    match /{path=**}/feedPosts/{postId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/comments/{commentId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/groupChats/{chatId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/chatMessages/{messageId} {
+      allow read: if isSignedIn();
+    }
+
     // Catch-all default
     match /{path=**} {
       allow read, write: if false;

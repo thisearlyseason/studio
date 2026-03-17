@@ -21,7 +21,8 @@ import {
   getDoc,
   collectionGroup,
   serverTimestamp,
-  arrayRemove
+  arrayRemove,
+  deleteField
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -498,7 +499,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
-  // --- QUERIES ---
+  // --- STATE STREAMS ---
   useEffect(() => {
     if (!firebaseUser || !db) { setUserProfile(null); return; }
     return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
@@ -527,7 +528,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [db, firebaseUser?.uid, teamsData]);
   const { data: householdEvents } = useCollection<TeamEvent>(householdEventsQuery);
 
-  // --- DERIVED ---
+  // --- DERIVED VALUES ---
   const teamsRaw = useMemo(() => (teamsData || []).map(m => ({ ...m, id: m.teamId || m.id, name: m.name || m.teamName || 'Squad' })), [teamsData]);
   const activeTeam = useMemo(() => teamsRaw.find(t => t.id === activeTeamId) || teamsRaw[0] || null, [teamsRaw, activeTeamId]);
   const members = useMemo(() => membersData || [], [membersData]);
@@ -551,7 +552,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     try { return format(new Date(iso), 'h:mm a'); } catch (e) { return '--:--'; }
   };
 
-  // --- TACTICAL CALLBACKS ---
+  // --- TACTICAL METHODS ---
   const getRecruitingProfile = useCallback(async (playerId: string) => {
     if (!db) return null;
     const snap = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'));
