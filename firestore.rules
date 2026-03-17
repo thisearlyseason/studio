@@ -16,7 +16,7 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
     }
 
-    // --- Global Catalog Rules ---
+    // --- Global Catalog Rules (Publicly Readable) ---
     
     match /plans/{document=**} {
       allow read: if true;
@@ -28,7 +28,7 @@ service cloud.firestore {
       allow write: if isPlatformAdmin();
     }
 
-    // --- Core Entity Rules ---
+    // --- Core Entity Rules (Recursive Wildcards) ---
 
     match /userProfiles/{userId}/{document=**} {
       allow read, write: if isOwner(userId);
@@ -38,23 +38,23 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    match /teams/{teamId}/{document=**} {
+    match /teams/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /leagues/{leagueId}/{document=**} {
+    match /leagues/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /players/{playerId}/{document=**} {
+    match /players/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /facilities/{facilityId}/{document=**} {
+    match /facilities/{document=**} {
       allow read, write: if isSignedIn();
     }
 
-    match /team_memberships/{membershipId} {
+    match /team_memberships/{document=**} {
       allow read, write: if isSignedIn();
     }
 

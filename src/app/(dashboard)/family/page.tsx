@@ -64,7 +64,6 @@ export default function FamilyDashboardPage() {
   const childMemberIds = useMemo(() => {
     const ids = new Set<string>();
     myChildren.forEach(c => (c.joinedTeamIds || []).forEach(tid => ids.add(`${tid}_${c.id}`)));
-    // We also need the actual roster member IDs which might not follow that pattern
     return Array.from(ids);
   }, [myChildren]);
 
@@ -79,11 +78,9 @@ export default function FamilyDashboardPage() {
     const results: Record<string, { pending: number, signed: number, pendingList: any[] }> = {};
     
     myChildren.forEach(child => {
-      // In this version we'll derive compliance from the signature counts
-      // For a more precise result in a real app, we'd query team docs specifically
       const mySigs = (signatures || []).filter(s => s.memberId === child.id || s.memberId.endsWith(child.id));
       results[child.id] = { 
-        pending: 0, // In an MVP we'll show signed count primarily
+        pending: 0,
         signed: mySigs.length,
         pendingList: [] 
       };

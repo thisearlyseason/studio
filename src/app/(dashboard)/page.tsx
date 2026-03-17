@@ -53,7 +53,6 @@ export default function UniversalAccountDashboard() {
   }, [games]);
 
   // 2. Aggregate Pending Waivers
-  // For MVP we count docs in Library that aren't signed yet
   const docsQuery = useMemoFirebase(() => {
     if (!db || !activeTeam?.id) return null;
     return collection(db, 'teams', activeTeam.id, 'documents');
@@ -61,7 +60,6 @@ export default function UniversalAccountDashboard() {
   const { data: documents } = useCollection(docsQuery);
   const pendingWaiversCount = useMemo(() => {
     if (!documents) return 0;
-    // Real logic would check sigs, for dashboard we show count if user is member
     return documents.length > 0 ? documents.length : 0;
   }, [documents]);
 
@@ -258,7 +256,7 @@ export default function UniversalAccountDashboard() {
                 Use a coordinate league code provided by your organization manager to instantly enroll your household into competitive standings.
               </p>
               <Button onClick={() => router.push('/teams/join')} className="w-full h-12 rounded-xl bg-white text-black hover:bg-white/90 font-black uppercase text-[10px] tracking-widest shadow-xl">
-                Open Portal <ArrowRight className="ml-2 h-4 w-4" />
+                Open Portal <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </CardContent>
           </Card>
