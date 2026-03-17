@@ -13,7 +13,11 @@ service cloud.firestore {
     }
 
     function isAnonymous() {
-      return isSignedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+      // Robust check for anonymous/custom provider status
+      return isSignedIn() && (
+        request.auth.token.firebase.sign_in_provider == 'anonymous' || 
+        request.auth.token.firebase.sign_in_provider == 'custom'
+      );
     }
 
     // --- User Profiles ---
@@ -30,11 +34,11 @@ service cloud.firestore {
     // --- Global Catalog ---
     match /plans/{planId} {
       allow read: if true;
-      allow write: if isAnonymous(); 
+      allow write: if isSignedIn() || isAnonymous(); 
     }
     match /features/{featureId} {
       allow read: if true;
-      allow write: if isAnonymous();
+      allow write: if isSignedIn() || isAnonymous();
     }
 
     // --- Teams Hierarchy ---
@@ -44,7 +48,7 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() || isAnonymous();
 
       match /{allPaths=**} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || isAnonymous();
         allow write: if isSignedIn() || isAnonymous();
       }
     }
@@ -61,7 +65,7 @@ service cloud.firestore {
       allow write: if isSignedIn() || isAnonymous();
       
       match /{allPaths=**} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || isAnonymous();
         allow write: if isSignedIn() || isAnonymous();
       }
     }
@@ -73,7 +77,7 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() || isAnonymous();
       
       match /{allPaths=**} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || isAnonymous();
         allow write: if isSignedIn() || isAnonymous();
       }
     }
@@ -84,7 +88,7 @@ service cloud.firestore {
       allow write: if isSignedIn() || isAnonymous();
       
       match /{allPaths=**} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || isAnonymous();
         allow write: if isSignedIn() || isAnonymous();
       }
     }
