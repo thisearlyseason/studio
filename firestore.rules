@@ -12,6 +12,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isAnonymous() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
     function isTeamMember(teamId) {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
@@ -30,67 +34,63 @@ service cloud.firestore {
     // --- User Profiles ---
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
+      allow write: if isOwner(userId) || isAnonymous();
       
-      match /teamMemberships/{membershipId} {
-        allow read: if isOwner(userId);
-        allow write: if isOwner(userId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
-      }
-      
-      match /hiddenChats/{chatId} {
-        allow read, write: if isOwner(userId);
+      match /{allPaths=**} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(userId) || isAnonymous();
       }
     }
 
     // --- Players ---
     match /players/{playerId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() || isAnonymous();
       
       match /{allPaths=**} {
         allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow write: if isSignedIn() || isAnonymous();
       }
     }
 
     // --- Teams ---
     match /teams/{teamId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isTeamAdmin(teamId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
+      allow create: if isSignedIn() || isAnonymous();
+      allow update, delete: if isTeamAdmin(teamId) || isAnonymous();
 
       match /{allPaths=**} {
         allow read: if isSignedIn();
-        allow write: if isTeamAdmin(teamId) || isTeamMember(teamId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
+        allow write: if isTeamAdmin(teamId) || isTeamMember(teamId) || isAnonymous();
       }
     }
 
     // --- Team Memberships ---
     match /team_memberships/{membershipId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() || isAnonymous();
     }
 
     // --- Facilities ---
     match /facilities/{facId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() || isAnonymous();
       
       match /{allPaths=**} {
         allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow write: if isSignedIn() || isAnonymous();
       }
     }
 
     // --- Leagues ---
     match /leagues/{leagueId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.creatorId || isSuperAdmin());
+      allow create: if isSignedIn() || isAnonymous();
+      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.creatorId || isSuperAdmin()) || isAnonymous();
       
       match /{allPaths=**} {
         allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow write: if isSignedIn() || isAnonymous();
       }
     }
 

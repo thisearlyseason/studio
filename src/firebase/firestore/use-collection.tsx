@@ -73,7 +73,8 @@ export function useCollection<T = any>(
     }
 
     // CRITICAL: If the path is empty, points to document root, or contains undefined segments, do not establish a listener.
-    if (!path || path === '/' || path === '.' || path === '' || path.includes('undefined')) {
+    // Listing the root /databases/(default)/documents path is forbidden by security rules and will cause errors.
+    if (!path || path === '/' || path === '.' || path === '' || path === 'undefined' || path.includes('/undefined/') || path.endsWith('/undefined')) {
       setData(null);
       setIsLoading(false);
       return;
@@ -93,7 +94,7 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (error: FirestoreError) => {
+      (err: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: path || 'unknown',
