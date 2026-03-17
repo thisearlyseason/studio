@@ -148,11 +148,11 @@ const SEED_CATALOG = (batch: any, db: Firestore) => {
 export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
   const isParentDemo = planId === 'parent_demo';
   const isPlayerDemo = planId === 'player_demo';
-  const isLeagueDemo = planId === 'elite_league';
+  const isLeagueDemo = ['elite_league', 'elite_teams', 'squad_organization'].includes(planId);
   const isEliteDemo = ['elite_teams', 'elite_league', 'squad_organization'].includes(planId);
   const isProTier = planId !== 'starter_squad' && !isParentDemo && !isPlayerDemo;
   
-  const actualPlanId = (isParentDemo || isPlayerDemo) ? 'squad_pro' : (isLeagueDemo ? 'elite_league' : (planId === 'squad_organization' ? 'elite_teams' : planId));
+  const actualPlanId = (isParentDemo || isPlayerDemo) ? 'squad_pro' : (isLeagueDemo ? (planId === 'elite_league' ? 'elite_league' : 'elite_teams') : planId);
   const userRole = isParentDemo ? 'parent' : (isPlayerDemo ? 'adult_player' : 'coach');
   const pos = isParentDemo ? 'Parent' : (isPlayerDemo ? 'Player' : 'Coach');
   
