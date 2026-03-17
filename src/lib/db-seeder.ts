@@ -244,6 +244,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       status: 'pending',
       createdAt: now
     });
+    
+    // Initialize the global doc itself
+    batch.set(doc(db, 'leagues', 'global'), { initialized: true }, { merge: true });
   }
 
   await batch.commit();

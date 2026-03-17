@@ -5,7 +5,7 @@ service cloud.firestore {
     // --- Helper Functions ---
 
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
 
     function isOwner(userId) {
@@ -34,8 +34,15 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    match /users/{allPaths=**} {
-      allow read, write: if isSignedIn();
+    match /userProfiles/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /players/{allPaths=**} {
@@ -48,7 +55,7 @@ service cloud.firestore {
 
     match /plans/{allPaths=**} {
       allow read: if true;
-      allow write: if isAnonymous();
+      allow write: if isAnonymous() || isSignedIn();
     }
 
     // --- Team Memberships (Sentinels) ---
