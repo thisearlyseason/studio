@@ -610,8 +610,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const addMessage = useCallback(async (chatId: string, author: string, content: string, type: string, img?: string, poll?: any) => { if (activeTeamId && firebaseUser && db) await addDoc(collection(db, 'teams', activeTeamId, 'groupChats', chatId, 'messages'), clean({ author, authorId: firebaseUser.uid, content, type, imageUrl: img, poll, createdAt: new Date().toISOString() })); }, [activeTeamId, firebaseUser, db]);
   const createChat = useCallback(async (name: string, members: string[]) => { if (!activeTeamId || !firebaseUser || !db) return ''; const cid = `chat_${Date.now()}`; await setDoc(doc(db, 'teams', activeTeamId, 'groupChats', cid), clean({ id: cid, name, createdBy: firebaseUser.uid, memberIds: [...members, firebaseUser.uid], createdAt: new Date().toISOString(), isDeleted: false, teamId: activeTeamId })); return cid; }, [activeTeamId, firebaseUser, db]);
-  const deleteChat = useCallback(async (chatId: string) => { if (activeTeamId && db) await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), { isDeleted: true }); }, [activeTeamId, db]);
-  const hideChatForUser = useCallback(async (chatId: string) => { if (!firebaseUser || !db) return; await setDoc(doc(db, 'users', firebaseUser.uid, 'hiddenChats', chatId), { id: `${firebaseUser.uid}_${chatId}`, userId: firebaseUser.uid, chatId, hiddenAt: new Date().toISOString() }); }, [firebaseUser, db]);
+  
+  const deleteChat = useCallback(async (chatId: string) => { 
+    if (activeTeamId && db) {
+      await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), { isDeleted: true });
+    }
+  }, [activeTeamId, db]);
+
+  const hideChatForUser = useCallback(async (chatId: string) => { 
+    if (!firebaseUser || !db) return; 
+    await setDoc(doc(db, 'users', firebaseUser.uid, 'hiddenChats', chatId), { 
+      id: `${firebaseUser.uid}_${chatId}`, 
+      userId: firebaseUser.uid, 
+      chatId, 
+      hiddenAt: new Date().toISOString() 
+    }); 
+  }, [firebaseUser, db]);
   
   const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => { 
     if (!activeTeamId || !firebaseUser || !db) return; 
@@ -632,7 +646,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     await updateDoc(msgRef, updates); 
   }, [activeTeamId, firebaseUser, db]);
 
-  const updateChat = useCallback(async (chatId: string, data: any) => { if (activeTeamId && db) await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), clean(data)); }, [activeTeamId, db]);
+  const updateChat = useCallback(async (chatId: string, data: any) => { 
+    if (activeTeamId && db) {
+      await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), clean(data)); 
+    }
+  }, [activeTeamId, db]);
 
   const addVolunteerOpportunity = useCallback(async (data: any) => { if (activeTeamId && db) await addDoc(collection(db, 'teams', activeTeamId, 'volunteers'), clean({ ...data, signups: {} })); }, [activeTeamId, db]);
   const signUpForVolunteer = useCallback(async (oppId: string) => { if (activeTeamId && firebaseUser && db) await updateDoc(doc(db, 'teams', activeTeamId, 'volunteers', oppId), { [`signups.${firebaseUser.uid}`]: { userId: firebaseUser.uid, userName: userProfile?.name, email: firebaseUser.email, isConfirmed: false, status: 'pending', createdAt: new Date().toISOString() } }); }, [activeTeamId, firebaseUser, db, userProfile]);
@@ -675,10 +693,44 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const assignManualPlan = useCallback(async (uid: string, planId: string, limit: number) => { if (db) await updateDoc(doc(db, 'users', uid), { activePlanId: planId, proTeamLimit: limit, planSource: 'manual' }); }, [db]);
 
   const addIncident = useCallback(async (data: any) => { if (activeTeam?.id && db && firebaseUser) await addDoc(collection(db, 'teams', activeTeam.id, 'incidents'), clean({ ...data, teamId: activeTeam.id, teamName: activeTeam.name, reportedBy: firebaseUser.uid, createdAt: new Date().toISOString() })); }, [db, firebaseUser, activeTeam]);
-  const resetSquadData = useCallback(async (cats: string[]) => { if (!activeTeam?.id || !db) return; const batch = writeBatch(db); if (cats.includes('games')) { const gs = await getDocs(collection(db, 'teams', activeTeam.id, 'games')); gs.forEach(d => batch.delete(d.ref)); } if (cats.includes('events')) { const es = await getDocs(collection(db, 'teams', activeTeam.id, 'events')); es.forEach(d => batch.delete(d.ref)); } await batch.commit(); }, [activeTeam?.id, db]);
-  const markMediaAsViewed = useCallback(async (fileId: string) => { if (!firebaseUser || !activeTeam?.id || !db) return; await setDoc(doc(db, 'teams', activeTeam.id, 'members', firebaseUser.uid, 'mediaViews', fileId), { fileId, viewedAt: new Date().toISOString() }); }, [activeTeam?.id, firebaseUser, db]);
-  const deployClubProtocol = useCallback(async (data: any, teamIds: string[]) => { if(!db) return; const batch = writeBatch(db); teamIds.forEach(tid => { const docId = `protocol_${Date.now()}`; batch.set(doc(db, 'teams', tid, 'documents', docId), clean({ ...data, id: docId, isClubMaster: true, createdAt: new Date().toISOString() })); }); await batch.commit(); }, [db]);
-  const deleteTeam = useCallback(async (tid: string) => { if(db) await deleteDoc(doc(db, 'teams', tid)); }, [db]);
+  
+  const resetSquadData = useCallback(async (cats: string[]) => { 
+    if (!activeTeam?.id || !db) return; 
+    const batch = writeBatch(db); 
+    if (cats.includes('games')) { 
+      const gs = await getDocs(collection(db, 'teams', activeTeam.id, 'games')); 
+      gs.forEach(d => batch.delete(d.ref)); 
+    } 
+    if (cats.includes('events')) { 
+      const es = await getDocs(collection(db, 'teams', activeTeam.id, 'events')); 
+      es.forEach(d => batch.delete(d.ref)); 
+    } 
+    await batch.commit(); 
+  }, [activeTeam?.id, db]);
+
+  const markMediaAsViewed = useCallback(async (fileId: string) => { 
+    if (!firebaseUser || !activeTeam?.id || !db) return; 
+    await setDoc(doc(db, 'teams', activeTeam.id, 'members', firebaseUser.uid, 'mediaViews', fileId), { 
+      fileId, 
+      viewedAt: new Date().toISOString() 
+    }); 
+  }, [activeTeam?.id, firebaseUser, db]);
+
+  const deployClubProtocol = useCallback(async (data: any, teamIds: string[]) => { 
+    if(!db) return; 
+    const batch = writeBatch(db); 
+    teamIds.forEach(tid => { 
+      const docId = `protocol_${Date.now()}`; 
+      batch.set(doc(db, 'teams', tid, 'documents', docId), clean({ ...data, id: docId, isClubMaster: true, createdAt: new Date().toISOString() })); 
+    }); 
+    await batch.commit(); 
+  }, [db]);
+
+  const deleteTeam = useCallback(async (tid: string) => { 
+    if(db) {
+      await deleteDoc(doc(db, 'teams', tid)); 
+    }
+  }, [db]);
 
   const markAlertAsSeen = useCallback(async (id: string) => { if (firebaseUser && db) await updateDoc(doc(db, 'users', firebaseUser.uid), { seenAlertIds: arrayUnion(id) }); }, [firebaseUser, db]);
   const markAllAlertsAsSeen = useCallback(async () => { if (firebaseUser && db && alerts.length > 0) await updateDoc(doc(db, 'users', firebaseUser.uid), { seenAlertIds: alerts.map(a => a.id) }); }, [firebaseUser, db, alerts]);

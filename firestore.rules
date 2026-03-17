@@ -16,18 +16,20 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
 
+    // Check membership via memberships collection
     function isTeamMember(teamId) {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
-        exists(/databases/$(database)/documents/team_memberships/$(teamId + "_" + request.auth.uid))
+        exists(/databases/$(database)/documents/team_memberships/$(teamId + "_" + request.auth.uid)) ||
+        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
       );
     }
 
+    // Check admin via membership doc or team ownership
     function isTeamAdmin(teamId) {
       return isSignedIn() && (
-        get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin' ||
+        get(/databases/$(database)/documents/team_memberships/$(teamId + "_" + request.auth.uid)).data.role == 'Admin' ||
         get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin'
       );
     }
 
@@ -120,6 +122,9 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
     match /{path=**}/members/{memberId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/feedPosts/{postId} {
       allow read: if isSignedIn();
     }
 
