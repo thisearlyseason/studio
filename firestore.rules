@@ -16,21 +16,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
 
-    function isTeamMember(teamId) {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
-        isAnonymous()
-      );
-    }
-
-    function isTeamAdmin(teamId) {
-      return isSignedIn() && (
-        get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin' ||
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
-        isAnonymous()
-      );
-    }
-
     // --- User Profiles ---
     match /users/{userId} {
       allow read: if isSignedIn();
@@ -42,7 +27,35 @@ service cloud.firestore {
       }
     }
 
-    // --- Players ---
+    // --- Global Catalog ---
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if isAnonymous(); 
+    }
+    match /features/{featureId} {
+      allow read: if true;
+      allow write: if isAnonymous();
+    }
+
+    // --- Teams Hierarchy ---
+    match /teams/{teamId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() || isAnonymous();
+      allow update, delete: if isSignedIn() || isAnonymous();
+
+      match /{allPaths=**} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() || isAnonymous();
+      }
+    }
+
+    // --- Membership Sentinel ---
+    match /team_memberships/{membershipId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() || isAnonymous();
+    }
+
+    // --- Players Hierarchy ---
     match /players/{playerId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() || isAnonymous();
@@ -53,30 +66,7 @@ service cloud.firestore {
       }
     }
 
-    // --- Teams ---
-    match /teams/{teamId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() || isAnonymous();
-      allow update, delete: if isTeamAdmin(teamId) || isAnonymous();
-
-      match /{allPaths=**} {
-        allow read: if isSignedIn();
-        allow write: if isTeamAdmin(teamId) || isTeamMember(teamId) || isAnonymous();
-      }
-    }
-
-    // --- Facilities ---
-    match /facilities/{facId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() || isAnonymous();
-      
-      match /{allPaths=**} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn() || isAnonymous();
-      }
-    }
-
-    // --- Leagues ---
+    // --- Leagues Hierarchy ---
     match /leagues/{leagueId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() || isAnonymous();
@@ -88,17 +78,18 @@ service cloud.firestore {
       }
     }
 
-    // --- Global Catalog ---
-    match /plans/{planId} {
-      allow read: if true;
-      allow write: if isAnonymous(); // Allow seeder to populate catalog
-    }
-    match /features/{featureId} {
-      allow read: if true;
-      allow write: if isAnonymous(); // Allow seeder to populate catalog
+    // --- Facilities & Fleet ---
+    match /facilities/{facId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() || isAnonymous();
+      
+      match /{allPaths=**} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() || isAnonymous();
+      }
     }
 
-    // --- Collection Groups (Recursive wildcard matching handles most of this, but group queries need explicit matches) ---
+    // --- Collection Groups (For cross-team auditing) ---
     match /{path=**}/events/{eventId} {
       allow read: if isSignedIn();
     }
@@ -119,11 +110,6 @@ service cloud.firestore {
     }
     match /{path=**}/incidents/{incId} {
       allow read: if isSignedIn();
-    }
-
-    // Explicitly deny root document listing
-    match / {
-      allow list: if false;
     }
 
     // Deny by default
