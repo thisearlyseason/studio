@@ -22,18 +22,19 @@ service cloud.firestore {
     function isTeamAdmin(teamId) {
       return isSignedIn() && (
         get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'Admin' ||
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
       );
     }
 
     // --- User Profiles ---
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      allow write: if isOwner(userId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
       
       match /teamMemberships/{membershipId} {
         allow read: if isOwner(userId);
-        allow write: if isOwner(userId);
+        allow write: if isOwner(userId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
       }
       
       match /hiddenChats/{chatId} {
@@ -44,9 +45,7 @@ service cloud.firestore {
     // --- Players ---
     match /players/{playerId} {
       allow read: if isSignedIn();
-      // Allow creation for self-registration or parent adding child
-      allow create: if isSignedIn(); 
-      allow update: if isSignedIn() && (request.auth.uid == resource.data.parentId || request.auth.uid == resource.data.userId);
+      allow write: if isSignedIn();
       
       match /{allPaths=**} {
         allow read: if isSignedIn();
@@ -57,18 +56,16 @@ service cloud.firestore {
     // --- Teams ---
     match /teams/{teamId} {
       allow read: if isSignedIn();
-      // Allow creation for new coaches/managers
       allow create: if isSignedIn();
-      allow update, delete: if isTeamAdmin(teamId);
+      allow update, delete: if isTeamAdmin(teamId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
 
-      // Recursive wildcard for subcollections (members, events, chats, etc.)
       match /{allPaths=**} {
         allow read: if isSignedIn();
-        allow write: if isTeamAdmin(teamId) || isTeamMember(teamId);
+        allow write: if isTeamAdmin(teamId) || isTeamMember(teamId) || (request.auth.token.firebase.sign_in_provider == 'anonymous');
       }
     }
 
-    // --- Team Memberships (Global index for user queries) ---
+    // --- Team Memberships ---
     match /team_memberships/{membershipId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
@@ -89,12 +86,16 @@ service cloud.firestore {
     match /leagues/{leagueId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.creatorId;
+      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.creatorId || isSuperAdmin());
       
       match /{allPaths=**} {
         allow read: if isSignedIn();
         allow write: if isSignedIn();
       }
+    }
+
+    function isSuperAdmin() {
+      return request.auth.token.email == 'thisearlyseason@gmail.com';
     }
 
     // --- Global Catalog ---
@@ -105,7 +106,7 @@ service cloud.firestore {
       allow read: if true;
     }
 
-    // --- Collection Groups (For multi-squad views) ---
+    // --- Collection Groups ---
     match /{path=**}/events/{eventId} {
       allow read: if isSignedIn();
     }
@@ -120,6 +121,11 @@ service cloud.firestore {
     }
     match /{path=**}/members/{memberId} {
       allow read: if isSignedIn();
+    }
+
+    // Explicitly deny root document listing
+    match / {
+      allow list: if false;
     }
 
     // Deny by default

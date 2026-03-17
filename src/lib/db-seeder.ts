@@ -28,7 +28,7 @@ const clean = (obj: any): any => {
 
 /**
  * STATIC BLUEPRINTS
- * Pre-defined data structures to eliminate procedural generation latency.
+ * Pre-defined data structures to represent a fully functional hub.
  */
 const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') => {
   const now = new Date();
@@ -43,7 +43,8 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
       { id: `m3_${teamId}`, userId: `u3_${teamId}`, playerId: `p_u3_${teamId}`, name: `Sam Taylor ${teamSuffix}`, role: 'Member', position: 'Defender', jersey: '04', medicalClearance: false, amountOwed: 1250, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m3${teamId}/150/150`, gradYear: '2026', gpa: '3.8', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo3', notes: 'Physical presence with strong aerial capability.', skills: ['Strength', 'Tackling', 'Heading'], achievements: ['Defensive Player of Year'] }
     ],
     games: [
-      { id: `g1_${teamId}`, opponent: 'Tigers', date: yesterday, myScore: 12, opponentScore: 8, result: 'Win', location: 'City Arena' }
+      { id: `g1_${teamId}`, opponent: 'Tigers', date: yesterday, myScore: 12, opponentScore: 8, result: 'Win', location: 'City Arena' },
+      { id: `g2_${teamId}`, opponent: 'Hawks', date: now.toISOString(), myScore: 0, opponentScore: 0, result: 'Tie', location: 'Home Field' }
     ],
     events: [
       { id: `e1_${teamId}`, teamId, title: `Championship Match ${teamSuffix}`, eventType: 'game', date: tomorrow, startTime: '10:00 AM', location: 'State Stadium', description: 'Final round coordination.' },
@@ -60,13 +61,17 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
       { id: `p2_${teamId}`, type: 'poll', content: 'Uniform choice?', poll: { question: 'Uniform choice?', options: [{text: 'Home Red', votes: 12}, {text: 'Away White', votes: 5}], totalVotes: 17, voters: {}, isClosed: false }, createdAt: yesterday }
     ],
     documents: [
-      { id: `doc1_${teamId}`, teamId, title: '2024 Liability Waiver', content: 'Standard participation agreement and medical release.', type: 'waiver', assignedTo: ['all'], signatureCount: 0, createdAt: now.toISOString() }
+      { id: 'default_medical', teamId, title: 'Medical Clearance', content: 'Standard medical waiver.', type: 'waiver', isActive: true, assignedTo: ['all'], signatureCount: 0, createdAt: now.toISOString() },
+      { id: 'default_parental', teamId, title: 'Parental Consent', content: 'Mandatory minor release.', type: 'waiver', isActive: true, assignedTo: ['all'], signatureCount: 0, createdAt: now.toISOString() }
     ],
     facilities: [
       { id: `fac1_${teamId}`, name: 'Elite Sports Complex', address: '100 Athlete Way', notes: 'Gate code: 1234', clubId: userId }
     ],
     alerts: [
-      { id: `a1_${teamId}`, title: 'Venue Change', message: 'Tomorrow\'s match moved to Court 4 due to maintenance.', audience: 'everyone', createdAt: yesterday, createdBy: userId }
+      { id: `a1_${teamId}`, title: 'Venue Change', message: 'Match moved to Court 4 due to maintenance.', audience: 'everyone', createdAt: yesterday, createdBy: userId }
+    ],
+    equipment: [
+      { id: `eq1_${teamId}`, name: 'Training Vests', category: 'Training Gear', totalQuantity: 20, availableQuantity: 20, status: 'Active', assignments: {} }
     ]
   };
 };
@@ -85,7 +90,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const userRole = isParentDemo ? 'parent' : (isPlayerDemo ? 'adult_player' : 'coach');
   const pos = isParentDemo ? 'Parent' : (isPlayerDemo ? 'Player' : 'Coach');
   
-  // CRITICAL: Demos that need command access must have 'Admin' role
+  // Demos that need command access must have 'Admin' role
   const role = (isParentDemo || isPlayerDemo) ? 'Member' : 'Admin';
 
   const batch = writeBatch(db);
@@ -98,7 +103,6 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     avatarUrl: `https://picsum.photos/seed/${userId}/150/150`
   }), { merge: true });
 
-  // Define team configurations
   const teamConfigs = isEliteDemo 
     ? [
         { id: `demo_a_${userId.slice(-4)}`, name: 'Metro Elite Alpha', suffix: 'Alpha', isPro: true },
@@ -143,11 +147,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     data.games.forEach(g => batch.set(doc(db, 'teams', tid, 'games', g.id), clean(g)));
     data.events.forEach(e => batch.set(doc(db, 'teams', tid, 'events', e.id), clean({ ...e, teamId: tid, teamName: config.name })));
     data.drills.forEach(d => batch.set(doc(db, 'teams', tid, 'drills', d.id), clean(d)));
-    data.scouting.forEach(s => batch.set(doc(db, 'teams', tid, 'scouting', s.id), clean(s)));
     data.feed.forEach(p => batch.set(doc(db, 'teams', tid, 'feedPosts', p.id), clean({ ...p, teamId: tid })));
     data.documents.forEach(d => batch.set(doc(db, 'teams', tid, 'documents', d.id), clean(d)));
     data.facilities.forEach(f => batch.set(doc(db, 'facilities', f.id), clean(f)));
     data.alerts.forEach(a => batch.set(doc(db, 'teams', tid, 'alerts', a.id), clean(a)));
+    data.equipment.forEach(eq => batch.set(doc(db, 'teams', tid, 'equipment', eq.id), clean(eq)));
 
     if (isParentDemo) {
       const childId = `child_${tid}`;

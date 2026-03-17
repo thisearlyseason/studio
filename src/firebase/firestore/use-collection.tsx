@@ -59,19 +59,21 @@ export function useCollection<T = any>(
       return;
     }
 
-    // TACTICAL GUARD: Prevent root-level scans.
+    // TACTICAL GUARD: Prevent root-level scans or uninitialized paths.
     let path: string = '';
     try {
-      path = memoizedTargetRefOrQuery.type === 'collection'
-        ? (memoizedTargetRefOrQuery as CollectionReference).path
-        : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query?.path?.canonicalString?.() || '';
+      if (memoizedTargetRefOrQuery.type === 'collection') {
+        path = (memoizedTargetRefOrQuery as CollectionReference).path;
+      } else {
+        const iq = memoizedTargetRefOrQuery as unknown as InternalQuery;
+        path = iq._query?.path?.canonicalString?.() || '';
+      }
     } catch (e) {
-      // safe fallback
+      path = 'unknown';
     }
 
-    // CRITICAL: If the path is empty or points to the document root, do not establish a listener.
-    // This resolves the "Missing or insufficient permissions" at the root path during initial auth resolution.
-    if (!path || path === '/' || path === '.' || path === '') {
+    // CRITICAL: If the path is empty, points to document root, or contains undefined segments, do not establish a listener.
+    if (!path || path === '/' || path === '.' || path === '' || path.includes('undefined')) {
       setData(null);
       setIsLoading(false);
       return;
@@ -94,7 +96,7 @@ export function useCollection<T = any>(
       (error: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path,
+          path: path || 'unknown',
         });
 
         setError(contextualError);
@@ -109,8 +111,5 @@ export function useCollection<T = any>(
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery]); 
   
-  if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    // Optional: console.warn('useCollection: reference not properly memoized');
-  }
   return { data, isLoading, error };
 }

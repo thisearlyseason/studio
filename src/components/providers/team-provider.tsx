@@ -137,6 +137,7 @@ export type Team = {
   contactPhone?: string;
   registrationProtocolId?: string;
   leagueIds?: Record<string, boolean>;
+  isDemo?: boolean;
 };
 
 export type Member = {
@@ -509,17 +510,34 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
   const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
   
-  const membersQuery = useMemoFirebase(() => (isAuthResolved && activeTeamId && db) ? query(collection(db, 'teams', activeTeamId, 'members')) : null, [isAuthResolved, activeTeamId, db]);
+  const teamsRaw = useMemo(() => (teamsData || []).map(m => ({ ...m, id: m.teamId || m.id, name: m.name || m.teamName || 'Squad' })), [teamsData]);
+  const activeTeam = useMemo(() => teamsRaw.find(t => t.id === activeTeamId) || teamsRaw[0] || null, [teamsRaw, activeTeamId]);
+
+  // Sync activeTeamId once teams are loaded
+  useEffect(() => {
+    if (!activeTeamId && teamsRaw.length > 0) {
+      setActiveTeamId(teamsRaw[0].id);
+    }
+  }, [teamsRaw, activeTeamId]);
+
+  const membersQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'members')) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
-  
-  const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeamId && db) ? query(collection(db, 'teams', activeTeamId, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeamId, db]);
+  const members = useMemo(() => membersData || [], [membersData]);
+
+  const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
+  const alerts = useMemo(() => alertsData || [], [alertsData]);
   
+  const seenAlertIds = useMemo(() => userProfile?.seenAlertIds || [], [userProfile?.seenAlertIds]);
+  const unreadAlertsCount = useMemo(() => alerts.filter(a => !seenAlertIds.includes(a.id)).length, [alerts, seenAlertIds]);
+
   const plansQuery = useMemoFirebase(() => (db && isAuthResolved) ? collection(db, 'plans') : null, [db, isAuthResolved]);
   const { data: plansData } = useCollection(plansQuery);
+  const plans = useMemo(() => plansData || [], [plansData]);
 
   const childrenQuery = useMemoFirebase(() => (db && firebaseUser?.uid) ? query(collection(db, 'players'), where('parentId', '==', firebaseUser.uid)) : null, [db, firebaseUser?.uid]);
   const { data: myChildrenRaw } = useCollection<PlayerProfile>(childrenQuery);
+  const myChildren = useMemo(() => myChildrenRaw || [], [myChildrenRaw]);
 
   const householdEventsQuery = useMemoFirebase(() => {
     if (!db || !firebaseUser?.uid || !teamsData || (teamsData && teamsData.length === 0)) return null;
@@ -528,18 +546,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return query(collectionGroup(db, 'events'), where('teamId', 'in', teamIds.slice(0, 10)));
   }, [db, firebaseUser?.uid, teamsData]);
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
-
-  // --- 2. DERIVED VALUES ---
-  const teamsRaw = useMemo(() => (teamsData || []).map(m => ({ ...m, id: m.teamId || m.id, name: m.name || m.teamName || 'Squad' })), [teamsData]);
-  const activeTeam = useMemo(() => teamsRaw.find(t => t.id === activeTeamId) || teamsRaw[0] || null, [teamsRaw, activeTeamId]);
-  const members = useMemo(() => membersData || [], [membersData]);
-  const alerts = useMemo(() => alertsData || [], [alertsData]);
-  const plans = useMemo(() => plansData || [], [plansData]);
-  const myChildren = useMemo(() => myChildrenRaw || [], [myChildrenRaw]);
-  const seenAlertIds = useMemo(() => userProfile?.seenAlertIds || [], [userProfile?.seenAlertIds]);
-  const unreadAlertsCount = useMemo(() => alerts.filter(a => !seenAlertIds.includes(a.id)).length, [alerts, seenAlertIds]);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
 
+  // --- 2. DERIVED BOOLEANS ---
   const isStaff = useMemo(() => {
     if (!activeTeam || !firebaseUser) return false;
     if (activeTeam.role === 'Admin') return true;
@@ -593,7 +602,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const createChat = useCallback(async (name: string, members: string[]) => { if (!activeTeamId || !firebaseUser || !db) return ''; const cid = `chat_${Date.now()}`; await setDoc(doc(db, 'teams', activeTeamId, 'groupChats', cid), clean({ id: cid, name, createdBy: firebaseUser.uid, memberIds: [...members, firebaseUser.uid], createdAt: new Date().toISOString(), isDeleted: false, teamId: activeTeamId })); return cid; }, [activeTeamId, firebaseUser, db]);
   const deleteChat = useCallback(async (chatId: string) => { if (activeTeamId && db) await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), { isDeleted: true }); }, [activeTeamId, db]);
   const hideChatForUser = useCallback(async (chatId: string) => { if (!firebaseUser || !db) return; await setDoc(doc(db, 'users', firebaseUser.uid, 'hiddenChats', chatId), { id: `${firebaseUser.uid}_${chatId}`, userId: firebaseUser.uid, chatId, hiddenAt: new Date().toISOString() }); }, [firebaseUser, db]);
-  const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => { if (!activeTeamId || !firebaseUser || !db) return; const msgRef = doc(db, 'teams', activeTeamId, 'groupChats', chatId, 'messages', messageId); const snap = await getDoc(msgRef); if (!snap.exists()) return; const poll = snap.data().poll; if (!poll || poll.isClosed) return; const currentVote = poll.voters?.[firebaseUser.uid]; const updates: any = { [`poll.voters.${firebaseUser.uid}`]: optionIdx }; if (currentVote === undefined) { updates[`poll.options.${optionIdx}.votes`] = increment(1); updates[`poll.totalVotes`] = increment(1); } else if (currentVote !== optionIdx) { updates[`poll.options.${currentVote}.votes`] = increment(-1); updates[`poll.options.${optionIdx}.votes`] = increment(1); } await updateDoc(msgRef, updates); }, [activeTeamId, firebaseUser, db]);
+  
+  const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => { 
+    if (!activeTeamId || !firebaseUser || !db) return; 
+    const msgRef = doc(db, 'teams', activeTeamId, 'groupChats', chatId, 'messages', messageId); 
+    const snap = await getDoc(msgRef); 
+    if (!snap.exists()) return; 
+    const poll = snap.data().poll; 
+    if (!poll || poll.isClosed) return; 
+    const currentVote = poll.voters?.[firebaseUser.uid]; 
+    const updates: any = { [`poll.voters.${firebaseUser.uid}`]: optionIdx }; 
+    if (currentVote === undefined) { 
+      updates[`poll.options.${optionIdx}.votes`] = increment(1); 
+      updates['poll.totalVotes'] = increment(1); 
+    } else if (currentVote !== optionIdx) { 
+      updates[`poll.options.${currentVote}.votes`] = increment(-1); 
+      updates[`poll.options.${optionIdx}.votes`] = increment(1); 
+    } 
+    await updateDoc(msgRef, updates); 
+  }, [activeTeamId, firebaseUser, db]);
+
   const updateChat = useCallback(async (chatId: string, data: any) => { if (activeTeamId && db) await updateDoc(doc(db, 'teams', activeTeamId, 'groupChats', chatId), clean(data)); }, [activeTeamId, db]);
 
   const addVolunteerOpportunity = useCallback(async (data: any) => { if (activeTeamId && db) await addDoc(collection(db, 'teams', activeTeamId, 'volunteers'), clean({ ...data, signups: {} })); }, [activeTeamId, db]);
@@ -636,16 +664,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const registerChild = useCallback(async (first: string, last: string, dob: string) => { if (!firebaseUser || !db) return; const cid = `child_${Date.now()}`; await setDoc(doc(db, 'players', cid), clean({ id: cid, firstName: first, lastName: last, dateOfBirth: dob, isMinor: true, parentId: firebaseUser.uid, joinedTeamIds: [], createdAt: new Date().toISOString() })); }, [db, firebaseUser]);
   const assignManualPlan = useCallback(async (uid: string, planId: string, limit: number) => { if (db) await updateDoc(doc(db, 'users', uid), { activePlanId: planId, proTeamLimit: limit, planSource: 'manual' }); }, [db]);
 
-  const addIncident = useCallback(async (data: any) => { if (activeTeamId && db && firebaseUser) await addDoc(collection(db, 'teams', activeTeamId, 'incidents'), clean({ ...data, teamId: activeTeamId, teamName: activeTeam?.name, reportedBy: firebaseUser.uid, createdAt: new Date().toISOString() })); }, [activeTeamId, db, firebaseUser, activeTeam]);
-  const resetSquadData = useCallback(async (cats: string[]) => { if (!activeTeamId || !db) return; const batch = writeBatch(db); if (cats.includes('games')) { const gs = await getDocs(collection(db, 'teams', activeTeamId, 'games')); gs.forEach(d => batch.delete(d.ref)); } if (cats.includes('events')) { const es = await getDocs(collection(db, 'teams', activeTeamId, 'events')); es.forEach(d => batch.delete(d.ref)); } await batch.commit(); }, [activeTeamId, db]);
-  const markMediaAsViewed = useCallback(async (fileId: string) => { if (!firebaseUser || !activeTeamId || !db) return; await setDoc(doc(db, 'teams', activeTeamId, 'members', firebaseUser.uid, 'mediaViews', fileId), { fileId, viewedAt: new Date().toISOString() }); }, [activeTeamId, firebaseUser, db]);
+  const addIncident = useCallback(async (data: any) => { if (activeTeam?.id && db && firebaseUser) await addDoc(collection(db, 'teams', activeTeam.id, 'incidents'), clean({ ...data, teamId: activeTeam.id, teamName: activeTeam.name, reportedBy: firebaseUser.uid, createdAt: new Date().toISOString() })); }, [db, firebaseUser, activeTeam]);
+  const resetSquadData = useCallback(async (cats: string[]) => { if (!activeTeam?.id || !db) return; const batch = writeBatch(db); if (cats.includes('games')) { const gs = await getDocs(collection(db, 'teams', activeTeam.id, 'games')); gs.forEach(d => batch.delete(d.ref)); } if (cats.includes('events')) { const es = await getDocs(collection(db, 'teams', activeTeam.id, 'events')); es.forEach(d => batch.delete(d.ref)); } await batch.commit(); }, [activeTeam?.id, db]);
+  const markMediaAsViewed = useCallback(async (fileId: string) => { if (!firebaseUser || !activeTeam?.id || !db) return; await setDoc(doc(db, 'teams', activeTeam.id, 'members', firebaseUser.uid, 'mediaViews', fileId), { fileId, viewedAt: new Date().toISOString() }); }, [activeTeam?.id, firebaseUser, db]);
   const deployClubProtocol = useCallback(async (data: any, teamIds: string[]) => { if(!db) return; const batch = writeBatch(db); teamIds.forEach(tid => { const docId = `protocol_${Date.now()}`; batch.set(doc(db, 'teams', tid, 'documents', docId), clean({ ...data, id: docId, isClubMaster: true, createdAt: new Date().toISOString() })); }); await batch.commit(); }, [db]);
   const deleteTeam = useCallback(async (tid: string) => { if(db) await deleteDoc(doc(db, 'teams', tid)); }, [db]);
 
   const markAlertAsSeen = useCallback(async (id: string) => { if (firebaseUser && db) await updateDoc(doc(db, 'users', firebaseUser.uid), { seenAlertIds: arrayUnion(id) }); }, [firebaseUser, db]);
   const markAllAlertsAsSeen = useCallback(async () => { if (firebaseUser && db && alerts.length > 0) await updateDoc(doc(db, 'users', firebaseUser.uid), { seenAlertIds: alerts.map(a => a.id) }); }, [firebaseUser, db, alerts]);
-  const createAlert = useCallback(async (t: string, m: string, a: any) => { if (activeTeamId && db && firebaseUser) await addDoc(collection(db, 'teams', activeTeamId, 'alerts'), clean({ title: t, message: m, audience: a, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid })); }, [activeTeamId, db, firebaseUser]);
-  const deleteAlert = useCallback(async (id: string) => { if (activeTeamId && db) await deleteDoc(doc(db, 'teams', activeTeamId, 'alerts', id)); }, [activeTeamId, db]);
+  const createAlert = useCallback(async (t: string, m: string, a: any) => { if (activeTeam?.id && db && firebaseUser) await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ title: t, message: m, audience: a, createdAt: new Date().toISOString(), createdBy: firebaseUser.uid })); }, [activeTeam?.id, db, firebaseUser]);
+  const deleteAlert = useCallback(async (id: string) => { if (activeTeam?.id && db) await deleteDoc(doc(db, 'teams', activeTeam.id, 'alerts', id)); }, [activeTeam?.id, db]);
 
   const signPublicTournamentWaiver = useCallback(async (teamId: string, eventId: string, tournamentTeamName: string, coachName: string) => { if (!db) return false; await updateDoc(doc(db, 'teams', teamId, 'events', eventId), { [`teamAgreements.${tournamentTeamName}`]: { agreed: true, captainName: coachName, signedAt: new Date().toISOString() } }); return true; }, [db]);
   const submitMatchScore = useCallback(async (teamId: string, eventId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => { if (!db) return; const snap = await getDoc(doc(db, 'teams', teamId, 'events', eventId)); if (!snap.exists()) return; const games = snap.data().tournamentGames || []; const idx = games.findIndex((g: any) => g.id === gameId); if (idx === -1) return; games[idx] = { ...games[idx], score1, score2, isCompleted: true, updatedAt: new Date().toISOString() }; await updateDoc(doc(db, 'teams', teamId, 'events', eventId), { tournamentGames: games }); }, [db]);
@@ -653,8 +681,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const disputeMatchScore = useCallback(async (teamId: string, eventId: string, gameId: string, notes: string) => { if (!db) return; const snap = await getDoc(doc(db, 'teams', teamId, 'events', eventId)); if (!snap.exists()) return; const games = snap.data().tournamentGames || []; const idx = games.findIndex((g: any) => g.id === gameId); if (idx === -1) return; games[idx] = { ...games[idx], isDisputed: true, disputeNotes: notes }; await updateDoc(doc(db, 'teams', teamId, 'events', eventId), { tournamentGames: games }); }, [db]);
 
   const resolveQuota = useCallback(async (selectedTeamIds: string[]) => { if (!db || !userProfile?.id) return; const batch = writeBatch(db); const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro); ownedProTeams.forEach(t => { if (!selectedTeamIds.includes(t.id)) { batch.update(doc(db, 'teams', t.id), { isPro: false, planId: 'starter_squad' }); } }); await batch.commit(); }, [db, userProfile?.id, teamsRaw]);
-  const exportAttendanceCSV = useCallback(async (eventId: string) => { if (!db || !activeTeamId) return; const snap = await getDoc(doc(db, 'teams', activeTeamId, 'events', eventId)); if (!snap.exists()) return; const rsvps = snap.data().userRsvps || {}; const rows = [["Name", "Status"]]; members.forEach(m => { rows.push([m.name, rsvps[m.userId] || 'no_response']); }); const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `attendance_${eventId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeamId, members]);
-  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeamId) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeamId]);
+  const exportAttendanceCSV = useCallback(async (eventId: string) => { if (!db || !activeTeam?.id) return; const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'events', eventId)); if (!snap.exists()) return; const rsvps = snap.data().userRsvps || {}; const rows = [["Name", "Status"]]; members.forEach(m => { rows.push([m.name, rsvps[m.userId] || 'no_response']); }); const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `attendance_${eventId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam?.id, members]);
+  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam?.id]);
 
   const addRegistration = useCallback(async (teamId: string, eventId: string, data: any) => { if (db) { await addDoc(collection(db, 'teams', teamId, 'events', eventId, 'registrations'), clean(data)); return true; } return false; }, [db]);
   const manageSubscription = useCallback(async () => { setIsPaywallOpen(true); }, []);
