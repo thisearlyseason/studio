@@ -784,6 +784,56 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     await updateDoc(doc(db, 'teams', teamId, 'events', eventId), { tournamentGames: games });
   }, [db]);
 
+  const manageSubscription = useCallback(async () => {
+    setIsPaywallOpen(true);
+  }, []);
+
+  const resolveQuota = useCallback(async (selectedTeamIds: string[]) => {
+    if (!db || !userProfile?.id) return;
+    const batch = writeBatch(db);
+    const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro);
+    ownedProTeams.forEach(t => {
+      if (!selectedTeamIds.includes(t.id)) {
+        batch.update(doc(db, 'teams', t.id), { isPro: false, planId: 'starter_squad' });
+      }
+    });
+    await batch.commit();
+  }, [db, userProfile?.id, teamsRaw]);
+
+  const exportAttendanceCSV = useCallback(async (eventId: string) => {
+    if (!db || !activeTeamId) return;
+    const snap = await getDoc(doc(db, 'teams', activeTeamId, 'events', eventId));
+    if (!snap.exists()) return;
+    const rsvps = snap.data().userRsvps || {};
+    const rows = [["Name", "Status"]];
+    members.forEach(m => {
+      rows.push([m.name, rsvps[m.userId] || 'no_response']);
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `attendance_${eventId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [db, activeTeamId, members]);
+
+  const exportTournamentStandingsCSV = useCallback(async (eventId: string) => {
+    if (!db || !activeTeamId) return;
+    const snap = await getDoc(doc(db, 'teams', activeTeamId, 'events', eventId));
+    if (!snap.exists()) return;
+    const rows = [["Team", "Wins", "Losses", "Ties", "Points"]];
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `standings_${eventId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [db, activeTeamId]);
+
   // --- CONTEXT ---
   const contextValue = useMemo(() => ({
     db, user: userProfile, activeTeam, setActiveTeam: (t: Team) => setActiveTeamId(t.id), teams: teamsRaw, isTeamsLoading, members, isMembersLoading,
@@ -812,7 +862,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     createAlert, deleteAlert, addDrill, addFile, deleteFile, addFacility, deleteFacility,
     addField, deleteField, 
     assignEquipment, returnEquipment,
-    formatTime, manageSubscription: async () => setIsPaywallOpen(true), resolveQuota: async () => {}, exportAttendanceCSV: async () => {}, exportTournamentStandingsCSV: async () => {}, markMediaAsViewed
+    formatTime, manageSubscription, resolveQuota, exportAttendanceCSV, exportTournamentStandingsCSV, markMediaAsViewed
   }), [
     db, userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser,
     isStaff, householdEvents, householdBalance, myChildren, plans, isPaywallOpen, isSeedingDemo,
@@ -835,7 +885,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     createAlert, deleteAlert, addDrill, addFile, deleteFile, addFacility, deleteFacility,
     addField, deleteField, 
     assignEquipment, returnEquipment,
-    formatTime, markMediaAsViewed
+    formatTime, manageSubscription, resolveQuota, exportAttendanceCSV, exportTournamentStandingsCSV, markMediaAsViewed
   ]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;
