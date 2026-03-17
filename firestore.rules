@@ -28,33 +28,20 @@ service cloud.firestore {
       }
     }
 
-    match /teams/{teamId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Simplified for MVP coordination
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
+    match /teams/{document=**} {
+      allow read, write: if isSignedIn();
     }
 
-    match /leagues/{leagueId} {
+    match /leagues/{document=**} {
       allow read, write: if isSignedIn();
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
     }
 
-    match /players/{playerId} {
+    match /players/{document=**} {
       allow read, write: if isSignedIn();
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
     }
 
-    match /facilities/{facilityId} {
+    match /facilities/{document=**} {
       allow read, write: if isSignedIn();
-      match /fields/{fieldId} {
-        allow read, write: if isSignedIn();
-      }
     }
 
     // Global Catalog Rules - Publicly readable for enrollment/onboarding
