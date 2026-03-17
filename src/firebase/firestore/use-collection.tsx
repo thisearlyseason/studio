@@ -95,18 +95,18 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
-        // Log the error for internal monitoring but suppress from console if contextualized
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
+        // Create the rich, contextual error asynchronously.
+        const permissionError = new FirestorePermissionError({
           path: path || 'unknown',
+          operation: 'list',
         });
 
-        setError(contextualError);
+        // Emit the error with the global error emitter
+        errorEmitter.emit('permission-error', permissionError);
+
+        setError(permissionError);
         setData(null);
         setIsLoading(false);
-
-        // Trigger global error propagation for agentive fixing
-        errorEmitter.emit('permission-error', contextualError);
       }
     );
 

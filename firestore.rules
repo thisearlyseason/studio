@@ -25,11 +25,11 @@ service cloud.firestore {
     // --- Global Catalog ---
     match /plans/{planId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() || isAnonymous();
     }
     match /features/{featureId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() || isAnonymous();
     }
 
     // --- User Profiles ---
