@@ -23,18 +23,44 @@ service cloud.firestore {
       );
     }
 
-    // --- Unified Organizational Hierarchies ---
-    // Using top-level recursive wildcards to ensure subcollection listing (like leagues/global/invites)
-    // and deep document access for all authenticated squad members.
-    
-    match /leagues/{allPaths=**} {
+    // --- Institutional Hierarchy: Leagues ---
+    // Explicit matching for subcollections ensures LIST operations prove successful
+    match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
+      
+      match /invites/{inviteId} {
+        allow read, write: if isSignedIn();
+      }
+      
+      match /registration/{configId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /registrationEntries/{entryId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /payments/{paymentId} {
+        allow read, write: if isSignedIn();
+      }
+
+      // Recursive fallback for deeply nested league resources
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
-    match /teams/{allPaths=**} {
+    // --- Tactical Hierarchy: Teams ---
+    match /teams/{teamId} {
       allow read, write: if isSignedIn();
+      
+      // Recursive wildcard ensures members can access chat, files, events, and rosters
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
+    // --- Personal Infrastructure: User Profiles ---
     match /userProfiles/{userId} {
       allow read, write: if isOwner(userId);
     }
@@ -46,27 +72,35 @@ service cloud.firestore {
       }
     }
 
-    match /players/{allPaths=**} {
+    // --- Global Athlete Repository ---
+    match /players/{playerId} {
       allow read, write: if isSignedIn();
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
-    match /facilities/{allPaths=**} {
+    // --- Physical Infrastructure: Facilities ---
+    match /facilities/{facilityId} {
       allow read, write: if isSignedIn();
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
-    match /plans/{allPaths=**} {
+    // --- Economy: Billing Plans ---
+    match /plans/{planId} {
       allow read: if true;
       allow write: if isAnonymous() || isSignedIn();
     }
 
-    // --- Team Memberships (Sentinels) ---
+    // --- Global Sentinels ---
     match /team_memberships/{membershipId} {
       allow read, write: if isSignedIn();
     }
 
-    // --- Collection Groups (Master View & Global Aggregation) ---
-    // Essential for the Household Hub and Master Calendar aggregation queries.
-    
+    // --- Cross-Squad Aggregation (Collection Groups) ---
+    // Required for Master Calendar and Household Hub queries
     match /{path=**}/events/{id} {
       allow read: if isSignedIn();
     }
@@ -86,7 +120,8 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    // Deny by default for any unexpected root paths to maintain QAP compliance
+    // --- Global Default Deny ---
+    // Prevents unauthorized root-level scans
     match /{path=**} {
       allow read, write: if false;
     }
