@@ -40,7 +40,7 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
     members: [
       { id: `m1_${teamId}`, userId: `u1_${teamId}`, playerId: `p_u1_${teamId}`, name: `Jordan Smith ${teamSuffix}`, role: 'Member', position: 'Forward', jersey: '10', medicalClearance: true, amountOwed: 0, feesPaid: true, totalFees: 1250, avatar: `https://picsum.photos/seed/m1${teamId}/150/150`, gradYear: '2026', gpa: '3.9', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo1', notes: 'Elite finisher with explosive first step.', skills: ['Scoring', 'Speed', 'Agility'], achievements: ['State MVP', 'All-City First Team'] },
       { id: `m2_${teamId}`, userId: `u2_${teamId}`, playerId: `p_u2_${teamId}`, name: `Alex Rivera ${teamSuffix}`, role: 'Member', position: 'Midfield', jersey: '22', medicalClearance: true, amountOwed: 450, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m2${teamId}/150/150`, gradYear: '2027', gpa: '3.7', school: 'Heights High', highlightUrl: 'https://youtube.com/watch?v=demo2', notes: 'Visionary playmaker with exceptional passing range.', skills: ['Vision', 'Passing', 'Control'], achievements: ['District Champion'] },
-      { id: `m3_${teamId}`, userId: `u3_${teamId}`, playerId: `p_u3_${teamId}`, name: `Sam Taylor ${teamSuffix}`, role: 'Member', position: 'Defender', jersey: '04', medicalClearance: false, amountOwed: 1250, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m3${teamId}/150/150`, gradYear: '2026', gpa: '3.8', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo3', notes: 'Physical presence with strong aerial capability.', skills: ['Strength', 'Tackling', 'Heading'], achievements: ['Defensive Player of Year'] }
+      { id: `m3_${teamId}`, userId: `u3_${teamId}`, playerId: `p_u3_${teamId}`, name: `Sam Taylor ${teamSuffix}`, role: 'Member', position: 'Defense', jersey: '04', medicalClearance: false, amountOwed: 1250, feesPaid: false, totalFees: 1250, avatar: `https://picsum.photos/seed/m3${teamId}/150/150`, gradYear: '2026', gpa: '3.8', school: 'Metro Academy', highlightUrl: 'https://youtube.com/watch?v=demo3', notes: 'Physical presence with strong aerial capability.', skills: ['Strength', 'Tackling', 'Heading'], achievements: ['Defensive Player of Year'] }
     ],
     games: [
       { id: `g1_${teamId}`, opponent: 'Tigers', date: yesterday, myScore: 12, opponentScore: 8, result: 'Win', location: 'City Arena' },
@@ -81,10 +81,61 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
  */
 const SEED_CATALOG = (batch: any, db: Firestore) => {
   const plans = [
-    { id: 'starter_squad', name: 'Starter Squad', billingType: 'free', features: { live_feed_read: true, basic_scheduling: true } },
-    { id: 'squad_pro', name: 'Squad Pro', billingType: 'monthly', features: { live_feed_read: true, live_feed_post: true, tournament_itinerary: true, film_compliance: true, stats_basic: true, scouting_ai: true } },
-    { id: 'elite_teams', name: 'Elite Teams', billingType: 'monthly', features: { live_feed_read: true, live_feed_post: true, tournament_itinerary: true, film_compliance: true, stats_basic: true, scouting_ai: true, club_hub: true, equipment_vault: true, facility_fleet: true } },
-    { id: 'elite_league', name: 'Elite League', billingType: 'monthly', features: { live_feed_read: true, live_feed_post: true, tournament_itinerary: true, film_compliance: true, stats_basic: true, scouting_ai: true, club_hub: true, equipment_vault: true, facility_fleet: true, league_registration: true } }
+    { 
+      id: 'starter_squad', 
+      name: 'Starter Squad', 
+      billingType: 'free', 
+      features: { 
+        live_feed_read: true, 
+        basic_scheduling: true 
+      } 
+    },
+    { 
+      id: 'squad_pro', 
+      name: 'Squad Pro', 
+      billingType: 'monthly', 
+      features: { 
+        live_feed_read: true, 
+        live_feed_post: true, 
+        tournament_itinerary: true, 
+        film_compliance: true, 
+        stats_basic: true, 
+        scouting_ai: true 
+      } 
+    },
+    { 
+      id: 'elite_teams', 
+      name: 'Elite Teams', 
+      billingType: 'monthly', 
+      features: { 
+        live_feed_read: true, 
+        live_feed_post: true, 
+        tournament_itinerary: true, 
+        film_compliance: true, 
+        stats_basic: true, 
+        scouting_ai: true, 
+        club_hub: true, 
+        equipment_vault: true, 
+        facility_fleet: true 
+      } 
+    },
+    { 
+      id: 'elite_league', 
+      name: 'Elite League', 
+      billingType: 'monthly', 
+      features: { 
+        live_feed_read: true, 
+        live_feed_post: true, 
+        tournament_itinerary: true, 
+        film_compliance: true, 
+        stats_basic: true, 
+        scouting_ai: true, 
+        club_hub: true, 
+        equipment_vault: true, 
+        facility_fleet: true, 
+        league_registration: true 
+      } 
+    }
   ];
   plans.forEach(p => batch.set(doc(db, 'plans', p.id), p));
 };

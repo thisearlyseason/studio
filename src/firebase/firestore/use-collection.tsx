@@ -95,6 +95,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
+        // Log the error for internal monitoring but suppress from console if contextualized
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: path || 'unknown',
