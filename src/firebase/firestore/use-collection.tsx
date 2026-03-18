@@ -58,9 +58,14 @@ export function useCollection<T = any>(
     const auth = getAuth();
     let unsubscribeSnapshot: (() => void) | null = null;
 
-    // Wait for explicit auth state resolution
+    // TACTICAL GUARD: Handle initial mount where user might not be set yet
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      // TACTICAL GUARD: Never execute queries without a resolved identity
+      // Cleanup existing listener if any
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
       if (!user || !auth.currentUser) {
         setData(null);
         setIsLoading(false);
@@ -84,7 +89,6 @@ export function useCollection<T = any>(
       const hasUndefined = path === 'undefined' || path.includes('/undefined/') || path.endsWith('/undefined');
       
       if (isRootPath || hasUndefined) {
-        console.warn(`useCollection: Blocked unauthorized or malformed query to [${path}]`);
         setData(null);
         setIsLoading(false);
         return;

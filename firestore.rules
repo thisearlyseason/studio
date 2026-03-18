@@ -24,13 +24,12 @@ service cloud.firestore {
     // --- INSTITUTIONAL HIERARCHY: LEAGUES ---
     
     match /leagues {
-      allow list: if isSignedIn();
+      allow list, get: if isSignedIn();
       allow create: if isSignedIn();
     }
 
     match /leagues/{leagueId} {
-      allow get: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
       
       // Explicit subcollection matching for 'List Proving'
       match /invites { allow list: if isSignedIn(); }
@@ -53,13 +52,12 @@ service cloud.firestore {
     // --- TACTICAL HIERARCHY: TEAMS ---
     
     match /teams {
-      allow list: if isSignedIn();
+      allow list, get: if isSignedIn();
       allow create: if isSignedIn();
     }
 
     match /teams/{teamId} {
-      allow get: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
       
       match /members { allow list: if isSignedIn(); }
       match /members/{id} { allow read, write: if isSignedIn(); }
@@ -128,7 +126,7 @@ service cloud.firestore {
     // --- GLOBAL REPOSITORIES ---
     
     match /players {
-      allow list: if isSignedIn();
+      allow list, get: if isSignedIn();
     }
 
     match /players/{playerId} {
@@ -139,7 +137,7 @@ service cloud.firestore {
     }
 
     match /facilities {
-      allow list: if isSignedIn();
+      allow list, get: if isSignedIn();
     }
 
     match /facilities/{facilityId} {
@@ -152,12 +150,12 @@ service cloud.firestore {
     }
 
     match /plans {
-      allow list: if true;
+      allow list, get: if true;
     }
 
     match /plans/{planId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isSignedIn();
     }
 
     // --- CROSS-SQUAD AGGREGATION (COLLECTION GROUPS) ---
