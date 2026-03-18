@@ -572,7 +572,6 @@ export default function LeaguesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('standings');
 
-  // Hardened query targeting the specific squad membership
   const leaguesQuery = useMemoFirebase(() => {
     if (!isAuthResolved || !activeTeam?.id || !db || !authUser?.uid) return null;
     return query(
@@ -605,35 +604,26 @@ export default function LeaguesPage() {
 
   const copyToClipboard = (text: string, successMsg: string) => {
     if (typeof window === 'undefined') return;
-    
     const performCopy = async () => {
       try {
         if (navigator.clipboard && window.isSecureContext) {
           await navigator.clipboard.writeText(text);
           toast({ title: successMsg });
         } else {
-          throw new Error('Clipboard restricted');
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-9999px";
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          toast({ title: successMsg });
         }
       } catch (err) {
-        // Fallback for non-secure contexts or restrictive permission policies
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          toast({ title: successMsg });
-        } catch (copyErr) {
-          console.error('Final fallback copy failed:', copyErr);
-        }
-        document.body.removeChild(textArea);
+        console.error('Clipboard copy failed:', err);
       }
     };
-
     performCopy();
   };
 
@@ -662,7 +652,6 @@ export default function LeaguesPage() {
 
   const isOrganizer = activeLeague?.creatorId === authUser?.uid;
 
-  // Visual synchronization loader
   if (isLeaguesLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in duration-700">
@@ -755,7 +744,7 @@ export default function LeaguesPage() {
             <TabsContent value="standings" className="mt-0">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                  <div className="flex items-center justify-between px-2"><div className="flex items-center gap-2"><TableIcon className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">League Standings</h3></div></div>
+                  <div className="flex items-center gap-2 px-2"><TableIcon className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">League Standings</h3></div>
                   <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
@@ -804,7 +793,6 @@ export default function LeaguesPage() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-md border-none shadow-2xl p-0 overflow-hidden bg-white text-foreground">
           <DialogTitle className="sr-only">League Architect Protocol</DialogTitle>
-          <DialogDescription className="sr-only">Initialize a new competitive league hub</DialogDescription>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-10 space-y-8">
             <DialogHeader>
@@ -836,7 +824,6 @@ export default function LeaguesPage() {
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
         <DialogContent className="rounded-[3rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
           <DialogTitle className="sr-only">Recruitment Pipeline Protocol</DialogTitle>
-          <DialogDescription className="sr-only">Enroll participating teams via multiple channels</DialogDescription>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar text-foreground">
             <DialogHeader>

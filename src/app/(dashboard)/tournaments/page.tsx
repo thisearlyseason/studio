@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -283,11 +282,11 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           
           <div className="grid grid-cols-1 gap-3">
             <Button variant="outline" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] border-none hover:bg-primary hover:text-white transition-all shadow-xl" onClick={handleAddCalendar}>
-              <CalendarIcon className="h-4 w-4 mr-2 text-black group-hover:text-white" /> <span className="text-black group-hover:text-white">Add to Calendar</span>
+              <CalendarIcon className="h-4 w-4 mr-2 text-black" /> <span className="text-black">Add to Calendar</span>
             </Button>
             {isOrganizer && (
               <Button variant="outline" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] border-none hover:bg-primary hover:text-white transition-all shadow-xl" onClick={() => exportAttendanceCSV(event.id)}>
-                <Download className="h-4 w-4 mr-2 text-black group-hover:text-white" /> <span className="text-black group-hover:text-white">Export RSVP Ledger</span>
+                <Download className="h-4 w-4 mr-2 text-black" /> <span className="text-black">Export RSVP Ledger</span>
               </Button>
             )}
           </div>
@@ -368,12 +367,12 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           </div>
           <div className="space-y-6 p-8 overflow-y-auto max-h-[70vh] custom-scrollbar">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Squad Names (Comma separated)</Label>
-              <Input value={editForm.teams} onChange={e => setEditForm({ ...editForm, teams: e.target.value })} className="h-12 rounded-xl border-2 font-bold" placeholder="Tigers, Lions, Warriors..." />
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Squad Names (Comma separated)</Label>
+              <Input value={editForm.teams} onChange={e => setEditForm({ ...editForm, teams: e.target.value })} className="h-12 rounded-xl border-2 font-bold text-foreground" placeholder="Tigers, Lions, Warriors..." />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Email Invites (Optional)</Label>
-              <Input value={editForm.invitedEmails} onChange={e => setEditForm({ ...editForm, invitedEmails: e.target.value })} className="h-12 rounded-xl border-2 font-bold" placeholder="coach@tigers.com, coach@lions.com..." />
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Team Email Invites (Optional)</Label>
+              <Input value={editForm.invitedEmails} onChange={e => setEditForm({ ...editForm, invitedEmails: e.target.value })} className="h-12 rounded-xl border-2 font-bold text-foreground" placeholder="coach@tigers.com, coach@lions.com..." />
             </div>
           </div>
           <div className="p-8 bg-muted/10 border-t">
@@ -553,7 +552,7 @@ export default function TournamentsPage({ preSelectedTournament, onExit }: { pre
                       <Trophy className="h-6 w-6" />
                     </div>
                     <div>
-                      <DialogTitle className="text-3xl font-black uppercase tracking-tight">Deploy Tourney</DialogTitle>
+                      <DialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Deploy Tourney</DialogTitle>
                       <DialogDescription className="font-bold text-primary uppercase tracking-widest text-[10px]">Initialize a new championship event</DialogDescription>
                     </div>
                   </div>

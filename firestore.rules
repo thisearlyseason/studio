@@ -35,7 +35,20 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow write: if isSignedIn();
       
-      // Recursive safety for all nested league data (invites, registration, etc.)
+      // Explicit matches for subcollections frequently queried
+      match /invites { allow list: if isSignedIn(); }
+      match /invites/{id} { allow read, write: if isSignedIn(); }
+      
+      match /registration { allow list: if isSignedIn(); }
+      match /registration/{id} { allow read, write: if isSignedIn(); }
+      
+      match /registrationEntries { allow list: if isSignedIn(); }
+      match /registrationEntries/{id} { allow read, write: if isSignedIn(); }
+
+      match /payments { allow list: if isSignedIn(); }
+      match /payments/{id} { allow read, write: if isSignedIn(); }
+
+      // Recursive safety for all nested data
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -51,7 +64,44 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow write: if isSignedIn();
       
-      // Recursive safety for nested squad data (roster, feed, schedule, etc.)
+      // Explicit matches for subcollections frequently queried
+      match /members { allow list: if isSignedIn(); }
+      match /members/{id} { allow read, write: if isSignedIn(); }
+      
+      match /games { allow list: if isSignedIn(); }
+      match /games/{id} { allow read, write: if isSignedIn(); }
+      
+      match /events { allow list: if isSignedIn(); }
+      match /events/{id} { allow read, write: if isSignedIn(); }
+      
+      match /files { allow list: if isSignedIn(); }
+      match /files/{id} { allow read, write: if isSignedIn(); }
+
+      match /drills { allow list: if isSignedIn(); }
+      match /drills/{id} { allow read, write: if isSignedIn(); }
+
+      match /alerts { allow list: if isSignedIn(); }
+      match /alerts/{id} { allow read, write: if isSignedIn(); }
+
+      match /equipment { allow list: if isSignedIn(); }
+      match /equipment/{id} { allow read, write: if isSignedIn(); }
+
+      match /incidents { allow list: if isSignedIn(); }
+      match /incidents/{id} { allow read, write: if isSignedIn(); }
+
+      match /fundraising { allow list: if isSignedIn(); }
+      match /fundraising/{id} { allow read, write: if isSignedIn(); }
+
+      match /volunteers { allow list: if isSignedIn(); }
+      match /volunteers/{id} { allow read, write: if isSignedIn(); }
+
+      match /feedPosts { allow list: if isSignedIn(); }
+      match /feedPosts/{id} { allow read, write: if isSignedIn(); }
+
+      match /groupChats { allow list: if isSignedIn(); }
+      match /groupChats/{id} { allow read, write: if isSignedIn(); }
+      
+      // Recursive safety for nested squad data (messages, comments, etc.)
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -68,6 +118,14 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+      
+      // Team membership listings under user doc
+      match /teamMemberships { allow list: if isOwner(userId); }
+      match /teamMemberships/{tid} { allow read, write: if isOwner(userId); }
+      
+      match /hiddenChats { allow list: if isOwner(userId); }
+      match /hiddenChats/{cid} { allow read, write: if isOwner(userId); }
+
       match /{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
@@ -75,6 +133,10 @@ service cloud.firestore {
 
     // --- GLOBAL ATHLETE REPOSITORY ---
     
+    match /players {
+      allow list: if isSignedIn();
+    }
+
     match /players/{playerId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
@@ -91,6 +153,10 @@ service cloud.firestore {
 
     match /facilities/{facilityId} {
       allow read, write: if isSignedIn();
+      
+      match /fields { allow list: if isSignedIn(); }
+      match /fields/{id} { allow read, write: if isSignedIn(); }
+
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -98,6 +164,10 @@ service cloud.firestore {
 
     // --- GLOBAL ECONOMY: BILLING PLANS ---
     
+    match /plans {
+      allow list: if true;
+    }
+
     match /plans/{planId} {
       allow read: if true;
       allow write: if false;

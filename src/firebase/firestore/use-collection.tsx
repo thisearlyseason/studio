@@ -35,7 +35,8 @@ export interface InternalQuery extends Query<DocumentData> {
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Waits for Firebase Auth state to be fully resolved before subscribing.
+ * Refactored to wait explicitly for Firebase Auth state to be fully resolved
+ * before dispatching any queries, preventing root-level permission errors.
  */
 export function useCollection<T = any>(
   memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean }) | null | undefined,
@@ -48,6 +49,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // 1. Guard against null references
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -59,7 +61,7 @@ export function useCollection<T = any>(
 
     let unsubscribeSnapshot: (() => void) | null = null;
 
-    // Wait for auth state to fully resolve before establishing listener
+    // 2. Wait for auth state to fully resolve before establishing listener
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       // TACTICAL GUARD: Never execute queries without a valid auth token
       if (!user || !auth.currentUser) {
@@ -82,12 +84,13 @@ export function useCollection<T = any>(
         path = 'unknown';
       }
 
-      // Prevent invalid root-level or malformed paths
+      // 3. Prevent invalid root-level or malformed paths
       const isRootPath = !path || path === '/' || path === '.' || path === 'databases/(default)/documents';
       const hasUndefinedSegments = path === 'undefined' || path.includes('/undefined/') || path.endsWith('/undefined');
       const isMalformed = path.includes('[object Object]') || path.includes('null');
 
       if (isRootPath || hasUndefinedSegments || isMalformed) {
+        console.warn(`useCollection: Blocked unauthorized or malformed query to [${path}]`);
         setData(null);
         setIsLoading(false);
         return;
@@ -96,7 +99,7 @@ export function useCollection<T = any>(
       setIsLoading(true);
       setError(null);
 
-      // Subscribe to Firestore query with explicit error handling
+      // 4. Subscribe to Firestore query with explicit error handling
       unsubscribeSnapshot = onSnapshot(
         memoizedTargetRefOrQuery,
         (snapshot: QuerySnapshot<DocumentData>) => {

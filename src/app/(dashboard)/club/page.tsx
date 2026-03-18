@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -85,7 +84,6 @@ function TeamComplianceCard({ teams, clubDocs }: { teams: Team[], clubDocs: Team
   }, [db, selectedTeamId]);
 
   const { data: teamSigs } = useCollection<DocumentSignature>(sigsQuery);
-  const signedDocIds = useMemo(() => (teamSigs || []).map(s => s.documentId), [teamSigs]);
 
   return (
     <Card className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden">
@@ -100,7 +98,7 @@ function TeamComplianceCard({ teams, clubDocs }: { teams: Team[], clubDocs: Team
       </CardHeader>
       <CardContent className="p-8 space-y-8">
         <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-          <SelectTrigger className="h-14 rounded-2xl border-2 font-black"><SelectValue placeholder="Pick a team to audit..." /></SelectTrigger>
+          <SelectTrigger className="h-14 rounded-2xl border-2 font-black text-foreground shadow-inner"><SelectValue placeholder="Pick a team to audit..." /></SelectTrigger>
           <SelectContent className="rounded-2xl">{teams.map(t => (<SelectItem key={t.id} value={t.id} className="font-bold uppercase">{t.name}</SelectItem>))}</SelectContent>
         </Select>
 
@@ -110,10 +108,10 @@ function TeamComplianceCard({ teams, clubDocs }: { teams: Team[], clubDocs: Team
               const signature = teamSigs?.find(s => s.documentId === protocol.id);
               const isSigned = !!signature;
               return (
-                <div key={protocol.id} className={cn("flex items-center justify-between p-5 rounded-3xl border-2", isSigned ? "bg-green-50/50 border-green-100" : "bg-muted/20 border-transparent")}>
-                  <div className="flex items-center gap-4">
-                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", isSigned ? "bg-green-500 text-white" : "bg-white text-muted-foreground/30 border")}>{isSigned ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}</div>
-                    <div className="min-w-0"><p className="text-sm font-black uppercase truncate">{protocol.title}</p>{isSigned ? (<p className="text-[9px] font-bold text-green-600 uppercase">Signed by {signature.userName}</p>) : (<p className="text-[9px] font-bold text-muted-foreground uppercase">Pending Signature</p>)}</div>
+                <div key={protocol.id} className={cn("flex items-center justify-between p-5 rounded-3xl border-2 transition-all", isSigned ? "bg-green-50/50 border-green-100" : "bg-muted/20 border-transparent")}>
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors", isSigned ? "bg-green-500 text-white" : "bg-white text-muted-foreground/30 border")}>{isSigned ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}</div>
+                    <div className="min-w-0"><p className="text-sm font-black uppercase truncate text-foreground">{protocol.title}</p>{isSigned ? (<p className="text-[9px] font-bold text-green-600 uppercase">Signed by {signature.userName || 'Representative'}</p>) : (<p className="text-[9px] font-bold text-muted-foreground uppercase">Pending Signature</p>)}</div>
                   </div>
                 </div>
               );
@@ -132,7 +130,6 @@ export default function ClubManagementPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [newTeamName, setNewTeamName] = useState('');
   const [isEditClubOpen, setIsEditOpen] = useState(false);
   const [isDeployProtocolOpen, setIsDeployProtocolOpen] = useState(false);
   const [clubForm, setClubForm] = useState({ name: user?.clubName || '', description: user?.clubDescription || '' });
@@ -165,7 +162,7 @@ export default function ClubManagementPage() {
 
   const filteredTeams = useMemo(() => clubTeams.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())), [clubTeams, searchTerm]);
 
-  if (!isClubManager) return <div className="py-24 text-center space-y-6"><div className="bg-muted/30 p-10 rounded-[3rem] opacity-20"><Building className="h-20 w-20 mx-auto" /></div><h1 className="text-3xl font-black uppercase tracking-tight">Institutional Hub Locked</h1></div>;
+  if (!isClubManager) return <div className="py-24 text-center space-y-6"><div className="bg-muted/30 p-10 rounded-[3rem] opacity-20"><Building className="h-20 w-20 mx-auto" /></div><h1 className="text-3xl font-black uppercase tracking-tight text-foreground">Institutional Hub Locked</h1></div>;
 
   const handleUpdateClub = async () => { await updateUser({ clubName: clubForm.name, clubDescription: clubForm.description }); setIsEditOpen(false); toast({ title: "Club Synchronized" }); };
 
@@ -174,47 +171,51 @@ export default function ClubManagementPage() {
     setIsCreating(true);
     await deployClubProtocol({ title: protocolForm.title, content: protocolForm.content, type: protocolForm.type, assignedTo: ['all'] }, clubTeamIds);
     setIsDeployProtocolOpen(false); setIsCreating(false); setProtocolForm({ title: '', content: '', type: 'waiver' });
+    toast({ title: "Mandate Deployed", description: `Protocol pushed to ${clubTeamIds.length} squads.` });
   };
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Institutional Command</Badge><h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">{user?.clubName || 'Club Command'}</h1></div>
+        <div className="space-y-1"><Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[9px] h-6 px-3">Institutional Command</Badge><h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground">{user?.clubName || 'Club Command'}</h1></div>
         <div className="flex gap-2">
-          <Button variant="outline" className="h-14 px-6 rounded-2xl border-2 font-black uppercase text-xs" onClick={() => setIsEditOpen(true)}><Edit3 className="h-4 w-4 mr-2" /> Edit Club</Button>
-          <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl" onClick={() => createNewTeam('New Squad', 'youth', 'Coach', 'Club squad', 'squad_pro')}><Plus className="h-5 w-5 mr-2" /> Add Team</Button>
+          <Button variant="outline" className="h-14 px-6 rounded-2xl border-2 font-black uppercase text-xs text-foreground" onClick={() => setIsEditOpen(true)}><Edit3 className="h-4 w-4 mr-2" /> Edit Club</Button>
+          <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 border-none" onClick={() => createNewTeam('New Squad', 'youth', 'Coach', 'Club squad', 'squad_pro')}><Plus className="h-5 w-5 mr-2" /> Add Team</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-8 space-y-2"><p className="text-[10px] font-black uppercase opacity-60">Total Squads</p><p className="text-5xl font-black">{clubTeams.length}</p></Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-8 space-y-4"><p className="text-[10px] font-black uppercase opacity-60">Fiscal Pulse</p><p className="text-3xl font-black">${stats.collected.toLocaleString()}</p><Progress value={stats.rate} className="h-1.5 bg-white/10" /></Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 space-y-2"><p className="text-[10px] font-black uppercase text-muted-foreground">Compliance Rating</p><p className="text-5xl font-black text-primary">{stats.compliance}%</p></Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-muted/20 p-8 space-y-4"><div className="flex items-center gap-3"><ShieldAlert className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase">Safety Oversights</p></div><p className="text-3xl font-black">{clubIncidents.length}</p></Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-8 space-y-2"><p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Total Squads</p><p className="text-5xl font-black">{clubTeams.length}</p></Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-8 space-y-4"><p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Fiscal Pulse</p><p className="text-3xl font-black">${stats.collected.toLocaleString()}</p><Progress value={stats.rate} className="h-1.5 bg-white/10" /></Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 space-y-2 ring-1 ring-black/5"><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Compliance Rating</p><p className="text-5xl font-black text-primary">{stats.compliance}%</p></Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-muted/20 p-8 space-y-4"><div className="flex items-center gap-3"><ShieldAlert className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase text-foreground">Safety Oversights</p></div><p className="text-3xl font-black text-foreground">{clubIncidents.length}</p></Card>
       </div>
 
       <Tabs defaultValue="squads" className="space-y-8">
-        <TabsList className="bg-muted/50 rounded-xl p-1 h-12 inline-flex border-2">
-          <TabsTrigger value="squads" className="rounded-lg font-black text-xs uppercase px-8">Squad Roster</TabsTrigger>
-          <TabsTrigger value="compliance" className="rounded-lg font-black text-xs uppercase px-8">Institutional Vault</TabsTrigger>
-          <TabsTrigger value="safety" className="rounded-lg font-black text-xs uppercase px-8">Safety & Incidents</TabsTrigger>
+        <TabsList className="bg-muted/50 rounded-xl p-1 h-12 inline-flex border-2 shadow-inner">
+          <TabsTrigger value="squads" className="rounded-lg font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Squad Roster</TabsTrigger>
+          <TabsTrigger value="compliance" className="rounded-lg font-black text-xs uppercase px-8 data-[state=active]:bg-black data-[state=active]:text-white">Institutional Vault</TabsTrigger>
+          <TabsTrigger value="safety" className="rounded-lg font-black text-xs uppercase px-8 data-[state=active]:bg-primary data-[state=active]:text-white">Safety & Incidents</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="squads" className="space-y-6">
+        <TabsContent value="squads" className="space-y-6 mt-0">
           <div className="grid grid-cols-1 gap-4">
             {filteredTeams.map(team => (
               <Card key={team.id} className="rounded-[2rem] border-none shadow-sm ring-1 ring-black/5 p-6 hover:shadow-xl transition-all group bg-white">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex items-center gap-6">
-                    <Avatar className="h-14 w-14 rounded-2xl shadow-lg border-2 border-background"><AvatarImage src={team.teamLogoUrl} /><AvatarFallback className="font-black bg-white">{team.name[0]}</AvatarFallback></Avatar>
+                    <Avatar className="h-14 w-14 rounded-2xl shadow-lg border-2 border-background shrink-0">
+                      <AvatarImage src={team.teamLogoUrl} className="object-cover" />
+                      <AvatarFallback className="font-black bg-white text-foreground">{team.name[0]}</AvatarFallback>
+                    </Avatar>
                     <div className="space-y-1">
-                      <h3 className="text-xl font-black uppercase">{team.name}</h3>
-                      <p className="text-[9px] font-black text-muted-foreground uppercase">{team.sport} • {clubMembers.filter(m => m.teamId === team.id).length} Athletes</p>
+                      <h3 className="text-xl font-black uppercase text-foreground group-hover:text-primary transition-colors">{team.name}</h3>
+                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{team.sport} • {clubMembers.filter(m => m.teamId === team.id).length} Athletes • Code: {team.code}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setTeamToDelete(team)}><Trash2 className="h-5 w-5" /></Button>
-                    <Button variant="outline" className="rounded-xl h-10 px-6 font-black uppercase text-[10px]" onClick={() => { setActiveTeam(team); router.push('/team'); }}>Command Access <ArrowUpRight className="ml-2 h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5" onClick={() => setTeamToDelete(team)}><Trash2 className="h-5 w-5" /></Button>
+                    <Button variant="outline" className="rounded-xl h-10 px-6 font-black uppercase text-[10px] text-foreground border-2 hover:bg-black hover:text-white transition-all" onClick={() => { setActiveTeam(team); router.push('/team'); }}>Command Access <ArrowUpRight className="ml-2 h-4 w-4" /></Button>
                   </div>
                 </div>
               </Card>
@@ -222,22 +223,31 @@ export default function ClubManagementPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="compliance" className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <TabsContent value="compliance" className="space-y-8 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-black uppercase">Institutional Mandates</h3>
-                <Button onClick={() => setIsDeployProtocolOpen(true)} className="h-10 px-6 font-black uppercase text-[10px]"><Plus className="h-4 w-4 mr-2" /> Deploy Global Protocol</Button>
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-xl font-black uppercase text-foreground">Institutional Mandates</h3>
+                <Button onClick={() => setIsDeployProtocolOpen(true)} className="h-10 px-6 font-black uppercase text-[10px] shadow-lg shadow-primary/20 border-none"><Plus className="h-4 w-4 mr-2" /> Deploy Global Protocol</Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {clubDocs.filter(d => d.isClubMaster).map(doc => (
-                  <Card key={doc.id} className="rounded-3xl p-6 bg-white shadow-sm border space-y-4">
-                    <Badge className="bg-black text-white font-black text-[8px] h-5 px-2">CLUB MASTER</Badge>
-                    <h4 className="text-lg font-black uppercase">{doc.title}</h4>
-                    <p className="text-xs font-medium text-muted-foreground line-clamp-3 italic">"{doc.content}"</p>
-                    <div className="pt-4 border-t flex justify-between items-center"><span className="text-[10px] font-black uppercase text-primary">{doc.signatureCount} Verified</span><Button variant="ghost" size="sm" className="font-black text-[10px] uppercase">Audit Ledger</Button></div>
+                  <Card key={doc.id} className="rounded-3xl p-8 bg-white shadow-xl border space-y-6 flex flex-col group hover:ring-2 hover:ring-primary/20 transition-all">
+                    <div className="flex justify-between items-start">
+                      <Badge className="bg-black text-white font-black text-[8px] h-5 px-2 uppercase tracking-widest shadow-lg">CLUB MASTER</Badge>
+                      <ShieldCheck className="h-5 w-5 text-primary opacity-20" />
+                    </div>
+                    <h4 className="text-lg font-black uppercase text-foreground">{doc.title}</h4>
+                    <p className="text-xs font-medium text-muted-foreground line-clamp-3 italic flex-1 leading-relaxed">"{doc.content}"</p>
+                    <div className="pt-6 border-t flex justify-between items-center"><span className="text-[10px] font-black uppercase text-primary tracking-widest">{doc.signatureCount || 0} Verified Signatures</span><Button variant="ghost" size="sm" className="font-black text-[10px] uppercase text-foreground hover:bg-muted/50">Audit Ledger</Button></div>
                   </Card>
                 ))}
+                {clubDocs.filter(d => d.isClubMaster).length === 0 && (
+                  <div className="col-span-full py-20 text-center bg-muted/10 rounded-3xl border-2 border-dashed opacity-30 text-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4" />
+                    <p className="text-sm font-black uppercase tracking-widest">No global mandates established.</p>
+                  </div>
+                )}
               </div>
             </div>
             <aside className="lg:col-span-4"><TeamComplianceCard teams={clubTeams} clubDocs={clubDocs} /></aside>
@@ -248,8 +258,10 @@ export default function ClubManagementPage() {
           <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
             <CardHeader className="bg-black text-white p-10">
               <div className="flex items-center gap-6">
-                <div className="bg-primary p-4 rounded-2xl shadow-xl"><ShieldAlert className="h-8 w-8 text-white" /></div>
-                <div><CardTitle className="text-3xl font-black uppercase tracking-tight">Institutional Safety Audit</CardTitle><CardDescription className="text-white/60 font-bold uppercase text-[10px] mt-2">Aggregate incident reporting across all managed operational units</CardDescription></div>
+                <div className="bg-primary p-4 rounded-2xl shadow-xl shadow-primary/20">
+                  <ShieldAlert className="h-8 w-8 text-white" />
+                </div>
+                <div><CardTitle className="text-3xl font-black uppercase tracking-tight">Institutional Safety Audit</CardTitle><CardDescription className="text-white/60 font-bold uppercase text-[10px] mt-2 tracking-widest">Aggregate incident reporting across all managed operational units</CardDescription></div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -261,12 +273,17 @@ export default function ClubManagementPage() {
                   <tbody className="divide-y divide-muted/50">
                     {clubIncidents.map(inc => (
                       <tr key={inc.id} className="hover:bg-primary/5 transition-colors group cursor-pointer">
-                        <td className="px-10 py-6"><p className="font-black text-sm uppercase">{inc.title}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">{inc.location}</p></td>
-                        <td className="px-6 py-6 font-black text-xs uppercase">{inc.teamName}</td>
-                        <td className="px-6 py-6"><Badge className={cn("border-none font-black text-[8px] uppercase", inc.emergencyServicesCalled ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground")}>{inc.emergencyServicesCalled ? 'CRITICAL' : 'ROUTINE'}</Badge></td>
-                        <td className="px-10 py-6 text-right font-black text-xs uppercase">{inc.date}</td>
+                        <td className="px-10 py-6"><p className="font-black text-sm uppercase text-foreground">{inc.title}</p><p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">{inc.location}</p></td>
+                        <td className="px-6 py-6 font-black text-xs uppercase text-foreground">{inc.teamName}</td>
+                        <td className="px-6 py-6"><Badge className={cn("border-none font-black text-[8px] uppercase px-3 h-5", inc.emergencyServicesCalled ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground")}>{inc.emergencyServicesCalled ? 'CRITICAL' : 'ROUTINE'}</Badge></td>
+                        <td className="px-10 py-6 text-right font-black text-xs uppercase text-foreground">{inc.date}</td>
                       </tr>
                     ))}
+                    {clubIncidents.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-20 text-center opacity-30 italic text-xs uppercase font-black text-foreground">No institutional safety reports archived.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -276,31 +293,49 @@ export default function ClubManagementPage() {
       </Tabs>
 
       <Dialog open={isEditClubOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="rounded-[3rem] p-10 sm:max-w-md">
-          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Club Architect</DialogTitle></DialogHeader>
-          <div className="space-y-6 py-6">
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Official Club Name</Label><Input value={clubForm.name} onChange={e => setClubForm({...clubForm, name: e.target.value})} className="h-12 border-2 font-bold" /></div>
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Mission Narrative</Label><Textarea value={clubForm.description} onChange={e => setClubForm({...clubForm, description: e.target.value})} className="min-h-[120px] border-2" /></div>
+        <DialogContent className="rounded-[3rem] p-0 overflow-hidden sm:max-w-md border-none shadow-2xl bg-white text-foreground">
+          <div className="h-2 bg-black w-full" />
+          <div className="p-10 space-y-8">
+            <DialogHeader><DialogTitle className="text-3xl font-black uppercase tracking-tight">Club Architect</DialogTitle><DialogDescription className="text-primary font-bold uppercase text-[10px] tracking-widest">Update institutional identity</DialogDescription></DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-foreground">Official Club Name</Label><Input value={clubForm.name} onChange={e => setClubForm({...clubForm, name: e.target.value})} className="h-14 rounded-2xl border-2 font-black text-lg focus:border-primary/20" /></div>
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-foreground">Mission Narrative</Label><Textarea value={clubForm.description} onChange={e => setClubForm({...clubForm, description: e.target.value})} className="min-h-[150px] rounded-2xl border-2 font-medium focus:border-primary/20 p-4 resize-none" placeholder="Describe the club's tactical mission..." /></div>
+            </div>
+            <DialogFooter><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 border-none" onClick={handleUpdateClub}>Synchronize Hub</Button></DialogFooter>
           </div>
-          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateClub}>Synchronize Hub</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isDeployProtocolOpen} onOpenChange={setIsDeployProtocolOpen}>
-        <DialogContent className="rounded-[3rem] p-10 sm:max-w-lg">
-          <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Deploy Institutional Mandate</DialogTitle></DialogHeader>
-          <div className="space-y-6 py-6">
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Title</Label><Input value={protocolForm.title} onChange={e => setProtocolForm({...protocolForm, title: e.target.value})} className="h-12 border-2" /></div>
-            <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Legal Text</Label><Textarea value={protocolForm.content} onChange={e => setProtocolForm({...protocolForm, content: e.target.value})} className="min-h-[200px] border-2" /></div>
+        <DialogContent className="rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden sm:max-w-lg bg-white text-foreground">
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-10 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <DialogHeader><DialogTitle className="text-3xl font-black uppercase tracking-tight">Deploy Mandate</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Deploy atomic institutional protocol</DialogDescription></DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-foreground">Protocol Title</Label><Input placeholder="e.g. 2024 Seasonal Liability Waiver" value={protocolForm.title} onChange={e => setProtocolForm({...protocolForm, title: e.target.value})} className="h-14 rounded-2xl border-2 font-black text-lg" /></div>
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-foreground">Legal Execution Text</Label><Textarea value={protocolForm.content} onChange={e => setProtocolForm({...protocolForm, content: e.target.value})} className="min-h-[250px] rounded-2xl border-2 font-medium p-6 bg-muted/5 focus:bg-white transition-all resize-none" placeholder="Define terms and conditions..." /></div>
+              <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 flex items-start gap-4">
+                <ShieldCheck className="h-6 w-6 text-primary shrink-0" />
+                <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
+                  Deploying this protocol will instantly push it to the <strong>Compliance Vault</strong> of every Pro squad in your organization.
+                </p>
+              </div>
+            </div>
+            <DialogFooter><Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 border-none" onClick={handleDeployProtocol} disabled={isCreating}>{isCreating ? <Loader2 className="h-6 w-6 animate-spin" /> : "Authorize Atomic Deployment"}</Button></DialogFooter>
           </div>
-          <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleDeployProtocol} disabled={isCreating}>{isCreating ? <Loader2 className="h-6 w-6 animate-spin" /> : "Push to All Squads"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={!!teamToDelete} onOpenChange={o => !o && setTeamToDelete(null)}>
-        <AlertDialogContent className="rounded-3xl">
-          <AlertDialogHeader><AlertDialogTitle className="text-2xl font-black uppercase">Decommission Squad?</AlertDialogTitle><AlertDialogDescription className="font-bold">This will remove {teamToDelete?.name} from your institutional oversight. This action is irreversible.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel className="rounded-xl font-bold">Cancel</AlertDialogCancel><AlertDialogAction onClick={async () => { if(teamToDelete) await deleteTeam(teamToDelete.id); setTeamToDelete(null); }} className="rounded-xl font-black bg-red-600 hover:bg-red-700">Decommission Permanently</AlertDialogAction></AlertDialogFooter>
+        <AlertDialogContent className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0 bg-white">
+          <div className="h-2 bg-red-600 w-full" />
+          <div className="p-10 space-y-6">
+            <AlertDialogHeader><AlertDialogTitle className="text-3xl font-black uppercase tracking-tight text-foreground">Decommission Squad?</AlertDialogTitle><AlertDialogDescription className="font-bold text-foreground/80 leading-relaxed pt-2">This will remove <strong>{teamToDelete?.name}</strong> from your institutional oversight permanently. This action is irreversible.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="rounded-xl font-bold border-2 h-12 flex-1">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={async () => { if(teamToDelete) await deleteTeam(teamToDelete.id); setTeamToDelete(null); toast({ title: "Squad Decommissioned" }); }} className="rounded-xl font-black bg-red-600 hover:bg-red-700 h-12 flex-1 shadow-lg shadow-red-600/20 border-none">Purge Permanently</AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </div>

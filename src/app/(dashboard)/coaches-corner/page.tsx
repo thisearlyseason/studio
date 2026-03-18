@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -233,7 +232,7 @@ function RecruitingProfileManager({ member }: { member: Member }) {
               <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Institutional Recruiting Portfolio Synchronization</DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 text-foreground">
               <div className="space-y-8">
                 <section className="space-y-6">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Identity & Status</h3>
@@ -250,8 +249,8 @@ function RecruitingProfileManager({ member }: { member: Member }) {
                       </Select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Height</Label><Input value={profile.height} onChange={e => setProfile({...profile, height: e.target.value})} className="h-12 border-2 font-bold" /></div>
-                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Weight (lbs)</Label><Input value={profile.weight} onChange={e => setProfile({...profile, weight: e.target.value})} className="h-12 border-2 font-bold" /></div>
+                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Height</Label><Input value={profile.height} onChange={e => setProfile({...profile, height: e.target.value})} className="h-12 border-2 rounded-xl font-bold" /></div>
+                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Weight (lbs)</Label><Input value={profile.weight} onChange={e => setProfile({...profile, weight: e.target.value})} className="h-12 border-2 rounded-xl font-bold" /></div>
                     </div>
                   </div>
                 </section>
@@ -259,8 +258,8 @@ function RecruitingProfileManager({ member }: { member: Member }) {
                 <section className="space-y-6">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Athletic Pulse (Verified)</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">40yd Dash (s)</Label><Input type="number" value={metrics.fortyYardDash} onChange={e => setMetrics({...metrics, fortyYardDash: parseFloat(e.target.value)})} className="h-12 border-2 font-bold" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Vertical Jump (in)</Label><Input type="number" value={metrics.verticalJump} onChange={e => setMetrics({...metrics, verticalJump: parseFloat(e.target.value)})} className="h-12 border-2 font-bold" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">40yd Dash (s)</Label><Input type="number" value={metrics.fortyYardDash} onChange={e => setMetrics({...metrics, fortyYardDash: parseFloat(e.target.value)})} className="h-12 border-2 rounded-xl font-bold" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Vertical Jump (in)</Label><Input type="number" value={metrics.verticalJump} onChange={e => setMetrics({...metrics, verticalJump: parseFloat(e.target.value)})} className="h-12 border-2 rounded-xl font-bold" /></div>
                   </div>
                 </section>
               </div>
@@ -269,7 +268,7 @@ function RecruitingProfileManager({ member }: { member: Member }) {
                 <section className="space-y-6">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Narrative & Academics</h3>
                   <div className="space-y-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Academic GPA</Label><Input type="number" step="0.01" value={profile.academicGPA} onChange={e => setProfile({...profile, academicGPA: parseFloat(e.target.value)})} className="h-12 border-2 font-bold" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Academic GPA</Label><Input type="number" step="0.01" value={profile.academicGPA} onChange={e => setProfile({...profile, academicGPA: parseFloat(e.target.value)})} className="h-12 border-2 rounded-xl font-bold" /></div>
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase ml-1">Athletic Narrative</Label>
                       <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} className="min-h-[150px] border-2 rounded-2xl font-medium p-4 resize-none" placeholder="Recruiting summary..." />
@@ -367,7 +366,7 @@ function SafetyHub() {
           </div>
         </Card>
         <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 space-y-4 ring-1 ring-black/5">
-          <div className="flex items-center gap-3"><Activity className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase">Risk Pulse</p></div>
+          <div className="flex items-center gap-3"><Activity className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase text-foreground">Risk Pulse</p></div>
           <p className="text-sm font-bold uppercase text-muted-foreground">Monitoring active squads for operational safety compliance.</p>
         </Card>
       </div>
@@ -375,10 +374,10 @@ function SafetyHub() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
         <div className="flex items-center gap-3">
           <ClipboardList className="h-5 w-5 text-primary" />
-          <h3 className="text-xl font-black uppercase tracking-tight">Incident Ledger</h3>
+          <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Incident Ledger</h3>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="flex-1 sm:flex-none rounded-xl h-11 border-2 font-black uppercase text-[10px]" onClick={exportLedger} disabled={!incidents?.length}>
+          <Button variant="outline" className="flex-1 sm:flex-none rounded-xl h-11 border-2 font-black uppercase text-[10px] text-foreground" onClick={exportLedger} disabled={!incidents?.length}>
             <Download className="h-4 w-4 mr-2" /> Export Ledger
           </Button>
           <Button className="flex-1 sm:flex-none rounded-xl h-11 px-6 font-black uppercase text-[10px] shadow-lg shadow-primary/20" onClick={() => setIsLogOpen(true)}>
@@ -402,7 +401,7 @@ function SafetyHub() {
               {incidents?.map((inc) => (
                 <tr key={inc.id} className="hover:bg-primary/5 transition-colors group cursor-pointer">
                   <td className="px-8 py-6">
-                    <p className="font-black text-sm uppercase tracking-tight">{inc.title}</p>
+                    <p className="font-black text-sm uppercase tracking-tight text-foreground">{inc.title}</p>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5 line-clamp-1 italic">"{inc.description}"</p>
                   </td>
                   <td className="px-4 py-6 font-bold text-xs uppercase text-muted-foreground">{inc.location || 'TBD'}</td>
@@ -414,12 +413,12 @@ function SafetyHub() {
                       {inc.emergencyServicesCalled ? 'CRITICAL' : 'ROUTINE'}
                     </Badge>
                   </td>
-                  <td className="px-8 py-6 text-right font-black text-xs uppercase">{inc.date}</td>
+                  <td className="px-8 py-6 text-right font-black text-xs uppercase text-foreground">{inc.date}</td>
                 </tr>
               ))}
               {(!incidents || incidents.length === 0) && (
                 <tr>
-                  <td colSpan={4} className="py-20 text-center opacity-30 italic text-xs uppercase font-black">No safety incidents archived.</td>
+                  <td colSpan={4} className="py-20 text-center opacity-30 italic text-xs uppercase font-black text-foreground">No safety incidents archived.</td>
                 </tr>
               )}
             </tbody>
@@ -428,7 +427,7 @@ function SafetyHub() {
       </Card>
 
       <Dialog open={isLogOpen} onOpenChange={setIsLogOpen}>
-        <DialogContent className="rounded-[3.5rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden">
+        <DialogContent className="rounded-[3.5rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
           <DialogTitle className="sr-only">Incident Reporting Protocol</DialogTitle>
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
@@ -449,8 +448,8 @@ function SafetyHub() {
               </div>
               
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Date</Label><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Location</Label><Input placeholder="Which field/court?" value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="h-12 border-2 rounded-xl" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Date</Label><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="h-12 border-2 rounded-xl font-bold" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Location</Label><Input placeholder="Which field/court?" value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="h-12 border-2 rounded-xl font-bold" /></div>
               </div>
 
               <div className="flex items-center justify-between p-6 bg-red-50 rounded-[2rem] border-2 border-dashed border-red-200">
@@ -468,7 +467,7 @@ function SafetyHub() {
 
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase ml-1">Witnesses</Label>
-                <Input placeholder="Teammates, parents, or staff present..." value={form.witnesses} onChange={e => setForm({...form, witnesses: e.target.value})} className="h-12 border-2 rounded-xl" />
+                <Input placeholder="Teammates, parents, or staff present..." value={form.witnesses} onChange={e => setForm({...form, witnesses: e.target.value})} className="h-12 border-2 rounded-xl font-bold" />
               </div>
 
               <div className="space-y-2">
@@ -478,7 +477,7 @@ function SafetyHub() {
             </div>
 
             <DialogFooter>
-              <Button className="w-full h-16 rounded-[2rem] text-lg font-black bg-black text-white hover:bg-red-600 transition-all shadow-xl" onClick={handleLogIncident} disabled={isProcessing || !form.title}>
+              <Button className="w-full h-16 rounded-[2rem] text-lg font-black bg-black text-white hover:bg-red-600 transition-all shadow-xl border-none" onClick={handleLogIncident} disabled={isProcessing || !form.title}>
                 {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : "Commit Report to Ledger"}
               </Button>
             </DialogFooter>
@@ -492,27 +491,23 @@ function SafetyHub() {
 export default function CoachesCornerPage() {
   const { activeTeam, isStaff, createTeamDocument, updateTeamDocument, deleteTeamDocument, db, members } = useTeam();
   const [activeTab, setActiveTab] = useState('recruiting');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingDocId, setEditingDocId] = useState<string | null>(null);
-  const [newDoc, setNewDoc] = useState({ title: '', content: '', type: 'waiver' as any, assignedTo: ['all'], isActive: true });
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   const docsQuery = useMemoFirebase(() => (activeTeam && db) ? query(collection(db, 'teams', activeTeam.id, 'documents'), orderBy('createdAt', 'desc')) : null, [activeTeam?.id, db]);
   const { data: allDocuments } = useCollection<TeamDocument>(docsQuery);
   
-  const documents = useMemo(() => allDocuments?.filter(d => !DEFAULT_PROTOCOLS.some(p => p.id === d.id)) || [], [allDocuments]);
   const teamProtocols = useMemo(() => allDocuments?.filter(d => DEFAULT_PROTOCOLS.some(p => p.id === d.id)) || [], [allDocuments]);
 
   const selectedMember = useMemo(() => members.find(m => m.id === selectedMemberId), [members, selectedMemberId]);
 
-  if (!isStaff) return <div className="py-24 text-center opacity-20"><ShieldCheck className="h-16 w-16 mx-auto" /><h1 className="text-2xl font-black mt-4 uppercase tracking-widest">Staff Access Restricted</h1></div>;
+  if (!isStaff) return <div className="py-24 text-center opacity-20"><ShieldCheck className="h-16 w-16 mx-auto" /><h1 className="text-2xl font-black mt-4 uppercase tracking-widest text-foreground">Staff Access Restricted</h1></div>;
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3 tracking-widest">Command Hub</Badge>
-          <h1 className="text-4xl font-black uppercase tracking-tight">Coaches Corner</h1>
+          <h1 className="text-4xl font-black uppercase tracking-tight text-foreground">Coaches Corner</h1>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
           <TabsList className="bg-muted/50 rounded-xl h-auto p-1 border-2 w-full md:w-auto flex-wrap gap-1 shadow-sm">
@@ -528,13 +523,13 @@ export default function CoachesCornerPage() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <aside className="space-y-6">
               <div className="flex items-center gap-2 px-2"><Users className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Select Athlete</h3></div>
-              <ScrollArea className="h-[600px] border-2 rounded-[2.5rem] bg-muted/10 p-2">
+              <ScrollArea className="h-[600px] border-2 rounded-[2.5rem] bg-muted/10 p-2 shadow-inner">
                 <div className="space-y-1.5">
                   {members.map(m => (
                     <button key={m.id} onClick={() => setSelectedMemberId(m.id)} className={cn("w-full flex items-center gap-3 p-3 rounded-2xl transition-all font-black text-xs uppercase", selectedMemberId === m.id ? "bg-primary text-white shadow-lg" : "hover:bg-white text-foreground")}>
                       <Avatar className="h-8 w-8 rounded-xl border shrink-0">
                         <AvatarImage src={m.avatar} />
-                        <AvatarFallback>{m.name[0]}</AvatarFallback>
+                        <AvatarFallback className="font-black">{m.name[0]}</AvatarFallback>
                       </Avatar>
                       <span className="truncate">{m.name}</span>
                     </button>
@@ -546,7 +541,7 @@ export default function CoachesCornerPage() {
               {selectedMember ? (
                 <RecruitingProfileManager member={selectedMember} />
               ) : (
-                <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center space-y-6 bg-muted/10 border-2 border-dashed rounded-[3rem] opacity-40">
+                <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center space-y-6 bg-muted/10 border-2 border-dashed rounded-[3rem] opacity-40 text-foreground">
                   <Star className="h-16 w-16" />
                   <div><h3 className="text-xl font-black uppercase">Talent Pipeline</h3><p className="text-xs font-bold uppercase tracking-widest mt-1">Select an athlete to manage their institutional recruiting pack.</p></div>
                 </div>
@@ -576,7 +571,7 @@ export default function CoachesCornerPage() {
                         toast({ title: `Protocol ${v ? 'Activated' : 'Deactivated'}` });
                       }} />
                     </div>
-                    <div className="space-y-1 mb-4"><p className="font-black text-sm uppercase">{proto.title}</p><p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">System Mandate</p></div>
+                    <div className="space-y-1 mb-4"><p className="font-black text-sm uppercase text-foreground">{proto.title}</p><p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">System Mandate</p></div>
                   </Card>
                 );
               })}
