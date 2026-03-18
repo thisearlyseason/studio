@@ -16,9 +16,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
 
-/**
- * Interface for the return value of the useCollection hook.
- */
+/** Interface for the return value of the useCollection hook. */
 export interface UseCollectionResult<T> {
   data: WithId<T>[] | null;
   isLoading: boolean;
@@ -37,6 +35,7 @@ export interface InternalQuery extends Query<DocumentData> {
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
+ * Waits for Firebase Auth state to be fully resolved before subscribing.
  */
 export function useCollection<T = any>(
   memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean }) | null | undefined,
@@ -69,7 +68,7 @@ export function useCollection<T = any>(
         return;
       }
 
-      // Extract path for better error context
+      // Extract path for error reporting
       let path: string = '';
       try {
         if ((memoizedTargetRefOrQuery as any).type === 'collection') {
@@ -82,7 +81,7 @@ export function useCollection<T = any>(
         path = 'unknown';
       }
 
-      // Prevent invalid queries to root or malformed paths
+      // Prevent invalid root-level or malformed paths
       const isRootPath = !path || path === '/' || path === '.' || path === 'databases/(default)/documents';
       const hasUndefinedSegments = path === 'undefined' || path.includes('/undefined/') || path.endsWith('/undefined');
       const isMalformed = path.includes('[object Object]') || path.includes('null');

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { useTeam, League, LeagueInvite, Facility, Field, TournamentGame } from '@/components/providers/team-provider';
+import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,9 +74,7 @@ import { collection, query, orderBy, where, doc, updateDoc } from 'firebase/fire
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import Link from 'next/link';
 import { generateLeagueSchedule } from '@/lib/scheduler-utils';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -557,10 +556,9 @@ export default function LeaguesPage() {
   const { user: authUser, isAuthResolved } = useUser();
   const { 
     activeTeam, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, 
-    isStaff, isPro, deleteLeagueInvite, respondToAssignment, purchasePro
+    isStaff, isPro, deleteLeagueInvite, purchasePro
   } = useTeam();
   const db = useFirestore();
-  const router = useRouter();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -618,17 +616,25 @@ export default function LeaguesPage() {
     }
   };
 
-  const copyCode = () => {
-    if (activeLeague?.inviteCode) {
-      navigator.clipboard.writeText(activeLeague.inviteCode);
-      toast({ title: "Invite Code Copied" });
-    }
-  };
-
-  const copyPortal = () => {
-    if (activeLeague) {
-      navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.id}`);
-      toast({ title: "Portal Link Copied" });
+  const copyToClipboard = (text: string, successMsg: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast({ title: successMsg });
+      }).catch((err) => {
+        console.warn('Clipboard access denied:', err);
+        // Fallback for restricted environments
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          toast({ title: successMsg });
+        } catch (copyErr) {
+          console.error('Fallback copy failed:', copyErr);
+        }
+        document.body.removeChild(textArea);
+      });
     }
   };
 
@@ -856,7 +862,7 @@ export default function LeaguesPage() {
                 )}
                 {inviteMethod === 'code' && (
                   <div className="space-y-6 text-center py-4">
-                    <div className="p-8 bg-muted/20 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20 group cursor-pointer active:scale-95 transition-all" onClick={copyCode}>
+                    <div className="p-8 bg-muted/20 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20 group cursor-pointer active:scale-95 transition-all" onClick={() => copyToClipboard(activeLeague?.inviteCode || '', "Invite Code Copied")}>
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">Tactical Join Code</p>
                       <div className="flex items-center justify-center gap-4">
                         <span className="text-5xl font-black tracking-widest text-primary">{activeLeague?.inviteCode}</span>
@@ -868,7 +874,7 @@ export default function LeaguesPage() {
                 )}
                 {inviteMethod === 'portal' && (
                   <div className="space-y-6 text-center py-4">
-                    <div className="p-8 bg-muted/20 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20 group cursor-pointer active:scale-95 transition-all" onClick={copyPortal}>
+                    <div className="p-8 bg-muted/20 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20 group cursor-pointer active:scale-95 transition-all" onClick={() => copyToClipboard(`${window.location.origin}/register/league/${activeLeague?.id}`, "Portal Link Copied")}>
                       <Globe className="h-10 w-10 text-primary mx-auto mb-4 opacity-40" />
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Public Portal Access</p>
                       <div className="flex items-center justify-center gap-3 bg-white p-3 rounded-xl shadow-sm border truncate">
@@ -876,7 +882,7 @@ export default function LeaguesPage() {
                         <LinkIcon className="h-4 w-4 text-primary shrink-0" />
                       </div>
                     </div>
-                    <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-[10px] border-2 hover:bg-primary hover:text-white hover:border-primary transition-all text-foreground" onClick={copyPortal}>Copy Recruitment URL</Button>
+                    <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-[10px] border-2 hover:bg-primary hover:text-white hover:border-primary transition-all text-foreground" onClick={() => copyToClipboard(`${window.location.origin}/register/league/${activeLeague?.id}`, "Portal Link Copied")}>Copy Recruitment URL</Button>
                   </div>
                 )}
               </div>

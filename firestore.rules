@@ -25,7 +25,6 @@ service cloud.firestore {
 
     // --- Institutional Hierarchy: Leagues ---
     
-    // Explicitly allow listing the leagues collection
     match /leagues {
       allow list: if isSignedIn();
     }
@@ -34,6 +33,7 @@ service cloud.firestore {
       allow get, write: if isSignedIn();
       
       // Explicit matching for subcollections to satisfy LIST Proving requirements
+      // and ensure Firestore can statically verify query safety.
       match /invites {
         allow list: if isSignedIn();
       }
@@ -55,6 +55,7 @@ service cloud.firestore {
         allow get, create, update, delete: if isSignedIn();
       }
 
+      // Universal recursive fallback for other sub-data
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -68,6 +69,20 @@ service cloud.firestore {
 
     match /teams/{teamId} {
       allow get, write: if isSignedIn();
+      
+      // Ensure specific sub-collections satisfy list proving
+      match /members {
+        allow list: if isSignedIn();
+      }
+      match /events {
+        allow list: if isSignedIn();
+      }
+      match /feedPosts {
+        allow list: if isSignedIn();
+      }
+      match /groupChats {
+        allow list: if isSignedIn();
+      }
       
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
