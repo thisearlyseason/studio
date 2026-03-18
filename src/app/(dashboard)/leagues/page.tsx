@@ -265,7 +265,7 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const gamesOnSelectedDate = useMemo(() => {
-    return schedule.filter(g => format(new Date(g.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'));
+    return (schedule || []).filter(g => format(new Date(g.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'));
   }, [schedule, selectedDate]);
 
   return (
@@ -295,7 +295,7 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {schedule.map(game => (
+                  {(schedule || []).map(game => (
                     <tr key={game.id} className="hover:bg-muted/5 transition-colors">
                       <td className="px-8 py-6">
                         <p className="font-black text-xs uppercase text-foreground">{game.date}</p>
@@ -557,7 +557,7 @@ export default function LeaguesPage() {
   const { user: authUser, isAuthResolved } = useUser();
   const { 
     activeTeam, createLeague, inviteTeamToLeague, manuallyAddTeamToLeague, 
-    isStaff, isPro, deleteLeagueInvite, respondToAssignment 
+    isStaff, isPro, deleteLeagueInvite, respondToAssignment, purchasePro
   } = useTeam();
   const db = useFirestore();
   const router = useRouter();
@@ -663,10 +663,10 @@ export default function LeaguesPage() {
                   {isStaff && isOrganizer && (
                     <>
                       <Button 
-                        onClick={() => isPro ? setIsSeasonOpen(true) : null} 
+                        onClick={() => isPro ? setIsSeasonOpen(true) : purchasePro()} 
                         className={cn(
                           "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2",
-                          isPro ? "bg-white text-black border-black hover:bg-primary hover:text-white hover:border-primary" : "bg-white/50 text-muted-foreground/50 border-muted cursor-not-allowed"
+                          isPro ? "bg-white text-black border-black hover:bg-primary hover:text-white hover:border-primary" : "bg-white/50 text-muted-foreground/50 border-muted"
                         )}
                       >
                         {!isPro && <Lock className="h-3 w-3 mr-2 text-red-600" />}
@@ -674,24 +674,15 @@ export default function LeaguesPage() {
                       </Button>
                       
                       <Button 
-                        asChild={isPro} 
+                        onClick={() => isPro ? router.push(`/leagues/registration/${activeLeague.id}`) : purchasePro()}
                         className={cn(
                           "h-12 px-8 rounded-xl font-black text-xs uppercase transition-all flex items-center border-2",
-                          isPro ? "bg-white text-black border-black hover:bg-primary hover:text-white hover:border-primary" : "bg-white/50 text-muted-foreground/50 border-muted cursor-not-allowed"
+                          isPro ? "bg-white text-black border-black hover:bg-primary hover:text-white hover:border-primary" : "bg-white/50 text-muted-foreground/50 border-muted"
                         )}
                       >
-                        {isPro ? (
-                          <Link href={`/leagues/registration/${activeLeague.id}`} className="flex items-center">
-                            <ClipboardList className="h-4 w-4 mr-2" /> 
-                            <span>Registration Hub</span>
-                          </Link>
-                        ) : (
-                          <div className="flex items-center">
-                            <Lock className="h-4 w-4 mr-2 text-red-600" />
-                            <ClipboardList className="h-4 w-4 mr-2" /> 
-                            <span>Registration Hub</span>
-                          </div>
-                        )}
+                        {!isPro && <Lock className="h-3 w-3 mr-2 text-red-600" />}
+                        <ClipboardList className="h-4 w-4 mr-2" /> 
+                        <span>Registration Hub</span>
                       </Button>
 
                       <Button 
@@ -729,7 +720,7 @@ export default function LeaguesPage() {
                       <div className="overflow-x-auto">
                         <table className="w-full text-left">
                           <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b"><tr><th className="px-8 py-5">Squad</th><th className="px-4 py-5 text-center">W</th><th className="px-4 py-5 text-center">L</th><th className="px-4 py-5 text-center">T</th><th className="px-8 py-5 text-right text-primary">PTS</th></tr></thead>
-                          <tbody className="divide-y">{sortedStandings.map((team, idx) => (<tr key={team.id} className={cn("hover:bg-primary/5 transition-colors group", team.id === activeTeam?.id && "bg-primary/5")}><td className="px-8 py-6"><div className="flex items-center gap-4"><span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span><div className="flex items-center gap-3"><Avatar className="h-10 w-10 rounded-xl border shadow-inner shrink-0"><AvatarImage src={team.teamLogoUrl} className="object-cover" /><AvatarFallback className="font-black text-xs text-foreground">{team.teamName?.[0] || 'T'}</AvatarFallback></Avatar><div className="flex flex-col min-w-0"><div className="flex items-center gap-2"><span className="font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors truncate text-foreground">{team.teamName}</span></div></div></div></div></td><td className="px-4 py-6 text-center font-bold text-sm text-foreground">{team.wins}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.wins}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.ties}</td><td className="px-8 py-6 text-right font-black text-lg text-primary">{team.points}</td></tr>))}</tbody>
+                          <tbody className="divide-y">{sortedStandings.map((team, idx) => (<tr key={team.id} className={cn("hover:bg-primary/5 transition-colors group", team.id === activeTeam?.id && "bg-primary/5")}><td className="px-8 py-6"><div className="flex items-center gap-4"><span className="text-xs font-black text-muted-foreground/40 w-4">{idx + 1}</span><div className="flex items-center gap-3"><Avatar className="h-10 w-10 rounded-xl border shadow-inner shrink-0"><AvatarImage src={team.teamLogoUrl} className="object-cover" /><AvatarFallback className="font-black text-xs text-foreground">{team.teamName?.[0] || 'T'}</AvatarFallback></Avatar><div className="flex flex-col min-w-0"><div className="flex items-center gap-2"><span className="font-black text-sm uppercase tracking-tight group-hover:text-primary transition-colors truncate text-foreground">{team.teamName}</span></div></div></div></div></td><td className="px-4 py-6 text-center font-bold text-sm text-foreground">{team.wins}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.losses}</td><td className="px-4 py-6 text-center font-bold text-sm text-muted-foreground">{team.ties}</td><td className="px-8 py-6 text-right font-black text-lg text-primary">{team.points}</td></tr>))}</tbody>
                         </table>
                       </div>
                     </CardContent>
@@ -738,7 +729,7 @@ export default function LeaguesPage() {
                 <aside className="space-y-6">
                   <div className="flex items-center gap-2 px-2"><CalendarDays className="h-4 w-4 text-primary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">My Squad Itinerary</h3></div>
                   <div className="space-y-3">
-                    {activeLeague.schedule?.filter(g => !g.isCompleted && (g.team1 === activeTeam?.name || g.team2 === activeTeam?.name)).slice(0, 5).map((game) => (
+                    {(activeLeague.schedule || []).filter(g => !g.isCompleted && (g.team1 === activeTeam?.name || g.team2 === activeTeam?.name)).slice(0, 5).map((game) => (
                       <Card key={game.id} className="rounded-2xl border-none shadow-md ring-1 ring-black/5 p-4 bg-white group">
                         <div className="flex flex-col gap-3">
                           <div className="flex justify-between items-center"><span className="text-[10px] font-black text-primary uppercase tracking-widest">{game.time}</span><span className="text-[10px] font-bold text-muted-foreground">{game.date}</span></div>

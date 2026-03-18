@@ -33,6 +33,7 @@ const clean = (obj: any): any => {
 const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') => {
   const now = new Date();
   const yesterday = new Date(now.getTime() - 86400000).toISOString();
+  const weekAgo = new Date(now.getTime() - 604800000).toISOString();
   const tomorrow = new Date(now.getTime() + 86400000).toISOString();
   const later = new Date(now.getTime() + 172800000).toISOString();
 
@@ -44,7 +45,7 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
     ],
     games: [
       { id: `g1_${teamId}`, opponent: 'Tigers', date: yesterday, myScore: 12, opponentScore: 8, result: 'Win', location: 'City Arena' },
-      { id: `g2_${teamId}`, opponent: 'Hawks', date: now.toISOString(), myScore: 0, opponentScore: 0, result: 'Tie', location: 'Home Field' },
+      { id: `g2_${teamId}`, opponent: 'Hawks', date: weekAgo, myScore: 5, opponentScore: 10, result: 'Loss', location: 'Home Field' },
       { id: `g3_${teamId}`, opponent: 'Wolves', date: yesterday, myScore: 15, opponentScore: 14, result: 'Win', location: 'District Park' }
     ],
     events: [
@@ -56,7 +57,7 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '') 
       { id: `e3_${teamId}`, teamId, title: 'Strategy Briefing', eventType: 'meeting', date: later, startTime: '6:30 PM', location: 'Clubroom', description: 'Match study and tactical adjustment.' }
     ],
     drills: [
-      { id: `d1_${teamId}`, title: `Zone Defense Protocol ${teamSuffix}`, description: 'Master the 3-2 alignment.', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9XcQp8' }
+      { id: `d1_${teamId}`, title: `Zone Defense Protocol ${teamSuffix}`, description: 'Master the 3-2 alignment.', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9XcQp8', createdAt: now.toISOString() }
     ],
     feed: [
       { id: `p1_${teamId}`, type: 'user', content: `Focus for Saturday, ${teamSuffix} squad!`, author: { name: 'Jordan Smith' }, authorId: `u1_${teamId}`, createdAt: yesterday, likes: [userId] },
@@ -156,7 +157,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const userRole = isParentDemo ? 'parent' : (isPlayerDemo ? 'adult_player' : 'coach');
   const pos = isParentDemo ? 'Parent' : (isPlayerDemo ? 'Player' : 'Coach');
   
-  // Demos that need command access must have 'Admin' role
+  // Administrators for Coach/Org/League demos
   const role = (isParentDemo || isPlayerDemo) ? 'Member' : 'Admin';
 
   const batch = writeBatch(db);
@@ -250,7 +251,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       createdAt: now
     });
     
-    // Initialize the global doc itself
+    // Initialize global reference
     batch.set(doc(db, 'leagues', 'global'), { initialized: true }, { merge: true });
   }
 

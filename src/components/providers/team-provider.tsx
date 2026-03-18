@@ -500,9 +500,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
-  // --- CORE LISTENERS & DATA DECLARATIONS (Must be at top) ---
+  // --- CORE LISTENERS ---
 
-  // 1. Core Profile Listener
   useEffect(() => {
     if (!firebaseUser || !db) { setUserProfile(null); return; }
     return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
@@ -510,7 +509,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     });
   }, [firebaseUser, db]);
 
-  // 2. Member Teams Listener
   const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
   const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);
   
@@ -522,12 +520,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const activeTeam = useMemo(() => teamsRaw.find(t => t.id === activeTeamId) || teamsRaw[0] || null, [teamsRaw, activeTeamId]);
 
-  // 3. Roster Members Listener
   const membersQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'members')) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
   const members = useMemo(() => membersData || [], [membersData]);
 
-  // 4. Global Alerts & Plans
   const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
   const alerts = useMemo(() => alertsData || [], [alertsData]);
@@ -539,12 +535,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
   const plans = useMemo(() => plansData || [], [plansData]);
 
-  // 5. User-Specific Rosters (Children)
   const childrenQuery = useMemoFirebase(() => (db && firebaseUser?.uid) ? query(collection(db, 'players'), where('parentId', '==', firebaseUser.uid)) : null, [db, firebaseUser?.uid]);
   const { data: myChildrenRaw } = useCollection<PlayerProfile>(childrenQuery);
   const myChildren = useMemo(() => myChildrenRaw || [], [myChildrenRaw]);
 
-  // 6. Aggregate Household Itinerary
   const householdEventsQuery = useMemoFirebase(() => {
     if (!db || !firebaseUser?.uid || !teamsData || teamsData.length === 0) return null;
     const teamIds = (teamsData || []).map(t => t.teamId).filter(Boolean);
@@ -554,7 +548,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
 
-  // --- PERMISSIONS & TIER LOGIC ---
   const isStaff = useMemo(() => {
     if (!activeTeam || !firebaseUser) return false;
     if (activeTeam.role === 'Admin') return true;

@@ -31,33 +31,32 @@ service cloud.firestore {
 
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
-    }
+      
+      // Explicit matching for subcollections to satisfy LIST Proving requirements
+      match /invites {
+        allow list: if isSignedIn();
+      }
+      match /invites/{inviteId} {
+        allow read, write: if isSignedIn();
+      }
+      
+      match /registration {
+        allow list: if isSignedIn();
+      }
+      match /registration/{id} {
+        allow read, write: if isSignedIn();
+      }
+      
+      match /registrationEntries {
+        allow list: if isSignedIn();
+      }
+      match /registrationEntries/{id} {
+        allow read, write: if isSignedIn();
+      }
 
-    // Explicit matching for subcollections to satisfy LIST Proving requirements
-    match /leagues/{leagueId}/invites {
-      allow list: if isSignedIn();
-    }
-    match /leagues/{leagueId}/invites/{inviteId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /leagues/{leagueId}/registration {
-      allow list: if isSignedIn();
-    }
-    match /leagues/{leagueId}/registration/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /leagues/{leagueId}/registrationEntries {
-      allow list: if isSignedIn();
-    }
-    match /leagues/{leagueId}/registrationEntries/{id} {
-      allow read, write: if isSignedIn();
-    }
-
-    // Global pool fallback for recursive matching
-    match /leagues/{allPaths=**} {
-      allow read, write: if isSignedIn();
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
 
     // --- Tactical Hierarchy: Teams ---
@@ -69,25 +68,6 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read, write: if isSignedIn();
       
-      // Explicit sub-matches for provable queries
-      match /members { allow list: if isSignedIn(); }
-      match /members/{id} { allow read, write: if isSignedIn(); }
-      
-      match /games { allow list: if isSignedIn(); }
-      match /games/{id} { allow read, write: if isSignedIn(); }
-      
-      match /events { allow list: if isSignedIn(); }
-      match /events/{id} { allow read, write: if isSignedIn(); }
-      
-      match /feedPosts { allow list: if isSignedIn(); }
-      match /feedPosts/{id} { allow read, write: if isSignedIn(); }
-      
-      match /groupChats { allow list: if isSignedIn(); }
-      match /groupChats/{id} { allow read, write: if isSignedIn(); }
-      
-      match /files { allow list: if isSignedIn(); }
-      match /files/{id} { allow read, write: if isSignedIn(); }
-
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
