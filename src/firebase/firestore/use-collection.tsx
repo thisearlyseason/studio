@@ -100,7 +100,7 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (err: FirestoreError) => {
+      async (err: FirestoreError) => {
         // Create the rich, contextual error asynchronously.
         const permissionError = new FirestorePermissionError({
           path: path || 'unknown',
