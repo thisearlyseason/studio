@@ -13,7 +13,8 @@ service cloud.firestore {
     }
 
     function isAnonymous() {
-      // Robust check for anonymous/custom provider status used in development/demos
+      // Hardened check for anonymous/custom provider status used in development/demos
+      // Accommodates 'custom' provider used during demo seeding where email is null
       return isSignedIn() && (
         request.auth.token.firebase.sign_in_provider == 'anonymous' || 
         request.auth.token.firebase.sign_in_provider == 'custom' ||
@@ -25,42 +26,41 @@ service cloud.firestore {
 
     // --- Institutional Hierarchy: Leagues ---
     
-    // Allow listing the root leagues collection
+    // Explicit matching for collections ensures LIST operations prove successful
     match /leagues {
       allow list: if isSignedIn();
     }
 
-    // Explicit matching for subcollections ensures LIST operations prove successful
-    // This resolves the "leagues/global/invites" permission denial
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
       
+      // Explicit subcollection matching for List Proving
       match /invites {
         allow list: if isSignedIn();
       }
       match /invites/{inviteId} {
-        allow read, write: if isSignedIn();
+        allow get, create, update, delete: if isSignedIn();
       }
       
       match /registration {
         allow list: if isSignedIn();
       }
       match /registration/{configId} {
-        allow read, write: if isSignedIn();
+        allow get, write: if isSignedIn();
       }
 
       match /registrationEntries {
         allow list: if isSignedIn();
       }
       match /registrationEntries/{entryId} {
-        allow read, write: if isSignedIn();
+        allow get, write: if isSignedIn();
       }
 
       match /payments {
         allow list: if isSignedIn();
       }
       match /payments/{paymentId} {
-        allow read, write: if isSignedIn();
+        allow get, write: if isSignedIn();
       }
     }
 
@@ -73,7 +73,7 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read, write: if isSignedIn();
       
-      // Recursive wildcard ensures members can access chat, files, events, and rosters
+      // Recursive wildcard for team sub-data (chat, files, etc)
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
