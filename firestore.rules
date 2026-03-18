@@ -31,7 +31,6 @@ service cloud.firestore {
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
       
-      // Explicit subcollection matching for 'List Proving'
       match /invites { allow list: if isSignedIn(); }
       match /invites/{id} { allow read, write: if isSignedIn(); }
       
@@ -102,11 +101,19 @@ service cloud.firestore {
 
     // --- PERSONAL INFRASTRUCTURE: USER PROFILES ---
     
+    match /userProfiles {
+      allow list: if isSignedIn();
+    }
+    
     match /userProfiles/{userId} {
       allow read, write: if isOwner(userId);
       match /{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
+    }
+
+    match /users {
+      allow list: if isSignedIn();
     }
 
     match /users/{userId} {
@@ -156,6 +163,14 @@ service cloud.firestore {
     match /plans/{planId} {
       allow read: if true;
       allow write: if isSignedIn();
+    }
+
+    match /team_memberships {
+      allow list: if isSignedIn();
+    }
+
+    match /team_memberships/{id} {
+      allow read, write: if isSignedIn();
     }
 
     // --- CROSS-SQUAD AGGREGATION (COLLECTION GROUPS) ---

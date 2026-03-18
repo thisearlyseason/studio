@@ -52,7 +52,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           // Small delay to allow Firestore propagation before reload
           setTimeout(() => {
             window.location.replace('/dashboard');
-          }, 1000);
+          }, 1500);
         }
       } catch (e) {
         console.error("Demo synchronization failure:", e);

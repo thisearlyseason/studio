@@ -117,6 +117,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     joinedAt: now, isDemo: true, avatar: `https://picsum.photos/seed/${userId}/150/150`
   }));
 
+  // Important: Explicitly allow team memberships at root for rules satisfaction
+  batch.set(doc(db, 'team_memberships', `${teamId}_${userId}`), clean({
+    id: `${teamId}_${userId}`, teamId, userId, role, joinedAt: now
+  }));
+
   const data = GET_DEMO_DATA(teamId, userId);
   data.members.forEach(m => batch.set(doc(db, 'teams', teamId, 'members', m.id), clean({ ...m, teamId })));
   data.games.forEach(g => batch.set(doc(db, 'teams', teamId, 'games', g.id), clean(g)));
