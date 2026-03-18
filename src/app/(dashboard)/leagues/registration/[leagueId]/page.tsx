@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -34,7 +35,8 @@ import {
   Loader2,
   ShieldCheck,
   CheckCircle2,
-  XCircle
+  XCircle,
+  UserCheck
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -56,7 +58,17 @@ import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 export default function LeagueRegistrationAdminPage() {
   const { leagueId } = useParams();
   const router = useRouter();
-  const { saveLeagueRegistrationConfig, assignEntryToTeam, activeTeam, hasFeature, toggleRegistrationPaymentStatus, purchasePro, isStaff, respondToAssignment } = useTeam();
+  const { 
+    saveLeagueRegistrationConfig, 
+    assignEntryToTeam, 
+    activeTeam, 
+    hasFeature, 
+    toggleRegistrationPaymentStatus, 
+    purchasePro, 
+    isStaff, 
+    respondToAssignment,
+    submitRegistrationEntry 
+  } = useTeam();
   const db = useFirestore();
 
   const canRegister = hasFeature('league_registration') || (activeTeam?.isPro && isStaff);
@@ -70,6 +82,11 @@ export default function LeagueRegistrationAdminPage() {
   const [activeTab, setActiveTab] = useState<'entries' | 'config'>('entries');
   const [editingField, setEditingField] = useState<Partial<RegistrationFormField> | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'accepted'>('all');
+
+  // Manual Add State
+  const [isManualAddOpen, setIsManualAddOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({ teamName: '', coachName: '', email: '' });
+  const [isManualProcessing, setIsManualProcessing] = useState(false);
 
   const [localConfig, setLocalConfig] = useState<Partial<LeagueRegistrationConfig> | null>(null);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -141,6 +158,33 @@ export default function LeagueRegistrationAdminPage() {
     setEditingField(null);
   };
 
+  const handleManualAdd = async () => {
+    if (!manualForm.teamName || !manualForm.coachName || !manualForm.email || !leagueId) return;
+    setIsManualProcessing(true);
+    try {
+      await submitRegistrationEntry(
+        leagueId as string, 
+        'manual_admin', 
+        { 
+          teamName: manualForm.teamName, 
+          name: manualForm.coachName, 
+          email: manualForm.email,
+          manual_enrollment: true 
+        }, 
+        0, 
+        'Manual Admin Enrollment', 
+        'leagues'
+      );
+      setIsManualAddOpen(false);
+      setManualForm({ teamName: '', coachName: '', email: '' });
+      toast({ title: "Squad Enrolled", description: "The team has been manually added to the pool." });
+    } catch (error) {
+      toast({ title: "Enrollment Failed", variant: "destructive" });
+    } finally {
+      setIsManualProcessing(false);
+    }
+  };
+
   const handleCopyPortalUrl = async () => {
     try {
       const url = `${window.location.origin}/register/league/${leagueId}`;
@@ -189,10 +233,69 @@ export default function LeagueRegistrationAdminPage() {
               <div className="bg-primary/10 p-2.5 rounded-xl text-primary"><Users className="h-5 w-5" /></div>
               <div><h3 className="text-xl font-black uppercase tracking-tight">Applicant Pool</h3><p className="text-[9px] font-bold text-muted-foreground uppercase">{filteredEntries.length} Records Found</p></div>
             </div>
-            <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 shadow-sm">
-              {(['all', 'pending', 'assigned', 'accepted'] as const).map(s => (
-                <Button key={s} variant={filterStatus === s ? 'secondary' : 'ghost'} size="sm" className="h-8 rounded-xl font-black text-[9px] uppercase px-4" onClick={() => setFilterStatus(s)}>{s}</Button>
-              ))}
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-2xl border-2 shadow-sm">
+                {(['all', 'pending', 'assigned', 'accepted'] as const).map(s => (
+                  <Button key={s} variant={filterStatus === s ? 'secondary' : 'ghost'} size="sm" className="h-8 rounded-xl font-black text-[9px] uppercase px-4" onClick={() => setFilterStatus(s)}>{s}</Button>
+                ))}
+              </div>
+              
+              <Dialog open={isManualAddOpen} onOpenChange={setIsManualAddOpen}>
+                <DialogTrigger asChild>
+                  <Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20">
+                    <UserPlus className="h-4 w-4 mr-2" /> Manually Enroll Squad
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden sm:max-w-md">
+                  <div className="h-2 bg-primary w-full" />
+                  <div className="p-8 lg:p-10 space-y-8">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-black uppercase tracking-tight">Manual Enrollment</DialogTitle>
+                      <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Enroll squad directly to pool</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
+                        <Input 
+                          placeholder="e.g. Metro Tigers U14" 
+                          value={manualForm.teamName} 
+                          onChange={e => setManualForm({...manualForm, teamName: e.target.value})}
+                          className="h-12 rounded-xl border-2 font-bold"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Head Coach Name</Label>
+                        <Input 
+                          placeholder="John Smith" 
+                          value={manualForm.coachName} 
+                          onChange={e => setManualForm({...manualForm, coachName: e.target.value})}
+                          className="h-12 rounded-xl border-2 font-bold"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label>
+                        <Input 
+                          type="email" 
+                          placeholder="coach@team.com" 
+                          value={manualForm.email} 
+                          onChange={e => setManualForm({...manualForm, email: e.target.value})}
+                          className="h-12 rounded-xl border-2 font-bold"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button 
+                        className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" 
+                        onClick={handleManualAdd}
+                        disabled={isManualProcessing || !manualForm.teamName || !manualForm.coachName || !manualForm.email}
+                      >
+                        {isManualProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Commit Enrollment"}
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
@@ -201,7 +304,7 @@ export default function LeagueRegistrationAdminPage() {
               <table className="w-full text-left">
                 <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b">
                   <tr>
-                    <th className="px-8 py-5">Applicant</th>
+                    <th className="px-8 py-5">Applicant / Squad</th>
                     <th className="px-4 py-5">Submitted</th>
                     <th className="px-4 py-5 text-center">Payment</th>
                     <th className="px-4 py-5">Status</th>
@@ -212,8 +315,20 @@ export default function LeagueRegistrationAdminPage() {
                   {filteredEntries.map(entry => (
                     <tr key={entry.id} className="hover:bg-muted/5 transition-colors">
                       <td className="px-8 py-6">
-                        <p className="font-black text-sm uppercase tracking-tight">{entry.answers['name'] || entry.answers['fullName'] || 'New Recruit'}</p>
-                        <p className="text-[10px] font-bold text-muted-foreground">{entry.answers['email']}</p>
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm",
+                            entry.answers['manual_enrollment'] ? "bg-primary/5 text-primary" : "bg-white text-muted-foreground"
+                          )}>
+                            {entry.answers['manual_enrollment'] ? <UserCheck className="h-5 w-5" /> : <Users className="h-5 w-5" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-black text-sm uppercase tracking-tight truncate">
+                              {entry.answers['teamName'] ? `${entry.answers['teamName']} (${entry.answers['name']})` : (entry.answers['name'] || entry.answers['fullName'] || 'New Recruit')}
+                            </p>
+                            <p className="text-[10px] font-bold text-muted-foreground">{entry.answers['email']}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-6 text-xs font-bold text-muted-foreground">{format(new Date(entry.created_at), 'MMM d, p')}</td>
                       <td className="px-4 py-6 text-center">
@@ -234,7 +349,7 @@ export default function LeagueRegistrationAdminPage() {
                                       {Object.entries(entry.answers).map(([key, val]) => (
                                         <div key={key} className="space-y-1">
                                           <p className="text-[8px] font-black uppercase opacity-40">{key.replace(/_/g, ' ')}</p>
-                                          <p className="text-sm font-bold">{val.toString()}</p>
+                                          <p className="text-sm font-bold">{val?.toString()}</p>
                                         </div>
                                       ))}
                                       {entry.waiver_signed_text && (
