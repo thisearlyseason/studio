@@ -14,7 +14,6 @@ service cloud.firestore {
 
     function isAnonymous() {
       // Hardened check for anonymous/custom provider status used in development/demos
-      // Accommodates 'custom' provider used during demo seeding where email is null
       return isSignedIn() && (
         request.auth.token.firebase.sign_in_provider == 'anonymous' || 
         request.auth.token.firebase.sign_in_provider == 'custom' ||
@@ -26,7 +25,6 @@ service cloud.firestore {
 
     // --- Institutional Hierarchy: Leagues ---
     
-    // Explicit matching for collections ensures LIST operations prove successful
     match /leagues {
       allow list: if isSignedIn();
     }
