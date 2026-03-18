@@ -9,7 +9,7 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -18,32 +18,28 @@ export type WithId<T> = T & { id: string };
 
 /**
  * Interface for the return value of the useCollection hook.
- * @template T Type of the document data.
  */
 export interface UseCollectionResult<T> {
-  data: WithId<T>[] | null; // Document data with ID, or null.
-  isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
+  data: WithId<T>[] | null;
+  isLoading: boolean;
+  error: FirestoreError | Error | null;
 }
 
-/* Internal implementation of Query:
-  https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
-*/
+/* Internal type for query path extraction */
 export interface InternalQuery extends Query<DocumentData> {
   _query?: {
     path?: {
       canonicalString?(): string;
       toString?(): string;
-    }
-  }
+    };
+  };
 }
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Handles nullable references/queries.
  */
 export function useCollection<T = any>(
-    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
+  memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean }) | null | undefined,
 ): UseCollectionResult<T> {
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
@@ -53,7 +49,6 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // 1. INPUT GUARD: Handle null or undefined references
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -61,76 +56,77 @@ export function useCollection<T = any>(
       return;
     }
 
-    // 2. AUTH GUARD: Prevent queries before the SDK identity is established.
-    // Requests sent before auth.currentUser is populated will fail security rules
-    // that require signed-in users (request.auth != null).
     const auth = getAuth();
-    if (!auth.currentUser) {
-      setData(null);
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
 
-    // 3. TACTICAL GUARD: Prevent root-level scans or uninitialized paths.
-    let path: string = '';
-    try {
-      if (memoizedTargetRefOrQuery.type === 'collection') {
-        path = (memoizedTargetRefOrQuery as CollectionReference).path;
-      } else {
-        const iq = memoizedTargetRefOrQuery as unknown as InternalQuery;
-        path = iq._query?.path?.canonicalString?.() || iq._query?.path?.toString?.() || '';
-      }
-    } catch (e) {
-      path = 'unknown';
-    }
+    let unsubscribeSnapshot: (() => void) | null = null;
 
-    // CRITICAL SECURITY GUARD:
-    // If the path is empty, points to document root, or contains undefined segments, 
-    // do not establish a listener. Querying the root /databases/(default)/documents path 
-    // is forbidden by security rules and will cause immediate permission errors.
-    const isRootPath = !path || path === '/' || path === '.' || path === '' || path === 'databases/(default)/documents';
-    const hasUndefinedSegments = path === 'undefined' || path.includes('/undefined/') || path.endsWith('/undefined');
-    const isMalformed = path.includes('[object Object]') || path.includes('null');
-
-    if (isRootPath || hasUndefinedSegments || isMalformed) {
-      setData(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const unsubscribe = onSnapshot(
-      memoizedTargetRefOrQuery,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        }
-        setData(results);
-        setError(null);
-        setIsLoading(false);
-      },
-      async (err: FirestoreError) => {
-        // Create the rich, contextual error asynchronously.
-        const permissionError = new FirestorePermissionError({
-          path: path || 'unknown',
-          operation: 'list',
-        });
-
-        // Emit the error with the global error emitter
-        errorEmitter.emit('permission-error', permissionError);
-
-        setError(permissionError);
+    // Wait for auth state to fully resolve
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (!user) {
         setData(null);
         setIsLoading(false);
+        setError(null);
+        return;
       }
-    );
 
-    return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); 
-  
+      // Extract path for better error context
+      let path: string = '';
+      try {
+        if ((memoizedTargetRefOrQuery as any).type === 'collection') {
+          path = (memoizedTargetRefOrQuery as CollectionReference).path;
+        } else {
+          const iq = memoizedTargetRefOrQuery as unknown as InternalQuery;
+          path = iq._query?.path?.canonicalString?.() || iq._query?.path?.toString?.() || '';
+        }
+      } catch (e) {
+        path = 'unknown';
+      }
+
+      // Prevent invalid queries to root or malformed paths
+      const isRootPath = !path || path === '/' || path === '.' || path === 'databases/(default)/documents';
+      const hasUndefinedSegments = path === 'undefined' || path.includes('/undefined/') || path.endsWith('/undefined');
+      const isMalformed = path.includes('[object Object]') || path.includes('null');
+
+      if (isRootPath || hasUndefinedSegments || isMalformed) {
+        setData(null);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      // Subscribe to Firestore query
+      unsubscribeSnapshot = onSnapshot(
+        memoizedTargetRefOrQuery,
+        (snapshot: QuerySnapshot<DocumentData>) => {
+          const results: ResultItemType[] = [];
+          for (const doc of snapshot.docs) {
+            results.push({ ...(doc.data() as T), id: doc.id });
+          }
+          setData(results);
+          setError(null);
+          setIsLoading(false);
+        },
+        (err: FirestoreError) => {
+          const permissionError = new FirestorePermissionError({
+            path: path || 'unknown',
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setError(permissionError);
+          setData(null);
+          setIsLoading(false);
+        }
+      );
+    });
+
+    // Cleanup both auth and Firestore subscriptions
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
+  }, [memoizedTargetRefOrQuery]);
+
   return { data, isLoading, error };
 }
