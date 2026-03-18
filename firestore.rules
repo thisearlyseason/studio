@@ -31,32 +31,33 @@ service cloud.firestore {
 
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
-      
-      // Explicit rules for nested collections to satisfy LIST Proving
-      match /invites {
-        allow list: if isSignedIn();
-      }
-      match /invites/{id} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /registration {
-        allow list: if isSignedIn();
-      }
-      match /registration/{id} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /registrationEntries {
-        allow list: if isSignedIn();
-      }
-      match /registrationEntries/{id} {
-        allow read, write: if isSignedIn();
-      }
+    }
 
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
+    // Explicit matching for subcollections to satisfy LIST Proving requirements
+    match /leagues/{leagueId}/invites {
+      allow list: if isSignedIn();
+    }
+    match /leagues/{leagueId}/invites/{inviteId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /leagues/{leagueId}/registration {
+      allow list: if isSignedIn();
+    }
+    match /leagues/{leagueId}/registration/{id} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /leagues/{leagueId}/registrationEntries {
+      allow list: if isSignedIn();
+    }
+    match /leagues/{leagueId}/registrationEntries/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Global pool fallback for recursive matching
+    match /leagues/{allPaths=**} {
+      allow read, write: if isSignedIn();
     }
 
     // --- Tactical Hierarchy: Teams ---
@@ -68,7 +69,7 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read, write: if isSignedIn();
       
-      // Explicit rules for sub-data to ensure list operations succeed
+      // Explicit sub-matches for provable queries
       match /members { allow list: if isSignedIn(); }
       match /members/{id} { allow read, write: if isSignedIn(); }
       
@@ -96,6 +97,9 @@ service cloud.firestore {
     
     match /userProfiles/{userId} {
       allow read, write: if isOwner(userId);
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /users/{userId} {
@@ -153,6 +157,9 @@ service cloud.firestore {
       allow read: if isSignedIn();
     }
     match /{path=**}/registrationEntries/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /{path=**}/signatures/{id} {
       allow read, write: if isSignedIn();
     }
 
