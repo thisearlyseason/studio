@@ -9,6 +9,7 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -52,6 +53,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // 1. INPUT GUARD: Handle null or undefined references
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -59,7 +61,18 @@ export function useCollection<T = any>(
       return;
     }
 
-    // TACTICAL GUARD: Prevent root-level scans or uninitialized paths.
+    // 2. AUTH GUARD: Prevent queries before the SDK identity is established.
+    // Requests sent before auth.currentUser is populated will fail security rules
+    // that require signed-in users (request.auth != null).
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      setData(null);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    // 3. TACTICAL GUARD: Prevent root-level scans or uninitialized paths.
     let path: string = '';
     try {
       if (memoizedTargetRefOrQuery.type === 'collection') {
