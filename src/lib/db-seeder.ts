@@ -117,7 +117,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     joinedAt: now, isDemo: true, avatar: `https://picsum.photos/seed/${userId}/150/150`
   }));
 
-  // Important: Explicitly allow team memberships at root for rules satisfaction
+  // Explicitly allow team memberships at root for rules satisfaction
   batch.set(doc(db, 'team_memberships', `${teamId}_${userId}`), clean({
     id: `${teamId}_${userId}`, teamId, userId, role, joinedAt: now
   }));

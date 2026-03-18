@@ -24,7 +24,9 @@ service cloud.firestore {
     // --- INSTITUTIONAL HIERARCHY: LEAGUES ---
     
     match /leagues {
-      allow list, get: if isSignedIn();
+      // Explicit list match for query proving
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
       allow create: if isSignedIn();
     }
 
@@ -38,7 +40,8 @@ service cloud.firestore {
     // --- TACTICAL HIERARCHY: TEAMS ---
     
     match /teams {
-      allow list, get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
       allow create: if isSignedIn();
     }
 
@@ -101,6 +104,8 @@ service cloud.firestore {
 
     match /plans {
       allow list, get: if true;
+      // Allow seeder to initialize plan catalog
+      allow write: if isSignedIn();
     }
 
     match /plans/{planId} {
@@ -125,6 +130,9 @@ service cloud.firestore {
     match /{path=**}/files/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/signatures/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/incidents/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/feedPosts/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/drills/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/games/{id} { allow read, write: if isSignedIn(); }
 
     // --- GLOBAL DEFAULT DENY ---
     

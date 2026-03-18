@@ -519,7 +519,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
-  // 1. Declare all state and Firestore listeners at the very top for reference stability
+  // --- TACTICAL HOOK DECLARATION ORDER (LEXICAL STABILITY) ---
+  
   useEffect(() => {
     if (!firebaseUser || !db) { setUserProfile(null); return; }
     return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {

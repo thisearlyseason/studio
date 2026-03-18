@@ -48,6 +48,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // If no target ref is provided, explicitly clear state and return
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -58,21 +59,24 @@ export function useCollection<T = any>(
     const auth = getAuth();
     let unsubscribeSnapshot: (() => void) | null = null;
 
-    // TACTICAL GUARD: Wait for authentication identity resolution before querying
+    // TACTICAL GUARD: Explicitly wait for authentication identity resolution.
+    // This prevents "Missing or insufficient permissions" errors caused by 
+    // sending queries before the Firebase SDK has attached the auth token.
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      // Cleanup existing listener if any
+      // 1. Cleanup existing listener if any
       if (unsubscribeSnapshot) {
         unsubscribeSnapshot();
         unsubscribeSnapshot = null;
       }
 
-      // Explicitly block queries if the user identity is not yet established
+      // 2. Identity Verification: Do not dispatch if no user is present
       if (!user || !auth.currentUser) {
         setData(null);
         setIsLoading(false);
         return;
       }
 
+      // 3. Path Extraction for Contextual Errors
       let path: string = '';
       try {
         if ((memoizedTargetRefOrQuery as any).type === 'collection') {
@@ -85,9 +89,9 @@ export function useCollection<T = any>(
         path = 'unknown';
       }
 
-      // Prevent unauthorized root-level scans or malformed paths
+      // 4. Defensive Guard: Prevent malformed paths or root-level scans
       const isRootPath = !path || path === '/' || path === '.' || path === 'databases/(default)/documents';
-      const hasUndefined = path === 'undefined' || path.includes('/undefined/') || path.endsWith('/undefined');
+      const hasUndefined = path === 'unknown' || path.includes('undefined') || path.includes('/null/');
       
       if (isRootPath || hasUndefined) {
         setData(null);
@@ -95,6 +99,7 @@ export function useCollection<T = any>(
         return;
       }
 
+      // 5. Establish Real-time Listener
       setIsLoading(true);
       setError(null);
 
@@ -109,13 +114,14 @@ export function useCollection<T = any>(
           setError(null);
           setIsLoading(false);
         },
-        (err: FirestoreError) => {
+        async (err: FirestoreError) => {
           // Construct rich contextual error for the overlay
           const permissionError = new FirestorePermissionError({
             path: path || 'unknown',
             operation: 'list',
           });
           
+          // Emit the error to the global listener
           errorEmitter.emit('permission-error', permissionError);
           setError(permissionError);
           setData(null);
@@ -124,6 +130,7 @@ export function useCollection<T = any>(
       );
     });
 
+    // Cleanup: Unsubscribe from both Auth and Snapshot listeners
     return () => {
       unsubscribeAuth();
       if (unsubscribeSnapshot) unsubscribeSnapshot();
