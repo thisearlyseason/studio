@@ -19,11 +19,29 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
       
       // Explicit matches for provable list operations
-      match /registrationEntries { allow list: if isSignedIn(); }
-      match /registrationEntries/{id} { allow read, write: if isSignedIn(); }
+      match /registrationEntries/{id} { 
+        allow list, read, write: if isSignedIn(); 
+      }
       
-      match /invites { allow list: if isSignedIn(); }
-      match /invites/{id} { allow read, write: if isSignedIn(); }
+      match /invites/{id} { 
+        allow list, read, write: if isSignedIn(); 
+      }
+
+      match /events/{id} { 
+        allow list, read, write: if isSignedIn(); 
+      }
+      
+      match /members/{id} { 
+        allow list, read, write: if isSignedIn(); 
+      }
+      
+      match /payments/{id} { 
+        allow list, read, write: if isSignedIn(); 
+      }
+
+      match /registration/{configId} {
+        allow read, write: if isSignedIn();
+      }
 
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
@@ -35,17 +53,34 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
       
       // Explicit matches for provable list operations
-      match /members { allow list: if isSignedIn(); }
-      match /members/{id} { allow read, write: if isSignedIn(); }
+      match /members/{id} { allow list, read, write: if isSignedIn(); }
+      match /events/{id} { allow list, read, write: if isSignedIn(); }
+      match /files/{id} { allow list, read, write: if isSignedIn(); }
+      match /equipment/{id} { allow list, read, write: if isSignedIn(); }
+      match /volunteers/{id} { allow list, read, write: if isSignedIn(); }
+      match /drills/{id} { allow list, read, write: if isSignedIn(); }
+      match /incidents/{id} { allow list, read, write: if isSignedIn(); }
+      match /games/{id} { allow list, read, write: if isSignedIn(); }
+      match /registrationEntries/{id} { allow list, read, write: if isSignedIn(); }
       
-      match /events { allow list: if isSignedIn(); }
-      match /events/{id} { allow read, write: if isSignedIn(); }
+      match /feedPosts/{id} { 
+        allow list, read, write: if isSignedIn(); 
+        match /comments/{commentId} { allow list, read, write: if isSignedIn(); }
+      }
       
-      match /feedPosts { allow list: if isSignedIn(); }
-      match /feedPosts/{id} { allow read, write: if isSignedIn(); }
+      match /groupChats/{id} { 
+        allow list, read, write: if isSignedIn(); 
+        match /messages/{msgId} { allow list, read, write: if isSignedIn(); }
+      }
       
-      match /groupChats { allow list: if isSignedIn(); }
-      match /groupChats/{id} { allow read, write: if isSignedIn(); }
+      match /fundraising/{id} { 
+        allow list, read, write: if isSignedIn(); 
+        match /donations/{donId} { allow list, read, write: if isSignedIn(); }
+      }
+
+      match /documents/{id} {
+        allow list, read, write: if isSignedIn();
+      }
 
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
@@ -66,6 +101,7 @@ service cloud.firestore {
 
     match /facilities/{facilityId} {
       allow read, write: if isSignedIn();
+      match /fields/{fieldId} { allow list, read, write: if isSignedIn(); }
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -88,11 +124,8 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
       
       // Explicit matches for provable list operations
-      match /teamMemberships { allow list: if isOwner(userId); }
-      match /teamMemberships/{id} { allow read, write: if isOwner(userId); }
-      
-      match /hiddenChats { allow list: if isOwner(userId); }
-      match /hiddenChats/{id} { allow read, write: if isOwner(userId); }
+      match /teamMemberships/{id} { allow list, read, write: if isOwner(userId); }
+      match /hiddenChats/{id} { allow list, read, write: if isOwner(userId); }
 
       match /{allPaths=**} {
         allow read, write: if isOwner(userId);
