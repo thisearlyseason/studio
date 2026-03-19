@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -49,7 +48,8 @@ import {
   ShieldCheck,
   PenTool,
   Calendar as CalendarIcon,
-  ArrowRight
+  ArrowRight,
+  MoreVertical
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -121,7 +121,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     setIsProcessing(true);
     try {
       const schedule = generateLeagueSchedule({
-        teams: Object.keys(league.teams),
+        teams: Object.values(league.teams).map((t: any) => t.teamName),
         fields: config.selectedFields,
         startDate: config.startDate,
         endDate: config.endDate || undefined,
@@ -293,9 +293,21 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
 }
 
 function LeagueOverview({ league, schedule }: { league: League, schedule: TournamentGame[] }) {
+  const { isStaff, submitLeagueMatchScore } = useTeam();
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
+  const [scoreForm, setScoreForm] = useState({ s1: '', s2: '' });
+
   const gamesOnSelectedDate = useMemo(() => (schedule || []).filter(g => format(new Date(g.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')), [schedule, selectedDate]);
+
+  const handleUpdateScore = async () => {
+    if (!editingGame || !scoreForm.s1 || !scoreForm.s2) return;
+    await submitLeagueMatchScore(league.id, editingGame.id, true, parseInt(scoreForm.s1), parseInt(scoreForm.s2));
+    setEditingGame(null);
+    toast({ title: "Result Persisted", description: "Standings and ledgers updated." });
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -312,7 +324,36 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b"><tr><th className="px-8 py-5">Date/Time</th><th className="px-4 py-5">Matchup</th><th className="px-4 py-5">Venue</th><th className="px-8 py-5 text-right">Status</th></tr></thead>
-                <tbody className="divide-y">{(schedule || []).map(game => (<tr key={game.id} className="hover:bg-muted/5 transition-colors"><td className="px-8 py-6"><p className="font-black text-xs uppercase">{game.date}</p><p className="text-[10px] font-bold text-muted-foreground">{game.time}</p></td><td className="px-4 py-6 font-black text-xs uppercase">{game.team1} vs {game.team2}</td><td className="px-4 py-6 text-[10px] font-black uppercase text-primary flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {game.location || 'Venue TBD'}</td><td className="px-8 py-6 text-right"><Badge variant={game.isCompleted ? 'default' : 'outline'} className="font-black text-[8px] uppercase">{game.isCompleted ? 'Final' : 'Scheduled'}</Badge></td></tr>))}</tbody>
+                <tbody className="divide-y">{(schedule || []).map(game => (
+                  <tr key={game.id} className="hover:bg-muted/5 transition-colors group">
+                    <td className="px-8 py-6"><p className="font-black text-xs uppercase">{game.date}</p><p className="text-[10px] font-bold text-muted-foreground">{game.time}</p></td>
+                    <td className="px-4 py-6">
+                      <div className="flex items-center gap-4">
+                        <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team1}</span>
+                        {game.isCompleted ? (
+                          <div className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded-lg">
+                            <span className="font-black text-xs text-primary">{game.score1}</span>
+                            <span className="text-[8px] opacity-20 font-black">-</span>
+                            <span className="font-black text-xs text-primary">{game.score2}</span>
+                          </div>
+                        ) : <span className="opacity-20 text-[10px] font-black">VS</span>}
+                        <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team2}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-6 text-[10px] font-black uppercase text-primary flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {game.location || 'Venue TBD'}</td>
+                    <td className="px-8 py-6 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {game.isDisputed && <Badge variant="destructive" className="animate-pulse text-[7px]">DISPUTE</Badge>}
+                        <Badge variant={game.isCompleted ? 'default' : 'outline'} className="font-black text-[8px] uppercase">{game.isCompleted ? 'Final' : 'Scheduled'}</Badge>
+                        {isStaff && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setEditingGame(game); setScoreForm({ s1: game.score1.toString(), s2: game.score2.toString() }); }}>
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}</tbody>
               </table>
             </div>
           </CardContent>
@@ -323,7 +364,24 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
           <div className="lg:col-span-7 space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2">{format(selectedDate, 'EEEE, MMM do')}</h4>
             <div className="space-y-3">
-              {gamesOnSelectedDate.map(game => (<Card key={game.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 flex items-center justify-between bg-white hover:ring-primary/20 transition-all cursor-pointer"><div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-primary/5 flex flex-col items-center justify-center border shrink-0"><Clock className="h-4 w-4 text-primary" /><span className="text-[8px] font-black text-primary uppercase">{game.time}</span></div><div className="min-w-0"><p className="font-black text-sm uppercase truncate text-foreground">{game.team1} vs {game.team2}</p><p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5 mt-1"><MapPin className="h-3 w-3" /> {game.location}</p></div></div><ChevronRight className="h-4 w-4 opacity-20" /></Card>))}
+              {gamesOnSelectedDate.map(game => (
+                <Card key={game.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-5 flex items-center justify-between bg-white hover:ring-primary/20 transition-all cursor-pointer" onClick={() => isStaff && setEditingGame(game)}>
+                  <div className="flex items-center gap-6">
+                    <div className="w-12 h-12 rounded-xl bg-primary/5 flex flex-col items-center justify-center border shrink-0">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span className="text-[8px] font-black text-primary uppercase">{game.time}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-sm uppercase truncate text-foreground">{game.team1} vs {game.team2}</p>
+                        {game.isCompleted && <span className="font-black text-xs text-primary">{game.score1}-{game.score2}</span>}
+                      </div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5 mt-1"><MapPin className="h-3 w-3" /> {game.location}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 opacity-20" />
+                </Card>
+              ))}
               {gamesOnSelectedDate.length === 0 && (
                 <div className="text-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed opacity-30">
                   <Clock className="h-10 w-10 mx-auto mb-4" />
@@ -334,6 +392,31 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
           </div>
         </div>
       )}
+
+      <Dialog open={!!editingGame} onOpenChange={(o) => !o && setEditingGame(null)}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-8 space-y-8">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase">Result Verification</DialogTitle>
+              <DialogDescription className="font-bold text-primary text-[10px] uppercase">{editingGame?.team1} vs {editingGame?.team2}</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">{editingGame?.team1}</Label>
+                <Input type="number" value={scoreForm.s1} onChange={e => setScoreForm({...scoreForm, s1: e.target.value})} className="h-16 text-center text-3xl font-black rounded-2xl border-2" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">{editingGame?.team2}</Label>
+                <Input type="number" value={scoreForm.s2} onChange={e => setScoreForm({...scoreForm, s2: e.target.value})} className="h-16 text-center text-3xl font-black rounded-2xl border-2" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateScore}>Commit Result</Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -433,7 +516,7 @@ export default function LeaguesPage() {
 
           <div className="bg-muted/50 p-1.5 rounded-2xl border-2 inline-flex shadow-inner">
             <Button variant={activeTab === 'standings' ? 'default' : 'ghost'} className="rounded-xl font-black text-[10px] uppercase px-8 transition-all" onClick={() => setActiveTab('standings')}>Standings</Button>
-            <Button variant={activeTab === 'command' ? 'default' : 'ghost'} className="rounded-xl font-black text-[10px] uppercase px-8 transition-all" onClick={() => setActiveTab('command')}>Match Ledger</Button>
+            <Button variant={activeTab === 'command' ? 'default' : 'ghost'} className="rounded-xl font-black text-[10px] uppercase px-8 transition-all" onClick={() => setActiveTab('command')}>Match Command</Button>
           </div>
 
           <Tabs value={activeTab} className="mt-0">

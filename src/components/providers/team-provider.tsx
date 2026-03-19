@@ -178,6 +178,8 @@ export type TeamEvent = {
   description: string;
   eventType: string;
   isTournament?: boolean;
+  isLeagueGame?: boolean;
+  leagueId?: string;
   tournamentTeams?: string[];
   tournamentGames?: any[];
   userRsvps?: Record<string, string>;
@@ -336,6 +338,8 @@ export type TournamentGame = {
   id: string;
   team1: string;
   team2: string;
+  team1Id?: string;
+  team2Id?: string;
   score1: number;
   score2: number;
   date: string;
@@ -469,6 +473,7 @@ interface TeamContextType {
   submitMatchScore: (teamId: string, eventId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => Promise<void>;
   submitLeagueMatchScore: (leagueId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => Promise<void>;
   disputeMatchScore: (teamId: string, eventId: string, gameId: string, notes: string) => Promise<void>;
+  disputeLeagueMatchScore: (leagueId: string, gameId: string, notes: string) => Promise<void>;
   manageSubscription: () => Promise<void>;
   resolveQuota: (selectedTeamIds: string[]) => Promise<void>;
   createAlert: (title: string, message: string, audience: TeamAlert['audience']) => Promise<void>;
@@ -682,7 +687,52 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const deleteField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
 
   const createLeague = useCallback(async (name: string) => { if (!firebaseUser || !db || !activeTeam) return ''; const lid = `league_${Date.now()}`; const batch = writeBatch(db); batch.set(doc(db, 'leagues', lid), clean({ id: lid, name, creatorId: firebaseUser.uid, sport: activeTeam.sport || 'General', teams: { [activeTeam.id]: { teamName: activeTeam.name, wins: 0, losses: 0, ties: 0, points: 0 } }, memberTeamIds: [activeTeam.id], finances: {}, inviteCode: lid.slice(-6).toUpperCase(), createdAt: new Date().toISOString() })); batch.update(doc(db, 'teams', activeTeam.id), { [`leagueIds.${lid}`]: true }); await batch.commit(); return lid; }, [firebaseUser, db, activeTeam]);
-  const updateLeagueSchedule = useCallback(async (lId: string, s: any[]) => { if (db) await updateDoc(doc(db, 'leagues', lId), { schedule: clean(s) }); }, [db]);
+  
+  const updateLeagueSchedule = useCallback(async (lId: string, s: any[]) => { 
+    if (!db) return; 
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'leagues', lId), { schedule: clean(s) }); 
+    
+    // Propagation Logic: Add these games to the individual team event collections
+    // Extract team mappings from the league
+    const leagueSnap = await getDoc(doc(db, 'leagues', lId));
+    const leagueData = leagueSnap.data();
+    if (!leagueData) return;
+
+    const teamNamesToIds: Record<string, string> = {};
+    Object.entries(leagueData.teams || {}).forEach(([tid, tdata]: [string, any]) => {
+      teamNamesToIds[tdata.teamName] = tid;
+    });
+
+    s.forEach(game => {
+      const t1Id = teamNamesToIds[game.team1];
+      const t2Id = teamNamesToIds[game.team2];
+
+      const createEvent = (tid: string, opp: string) => {
+        if (!tid || tid.startsWith('manual_')) return;
+        const eid = `lg_${lId}_${game.id}`;
+        batch.set(doc(db, 'teams', tid, 'events', eid), clean({
+          id: eid,
+          teamId: tid,
+          title: `League Match vs ${opp}`,
+          eventType: 'game',
+          isLeagueGame: true,
+          leagueId: lId,
+          date: game.date,
+          startTime: game.time,
+          location: game.location,
+          description: `Season fixture for ${leagueData.name}.`,
+          createdAt: new Date().toISOString()
+        }));
+      };
+
+      if (t1Id) createEvent(t1Id, game.team2);
+      if (t2Id) createEvent(t2Id, game.team1);
+    });
+
+    await batch.commit();
+  }, [db]);
+
   const inviteTeamToLeague = useCallback(async (lId: string, lN: string, e: string, tN?: string) => { if (db) await addDoc(collection(db, 'leagues', 'global', 'invites'), clean({ leagueId: lId, leagueName: lN, invitedEmail: e, teamName: tN, status: 'pending', createdAt: new Date().toISOString() })); }, [db]);
   const manuallyAddTeamToLeague = useCallback(async (lId: string, n: string, e?: string) => { if (db) await updateDoc(doc(db, 'leagues', lId), { [`teams.manual_${Date.now()}`]: { teamName: n, coachEmail: e, wins: 0, losses: 0, ties: 0, points: 0 } }); }, [db]);
   const deleteLeagueInvite = useCallback(async (id: string) => { if (db) await deleteDoc(doc(db, 'leagues', 'global', 'invites', id)); }, [db]);
@@ -740,12 +790,55 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const signPublicTournamentWaiver = useCallback(async (teamId: string, eventId: string, tournamentTeamName: string, coachName: string) => { if (!db) return false; await updateDoc(doc(db, 'teams', teamId, 'events', eventId), { [`teamAgreements.${tournamentTeamName}`]: { agreed: true, captainName: coachName, signedAt: new Date().toISOString() } }); return true; }, [db]);
   const submitMatchScore = useCallback(async (teamId: string, eventId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => { if (!db) return; const snap = await getDoc(doc(db, 'teams', teamId, 'events', eventId)); if (!snap.exists()) return; const games = snap.data().tournamentGames || []; const idx = games.findIndex((g: any) => g.id === gameId); if (idx === -1) return; games[idx] = { ...games[idx], score1, score2, isCompleted: true, updatedAt: new Date().toISOString() }; await updateDoc(doc(db, 'teams', teamId, 'events', eventId), { tournamentGames: games }); }, [db]);
-  const submitLeagueMatchScore = useCallback(async (leagueId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => { if (!db) return; const snap = await getDoc(doc(db, 'leagues', leagueId)); if (!snap.exists()) return; const schedule = snap.data().schedule || []; const idx = schedule.findIndex((g: any) => g.id === gameId); if (idx === -1) return; schedule[idx] = { ...schedule[idx], score1, score2, isCompleted: true, updatedAt: new Date().toISOString() }; await updateDoc(doc(db, 'leagues', leagueId), { schedule }); }, [db]);
+  
+  const submitLeagueMatchScore = useCallback(async (leagueId: string, gameId: string, isTeam1: boolean, score1: number, score2: number) => { 
+    if (!db) return; 
+    const snap = await getDoc(doc(db, 'leagues', leagueId)); 
+    if (!snap.exists()) return; 
+    const data = snap.data();
+    const schedule = data.schedule || []; 
+    const idx = schedule.findIndex((g: any) => g.id === gameId); 
+    if (idx === -1) return; 
+    
+    schedule[idx] = { ...schedule[idx], score1, score2, isCompleted: true, isDisputed: false, updatedAt: new Date().toISOString() }; 
+    
+    // Standings calculation
+    const teams = data.teams || {};
+    // Reset all team stats from scratch based on full schedule for consistency
+    Object.keys(teams).forEach(id => {
+      teams[id] = { ...teams[id], wins: 0, losses: 0, ties: 0, points: 0 };
+    });
+
+    const teamNamesToIds: Record<string, string> = {};
+    Object.entries(teams).forEach(([id, t]: [string, any]) => { teamNamesToIds[t.teamName] = id; });
+
+    schedule.forEach((g: any) => {
+      if (!g.isCompleted) return;
+      const t1Id = teamNamesToIds[g.team1];
+      const t2Id = teamNamesToIds[g.team2];
+      if (!t1Id || !t2Id) return;
+
+      if (g.score1 > g.score2) {
+        teams[t1Id].wins++; teams[t1Id].points += 3;
+        teams[t2Id].losses++;
+      } else if (g.score2 > g.score1) {
+        teams[t2Id].wins++; teams[t2Id].points += 3;
+        teams[t1Id].losses++;
+      } else {
+        teams[t1Id].ties++; teams[t1Id].points += 1;
+        teams[t2Id].ties++; teams[t2Id].points += 1;
+      }
+    });
+
+    await updateDoc(doc(db, 'leagues', leagueId), { schedule, teams }); 
+  }, [db]);
+
   const disputeMatchScore = useCallback(async (teamId: string, eventId: string, gameId: string, notes: string) => { if (!db) return; const snap = await getDoc(doc(db, 'teams', teamId, 'events', eventId)); if (!snap.exists()) return; const games = snap.data().tournamentGames || []; const idx = games.findIndex((g: any) => g.id === gameId); if (idx === -1) return; games[idx] = { ...games[idx], isDisputed: true, disputeNotes: notes }; await updateDoc(doc(db, 'teams', teamId, 'events', eventId), { tournamentGames: games }); }, [db]);
+  const disputeLeagueMatchScore = useCallback(async (leagueId: string, gameId: string, notes: string) => { if (!db) return; const snap = await getDoc(doc(db, 'leagues', leagueId)); if (!snap.exists()) return; const schedule = snap.data().schedule || []; const idx = schedule.findIndex((g: any) => g.id === gameId); if (idx === -1) return; schedule[idx] = { ...schedule[idx], isDisputed: true, disputeNotes: notes }; await updateDoc(doc(db, 'leagues', leagueId), { schedule }); }, [db]);
 
   const resolveQuota = useCallback(async (selectedTeamIds: string[]) => { if (!db || !userProfile?.id) return; const batch = writeBatch(db); const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro); ownedProTeams.forEach(t => { if (!selectedTeamIds.includes(t.id)) { batch.update(doc(db, 'teams', t.id), { isPro: false, planId: 'starter_squad' }); } }); await batch.commit(); }, [db, userProfile, teamsRaw]);
   const exportAttendanceCSV = useCallback(async (eventId: string) => { if (!db || !activeTeam?.id) return; const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'events', eventId)); if (!snap.exists()) return; const rsvps = snap.data().userRsvps || {}; const rows = [["Name", "Status"]]; members.forEach(m => { rows.push([m.name, rsvps[m.userId] || 'no_response']); }); const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `attendance_${eventId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam, members]);
-  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam]);
+  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam]);
 
   const addRegistration = useCallback(async (teamId: string, eventId: string, data: any) => { if (db) { await addDoc(collection(db, 'teams', teamId, 'events', eventId, 'registrations'), clean(data)); return true; } return false; }, [db]);
   const manageSubscription = useCallback(async () => { setIsPaywallOpen(true); }, []);
@@ -775,7 +868,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     confirmVolunteerAttendance, addVolunteerOpportunity, signUpForFundraising,
     confirmExternalDonation, addIncident, assignManualPlan,
     saveLeagueRegistrationConfig, submitRegistrationEntry,
-    signPublicTournamentWaiver, submitMatchScore, submitLeagueMatchScore, disputeMatchScore,
+    signPublicTournamentWaiver, submitMatchScore, submitLeagueMatchScore, disputeMatchScore, disputeLeagueMatchScore,
     createAlert, deleteAlert, addDrill, addFile, deleteFile, addFacility, deleteFacility,
     addField, deleteField, 
     assignEquipment, returnEquipment,
@@ -799,7 +892,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     confirmVolunteerAttendance, addVolunteerOpportunity, signUpForFundraising,
     confirmExternalDonation, addIncident, assignManualPlan,
     saveLeagueRegistrationConfig, submitRegistrationEntry,
-    signPublicTournamentWaiver, submitMatchScore, submitLeagueMatchScore, disputeMatchScore,
+    signPublicTournamentWaiver, submitMatchScore, submitLeagueMatchScore, disputeMatchScore, disputeLeagueMatchScore,
     createAlert, deleteAlert, addDrill, addFile, deleteFile, addFacility, deleteFacility,
     addField, deleteField, 
     assignEquipment, returnEquipment,

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -11,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, CheckCircle2, ShieldAlert, Loader2, Info, ArrowRight, AlertCircle, Clock, MapPin, X, ChevronLeft } from 'lucide-react';
+import { Trophy, CheckCircle2, ShieldAlert, Loader2, Info, ArrowRight, AlertCircle, Clock, MapPin, X, ChevronLeft, ShieldCheck, Lock } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -20,7 +21,7 @@ export default function PublicLeagueScorekeeperEntryPage() {
   const { leagueId, gameId } = useParams();
   const db = useFirestore();
   const router = useRouter();
-  const { submitLeagueMatchScore } = useTeam();
+  const { submitLeagueMatchScore, disputeLeagueMatchScore } = useTeam();
 
   const leagueRef = useMemoFirebase(() => (db && leagueId) ? doc(db, 'leagues', leagueId as string) : null, [db, leagueId]);
   const { data: league, isLoading } = useDoc<League>(leagueRef);
@@ -34,6 +35,9 @@ export default function PublicLeagueScorekeeperEntryPage() {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  
+  const [isDisputeOpen, setIsDisputeOpen] = useState(false);
+  const [disputeNotes, setDisputeNotes] = useState('');
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!league || !game) return <div className="min-h-screen flex items-center justify-center p-6"><Card className="max-w-md text-center p-10"><AlertCircle className="h-16 w-16 text-destructive mx-auto mb-6 opacity-20" /><h2 className="text-2xl font-black uppercase tracking-tight">Match Inactive</h2></Card></div>;
@@ -47,6 +51,21 @@ export default function PublicLeagueScorekeeperEntryPage() {
       setIsSubmitted(true);
     } catch (err) {
       toast({ title: "Submission Error", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDispute = async () => {
+    if (!disputeNotes.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await disputeLeagueMatchScore(leagueId as string, gameId as string, disputeNotes);
+      toast({ title: "Dispute Logged", description: "The league organizer has been alerted." });
+      setIsDisputeOpen(false);
+      router.push(`/leagues/scorekeeper/${leagueId}`);
+    } catch (err) {
+      toast({ title: "Dispute Failed", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -92,9 +111,59 @@ export default function PublicLeagueScorekeeperEntryPage() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="p-8 lg:p-10 pt-0"><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" disabled={!selectedTeam || !score1 || !score2 || isSubmitting} onClick={handleSubmit}>{isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : "Commit Score Result"}</Button></CardFooter>
+          <CardFooter className="p-8 lg:p-10 pt-0 flex flex-col gap-4">
+            <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" disabled={!selectedTeam || !score1 || !score2 || isSubmitting} onClick={handleSubmit}>{isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : "Commit Score Result"}</Button>
+            
+            <div className="flex items-center gap-4 w-full">
+              <div className="h-px bg-muted flex-1" />
+              <span className="text-[8px] font-black uppercase text-muted-foreground">Or report issue</span>
+              <div className="h-px bg-muted flex-1" />
+            </div>
+
+            <Button 
+              variant="outline" 
+              className="w-full h-14 rounded-2xl font-black uppercase text-xs tracking-widest border-2 text-destructive border-destructive/20 hover:bg-destructive/5"
+              onClick={() => setIsDisputeOpen(true)}
+            >
+              <AlertCircle className="h-4 w-4 mr-2" /> Dispute Result
+            </Button>
+          </CardFooter>
         </Card>
       </div>
+
+      <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
+        <DialogContent className="rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden sm:max-w-md">
+          <div className="h-2 bg-red-600 w-full" />
+          <div className="p-8 space-y-6">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="bg-red-100 p-2 rounded-xl text-red-600"><ShieldAlert className="h-5 w-5" /></div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-red-600">Dispute Escalation</div>
+              </div>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Flag Result Error</DialogTitle>
+              <DialogDescription className="font-bold text-muted-foreground uppercase text-[10px] pt-1">This alerts the league organizer</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Dispute Narrative</Label>
+              <Textarea 
+                placeholder="Explain the discrepancy (e.g. incorrect final score, ineligible player)..."
+                value={disputeNotes}
+                onChange={e => setDisputeNotes(e.target.value)}
+                className="min-h-[150px] rounded-2xl border-2 font-medium"
+              />
+            </div>
+            <DialogFooter>
+              <Button 
+                className="w-full h-14 rounded-2xl font-black bg-red-600 hover:bg-red-700 text-white shadow-xl shadow-red-600/20"
+                onClick={handleDispute}
+                disabled={!disputeNotes.trim() || isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "File Official Dispute"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
