@@ -134,8 +134,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}`;
   };
 
-  // HYDRATION SAFETY: The initial render must be identical on server and client.
-  const showLoading = !mounted || isUserLoading || !isAuthResolved || isSeedingDemo || isDemoInitializing;
+  /**
+   * TACTICAL HYDRATION GUARD: 
+   * Ensure Shell only renders once we have the user profile and team state.
+   */
+  const showLoading = !mounted || isUserLoading || !isAuthResolved || isSeedingDemo || isDemoInitializing || isTeamsLoading || !userProfile;
 
   if (showLoading) {
     return (
@@ -154,7 +157,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              {!mounted ? "Authenticating..." : (isDemoInitializing ? "Synchronizing Hub..." : "Authenticating...")}
+              Authenticating...
             </p>
           </div>
         </div>

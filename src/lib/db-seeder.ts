@@ -92,7 +92,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   // 2. Global Catalog (Crucial for permissions)
   const plans = [
     { id: 'starter_squad', name: 'Starter Squad', features: { live_feed_read: true, basic_scheduling: true } },
-    { id: 'squad_pro', name: 'Squad Pro', features: { live_feed_read: true, live_feed_post: true, stats_basic: true, scouting_ai: true } },
+    { id: 'squad_pro', name: 'Squad Pro', features: { live_feed_read: true, live_feed_post: true, stats_basic: true, scouting_ai: true, equipment_vault: true, facility_fleet: true } },
     { id: 'elite_teams', name: 'Elite Teams', features: { club_hub: true, league_registration: true, equipment_vault: true, facility_fleet: true, scouting_ai: true, live_feed_post: true, live_feed_read: true } }
   ];
   plans.forEach(p => batch.set(doc(db, 'plans', p.id), p, { merge: true }));

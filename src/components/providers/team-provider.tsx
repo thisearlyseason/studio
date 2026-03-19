@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -573,12 +572,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
 
+  /**
+   * HARDENED STAFF VERIFICATION:
+   * Explicitly uses userProfile.role as an authority fallback to ensure
+   * demo coaches see their administrative tools immediately.
+   */
   const isStaff = useMemo(() => {
     if (!activeTeam || !firebaseUser) return false;
+    if (userProfile?.role === 'coach') return true; 
     if (activeTeam.role === 'Admin') return true;
     const currentMember = members.find(m => m.userId === firebaseUser.uid);
     return ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Squad Leader', 'Coach Guest'].includes(currentMember?.position || '');
-  }, [activeTeam, firebaseUser, members]);
+  }, [activeTeam, firebaseUser, members, userProfile?.role]);
 
   const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
   const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || '') || isSuperAdmin, [userProfile?.activePlanId, isSuperAdmin]);
@@ -740,7 +745,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const deleteLeagueInvite = useCallback(async (id: string) => { if (db) await deleteDoc(doc(db, 'leagues', 'global', 'invites', id)); }, [db]);
   const saveLeagueRegistrationConfig = useCallback(async (lId: string, pId: string, u: any) => { if (db) await setDoc(doc(db, 'leagues', lId, 'registration', pId), clean(u), { merge: true }); }, [db]);
   
-  const submitRegistrationEntry = useCallback(async (tId: string, pId: string, a: any, v: number, sig?: string, targetType?: any) => { 
+  const submitRegistrationEntry = useCallback(async (tId: string, pId: string, a: any, v: number, signature?: string, targetType?: any) => { 
     if (!db) return; 
     
     // Auto-confirm logic for team signups if requested
@@ -749,7 +754,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       protocol_id: pId, 
       answers: a, 
       form_version: v, 
-      waiver_signed_text: sig, 
+      waiver_signed_text: signature, 
       status: 'pending', 
       created_at: new Date().toISOString() 
     };
