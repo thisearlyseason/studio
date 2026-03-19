@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationEntry, RegistrationFormField } from '@/components/providers/team-provider';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy } from 'firebase/firestore';
+import { doc, collection, query, orderBy, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,10 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
-  UserCheck
+  UserCheck,
+  GraduationCap,
+  History,
+  Info
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -66,24 +69,28 @@ export default function LeagueRegistrationAdminPage() {
     toggleRegistrationPaymentStatus, 
     purchasePro, 
     isStaff, 
-    respondToAssignment,
     submitRegistrationEntry 
   } = useTeam();
   const db = useFirestore();
 
   const canRegister = hasFeature('league_registration') || (activeTeam?.isPro && isStaff);
 
-  const configRef = useMemoFirebase(() => (db && leagueId) ? doc(db, 'leagues', leagueId as string, 'registration', 'config') : null, [db, leagueId]);
-  const { data: config, isLoading: isConfigLoading } = useDoc<LeagueRegistrationConfig>(configRef);
-
-  const entriesQuery = useMemoFirebase(() => (db && leagueId) ? query(collection(db, 'leagues', leagueId as string, 'registrationEntries'), orderBy('created_at', 'desc')) : null, [db, leagueId]);
-  const { data: entries } = useCollection<RegistrationEntry>(entriesQuery);
-
+  const [pipelineType, setPipelineType] = useState<'player' | 'team'>('player');
   const [activeTab, setActiveTab] = useState<'entries' | 'config'>('entries');
   const [editingField, setEditingField] = useState<Partial<RegistrationFormField> | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'accepted'>('all');
 
-  // Manual Add State
+  const configId = pipelineType === 'player' ? 'player_config' : 'team_config';
+  const configRef = useMemoFirebase(() => (db && leagueId) ? doc(db, 'leagues', leagueId as string, 'registration', configId) : null, [db, leagueId, configId]);
+  const { data: config, isLoading: isConfigLoading } = useDoc<LeagueRegistrationConfig>(configRef);
+
+  const entriesQuery = useMemoFirebase(() => (db && leagueId) ? query(
+    collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
+    where('protocol_id', '==', configId),
+    orderBy('created_at', 'desc')
+  ) : null, [db, leagueId, configId]);
+  const { data: entries } = useCollection<RegistrationEntry>(entriesQuery);
+
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
   const [manualForm, setManualForm] = useState({ teamName: '', coachName: '', email: '' });
   const [isManualProcessing, setIsManualProcessing] = useState(false);
@@ -92,29 +99,36 @@ export default function LeagueRegistrationAdminPage() {
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (config && !localConfig) {
+    if (config) {
       setLocalConfig(config);
+    } else {
+      setLocalConfig(null);
     }
-  }, [config, localConfig]);
+  }, [config, configId]);
 
   const handleUpdateConfig = (updates: Partial<LeagueRegistrationConfig>, immediate = false) => {
     if (!leagueId) return;
     
     const base = localConfig || config || {
-      id: 'config',
-      title: 'New League Pipeline',
-      description: 'Registration for our upcoming season.',
+      id: configId,
+      type: pipelineType,
+      title: pipelineType === 'player' ? 'Player Recruitment' : 'Squad Enrollment',
+      description: '',
       registration_cost: '0',
-      payment_instructions: 'Pay via the squad hub.',
       is_active: false,
       form_schema: [
         { id: 'name', type: 'short_text', label: 'Full Name', required: true },
         { id: 'email', type: 'short_text', label: 'Email Address', required: true },
-        { id: 'squad_request', type: 'dropdown', label: 'Squad Assignment Request', required: false, options: ['Returning Team', 'Draft Pool', 'Request Specific Coach'] }
+        ...(pipelineType === 'player' ? [
+          { id: 'age_grade', type: 'short_text', label: 'Age / Grade', required: true },
+          { id: 'position', type: 'dropdown', label: 'Position', required: true, options: ['Forward', 'Midfield', 'Defense', 'Keeper'] },
+          { id: 'last_team', type: 'short_text', label: 'Last Team Played On', required: false },
+          { id: 'preferred_teammate', type: 'short_text', label: 'Preferred Teammate', required: false }
+        ] : [
+          { id: 'teamName', type: 'short_text', label: 'Squad Name', required: true }
+        ])
       ],
-      form_version: 1,
-      waiver_text: '',
-      confirmation_message: ''
+      form_version: 1
     };
 
     const updated = { ...base, ...updates } as LeagueRegistrationConfig;
@@ -126,17 +140,14 @@ export default function LeagueRegistrationAdminPage() {
 
     const performSync = async () => {
       try {
-        await saveLeagueRegistrationConfig(leagueId as string, updated);
+        await saveLeagueRegistrationConfig(leagueId as string, configId, updated);
       } catch (e) {
         console.error("Config sync failure", e);
       }
     };
 
-    if (immediate) {
-      performSync();
-    } else {
-      syncTimeoutRef.current = setTimeout(performSync, 1500);
-    }
+    if (immediate) performSync();
+    else syncTimeoutRef.current = setTimeout(performSync, 1500);
   };
 
   const formSchema = localConfig?.form_schema || config?.form_schema || [];
@@ -164,7 +175,7 @@ export default function LeagueRegistrationAdminPage() {
     try {
       await submitRegistrationEntry(
         leagueId as string, 
-        'manual_admin', 
+        'team_config', 
         { 
           teamName: manualForm.teamName, 
           name: manualForm.coachName, 
@@ -177,7 +188,7 @@ export default function LeagueRegistrationAdminPage() {
       );
       setIsManualAddOpen(false);
       setManualForm({ teamName: '', coachName: '', email: '' });
-      toast({ title: "Squad Enrolled", description: "The team has been manually added to the pool." });
+      toast({ title: "Squad Enrolled", description: "The team has been added to the pool and confirmed immediately." });
     } catch (error) {
       toast({ title: "Enrollment Failed", variant: "destructive" });
     } finally {
@@ -187,9 +198,9 @@ export default function LeagueRegistrationAdminPage() {
 
   const handleCopyPortalUrl = async () => {
     try {
-      const url = `${window.location.origin}/register/league/${leagueId}`;
+      const url = `${window.location.origin}/register/league/${leagueId}?protocol=${configId}`;
       await navigator.clipboard.writeText(url);
-      toast({ title: "Link Synchronized", description: "Portal URL copied to clipboard." });
+      toast({ title: "Portal Link Copied" });
     } catch (err) {
       toast({ title: "Copy Failed", variant: "destructive" });
     }
@@ -202,10 +213,10 @@ export default function LeagueRegistrationAdminPage() {
         <div className="text-center max-w-md space-y-4">
           <h1 className="text-4xl font-black tracking-tight uppercase">Registration Hub Locked</h1>
           <p className="text-muted-foreground font-bold leading-relaxed text-lg uppercase tracking-wide">
-            Automated player enrollment and assignment logic is reserved for <strong>Elite Pro</strong> and <strong>Club</strong> squads.
+            Automated enrollment pipelines are reserved for <strong>Elite Pro</strong> squads.
           </p>
         </div>
-        <Button className="h-14 px-10 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={purchasePro}>Unlock Recruitment Hub</Button>
+        <Button className="h-14 px-10 rounded-2xl text-lg font-black shadow-xl" onClick={purchasePro}>Unlock Recruitment Hub</Button>
       </div>
     );
   }
@@ -216,22 +227,31 @@ export default function LeagueRegistrationAdminPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.push('/leagues')} className="rounded-full h-10 w-10"><ChevronLeft className="h-5 w-5" /></Button>
           <div className="space-y-1">
-            <Badge className="bg-primary text-white border-none font-black uppercase text-[9px] h-6 px-3">Recruit Pool</Badge>
-            <h1 className="text-3xl font-black uppercase tracking-tight">League Pipeline</h1>
+            <Badge className="bg-primary text-white border-none font-black uppercase text-[9px] h-6 px-3">Recruitment Engine</Badge>
+            <h1 className="text-3xl font-black uppercase tracking-tight">Institutional Pipeline</h1>
           </div>
         </div>
-        <div className="flex bg-muted/50 p-1.5 rounded-2xl border-2">
-          <Button variant={activeTab === 'entries' ? 'default' : 'ghost'} className={cn("rounded-xl h-10 px-6 font-black uppercase text-[10px]", activeTab === 'entries' ? "bg-black text-white" : "text-muted-foreground hover:bg-muted")} onClick={() => setActiveTab('entries')}><Target className="h-4 w-4 mr-2" /> Recruit Pool</Button>
-          <Button variant={activeTab === 'config' ? 'default' : 'ghost'} className={cn("rounded-xl h-10 px-6 font-black uppercase text-[10px]", activeTab === 'config' ? "bg-black text-white" : "text-muted-foreground hover:bg-muted")} onClick={() => setActiveTab('config')}><Settings className="h-4 w-4 mr-2" /> Protocol Architect</Button>
+        
+        <div className="flex bg-muted/50 p-1.5 rounded-2xl border-2 shadow-inner">
+          <Button variant={pipelineType === 'player' ? 'default' : 'ghost'} className="rounded-xl h-10 px-6 font-black uppercase text-[10px]" onClick={() => { setPipelineType('player'); setActiveTab('entries'); }}><UserPlus className="h-4 w-4 mr-2" /> Player Pool</Button>
+          <Button variant={pipelineType === 'team' ? 'default' : 'ghost'} className="rounded-xl h-10 px-6 font-black uppercase text-[10px]" onClick={() => { setPipelineType('team'); setActiveTab('entries'); }}><Target className="h-4 w-4 mr-2" /> Team Pool</Button>
         </div>
+      </div>
+
+      <div className="bg-white p-1.5 rounded-2xl border-2 flex items-center shadow-sm w-fit">
+        <Button variant={activeTab === 'entries' ? 'secondary' : 'ghost'} className="rounded-xl h-9 px-6 font-black uppercase text-[9px]" onClick={() => setActiveTab('entries')}>Recruit Ledger</Button>
+        <Button variant={activeTab === 'config' ? 'secondary' : 'ghost'} className="rounded-xl h-9 px-6 font-black uppercase text-[9px]" onClick={() => setActiveTab('config')}>Protocol Architect</Button>
       </div>
 
       {activeTab === 'entries' ? (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
             <div className="flex items-center gap-3">
-              <div className="bg-primary/10 p-2.5 rounded-xl text-primary"><Users className="h-5 w-5" /></div>
-              <div><h3 className="text-xl font-black uppercase tracking-tight">Applicant Pool</h3><p className="text-[9px] font-bold text-muted-foreground uppercase">{filteredEntries.length} Records Found</p></div>
+              <div className="bg-primary/10 p-2.5 rounded-xl text-primary">{pipelineType === 'player' ? <Users className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}</div>
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tight">{pipelineType === 'player' ? 'Roster Pool' : 'Squad Pool'}</h3>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase">{filteredEntries.length} Active Applications</p>
+              </div>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
@@ -241,61 +261,43 @@ export default function LeagueRegistrationAdminPage() {
                 ))}
               </div>
               
-              <Dialog open={isManualAddOpen} onOpenChange={setIsManualAddOpen}>
-                <DialogTrigger asChild>
-                  <Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20">
-                    <UserPlus className="h-4 w-4 mr-2" /> Manually Enroll Squad
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden sm:max-w-md">
-                  <div className="h-2 bg-primary w-full" />
-                  <div className="p-8 lg:p-10 space-y-8">
-                    <DialogHeader>
-                      <DialogTitle className="text-2xl font-black uppercase tracking-tight">Manual Enrollment</DialogTitle>
-                      <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Enroll squad directly to pool</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-5">
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
-                        <Input 
-                          placeholder="e.g. Metro Tigers U14" 
-                          value={manualForm.teamName} 
-                          onChange={e => setManualForm({...manualForm, teamName: e.target.value})}
-                          className="h-12 rounded-xl border-2 font-bold"
-                        />
+              {pipelineType === 'team' && (
+                <Dialog open={isManualAddOpen} onOpenChange={setIsManualAddOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20">
+                      <Plus className="h-4 w-4 mr-2" /> Manually Enroll Squad
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden sm:max-w-md">
+                    <div className="h-2 bg-primary w-full" />
+                    <div className="p-8 lg:p-10 space-y-8">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tight">Manual Enrollment</DialogTitle>
+                        <DialogDescription className="font-bold text-primary uppercase text-[10px]">Add team directly to league standings</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-5">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
+                          <Input placeholder="e.g. Metro Tigers" value={manualForm.teamName} onChange={e => setManualForm({...manualForm, teamName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Name</Label>
+                          <Input placeholder="John Smith" value={manualForm.coachName} onChange={e => setManualForm({...manualForm, coachName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label>
+                          <Input type="email" placeholder="coach@team.com" value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Head Coach Name</Label>
-                        <Input 
-                          placeholder="John Smith" 
-                          value={manualForm.coachName} 
-                          onChange={e => setManualForm({...manualForm, coachName: e.target.value})}
-                          className="h-12 rounded-xl border-2 font-bold"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label>
-                        <Input 
-                          type="email" 
-                          placeholder="coach@team.com" 
-                          value={manualForm.email} 
-                          onChange={e => setManualForm({...manualForm, email: e.target.value})}
-                          className="h-12 rounded-xl border-2 font-bold"
-                        />
-                      </div>
+                      <DialogFooter>
+                        <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleManualAdd} disabled={isManualProcessing || !manualForm.teamName}>
+                          {isManualProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Authorize & Enroll"}
+                        </Button>
+                      </DialogFooter>
                     </div>
-                    <DialogFooter>
-                      <Button 
-                        className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" 
-                        onClick={handleManualAdd}
-                        disabled={isManualProcessing || !manualForm.teamName || !manualForm.coachName || !manualForm.email}
-                      >
-                        {isManualProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Commit Enrollment"}
-                      </Button>
-                    </DialogFooter>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </div>
 
@@ -304,11 +306,10 @@ export default function LeagueRegistrationAdminPage() {
               <table className="w-full text-left">
                 <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b">
                   <tr>
-                    <th className="px-8 py-5">Applicant / Squad</th>
-                    <th className="px-4 py-5">Submitted</th>
-                    <th className="px-4 py-5 text-center">Payment</th>
-                    <th className="px-4 py-5">Status</th>
-                    <th className="px-4 py-5 text-right">Actions</th>
+                    <th className="px-8 py-5">Applicant Details</th>
+                    {pipelineType === 'player' && <th className="px-4 py-5">Tactical Specs</th>}
+                    <th className="px-4 py-5 text-center">Status</th>
+                    <th className="px-8 py-5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -316,35 +317,43 @@ export default function LeagueRegistrationAdminPage() {
                     <tr key={entry.id} className="hover:bg-muted/5 transition-colors">
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm",
-                            entry.answers['manual_enrollment'] ? "bg-primary/5 text-primary" : "bg-white text-muted-foreground"
-                          )}>
-                            {entry.answers['manual_enrollment'] ? <UserCheck className="h-5 w-5" /> : <Users className="h-5 w-5" />}
+                          <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border bg-white shadow-sm">
+                            {pipelineType === 'player' ? <UserCheck className="h-5 w-5 text-primary" /> : <ShieldCheck className="h-5 w-5 text-primary" />}
                           </div>
                           <div className="min-w-0">
                             <p className="font-black text-sm uppercase tracking-tight truncate">
-                              {entry.answers['teamName'] ? `${entry.answers['teamName']} (${entry.answers['name']})` : (entry.answers['name'] || entry.answers['fullName'] || 'New Recruit')}
+                              {entry.answers['teamName'] || entry.answers['name'] || entry.answers['fullName']}
                             </p>
                             <p className="text-[10px] font-bold text-muted-foreground">{entry.answers['email']}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-6 text-xs font-bold text-muted-foreground">{format(new Date(entry.created_at), 'MMM d, p')}</td>
+                      {pipelineType === 'player' && (
+                        <td className="px-4 py-6">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap gap-1.5">
+                              <Badge variant="outline" className="text-[7px] font-black uppercase border-primary/20 text-primary">{entry.answers['age_grade'] || 'N/A'}</Badge>
+                              <Badge variant="outline" className="text-[7px] font-black uppercase">{entry.answers['position'] || 'Player'}</Badge>
+                            </div>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Prev: {entry.answers['last_team'] || 'None'}</p>
+                          </div>
+                        </td>
+                      )}
                       <td className="px-4 py-6 text-center">
-                        <button onClick={() => toggleRegistrationPaymentStatus(leagueId as string, entry.id, !entry.payment_received)} className={cn("inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all", entry.payment_received ? "bg-green-500 text-white shadow-lg" : "bg-muted text-muted-foreground/30")}><DollarSign className="h-4 w-4" /></button>
+                        <Badge className={cn("border-none font-black text-[8px] uppercase px-2 h-5", entry.status === 'pending' ? "bg-amber-100 text-amber-700" : entry.status === 'assigned' ? "bg-primary text-white" : entry.status === 'accepted' ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground")}>
+                          {entry.status}
+                        </Badge>
                       </td>
-                      <td className="px-4 py-6"><Badge className={cn("border-none font-black text-[8px] uppercase px-2 h-5", entry.status === 'pending' ? "bg-amber-100 text-amber-700" : entry.status === 'assigned' ? "bg-primary text-white" : entry.status === 'accepted' ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground")}>{entry.status}</Badge></td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
                           <Dialog>
                             <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border hover:bg-primary hover:text-white transition-all"><UserPlus className="h-4 w-4" /></Button></DialogTrigger>
-                            <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
-                              <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Review & Dispatch</DialogTitle></DialogHeader>
+                            <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-2xl">
+                              <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Recruit Intelligence</DialogTitle></DialogHeader>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
                                 <div className="space-y-4">
-                                  <p className="text-[10px] font-black uppercase text-muted-foreground">Form Responses</p>
-                                  <ScrollArea className="h-[250px] pr-4">
+                                  <p className="text-[10px] font-black uppercase text-muted-foreground">Detailed Specs</p>
+                                  <ScrollArea className="h-[300px] pr-4">
                                     <div className="space-y-4">
                                       {Object.entries(entry.answers).map(([key, val]) => (
                                         <div key={key} className="space-y-1">
@@ -352,12 +361,6 @@ export default function LeagueRegistrationAdminPage() {
                                           <p className="text-sm font-bold">{val?.toString()}</p>
                                         </div>
                                       ))}
-                                      {entry.waiver_signed_text && (
-                                        <div className="pt-4 border-t border-muted-foreground/10 space-y-1">
-                                          <p className="text-[8px] font-black uppercase text-green-600">Signed Digitally</p>
-                                          <p className="text-xs font-mono italic">"{entry.waiver_signed_text}"</p>
-                                        </div>
-                                      )}
                                     </div>
                                   </ScrollArea>
                                 </div>
@@ -365,25 +368,21 @@ export default function LeagueRegistrationAdminPage() {
                                   <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase ml-1">Dispatch to Squad</Label>
                                     <Select value={entry.assigned_team_id || 'unassigned'} onValueChange={(tid) => assignEntryToTeam(leagueId as string, entry.id, tid === 'unassigned' ? null : tid)}>
-                                      <SelectTrigger className="h-14 rounded-xl border-2 font-black"><SelectValue placeholder="Move to squad..." /></SelectTrigger>
+                                      <SelectTrigger className="h-14 rounded-xl border-2 font-black"><SelectValue placeholder="Select team..." /></SelectTrigger>
                                       <SelectContent className="rounded-xl">
                                         <SelectItem value="unassigned">Unassigned Pool</SelectItem>
-                                        {Object.entries(activeTeam?.leagueIds || {}).map(([id, t]) => <SelectItem key={id} value={id}>Squad {id.slice(-6)}</SelectItem>)}
+                                        {activeTeam?.leagueIds && Object.keys(activeTeam.leagueIds).map(id => <SelectItem key={id} value={id}>Squad {id.slice(-6)}</SelectItem>)}
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                  <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-4">
-                                    <div className="flex items-center gap-3">
-                                      <ShieldCheck className="h-5 w-5 text-primary" />
-                                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Strategic Enrollment</h4>
-                                    </div>
+                                  <div className="bg-primary/5 p-6 rounded-2xl border-2 border-dashed border-primary/20 space-y-3">
+                                    <p className="text-[10px] font-black uppercase text-primary">Strategic Dispatch</p>
                                     <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
-                                      Assigning a recruit to a squad allows that squad's coach to review and officially enroll them into their active roster.
+                                      Assignments alert the squad's coach for final roster verification and fee collection.
                                     </p>
                                   </div>
                                 </div>
                               </div>
-                              <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={() => toast({ title: "Recruit Dispatched" })}>Commit Deployment</Button></DialogFooter>
                             </DialogContent>
                           </Dialog>
                           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/5" onClick={() => deleteDocumentNonBlocking(doc(db, 'leagues', leagueId as string, 'registrationEntries', entry.id))}><Trash2 className="h-4 w-4" /></Button>
@@ -399,162 +398,87 @@ export default function LeagueRegistrationAdminPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden ring-1 ring-black/5 bg-white">
-              <CardHeader className="bg-primary/5 border-b p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-primary p-3 rounded-2xl text-white shadow-lg shadow-primary/20"><Globe className="h-6 w-6" /></div>
-                    <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Pipeline Logistics</CardTitle><CardDescription className="font-bold text-primary text-[10px] uppercase tracking-widest">Global Signup Visibility</CardDescription></div>
+            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
+              <CardHeader className="bg-primary/5 border-b p-8 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary p-3 rounded-2xl text-white shadow-lg"><Globe className="h-6 w-6" /></div>
+                  <div>
+                    <CardTitle className="text-2xl font-black uppercase tracking-tight">{localConfig?.title || 'Pipeline Protocol'}</CardTitle>
+                    <CardDescription className="font-bold text-primary text-[10px] uppercase tracking-widest">Pipeline Active: {localConfig?.is_active ? 'YES' : 'NO'}</CardDescription>
                   </div>
-                  <Switch checked={localConfig?.is_active || config?.is_active || false} onCheckedChange={(v) => handleUpdateConfig({ is_active: v }, true)} />
                 </div>
+                <Switch checked={localConfig?.is_active || false} onCheckedChange={(v) => handleUpdateConfig({ is_active: v }, true)} />
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Signup Headline</Label>
-                    <Input 
-                      value={localConfig?.title ?? config?.title ?? ''} 
-                      onChange={e => handleUpdateConfig({ title: e.target.value })} 
-                      className="h-12 rounded-xl font-bold border-2" 
-                    />
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Protocol Title</Label>
+                    <Input value={localConfig?.title || ''} onChange={e => handleUpdateConfig({ title: e.target.value })} className="h-12 rounded-xl font-bold border-2" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Registration Fee ($)</Label>
-                    <Input 
-                      type="number"
-                      value={localConfig?.registration_cost ?? config?.registration_cost ?? ''} 
-                      onChange={e => handleUpdateConfig({ registration_cost: e.target.value })} 
-                      className="h-12 rounded-xl font-black border-2 text-primary" 
-                    />
+                    <Input type="number" value={localConfig?.registration_cost || '0'} onChange={e => handleUpdateConfig({ registration_cost: e.target.value })} className="h-12 rounded-xl font-black border-2" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Brief</Label>
-                  <Textarea 
-                    value={localConfig?.description ?? config?.description ?? ''} 
-                    onChange={e => handleUpdateConfig({ description: e.target.value })} 
-                    className="rounded-xl min-h-[100px] border-2 font-medium" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 ml-1">
-                    <MessageSquare className="h-3 w-3 text-primary" />
-                    <Label className="text-[10px] font-black uppercase tracking-widest">Custom Confirmation Message</Label>
-                  </div>
-                  <Textarea 
-                    placeholder="Show this message after submission (e.g. 'Welcome to the league! Check your email.')"
-                    value={localConfig?.confirmation_message ?? config?.confirmation_message ?? ''} 
-                    onChange={(e) => handleUpdateConfig({ confirmation_message: e.target.value })} 
-                    className="rounded-xl min-h-[80px] border-2 font-medium bg-muted/5" 
-                  />
+                  <Textarea value={localConfig?.description || ''} onChange={e => handleUpdateConfig({ description: e.target.value })} className="rounded-xl min-h-[100px] border-2 font-medium" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden ring-1 ring-black/5 bg-white">
-              <CardHeader className="bg-black text-white p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-primary p-3 rounded-2xl text-white shadow-lg shadow-primary/20"><LayoutGrid className="h-6 w-6" /></div>
-                    <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Field Architect</CardTitle><CardDescription className="font-bold text-white/60 text-[10px] uppercase tracking-widest">Applicant Data Payload</CardDescription></div>
+            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
+              <CardHeader className="bg-black text-white p-8 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary p-3 rounded-2xl text-white shadow-lg"><LayoutGrid className="h-6 w-6" /></div>
+                  <div>
+                    <CardTitle className="text-2xl font-black uppercase tracking-tight">Form Architect</CardTitle>
+                    <CardDescription className="font-bold text-white/60 text-[10px] uppercase tracking-widest">Applicant Data Payloads</CardDescription>
                   </div>
-                  <Dialog>
-                    <DialogTrigger asChild><Button variant="secondary" className="rounded-full h-10 px-6 font-black uppercase text-[10px] hover:bg-white hover:text-black transition-colors" onClick={() => setEditingField({ type: 'short_text', label: '', required: true })}><Plus className="h-4 w-4 mr-2" /> Add Field</Button></DialogTrigger>
-                    <DialogContent className="rounded-3xl border-none shadow-2xl p-8 overflow-y-auto max-h-[90vh] custom-scrollbar">
-                      <DialogHeader><DialogTitle className="text-2xl font-black uppercase">New Data Segment</DialogTitle></DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Segment Label</Label><Input value={editingField?.label || ''} onChange={e => setEditingField({ ...editingField, label: e.target.value })} className="h-12 rounded-xl" /></div>
-                        <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Input Type</Label>
-                          <Select value={editingField?.type} onValueChange={(v: any) => setEditingField({ ...editingField, type: v })}>
-                            <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                              <SelectItem value="short_text" className="font-bold">Short Text</SelectItem>
-                              <SelectItem value="long_text" className="font-bold">Long Text Block</SelectItem>
-                              <SelectItem value="dropdown" className="font-bold">Dropdown Selection</SelectItem>
-                              <SelectItem value="checkbox" className="font-bold">Checkbox Group</SelectItem>
-                              <SelectItem value="yes_no" className="font-bold">Yes / No Toggle</SelectItem>
-                              <SelectItem value="image" className="font-bold">Image Attachment</SelectItem>
-                              <SelectItem value="header" className="font-bold">Section Header</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {['dropdown', 'checkbox'].includes(editingField?.type || '') && (
-                          <div className="space-y-2 animate-in slide-in-from-top-2">
-                            <Label className="text-[10px] uppercase font-black">Selection Options (Comma Separated)</Label>
-                            <Input 
-                              placeholder="e.g. Small, Medium, Large" 
-                              value={editingField?.options?.join(', ') || ''} 
-                              onChange={e => setEditingField({...editingField, options: e.target.value.split(',').map(o => o.trim())})} 
-                              className="h-12 rounded-xl border-primary/20"
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <DialogFooter><Button className="w-full h-14 rounded-2xl font-black shadow-xl" onClick={handleAddField}>Add to Protocol</Button></DialogFooter>
-                    </DialogContent>
-                  </Dialog>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y">{formSchema.map((field, i) => (
-                  <div key={field.id} className="p-6 flex items-center justify-between group hover:bg-muted/10 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="text-[10px] font-black text-muted-foreground w-6">{i + 1}</div>
-                      <div>
-                        <p className="font-black text-sm uppercase">{field.label}</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase">{field.type.replace(/_/g, ' ')} {field.options && `(${field.options.length} options)`}</p>
+                <Dialog>
+                  <DialogTrigger asChild><Button variant="secondary" className="rounded-full h-10 px-6 font-black uppercase text-[10px]"><Plus className="h-4 w-4 mr-2" /> Add Spec</Button></DialogTrigger>
+                  <DialogContent className="rounded-3xl border-none shadow-2xl p-8">
+                    <DialogHeader><DialogTitle className="text-2xl font-black uppercase">New Data Spec</DialogTitle></DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Label</Label><Input value={editingField?.label || ''} onChange={e => setEditingField({ ...editingField, label: e.target.value })} className="h-12 rounded-xl" /></div>
+                      <div className="space-y-2"><Label className="text-[10px] uppercase font-black">Input Type</Label>
+                        <Select value={editingField?.type} onValueChange={(v: any) => setEditingField({ ...editingField, type: v })}>
+                          <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="short_text" className="font-bold">Short Text</SelectItem>
+                            <SelectItem value="long_text" className="font-bold">Long Text</SelectItem>
+                            <SelectItem value="dropdown" className="font-bold">Dropdown</SelectItem>
+                            <SelectItem value="header" className="font-bold">Section Header</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                    {i > 1 && <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleUpdateConfig({ form_schema: formSchema.filter(f => f.id !== field.id) }, true)}><Trash2 className="h-4 w-4" /></Button>}
-                  </div>
-                ))}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden ring-1 ring-black/5 bg-white">
-              <CardHeader className="bg-muted/30 border-b p-8">
-                <div className="flex items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-2xl text-primary"><FileSignature className="h-6 w-6" /></div>
-                  <div><CardTitle className="text-2xl font-black uppercase tracking-tight">Institutional Waiver</CardTitle><CardDescription className="font-bold text-muted-foreground text-[10px] uppercase tracking-widest">Digital Signature Mandate</CardDescription></div>
-                </div>
+                    <DialogFooter><Button className="w-full h-14 rounded-2xl font-black shadow-xl" onClick={handleAddField}>Add to Protocol</Button></DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
-              <CardContent className="p-8 space-y-4">
-                <p className="text-xs font-medium text-muted-foreground leading-relaxed italic">Applicants must digitally sign this text before submitting their enrollment.</p>
-                <Textarea 
-                  placeholder="Define liability terms, medical releases, and conduct codes..." 
-                  value={localConfig?.waiver_text ?? config?.waiver_text ?? ''} 
-                  onChange={e => handleUpdateConfig({ waiver_text: e.target.value })} 
-                  className="min-h-[200px] rounded-2xl border-2 font-medium bg-muted/10" 
-                />
-              </CardContent>
+              <CardContent className="p-0 divide-y">{formSchema.map((field, i) => (
+                <div key={field.id} className="p-6 flex items-center justify-between group hover:bg-muted/10 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="text-[10px] font-black text-muted-foreground w-6">{i + 1}</div>
+                    <div><p className="font-black text-sm uppercase">{field.label}</p><p className="text-[9px] font-bold text-muted-foreground uppercase opacity-60">{field.type.replace('_', ' ')}</p></div>
+                  </div>
+                  {i > 1 && <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleUpdateConfig({ form_schema: formSchema.filter(f => f.id !== field.id) }, true)}><Trash2 className="h-4 w-4" /></Button>}
+                </div>
+              ))}</CardContent>
             </Card>
           </div>
 
           <aside className="space-y-6">
-            <Card className="rounded-[2rem] border-none shadow-xl bg-primary text-white overflow-hidden group">
+            <Card className="rounded-[2.5rem] border-none shadow-xl bg-primary text-white overflow-hidden group">
               <CardContent className="p-8 space-y-6">
                 <div className="bg-white/20 p-4 rounded-2xl w-fit group-hover:scale-110 transition-transform"><Share2 className="h-8 w-8 text-white" /></div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black tracking-tight uppercase leading-none">Portal Access</h3>
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Recruitment Link</p>
-                </div>
-                <div className="bg-white/10 p-4 rounded-2xl border border-white/10 text-center"><p className="text-[8px] font-black uppercase opacity-60 mb-1">Public Link</p><p className="text-[10px] font-bold truncate">/register/league/{leagueId}</p></div>
-                <Button className="w-full h-14 rounded-2xl bg-white text-primary font-black uppercase text-xs shadow-xl active:scale-95 transition-all hover:bg-white/90" onClick={handleCopyPortalUrl}>
-                  <Copy className="h-4 w-4 mr-2" /> Copy Portal Link
-                </Button>
+                <div><h3 className="text-2xl font-black tracking-tight uppercase leading-none">Recruitment Portal</h3><p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">Live Endpoint</p></div>
+                <div className="bg-white/10 p-4 rounded-2xl border border-white/10 text-center"><p className="text-[8px] font-black uppercase opacity-60 mb-1">Public Link</p><p className="text-[10px] font-bold truncate">/register/league/{leagueId}?protocol={configId}</p></div>
+                <Button className="w-full h-14 rounded-2xl bg-white text-primary font-black uppercase text-xs shadow-xl active:scale-95 transition-all hover:bg-white/90" onClick={handleCopyPortalUrl}><Copy className="h-4 w-4 mr-2" /> Copy Portal Link</Button>
               </CardContent>
             </Card>
-
-            <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20 space-y-4">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Strategic Enrollment</h4>
-              </div>
-              <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
-                All data collected via this protocol is funneled into your master Recruit Pool for tactical review and squad deployment.
-              </p>
-            </div>
           </aside>
         </div>
       )}
