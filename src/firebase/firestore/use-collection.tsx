@@ -60,8 +60,6 @@ export function useCollection<T = any>(
     let unsubscribeSnapshot: (() => void) | null = null;
 
     // TACTICAL GUARD: Explicitly wait for authentication identity resolution.
-    // This prevents "Missing or insufficient permissions" errors caused by 
-    // sending queries before the Firebase SDK has attached the auth token.
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       // 1. Cleanup existing listener if any
       if (unsubscribeSnapshot) {
@@ -89,7 +87,7 @@ export function useCollection<T = any>(
         path = 'unknown';
       }
 
-      // 4. Defensive Guard: Prevent malformed paths or root-level scans
+      // 4. Defensive Guard: Prevent malformed paths
       const isRootPath = !path || path === '/' || path === '.' || path === 'databases/(default)/documents';
       const hasUndefined = path === 'unknown' || path.includes('undefined') || path.includes('/null/');
       
@@ -121,7 +119,6 @@ export function useCollection<T = any>(
             operation: 'list',
           });
           
-          // Emit the error to the global listener
           errorEmitter.emit('permission-error', permissionError);
           setError(permissionError);
           setData(null);
@@ -130,7 +127,6 @@ export function useCollection<T = any>(
       );
     });
 
-    // Cleanup: Unsubscribe from both Auth and Snapshot listeners
     return () => {
       unsubscribeAuth();
       if (unsubscribeSnapshot) unsubscribeSnapshot();

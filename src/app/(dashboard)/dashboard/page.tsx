@@ -24,7 +24,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { format, isFuture, isToday, isSameDay } from 'date-fns';
+import { format, isFuture, isToday } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, limit } from 'firebase/firestore';
 
@@ -75,7 +75,12 @@ export default function UniversalAccountDashboard() {
     return householdEvents.filter(e => isFuture(new Date(e.date)) || isToday(new Date(e.date))).slice(0, 3);
   }, [householdEvents]);
 
-  if (!mounted || !user) return null;
+  if (!mounted || !user) return (
+    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+      <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+      <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Synchronizing Dashboard...</p>
+    </div>
+  );
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-700">

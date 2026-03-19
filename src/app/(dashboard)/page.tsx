@@ -85,21 +85,26 @@ export default function UniversalAccountDashboard() {
     return householdEvents.filter(e => isFuture(new Date(e.date)) || isToday(new Date(e.date))).slice(0, 3);
   }, [householdEvents]);
 
-  if (!mounted || !user) return null;
+  if (!mounted || !user) return (
+    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+      <div className="h-12 w-12 bg-primary/10 rounded-full mb-4" />
+      <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Master Intelligence Syncing...</p>
+    </div>
+  );
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3 tracking-widest">Master Intelligence</Badge>
+          <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Master Intelligence</Badge>
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none text-foreground">Command Hub</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Status: Operational • {user.role?.replace(/_/g, ' ')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => router.push('/teams/new')} variant="outline" className="rounded-xl h-12 border-2 font-black uppercase text-[10px] tracking-widest text-foreground">
+          <Button onClick={() => router.push('/teams/new')} variant="outline" className="rounded-xl h-12 border-2 font-black uppercase text-[10px] text-foreground">
             <Plus className="h-4 w-4 mr-2" /> New Squad
           </Button>
-          <Button onClick={() => router.push('/teams/join')} className="rounded-xl h-12 px-6 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20">
+          <Button onClick={() => router.push('/teams/join')} className="rounded-xl h-12 px-6 font-black uppercase text-[10px] shadow-lg shadow-primary/20">
             <UserPlus className="h-4 w-4 mr-2" /> Recruitment Hub
           </Button>
         </div>
@@ -163,10 +168,7 @@ export default function UniversalAccountDashboard() {
         <div className="lg:col-span-2 space-y-8">
           <section className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Mission Itinerary</h3>
-              </div>
+              <div className="flex items-center gap-3"><CalendarDays className="h-5 w-5 text-primary" /><h3 className="text-xl font-black uppercase tracking-tight text-foreground">Mission Itinerary</h3></div>
               <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-foreground" onClick={() => router.push('/calendar')}>
                 Master Calendar <ChevronRight className="h-3 w-3 ml-1" />
               </Button>
@@ -191,18 +193,13 @@ export default function UniversalAccountDashboard() {
                   </CardContent>
                 </Card>
               )) : (
-                <div className="text-center py-12 bg-muted/10 rounded-3xl border-2 border-dashed opacity-40">
-                  <p className="text-xs font-black uppercase tracking-widest text-foreground">No active deployments</p>
-                </div>
+                <div className="text-center py-12 bg-muted/10 rounded-3xl border-2 border-dashed opacity-40"><p className="text-xs font-black uppercase tracking-widest text-foreground">No active deployments</p></div>
               )}
             </div>
           </section>
 
           <section className="space-y-4">
-            <div className="flex items-center gap-3 px-2">
-              <HandHelping className="h-5 w-5 text-primary" />
-              <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Community Intelligence</h3>
-            </div>
+            <div className="flex items-center gap-3 px-2"><HandHelping className="h-5 w-5 text-primary" /><h3 className="text-xl font-black uppercase tracking-tight text-foreground">Community Intelligence</h3></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card className="rounded-[2rem] border-none shadow-xl bg-white overflow-hidden group">
                 <CardHeader className="bg-primary/5 p-6 border-b flex flex-row items-center justify-between">
