@@ -12,34 +12,33 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- INSTITUTIONAL HIERARCHY: LEAGUES ---
+    // --- INSTITUTIONAL HIERARCHY ---
     
-    match /leagues {
-      allow list, get, create: if isSignedIn();
-    }
-
-    match /leagues/{leagueId} {
-      allow read, write: if isSignedIn();
-      
-      // Explicit recursive match to satisfy "List Proving" for all sub-data
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    // --- TACTICAL HIERARCHY: TEAMS ---
+    // Explicit recursive matches satisfy "List Proving" for all sub-data
     
-    match /teams {
-      allow list, get, create: if isSignedIn();
+    match /leagues/{allPaths=**} {
+      allow read, write: if isSignedIn();
     }
 
-    match /teams/{teamId} {
+    match /teams/{allPaths=**} {
       allow read, write: if isSignedIn();
-      
-      // Explicit recursive match to satisfy "List Proving" for all sub-data
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
+    }
+
+    match /players/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /facilities/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /plans/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /team_memberships/{allPaths=**} {
+      allow read, write: if isSignedIn();
     }
 
     // --- PERSONAL INFRASTRUCTURE ---
@@ -58,55 +57,13 @@ service cloud.firestore {
       }
     }
 
-    // --- GLOBAL REPOSITORIES ---
+    // --- GLOBAL REPOSITORIES & CROSS-SQUAD AGGREGATION ---
     
-    match /players {
-      allow list, get, create: if isSignedIn();
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /players/{playerId} {
-      allow read, write: if isSignedIn();
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /facilities {
-      allow list, get, create: if isSignedIn();
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /plans {
-      allow list, get: if true;
-      allow write: if isSignedIn();
-    }
-
-    match /plans/{planId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    match /team_memberships {
-      allow list, get, create: if isSignedIn();
-    }
-
-    match /team_memberships/{id} {
-      allow read, write: if isSignedIn();
-    }
-
-    // --- CROSS-SQUAD AGGREGATION (COLLECTION GROUPS) ---
-    
-    match /{path=**}/invites/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/signatures/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/registrationEntries/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/members/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/events/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/files/{id} { allow read, write: if isSignedIn(); }
-    match /{path=**}/signatures/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/incidents/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/feedPosts/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/groupChats/{id} { allow read, write: if isSignedIn(); }

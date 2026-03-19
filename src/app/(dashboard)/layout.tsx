@@ -49,14 +49,16 @@ function DemoSeedWrapper({
       try {
         if (auth.currentUser) {
           await seedGuestDemoTeam(db, user.uid, demoPlanId);
+          // Small delay to allow Firestore cache to settle
           setTimeout(() => {
             window.location.replace('/dashboard');
           }, 1500);
         }
       } catch (e) {
+        console.error("Demo seeding failed:", e);
         setIsDemoInitializing(false);
         setIsSeedingDemo(false);
-        toast({ title: "Sync Failed", variant: "destructive" });
+        toast({ title: "Sync Failed", description: "Could not establish environment.", variant: "destructive" });
       }
     };
     seed();
@@ -77,7 +79,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+  }, []);
 
   useEffect(() => {
     if (!mounted || !isAuthResolved || isDemoInitializing) return;
@@ -130,9 +134,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}`;
   };
 
-  // HYDRATION SAFETY: Always render the same initial UI on server and client.
-  // Transition to specific text only after hydration is confirmed.
-  const loadingLabel = !mounted ? "Authenticating..." : (isDemoInitializing ? "Synchronizing Hub..." : "Authenticating...");
+  // HYDRATION SAFETY: The initial render must be identical on server and client.
   const showLoading = !mounted || isUserLoading || !isAuthResolved || isSeedingDemo || isDemoInitializing;
 
   if (showLoading) {
@@ -152,7 +154,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              {loadingLabel}
+              {!mounted ? "Authenticating..." : (isDemoInitializing ? "Synchronizing Hub..." : "Authenticating...")}
             </p>
           </div>
         </div>
@@ -162,14 +164,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <DemoSeedWrapper 
-        user={user} 
-        isTeamsLoading={isTeamsLoading} 
-        teamsCount={teams.length} 
-        isDemoInitializing={isDemoInitializing}
-        setIsDemoInitializing={setIsDemoInitializing}
-        setIsSeedingDemo={setIsSeedingDemo}
-      />
       {userProfile?.isDemo && (
         <div className="w-full bg-black text-white h-9 flex items-center justify-center gap-4 z-[40] border-b border-primary/20 shrink-0 sticky top-0">
           <Timer className="h-3.5 w-3.5 text-primary animate-pulse" />
