@@ -20,23 +20,13 @@ import {
   ChevronRight,
   TrendingUp,
   FileText,
-  MapPin
+  MapPin,
+  ArrowRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format, isFuture, isToday, isSameDay } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, limit } from 'firebase/firestore';
-
-const formatDateRange = (start: string | Date, end?: string | Date) => {
-  const startDate = new Date(start);
-  if (!end) return format(startDate, 'MMM dd');
-  const endDate = new Date(end);
-  if (isSameDay(startDate, endDate)) return format(startDate, 'MMM dd');
-  if (startDate.getMonth() === endDate.getMonth()) {
-    return `${format(startDate, 'MMM d')} - ${format(endDate, 'd')}`;
-  }
-  return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`;
-};
 
 export default function UniversalAccountDashboard() {
   const { 

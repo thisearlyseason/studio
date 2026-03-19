@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useTeam, TeamEvent, Member, TeamFile } from '@/components/providers/team-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,8 @@ import {
   TrendingUp,
   AlertCircle,
   FileText,
-  Building
+  Building,
+  ArrowRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,9 @@ export default function UniversalAccountDashboard() {
   } = useTeam();
   const router = useRouter();
   const db = useFirestore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   // 1. Calculate Aggregate Win %
   const gamesQuery = useMemoFirebase(() => {
@@ -81,7 +85,7 @@ export default function UniversalAccountDashboard() {
     return householdEvents.filter(e => isFuture(new Date(e.date)) || isToday(new Date(e.date))).slice(0, 3);
   }, [householdEvents]);
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-700">
@@ -277,8 +281,8 @@ export default function UniversalAccountDashboard() {
                 Audit Ledger
               </Button>
             </CardContent>
-          </Card>
-        </aside>
+          </aside>
+        </div>
       </div>
     </div>
   );
