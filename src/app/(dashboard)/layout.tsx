@@ -136,7 +136,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   /**
    * TACTICAL HYDRATION GUARD: 
-   * Ensure Shell only renders once we have the user profile and team state.
+   * Use invariant loading text to prevent hydration mismatch.
    */
   const showLoading = !mounted || isUserLoading || !isAuthResolved || isSeedingDemo || isDemoInitializing || isTeamsLoading || !userProfile;
 
@@ -157,7 +157,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              Authenticating...
+              Authenticating Hub...
             </p>
           </div>
         </div>
