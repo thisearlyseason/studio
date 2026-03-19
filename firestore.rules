@@ -21,6 +21,9 @@ service cloud.firestore {
       match /registrationEntries/{id} {
         allow read, write: if isSignedIn();
       }
+      match /registrationEntries {
+        allow list: if isSignedIn();
+      }
       
       match /registration/{id} {
         allow read, write: if isSignedIn();
