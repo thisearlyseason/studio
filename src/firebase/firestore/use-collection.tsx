@@ -67,7 +67,7 @@ export function useCollection<T = any>(
         unsubscribeSnapshot = null;
       }
 
-      // 2. Identity Verification: Do not dispatch if no user is present
+      // 2. Identity Verification: Do not dispatch if no user is present in SDK context
       if (!user || !auth.currentUser) {
         setData(null);
         setIsLoading(false);

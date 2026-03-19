@@ -130,6 +130,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}`;
   };
 
+  // HYDRATION SAFETY: Always render the same initial UI on server and client.
+  // Transition to specific text only after hydration is confirmed.
+  const loadingLabel = !mounted ? "Authenticating..." : (isDemoInitializing ? "Synchronizing Hub..." : "Authenticating...");
   const showLoading = !mounted || isUserLoading || !isAuthResolved || isSeedingDemo || isDemoInitializing;
 
   if (showLoading) {
@@ -149,7 +152,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           </div>
           <div className="text-center space-y-2">
             <p className="text-lg font-black uppercase tracking-widest text-primary">
-              {isDemoInitializing ? "Synchronizing Hub..." : "Authenticating..."}
+              {loadingLabel}
             </p>
           </div>
         </div>
