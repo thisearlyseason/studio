@@ -529,6 +529,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!firebaseUser || !db) { setUserProfile(null); return; }
+    // TACTICAL GUARD: Explicit mapping for UI property consistency
     return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -539,6 +540,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           avatar: data.avatarUrl || data.avatar || `https://picsum.photos/seed/${snap.id}/150/150`
         } as UserProfile);
       }
+    }, (error) => {
+      console.error("User profile sync error:", error);
     });
   }, [firebaseUser, db]);
 
@@ -581,11 +584,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
 
-  // TACTICAL MEMO: Refined staff authority detection logic
+  // TACTICAL MEMO: Refined staff authority detection logic for robust UI provisioning
   const isStaff = useMemo(() => {
     if (!activeTeam || !firebaseUser) return false;
+    // 1. Check Global Authority
     if (userProfile?.role === 'coach') return true; 
+    // 2. Check Contextual Authority (Squad Hub Switcher)
     if (activeTeam.role === 'Admin') return true;
+    // 3. Check Position Eligibility
     const currentMember = members.find(m => m.userId === firebaseUser.uid);
     return ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Squad Leader', 'Coach Guest'].includes(currentMember?.position || '');
   }, [activeTeam, firebaseUser, members, userProfile?.role]);

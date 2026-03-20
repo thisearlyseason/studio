@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationEntry, RegistrationFormField } from '@/components/providers/team-provider';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { doc, collection, query, orderBy, where } from 'firebase/firestore';
@@ -88,7 +88,7 @@ export default function LeagueRegistrationAdminPage() {
 
   const entriesQuery = useMemoFirebase(() => {
     if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
-    // Flat query structure to satisfy Firestore List Proving
+    // TACTICAL FIX: Satisfy List Proving with explicit collection reference
     return query(
       collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
       where('protocol_id', '==', configId),
