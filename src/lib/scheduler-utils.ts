@@ -12,8 +12,13 @@ export interface DailyWindow {
   endTime: string;
 }
 
+export interface TeamIdentity {
+  id: string;
+  name: string;
+}
+
 export interface ScheduleConfig {
-  teams: string[];
+  teams: TeamIdentity[]; // Changed from string[] to TeamIdentity[] for robust mapping
   fields: string[];
   startDate: string;
   endDate?: string;
@@ -22,11 +27,6 @@ export interface ScheduleConfig {
   gameLength: number;
   breakLength: number;
   gamesPerTeam?: number;
-  /** Defines the double-header strategy.
-   * 'none': No team plays more than one game a day.
-   * 'sameTeam': A team can play two games on the same day against the same opponent (home/away).
-   * 'differentTeams': A team can play two games on the same day against two different opponents.
-  */
   doubleHeaderOption?: 'none' | 'sameTeam' | 'differentTeams';
   blackoutDates?: string[]; // ISO Strings
   dailyWindows?: DailyWindow[];
@@ -35,8 +35,6 @@ export interface ScheduleConfig {
 
 /**
  * Shuffles an array in place.
- * @param array The array to shuffle.
- * @returns The shuffled array.
  */
 function shuffle<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
@@ -47,8 +45,8 @@ function shuffle<T>(array: T[]): T[] {
 }
 
 /**
- * Generates a full League Season schedule with multi-venue and blackout support.
- * Hardened for balanced distribution, back-to-back double headers, and regularity.
+ * Generates a full League Season schedule.
+ * TACTICAL FIX: Refactored to Field-First slot iteration to ensure consecutive matches on the same diamond.
  */
 export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[] {
   const {
@@ -71,29 +69,34 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
   const startD = new Date(startDate);
   const endD = endDate ? new Date(endDate) : addDays(startD, 120);
 
-  // 1. Generate a balanced, round-robin match pool
-  const roundRobinPairs: [string, string][] = [];
+  // 1. Generate balanced round-robin match pool with ID mapping
+  const basePairs: { t1: TeamIdentity; t2: TeamIdentity }[] = [];
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
-      roundRobinPairs.push([teams[i], teams[j]]);
+      basePairs.push({ t1: teams[i], t2: teams[j] });
     }
   }
 
-  let matchPool: [string, string][] = [];
+  let matchPool: { t1: TeamIdentity; t2: TeamIdentity }[] = [];
   const requiredGames = Math.ceil((teams.length * gamesPerTeam) / 2);
 
   while (matchPool.length < requiredGames) {
-    const round = Math.floor(matchPool.length / roundRobinPairs.length);
-    shuffle(roundRobinPairs); // Shuffle for variety each round
-    for (const pair of roundRobinPairs) {
-      // Alternate home/away for fairness
-      matchPool.push(round % 2 === 0 ? [pair[0], pair[1]] : [pair[1], pair[0]]);
+    const round = Math.floor(matchPool.length / basePairs.length);
+    shuffle(basePairs);
+    for (const pair of basePairs) {
+      // Rotate Home/Visitor
+      if (round % 2 === 0) {
+        matchPool.push({ t1: pair.t1, t2: pair.t2 });
+      } else {
+        matchPool.push({ t1: pair.t2, t2: pair.t1 });
+      }
       if (matchPool.length >= requiredGames) break;
     }
   }
-  shuffle(matchPool); // Final shuffle of the entire pool
+  shuffle(matchPool);
 
-  // 2. Generate all available time slots
+  // 2. Generate Available Slots: Time -> Field order to allow concurrent games
+  // TACTICAL CHANGE: We iterate days, then times, then fields.
   const availableSlots: { date: Date; time: Date; field: string }[] = [];
   let currentDay = new Date(startD);
 
@@ -119,76 +122,67 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
     currentDay = addDays(currentDay, 1);
   }
 
-  if (availableSlots.length === 0 || matchPool.length === 0) return [];
-
-  // 3. Intelligent Game Assignment
+  // 3. Intelligent Assignment
   const finalGames: TournamentGame[] = [];
-  const teamGameCounts = new Map<string, number>(teams.map(t => [t, 0]));
-  const dailyTeamUsage = new Map<string, { team: string; field: string; opponent: string }[]>();
+  const teamGameCounts = new Map<string, number>(teams.map(t => [t.id, 0]));
+  const dailyTeamUsage = new Map<string, { teamId: string; field: string; opponentId: string; time: string }[]>();
 
   for (const slot of availableSlots) {
-    if (matchPool.length === 0) break; // All games scheduled
+    if (matchPool.length === 0) break;
 
     const dayKey = format(slot.date, 'yyyy-MM-dd');
-    if (!dailyTeamUsage.has(dayKey)) {
-      dailyTeamUsage.set(dayKey, []);
-    }
+    const timeKey = format(slot.time, 'HH:mm');
+    if (!dailyTeamUsage.has(dayKey)) dailyTeamUsage.set(dayKey, []);
     const todaysGames = dailyTeamUsage.get(dayKey)!;
 
-    // Find the first valid matchup in the pool for this slot
     let foundMatchupIndex = -1;
     for (let i = 0; i < matchPool.length; i++) {
-      const [team1, team2] = matchPool[i];
+      const { t1, t2 } = matchPool[i];
 
-      // Rule: Skip if either team has already reached their total game count
-      if (teamGameCounts.get(team1)! >= gamesPerTeam || teamGameCounts.get(team2)! >= gamesPerTeam) {
-        continue;
-      }
+      // Busy right now?
+      const isT1BusyNow = todaysGames.some(g => g.teamId === t1.id && g.time === timeKey);
+      const isT2BusyNow = todaysGames.some(g => g.teamId === t2.id && g.time === timeKey);
+      if (isT1BusyNow || isT2BusyNow) continue;
 
-      // Rule: Check for scheduling conflicts at this exact time
-      const isTeam1Busy = todaysGames.some(g => g.team === team1);
-      const isTeam2Busy = todaysGames.some(g => g.team === team2);
-      if (isTeam1Busy || isTeam2Busy) {
-        continue;
-      }
-      
-      const team1DailyGames = todaysGames.filter(g => g.team === team1);
-      const team2DailyGames = todaysGames.filter(g => g.team === team2);
-      
-      // Rule: Enforce double-header option
+      // Quota reached?
+      if ((teamGameCounts.get(t1.id) || 0) >= gamesPerTeam || (teamGameCounts.get(t2.id) || 0) >= gamesPerTeam) continue;
+
+      const t1PrevGames = todaysGames.filter(g => g.teamId === t1.id);
+      const t2PrevGames = todaysGames.filter(g => g.teamId === t2.id);
+
+      // Double Header Strategy
       if (doubleHeaderOption === 'none') {
-        if (team1DailyGames.length > 0 || team2DailyGames.length > 0) continue;
+        if (t1PrevGames.length > 0 || t2PrevGames.length > 0) continue;
       } else {
-        if (team1DailyGames.length >= 2 || team2DailyGames.length >= 2) continue; // Already played double-header
-        
-        // A team's second game MUST be on the same field
-        if (team1DailyGames.length === 1 && team1DailyGames[0].field !== slot.field) continue;
-        if (team2DailyGames.length === 1 && team2DailyGames[0].field !== slot.field) continue;
+        if (t1PrevGames.length >= 2 || t2PrevGames.length >= 2) continue;
 
-        // Enforce opponent type for double-headers
+        // Same field constraint
+        if (t1PrevGames.length === 1 && t1PrevGames[0].field !== slot.field) continue;
+        if (t2PrevGames.length === 1 && t2PrevGames[0].field !== slot.field) continue;
+
         if (doubleHeaderOption === 'sameTeam') {
-          if (team1DailyGames.length === 1 && team1DailyGames[0].opponent !== team2) continue;
-          if (team2DailyGames.length === 1 && team2DailyGames[0].opponent !== team1) continue;
-        }
-        if (doubleHeaderOption === 'differentTeams') {
-          if (team1DailyGames.length === 1 && team1DailyGames[0].opponent === team2) continue;
-          if (team2DailyGames.length === 1 && team2DailyGames[0].opponent === team1) continue;
+          // If T1 already played today, the current matchup MUST be T2 vs T1 (reverse)
+          if (t1PrevGames.length === 1 && t1PrevGames[0].opponentId !== t2.id) continue;
+          if (t2PrevGames.length === 1 && t2PrevGames[0].opponentId !== t1.id) continue;
+        } else if (doubleHeaderOption === 'differentTeams') {
+          // If T1 already played today, ensure this game is NOT against the same opponent
+          if (t1PrevGames.length === 1 && t1PrevGames[0].opponentId === t2.id) continue;
+          if (t2PrevGames.length === 1 && t2PrevGames[0].opponentId === t1.id) continue;
         }
       }
-      
-      // If all rules pass, this matchup is valid
+
       foundMatchupIndex = i;
       break;
     }
 
     if (foundMatchupIndex !== -1) {
-      const [team1, team2] = matchPool.splice(foundMatchupIndex, 1)[0];
-
-      // Schedule the game
+      const { t1, t2 } = matchPool.splice(foundMatchupIndex, 1)[0];
       finalGames.push({
         id: `lg_${Date.now()}_${finalGames.length}`,
-        team1,
-        team2,
+        team1: t1.name,
+        team2: t2.name,
+        team1Id: t1.id,
+        team2Id: t2.id,
         score1: 0,
         score2: 0,
         date: format(slot.date, 'yyyy-MM-dd'),
@@ -198,81 +192,54 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
         updatedAt: new Date().toISOString(),
       });
 
-      // Update tracking state
-      teamGameCounts.set(team1, (teamGameCounts.get(team1) || 0) + 1);
-      teamGameCounts.set(team2, (teamGameCounts.get(team2) || 0) + 1);
-      todaysGames.push({ team: team1, field: slot.field, opponent: team2 });
-      todaysGames.push({ team: team2, field: slot.field, opponent: team1 });
+      teamGameCounts.set(t1.id, (teamGameCounts.get(t1.id) || 0) + 1);
+      teamGameCounts.set(t2.id, (teamGameCounts.get(t2.id) || 0) + 1);
+      todaysGames.push({ teamId: t1.id, field: slot.field, opponentId: t2.id, time: timeKey });
+      todaysGames.push({ teamId: t2.id, field: slot.field, opponentId: t1.id, time: timeKey });
     }
   }
 
-  return finalGames.sort((a, b) => {
-    const dateComp = a.date.localeCompare(b.date);
-    if (dateComp !== 0) return dateComp;
-    const timeA = parse(a.time, 'h:mm a', new Date());
-    const timeB = parse(b.time, 'h:mm a', new Date());
-    return timeA.getTime() - timeB.getTime();
-  });
+  return finalGames.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 }
 
 /**
- * Generates an automated tournament itinerary.
- * NOTE: This function is simpler and not the focus of the recent refactoring.
+ * Tournament simple schedule
  */
-export function generateTournamentSchedule(config: Omit<ScheduleConfig, 'playDays'>): TournamentGame[] {
+export function generateTournamentSchedule(config: Omit<ScheduleConfig, 'playDays' | 'teams'> & { teams: string[] }): TournamentGame[] {
   const { teams, fields, startDate, endDate, startTime, endTime, gameLength, breakLength, dailyWindows } = config;
   const games: TournamentGame[] = [];
-  
   const startD = new Date(startDate);
   const endD = endDate ? new Date(endDate) : startD;
-  
   const matchups: [string, string][] = [];
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
       matchups.push([teams[i], teams[j]]);
     }
   }
-
-  const availableSlots: { date: Date; time: Date; field: string }[] = [];
   const dayInterval = eachDayOfInterval({ start: startD, end: endD });
-
+  const slots: { date: Date; time: Date; field: string }[] = [];
   dayInterval.forEach(day => {
     const dayStr = format(day, 'yyyy-MM-dd');
     const window = dailyWindows?.find(w => w.date === dayStr);
-    
-    let currentStartTime = window ? window.startTime : startTime;
-    let currentEndTime = window ? window.endTime : endTime;
-
-    let currentTime = parse(currentStartTime, 'HH:mm', day);
-    const dayEndTime = parse(currentEndTime, 'HH:mm', day);
-
+    let currentTime = parse(window?.startTime || startTime, 'HH:mm', day);
+    const dayEndTime = parse(window?.endTime || endTime, 'HH:mm', day);
     while (isBefore(currentTime, dayEndTime)) {
-      for (const field of fields) {
-        availableSlots.push({ date: new Date(day), time: new Date(currentTime), field });
-      }
+      for (const f of fields) slots.push({ date: new Date(day), time: new Date(currentTime), field: f });
       currentTime = addMinutes(currentTime, gameLength + breakLength);
     }
   });
-
-  if (availableSlots.length === 0 || matchups.length === 0) return [];
-  
-  // Simple distribution for tournaments
-  for (let i = 0; i < Math.min(matchups.length, availableSlots.length); i++) {
-    const slot = availableSlots[i];
-    const [t1, t2] = matchups[i];
-
+  for (let i = 0; i < Math.min(matchups.length, slots.length); i++) {
     games.push({
       id: `tg_${Date.now()}_${i}`,
-      team1: t1,
-      team2: t2,
+      team1: matchups[i][0],
+      team2: matchups[i][1],
       score1: 0,
       score2: 0,
-      date: format(slot.date, 'yyyy-MM-dd'),
-      time: format(slot.time, 'h:mm a'),
-      location: slot.field,
+      date: format(slots[i].date, 'yyyy-MM-dd'),
+      time: format(slots[i].time, 'h:mm a'),
+      location: slots[i].field,
       isCompleted: false
     });
   }
-
   return games;
 }

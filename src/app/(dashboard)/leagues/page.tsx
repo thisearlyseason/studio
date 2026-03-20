@@ -47,13 +47,12 @@ import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebas
 import { collection, query, orderBy, where, doc, updateDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { generateLeagueSchedule, DailyWindow } from '@/lib/scheduler-utils';
+import { generateLeagueSchedule } from '@/lib/scheduler-utils';
 import { Calendar } from '@/components/ui/calendar';
-import { format, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 import { useTeam, League, TournamentGame, Field, Facility } from '@/components/providers/team-provider';
-import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const DAYS_OF_WEEK = [
   { id: 1, label: 'Mon' },
@@ -116,7 +115,9 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
   const leagueTeams = useMemo(() => {
     if (!league?.teams) return [];
-    return Object.values(league.teams).filter(t => t.status === 'accepted').map((t: any) => t.teamName);
+    return Object.entries(league.teams)
+      .filter(([_, t]) => t.status === 'accepted')
+      .map(([id, t]) => ({ id, name: t.teamName }));
   }, [league?.teams]);
 
   const handleGenerate = async () => {
@@ -144,6 +145,12 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
         doubleHeaderOption: config.doubleHeaderOption,
         blackoutDates: config.blackoutDates.map(d => d.toISOString())
       });
+      
+      if (schedule.length === 0) {
+        toast({ title: "Distribution Failure", description: "Could not satisfy scheduling constraints. Try increasing time windows or play days.", variant: "destructive" });
+        return;
+      }
+
       await updateLeagueSchedule(league.id, schedule);
       onOpenChange(false);
       toast({ title: "Season Deployed", description: `Synchronized ${schedule.length} matches to squad calendars.` });

@@ -737,26 +737,37 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return lid; 
   }, [firebaseUser, db, activeTeam]);
   
+  /**
+   * TACTICAL FIX: Refactored individual team synchronization to correctly map league schedule to team calendars.
+   */
   const updateLeagueSchedule = useCallback(async (lId: string, s: any[]) => { 
     if (!db) return; 
     const batch = writeBatch(db);
     batch.update(doc(db, 'leagues', lId), { schedule: clean(s) }); 
+    
     const leagueSnap = await getDoc(doc(db, 'leagues', lId));
     const leagueData = leagueSnap.data();
     if (!leagueData) return;
-    const teamNamesToIds: Record<string, string> = {};
-    Object.entries(leagueData.teams || {}).forEach(([tid, tdata]: [string, any]) => { teamNamesToIds[tdata.teamName] = tid; });
+
+    // Mapping game pairs correctly to BOTH team event subcollections
     s.forEach(game => {
-      const t1Id = teamNamesToIds[game.team1];
-      const t2Id = teamNamesToIds[game.team2];
       const createEvent = (tid: string, opp: string) => {
-        if (!tid || tid.startsWith('manual_')) return;
+        if (!tid) return;
         const eid = `lg_${lId}_${game.id}`;
-        batch.set(doc(db, 'teams', tid, 'events', eid), clean({ id: eid, teamId: tid, title: `League Match vs ${opp}`, eventType: 'game', isLeagueGame: true, leagueId: lId, date: game.date, startTime: game.time, location: game.location, description: `Season fixture for ${leagueData.name}.`, createdAt: new Date().toISOString() }));
+        batch.set(doc(db, 'teams', tid, 'events', eid), clean({ 
+          id: eid, teamId: tid, 
+          title: `League Match vs ${opp}`, 
+          eventType: 'game', isLeagueGame: true, 
+          leagueId: lId, date: game.date, startTime: game.time, 
+          location: game.location, 
+          description: `Official season fixture for ${leagueData.name}.`, 
+          createdAt: new Date().toISOString() 
+        }));
       };
-      if (t1Id) createEvent(t1Id, game.team2);
-      if (t2Id) createEvent(t2Id, game.team1);
+      if (game.team1Id) createEvent(game.team1Id, game.team2);
+      if (game.team2Id) createEvent(game.team2Id, game.team1);
     });
+    
     await batch.commit();
   }, [db]);
 
@@ -810,14 +821,38 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const assignEntryToTeam = useCallback(async (leagueId: string, entryId: string, teamId: string | null) => { if (!db) return; await updateDoc(doc(db, 'leagues', leagueId, 'registrationEntries', entryId), { assigned_team_id: teamId, status: teamId ? 'assigned' : 'pending' }); }, [db]);
   const toggleRegistrationPaymentStatus = useCallback(async (leagueId: string, entryId: string, paid: boolean) => { if (!db) return; await updateDoc(doc(db, 'leagues', leagueId, 'registrationEntries', entryId), { payment_received: paid }); }, [db]);
   
+  /**
+   * TACTICAL FIX: Ensures that when a team is accepted into a league, its real squad ID is mapped 
+   * to the standings ledger, enabling correct schedule synchronization.
+   */
   const respondToAssignment = useCallback(async (contextId: string, entryId: string, status: 'accepted' | 'declined') => { 
-    if (!db) return; 
+    if (!db || !activeTeam?.id) return; 
     const batch = writeBatch(db);
-    // TACTICAL SYNC: Update entry status and league standings map simultaneously
-    batch.update(doc(db, 'leagues', contextId, 'registrationEntries', entryId), { status }); 
-    batch.update(doc(db, 'leagues', contextId), { [`teams.recruit_${entryId}.status`]: status });
+    const entryRef = doc(db, 'leagues', contextId, 'registrationEntries', entryId);
+    const entrySnap = await getDoc(entryRef);
+    const entryData = entrySnap.data();
+
+    batch.update(entryRef, { status }); 
+    
+    // If it was a recruit_... placeholder, transition it to the REAL team ID
+    const leagueRef = doc(db, 'leagues', contextId);
+    const leagueSnap = await getDoc(leagueRef);
+    const leagueData = leagueSnap.data();
+    if (leagueData && status === 'accepted') {
+      const placeholderKey = `recruit_${entryId}`;
+      const placeholderData = leagueData.teams?.[placeholderKey] || {};
+      
+      batch.update(leagueRef, { 
+        [`teams.${placeholderKey}`]: deleteField(),
+        [`teams.${activeTeam.id}`]: { ...placeholderData, status: 'accepted', teamName: activeTeam.name },
+        memberTeamIds: arrayRemove(placeholderKey),
+        memberTeamIds: arrayUnion(activeTeam.id)
+      });
+      batch.update(doc(db, 'teams', activeTeam.id), { [`leagueIds.${contextId}`]: true });
+    }
+    
     await batch.commit();
-  }, [db]);
+  }, [db, activeTeam]);
 
   const updateLeagueTeamDetails = useCallback(async (leagueId: string, teamId: string, updates: any) => { if (!db) return; await updateDoc(doc(db, 'leagues', leagueId), { [`teams.${teamId}.origin`]: updates.origin, [`teams.${teamId}.coachName`]: updates.coachName, [`teams.${teamId}.coachEmail`]: updates.coachEmail, [`teams.${teamId}.coachPhone`]: updates.coachPhone, [`teams.${teamId}.organizerNotes`]: updates.organizerNotes, [`teams.${teamId}.teamName`]: updates.teamName }); }, [db]);
 
