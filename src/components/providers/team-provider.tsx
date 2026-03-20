@@ -588,7 +588,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       'wnvOuvwmoUhS5U4kdaBrZz7tGbF3',
       'PtT54iDDtUML1wslbZzxjDgbrFp1',
       'zGh7D5JfrFOkxhVJr79gtbzHPVC3',
-      'E4EqTVTsEdfLI4rLEkMPHjeyxeJ2' // Added active tactical UID
+      'E4EqTVTsEdfLI4rLEkMPHjeyxeJ2'
     ];
     return userProfile?.email === 'thisearlyseason@gmail.com' || superAdminUids.includes(firebaseUser.uid);
   }, [userProfile?.email, firebaseUser?.uid]);

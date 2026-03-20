@@ -13,92 +13,90 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- USER PROFILES ---
+    // Super Admin list for platform oversight and demo stability
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == '3Dybqi6vkHNUQQM66jiEZWfmwsW2' ||
+        request.auth.uid == 'wnvOuvwmoUhS5U4kdaBrZz7tGbF3' ||
+        request.auth.uid == 'PtT54iDDtUML1wslbZzxjDgbrFp1' ||
+        request.auth.uid == 'zGh7D5JfrFOkxhVJr79gtbzHPVC3' ||
+        request.auth.uid == 'E4EqTVTsEdfLI4rLEkMPHjeyxeJ2'
+      );
+    }
+
+    // --- COLLECTION GROUP SUPPORT ---
+    // Essential for provable hierarchy listing across organization sectors
+    
+    match /{allPaths=**}/registrationEntries/{entryId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /{allPaths=**}/members/{memberId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /{allPaths=**}/events/{eventId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /{allPaths=**}/incidents/{incidentId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /{allPaths=**}/signatures/{sigId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // --- TOP LEVEL COLLECTIONS ---
+
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
-      
-      // Explicit match for subcollections like teamMemberships
+      allow read, write: if isOwner(userId) || isSuperAdmin();
       match /{allPaths=**} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId) || isSuperAdmin();
       }
     }
 
-    // --- PLAYER PROFILES ---
-    // Authorized for all signed-in users to support recruiting search and team coordination
     match /players/{playerId} {
       allow read, write: if isSignedIn();
-      
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
-    // --- LEAGUES ---
-    // Explicitly flat hierarchy to satisfy Firestore List Proving requirements
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
-      
-      match /registration/{configId} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /registrationEntries/{entryId} {
-        allow read, write: if isSignedIn();
-      }
-
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
-    // --- TEAMS ---
     match /teams/{teamId} {
       allow read, write: if isSignedIn();
-      
-      match /members/{memberId} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /events/{eventId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /groupChats/{chatId} {
-        allow read, write: if isSignedIn();
-        match /messages/{messageId} {
-          allow read, write: if isSignedIn();
-        }
-      }
-
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
-    // --- FACILITIES & VENUES ---
     match /facilities/{facilityId} {
       allow read, write: if isSignedIn();
-      
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
-    // --- GLOBAL CATALOG & CONFIG ---
-    // Publicly readable for pricing and capability matrix initialization
     match /plans/{planId} {
       allow read: if true;
-      allow write: if isSignedIn();
-    }
-    match /features/{featureId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isSuperAdmin();
     }
 
-    // --- SUBSCRIPTIONS ---
+    match /features/{featureId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
     match /subscriptions/{userId} {
-      allow read: if isOwner(userId);
-      allow write: if isSignedIn();
+      allow read: if isOwner(userId) || isSuperAdmin();
+      allow write: if isSuperAdmin();
     }
   }
 }
