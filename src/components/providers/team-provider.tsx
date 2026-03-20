@@ -591,20 +591,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
 
-  // TACTICAL MEMO: Refined staff authority detection logic for robust UI provisioning
+  const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
+
   const isStaff = useMemo(() => {
     if (!firebaseUser) return false;
-    // 1. Check Global Authority (Role is 'coach' or 'admin')
+    if (isSuperAdmin) return true;
     if (userProfile?.role === 'coach' || userProfile?.role === 'admin') return true; 
-    // 2. Check Contextual Authority (Active Team role is 'Admin')
     if (activeTeam?.role === 'Admin') return true;
-    // 3. Check Position Eligibility within the current roster
     const currentMember = members.find(m => m.userId === firebaseUser.uid);
     const staffPositions = ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Squad Leader', 'Coach Guest'];
     return staffPositions.includes(currentMember?.position || '');
-  }, [activeTeam, firebaseUser, members, userProfile]);
+  }, [activeTeam, firebaseUser, members, userProfile, isSuperAdmin]);
 
-  const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
   const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || '') || isSuperAdmin, [userProfile?.activePlanId, isSuperAdmin]);
 
   const proQuotaStatus = useMemo(() => {
@@ -613,6 +611,11 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const limit = userProfile.proTeamLimit || 0;
     return { current: ownedProTeams.length, limit, exceeded: ownedProTeams.length > limit && limit > 0, remaining: Math.max(0, limit - ownedProTeams.length) };
   }, [teamsRaw, userProfile]);
+
+  const isPro = useMemo(() => {
+    if (isSuperAdmin) return true;
+    return activeTeam?.isPro || userProfile?.activePlanId === 'squad_pro' || false;
+  }, [activeTeam, userProfile, isSuperAdmin]);
 
   const hasFeature = useCallback((featureId: string) => {
     if (isSuperAdmin) return true;
@@ -716,7 +719,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const lid = `league_${Date.now()}`; 
     const batch = writeBatch(db); 
     
-    // Auto-enroll organizer team
     batch.set(doc(db, 'leagues', lid), clean({ 
       id: lid, 
       name, 
@@ -772,7 +774,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       });
     }
     await batch.commit();
-    toast({ title: "Squad Excised", description: "Team removed from league standalone standings." });
+    toast({ title: "Squad Excised", description: "Team removed from league standings." });
   }, [db]);
 
   const inviteTeamToLeague = useCallback(async (lId: string, lN: string, e: string, tN?: string) => { if (db) await addDoc(collection(db, 'leagues', 'global', 'invites'), clean({ leagueId: lId, leagueName: lN, invitedEmail: e, teamName: tN, status: 'pending', createdAt: new Date().toISOString() })); }, [db]);
@@ -782,8 +784,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   const submitRegistrationEntry = useCallback(async (tId: string, pId: string, a: any, v: number, signature?: string, targetType?: any) => { 
     if (!db) return; 
-    
-    // Auto-confirm logic for team signups if requested
     const entryData: any = { 
       league_id: tId, 
       protocol_id: pId, 
@@ -793,26 +793,15 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       status: 'pending', 
       created_at: new Date().toISOString() 
     };
-
-    // If it's a team protocol and organizer is manual adding, confirm immediately
     if (pId === 'team_config' && a.manual_enrollment) {
       entryData.status = 'accepted';
     }
-
     const ref = await addDoc(collection(db, targetType || 'leagues', tId, 'registrationEntries'), clean(entryData)); 
-
-    // If it's a team signup and auto-enroll is on, add to standings immediately
     if (pId === 'team_config') {
       const teamName = a.teamName || a.name;
       if (teamName) {
         await updateDoc(doc(db, 'leagues', tId), {
-          [`teams.recruit_${ref.id}`]: {
-            teamName,
-            coachName: a.name || 'Recruit Coach',
-            coachEmail: a.email,
-            wins: 0, losses: 0, ties: 0, points: 0,
-            status: entryData.status
-          },
+          [`teams.recruit_${ref.id}`]: { teamName, coachName: a.name || 'Recruit Coach', coachEmail: a.email, wins: 0, losses: 0, ties: 0, points: 0, status: entryData.status },
           memberTeamIds: arrayUnion(`recruit_${ref.id}`)
         });
       }
@@ -876,7 +865,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const resolveQuota = useCallback(async (selectedTeamIds: string[]) => { if (!db || !userProfile?.id) return; const batch = writeBatch(db); const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro); ownedProTeams.forEach(t => { if (!selectedTeamIds.includes(t.id)) { batch.update(doc(db, 'teams', t.id), { isPro: false, planId: 'starter_squad' }); } }); await batch.commit(); }, [db, userProfile, teamsRaw]);
   const exportAttendanceCSV = useCallback(async (eventId: string) => { if (!db || !activeTeam?.id) return; const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'events', eventId)); if (!snap.exists()) return; const rsvps = snap.data().userRsvps || {}; const rows = [["Name", "Status"]]; members.forEach(m => { rows.push([m.name, rsvps[m.userId] || 'no_response']); }); const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `attendance_${eventId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam, members]);
-  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam]);
+  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam]);
 
   const addRegistration = useCallback(async (teamId: string, eventId: string, data: any) => { if (db) { await addDoc(collection(db, 'teams', teamId, 'events', eventId, 'registrations'), clean(data)); return true; } return false; }, [db]);
   const manageSubscription = useCallback(async () => { setIsPaywallOpen(true); }, []);
@@ -887,7 +876,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const contextValue = useMemo(() => ({
     db, user: userProfile, activeTeam, setActiveTeam: (t: Team) => setManualActiveTeamId(t.id), teams: teamsRaw, isTeamsLoading, members, isMembersLoading,
     currentMember: members.find(m => m.userId === firebaseUser?.uid) || null,
-    isStaff, isPro: activeTeam?.isPro || false, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
+    isStaff, isPro, isParent: userProfile?.role === 'parent', isPlayer: userProfile?.role === 'adult_player',
     isSuperAdmin, isClubManager, householdEvents: householdEvents || [], householdBalance: 0, myChildren, plans, isPlansLoading, proQuotaStatus,
     isPaywallOpen, setIsPaywallOpen, purchasePro,
     hasFeature, alerts, unreadAlertsCount,
@@ -914,7 +903,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     isRCInitialized: true, addRegistration, addLeaguePayment, updateLeagueGlobalFees
   }), [
     db, userProfile, activeTeam, teamsRaw, isTeamsLoading, members, isMembersLoading, firebaseUser,
-    isStaff, householdEvents, myChildren, plans, isPlansLoading, isPaywallOpen, isSeedingDemo,
+    isStaff, isPro, householdEvents, myChildren, plans, isPlansLoading, isPaywallOpen, isSeedingDemo,
     seenAlertIds, alerts, unreadAlertsCount, isSuperAdmin, isClubManager, hasFeature, proQuotaStatus,
     getRecruitingProfile, updateRecruitingProfile, getAthleticMetrics, updateAthleticMetrics,
     getPlayerStats, addPlayerStat, deletePlayerStat, getEvaluations, addEvaluation,
