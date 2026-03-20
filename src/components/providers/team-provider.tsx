@@ -278,16 +278,6 @@ export type League = {
   inviteCode?: string;
 };
 
-export type LeagueInvite = {
-  id: string;
-  leagueId: string;
-  leagueName: string;
-  invitedEmail: string;
-  teamName?: string;
-  status: 'pending' | 'accepted' | 'declined';
-  createdAt: string;
-};
-
 export type Facility = {
   id: string;
   name: string;

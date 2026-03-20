@@ -43,7 +43,8 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription, 
-  DialogFooter
+  DialogFooter,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
@@ -82,6 +83,7 @@ export default function LeagueRegistrationAdminPage() {
 
   const entriesQuery = useMemoFirebase(() => {
     if (!db || !leagueId || !isAuthResolved) return null;
+    // Explicitly scope the query to avoid permission proving ambiguities
     return query(
       collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
       where('protocol_id', '==', configId),
@@ -204,7 +206,7 @@ export default function LeagueRegistrationAdminPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.push('/leagues')} className="rounded-full h-10 w-10"><ChevronLeft className="h-5 w-5" /></Button>
           <div className="space-y-1">
-            <Badge className="bg-primary text-white border-none font-black uppercase text-[9px] h-6 px-3 shadow-lg">Recruitment Hub</Badge>
+            <Badge className="bg-primary text-white border-none font-black uppercase text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Recruitment Hub</Badge>
             <h1 className="text-3xl font-black uppercase tracking-tight">Recruit Pool</h1>
           </div>
         </div>
@@ -399,7 +401,7 @@ export default function LeagueRegistrationAdminPage() {
             <Card className="rounded-[2.5rem] border-none shadow-xl bg-black text-white overflow-hidden relative group">
               <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700"><Share2 className="h-48 w-48" /></div>
               <CardContent className="p-8 lg:p-10 space-y-8 relative z-10">
-                <Badge className="bg-primary text-white border-none font-black uppercase text-[9px] h-6 px-3 shadow-lg">Public Deployment</Badge>
+                <Badge className="bg-primary text-white border-none font-black uppercase text-[9px] h-6 px-3 shadow-lg shadow-primary/20">Public Deployment</Badge>
                 <h3 className="text-3xl font-black tracking-tighter uppercase leading-[0.9]">Recruitment Portal</h3>
                 <div className="bg-white/10 p-6 rounded-[2rem] border border-white/5 space-y-4">
                   <p className="text-xs font-mono font-bold truncate opacity-80">/register/league/{leagueId}</p>
