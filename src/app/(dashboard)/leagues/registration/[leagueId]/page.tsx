@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationEntry, RegistrationFormField } from '@/components/providers/team-provider';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { doc, collection, query, orderBy, where } from 'firebase/firestore';
@@ -78,7 +78,7 @@ export default function LeagueRegistrationAdminPage() {
 
   const configId = pipelineType === 'player' ? 'player_config' : 'team_config';
   
-  // TACTICAL MEMO: Refined identity-aware reference to satisfy rules engine
+  // TACTICAL MEMO: Stabilized reference for List Proving compliance
   const configRef = useMemoFirebase(() => {
     if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
     return doc(db, 'leagues', leagueId as string, 'registration', configId);
@@ -88,7 +88,6 @@ export default function LeagueRegistrationAdminPage() {
 
   const entriesQuery = useMemoFirebase(() => {
     if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
-    // TACTICAL FIX: Satisfy List Proving with explicit collection reference
     return query(
       collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
       where('protocol_id', '==', configId),
@@ -189,7 +188,7 @@ export default function LeagueRegistrationAdminPage() {
 
   if (!canRegister) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4">
+      <div className="flex flex-col items-center justify-center py-20 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4 text-foreground">
         <div className="relative">
           <div className="bg-primary/10 p-8 rounded-[3rem] shadow-2xl">
             <ClipboardList className="h-20 w-20 text-primary" />
@@ -199,7 +198,7 @@ export default function LeagueRegistrationAdminPage() {
           </div>
         </div>
         <div className="text-center max-w-md space-y-4">
-          <h1 className="text-4xl font-black uppercase tracking-tight text-foreground">Registration Hub Locked</h1>
+          <h1 className="text-4xl font-black uppercase tracking-tight">Registration Hub Locked</h1>
           <p className="text-muted-foreground font-bold leading-relaxed text-lg uppercase tracking-wide">
             Automated enrollment pipelines are reserved for <strong>Elite Pro</strong> squads.
           </p>
@@ -210,7 +209,7 @@ export default function LeagueRegistrationAdminPage() {
   }
 
   return (
-    <div className="space-y-8 pb-20 animate-in fade-in duration-700">
+    <div className="space-y-8 pb-20 animate-in fade-in duration-700 text-foreground">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.push('/leagues')} className="rounded-full h-10 w-10 text-foreground">
@@ -218,7 +217,7 @@ export default function LeagueRegistrationAdminPage() {
           </Button>
           <div className="space-y-1">
             <Badge className="bg-primary text-white border-none font-black uppercase text-[9px] h-6 px-3">Recruitment Engine</Badge>
-            <h1 className="text-3xl font-black uppercase tracking-tight text-foreground">Institutional Pipeline</h1>
+            <h1 className="text-3xl font-black uppercase tracking-tight">Institutional Pipeline</h1>
           </div>
         </div>
         
@@ -245,7 +244,7 @@ export default function LeagueRegistrationAdminPage() {
                 {pipelineType === 'player' ? <Users className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
               </div>
               <div>
-                <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{pipelineType === 'player' ? 'Roster Pool' : 'Squad Pool'}</h3>
+                <h3 className="text-xl font-black uppercase tracking-tight">{pipelineType === 'player' ? 'Roster Pool' : 'Squad Pool'}</h3>
                 <p className="text-[9px] font-bold text-muted-foreground uppercase">{(entries || []).length} Verified Applicants</p>
               </div>
             </div>
@@ -273,15 +272,15 @@ export default function LeagueRegistrationAdminPage() {
                       </DialogHeader>
                       <div className="space-y-5">
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Team Name</Label>
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
                           <Input placeholder="e.g. Metro Tigers" value={manualForm.teamName} onChange={e => setManualForm({...manualForm, teamName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Coach Name</Label>
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Name</Label>
                           <Input placeholder="John Smith" value={manualForm.coachName} onChange={e => setManualForm({...manualForm, coachName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Contact Email</Label>
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label>
                           <Input type="email" placeholder="coach@team.com" value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
                         </div>
                       </div>
@@ -324,7 +323,7 @@ export default function LeagueRegistrationAdminPage() {
                                 {pipelineType === 'player' ? <UserCheck className="h-5 w-5 text-primary" /> : <ShieldCheck className="h-5 w-5 text-primary" />}
                               </div>
                               <div className="min-w-0">
-                                <p className="font-black text-sm uppercase tracking-tight truncate text-foreground">
+                                <p className="font-black text-sm uppercase tracking-tight truncate">
                                   {entry.answers?.teamName || entry.answers?.name || entry.answers?.fullName || 'Untitled Entry'}
                                 </p>
                                 <p className="text-[10px] font-bold text-muted-foreground truncate">{entry.answers?.email || 'No Email'}</p>
@@ -361,12 +360,12 @@ export default function LeagueRegistrationAdminPage() {
                                     <UserPlus className="h-4 w-4" />
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-2xl bg-white text-foreground">
+                                <DialogContent className="rounded-3xl border-none shadow-2xl p-8 max-w-2xl bg-white">
                                   <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Recruit Intelligence</DialogTitle></DialogHeader>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
                                     <div className="space-y-4">
                                       <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Detailed Specs</p>
-                                      <ScrollArea className="h-[300px] pr-4 border-2 rounded-2xl p-4 bg-muted/10 text-foreground">
+                                      <ScrollArea className="h-[300px] pr-4 border-2 rounded-2xl p-4 bg-muted/10">
                                         <div className="space-y-4">
                                           {Object.entries(entry.answers || {}).map(([key, val]) => (
                                             <div key={key} className="space-y-1">
@@ -379,15 +378,15 @@ export default function LeagueRegistrationAdminPage() {
                                     </div>
                                     <div className="space-y-6">
                                       <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Dispatch to Squad</Label>
+                                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Dispatch to Squad</Label>
                                         <Select 
                                           value={entry.assigned_team_id || 'unassigned'} 
                                           onValueChange={(tid) => assignEntryToTeam(leagueId as string, entry.id, tid === 'unassigned' ? null : tid)}
                                         >
-                                          <SelectTrigger className="h-14 rounded-xl border-2 font-black text-foreground">
+                                          <SelectTrigger className="h-14 rounded-xl border-2 font-black">
                                             <SelectValue placeholder="Select team..." />
                                           </SelectTrigger>
-                                          <SelectContent className="rounded-xl text-foreground">
+                                          <SelectContent className="rounded-xl">
                                             <SelectItem value="unassigned">Unassigned Pool</SelectItem>
                                             {activeTeam?.leagueIds && Object.keys(activeTeam.leagueIds).map(id => (
                                               <SelectItem key={id} value={id}>Squad {id.slice(-6)}</SelectItem>
@@ -419,7 +418,7 @@ export default function LeagueRegistrationAdminPage() {
                       ))}
                       {filteredEntries.length === 0 && !isEntriesLoading && (
                         <tr>
-                          <td colSpan={pipelineType === 'player' ? 4 : 3} className="py-20 text-center opacity-30 italic text-xs uppercase font-black text-foreground">
+                          <td colSpan={pipelineType === 'player' ? 4 : 3} className="py-20 text-center opacity-30 italic text-xs uppercase font-black">
                             No active applicants in this sector.
                           </td>
                         </tr>
@@ -433,7 +432,7 @@ export default function LeagueRegistrationAdminPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8 text-foreground">
+          <div className="lg:col-span-2 space-y-8">
             <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
               <CardHeader className="bg-primary/5 border-b p-8 flex flex-row items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -476,15 +475,15 @@ export default function LeagueRegistrationAdminPage() {
                   <DialogTrigger asChild>
                     <Button variant="secondary" className="rounded-full h-10 px-6 font-black uppercase text-[10px]"><Plus className="h-4 w-4 mr-2" /> Add Spec</Button>
                   </DialogTrigger>
-                  <DialogContent className="rounded-3xl border-none shadow-2xl p-8 bg-white text-foreground">
+                  <DialogContent className="rounded-3xl border-none shadow-2xl p-8 bg-white">
                     <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">New Data Spec</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2"><Label className="text-[10px] uppercase font-black ml-1">Field Label</Label><Input value={editingField?.label || ''} onChange={e => setEditingField({ ...editingField, label: e.target.value })} className="h-12 rounded-xl border-2 font-bold" /></div>
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-black ml-1">Input Protocol</Label>
                         <Select value={editingField?.type} onValueChange={(v: any) => setEditingField({ ...editingField, type: v })}>
-                          <SelectTrigger className="h-12 rounded-xl border-2 font-bold text-foreground"><SelectValue /></SelectTrigger>
-                          <SelectContent className="rounded-xl text-foreground">
+                          <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                          <SelectContent className="rounded-xl">
                             <SelectItem value="short_text" className="font-bold">Short Text</SelectItem>
                             <SelectItem value="long_text" className="font-bold">Long Text</SelectItem>
                             <SelectItem value="dropdown" className="font-bold">Dropdown</SelectItem>
@@ -546,7 +545,7 @@ export default function LeagueRegistrationAdminPage() {
             <div className="bg-muted/30 p-8 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20 space-y-4">
               <div className="flex items-center gap-3">
                 <Info className="h-5 w-5 text-primary" />
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Operational Memo</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Operational Memo</h4>
               </div>
               <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">
                 All applicants are stored in the recruitment pool until assigned to a participating squad by an authorized coordinator.
