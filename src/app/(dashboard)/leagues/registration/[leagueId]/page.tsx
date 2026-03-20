@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -42,7 +43,7 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogDescription, 
-  DialogFooter,
+  DialogFooter, 
   DialogClose
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,7 +55,7 @@ import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 export default function LeagueRegistrationAdminPage() {
   const { leagueId } = useParams();
   const router = useRouter();
-  const { isAuthResolved } = useUser();
+  const { isAuthResolved, user: authUser } = useUser();
   const { 
     saveLeagueRegistrationConfig, 
     assignEntryToTeam, 
@@ -81,14 +82,14 @@ export default function LeagueRegistrationAdminPage() {
   const { data: config, isLoading: isConfigLoading } = useDoc<LeagueRegistrationConfig>(configRef);
 
   const entriesQuery = useMemoFirebase(() => {
-    if (!db || !leagueId || !isAuthResolved) return null;
+    if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
     // Explicitly scope the query by protocol_id to satisfy security rules Provable Hierarchy
     return query(
       collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
       where('protocol_id', '==', configId),
       orderBy('created_at', 'desc')
     );
-  }, [db, leagueId, configId, isAuthResolved]);
+  }, [db, leagueId, configId, isAuthResolved, authUser?.uid]);
 
   const { data: entries, isLoading: isEntriesLoading } = useCollection<RegistrationEntry>(entriesQuery);
 
@@ -354,7 +355,7 @@ export default function LeagueRegistrationAdminPage() {
               <CardContent className="p-8 lg:p-10 space-y-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Protocol Headline</Label><Input value={localConfig?.title || ''} onChange={e => handleUpdateConfig({ title: e.target.value })} className="h-14 rounded-2xl border-2 font-black text-lg shadow-inner" /></div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Enrollment Fee ($)</Label><Input type="number" value={localConfig?.registration_cost || '0'} onChange={e => handleUpdateConfig({ registration_cost: e.target.value })} className="h-14 rounded-2xl font-black border-2 text-xl shadow-inner text-primary" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Enrollment Fee ($)</Label><Input type="number" value={localConfig?.registration_cost || '0'} onChange={e => handleUpdateConfig({ registration_cost: e.target.value })} className="h-14 rounded-2xl border-2 font-black text-xl shadow-inner text-primary" /></div>
                 </div>
                 <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Brief</Label><Textarea value={localConfig?.description || ''} onChange={e => handleUpdateConfig({ description: e.target.value })} className="rounded-3xl min-h-[150px] border-2 font-medium p-6 bg-muted/10 focus:bg-white transition-all resize-none shadow-inner" placeholder="Define the recruitment scope..." /></div>
               </CardContent>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -580,17 +581,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
 
-  /**
-   * AUTHORITATIVE SUPER ADMIN RESOLUTION:
-   * Tactical identification of master command privileges.
-   */
   const isSuperAdmin = useMemo(() => {
     if (!firebaseUser?.uid) return false;
     const superAdminUids = [
       '3Dybqi6vkHNUQQM66jiEZWfmwsW2',
       'wnvOuvwmoUhS5U4kdaBrZz7tGbF3',
       'PtT54iDDtUML1wslbZzxjDgbrFp1',
-      'zGh7D5JfrFOkxhVJr79gtbzHPVC3'
+      'zGh7D5JfrFOkxhVJr79gtbzHPVC3',
+      'E4EqTVTsEdfLI4rLEkMPHjeyxeJ2' // Added active tactical UID
     ];
     return userProfile?.email === 'thisearlyseason@gmail.com' || superAdminUids.includes(firebaseUser.uid);
   }, [userProfile?.email, firebaseUser?.uid]);
@@ -598,14 +596,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isStaff = useMemo(() => {
     if (!firebaseUser) return false;
     if (isSuperAdmin) return true;
-    
-    // Check global role from profile
     if (userProfile?.role === 'coach' || userProfile?.role === 'admin') return true; 
-    
-    // Check contextual team role
     if (activeTeam?.role === 'Admin') return true;
-    
-    // Check roster position
     const currentMember = members.find(m => m.userId === firebaseUser.uid);
     const staffPositions = ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Squad Leader', 'Coach Guest'];
     return staffPositions.includes(currentMember?.position || '');

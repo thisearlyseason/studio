@@ -5,20 +5,26 @@ service cloud.firestore {
 
     // Helper function to check if a user is signed in.
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Helper to check if the user is accessing their own data.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // --- USER PROFILES ---
     match /users/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
       
+      // Explicit match for subcollections like teamMemberships
       match /{allPaths=**} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
 
     // --- PLAYER PROFILES ---
-    // Top-level match for provable collection listing
+    // Authorized for all signed-in users to support recruiting search and team coordination
     match /players/{playerId} {
       allow read, write: if isSignedIn();
       
@@ -28,9 +34,18 @@ service cloud.firestore {
     }
 
     // --- LEAGUES ---
+    // Explicitly flat hierarchy to satisfy Firestore List Proving requirements
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
       
+      match /registration/{configId} {
+        allow read, write: if isSignedIn();
+      }
+      
+      match /registrationEntries/{entryId} {
+        allow read, write: if isSignedIn();
+      }
+
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -40,6 +55,21 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read, write: if isSignedIn();
       
+      match /members/{memberId} {
+        allow read, write: if isSignedIn();
+      }
+      
+      match /events/{eventId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /groupChats/{chatId} {
+        allow read, write: if isSignedIn();
+        match /messages/{messageId} {
+          allow read, write: if isSignedIn();
+        }
+      }
+
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -55,7 +85,7 @@ service cloud.firestore {
     }
 
     // --- GLOBAL CATALOG & CONFIG ---
-    // Plans and features are publicly readable for pricing and initialization.
+    // Publicly readable for pricing and capability matrix initialization
     match /plans/{planId} {
       allow read: if true;
       allow write: if isSignedIn();
@@ -67,7 +97,7 @@ service cloud.firestore {
 
     // --- SUBSCRIPTIONS ---
     match /subscriptions/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isOwner(userId);
       allow write: if isSignedIn();
     }
   }
