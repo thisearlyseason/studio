@@ -23,17 +23,16 @@ service cloud.firestore {
     // --- GLOBAL CATALOG ---
     // Publicly readable for pricing and feature selection
     match /plans/{planId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
     
     match /features/{featureId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
 
     // --- LEAGUES HIERARCHY ---
-    // Explicit matches to satisfy 'List Proving' for collection queries
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn(); 
       

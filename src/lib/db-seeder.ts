@@ -89,17 +89,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     avatarUrl: `https://picsum.photos/seed/${userId}/150/150`
   }), { merge: true });
 
-  // 2. Global Catalog (Crucial for permissions)
-  const plans = [
-    { id: 'starter_squad', name: 'Starter Squad', features: { live_feed_read: true, basic_scheduling: true } },
-    { id: 'squad_pro', name: 'Squad Pro', features: { live_feed_read: true, live_feed_post: true, stats_basic: true, scouting_ai: true, equipment_vault: true, facility_fleet: true } },
-    { id: 'elite_teams', name: 'Elite Teams', features: { club_hub: true, league_registration: true, equipment_vault: true, facility_fleet: true, scouting_ai: true, live_feed_post: true, live_feed_read: true } }
-  ];
-  plans.forEach(p => batch.set(doc(db, 'plans', p.id), p, { merge: true }));
-
   const teamId = `demo_${planId}_${userId.slice(-4)}`;
   
-  // 3. Team Hub
+  // 2. Team Hub
   batch.set(doc(db, 'teams', teamId), clean({
     id: teamId, teamName: isProTier ? 'Elite Demo Squad' : 'Grassroots Demo', teamCode: teamId.slice(-6).toUpperCase(),
     ownerUserId: userId, isPro: isProTier, planId: actualPlanId, sport: 'Multi-Sport', isDemo: true,
