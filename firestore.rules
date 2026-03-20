@@ -13,90 +13,33 @@ service cloud.firestore {
     }
 
     // --- INSTITUTIONAL HIERARCHY ---
-    // Explicit matches for subcollections ensure that 'list' operations can be 
-    // statically proved by the rules engine, preventing 403 errors.
+    // We use recursive wildcards within hierarchies to satisfy Firestore's 
+    // 'List Proving' mechanism, ensuring subcollection queries are statically authorized.
 
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
-      
-      // Explicit subcollection matching for List Proving
-      match /registration/{configId} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /registrationEntries/{entryId} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /payments/{paymentId} {
+      match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
     match /teams/{teamId} {
       allow read, write: if isSignedIn();
-
-      match /members/{memberId} {
+      match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
+    }
 
-      match /events/{eventId} {
+    match /players/{playerId} {
+      allow read, write: if isSignedIn();
+      match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
+    }
 
-      match /feedPosts/{postId} {
-        allow read, write: if isSignedIn();
-        
-        match /comments/{commentId} {
-          allow read, write: if isSignedIn();
-        }
-      }
-
-      match /groupChats/{chatId} {
-        allow read, write: if isSignedIn();
-        
-        match /messages/{messageId} {
-          allow read, write: if isSignedIn();
-        }
-        
-        match /polls/{pollId} {
-          allow read, write: if isSignedIn();
-        }
-      }
-
-      match /equipment/{itemId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /incidents/{incidentId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /volunteers/{oppId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /fundraising/{fundId} {
-        allow read, write: if isSignedIn();
-        
-        match /donations/{donId} {
-          allow read, write: if isSignedIn();
-        }
-      }
-
-      match /drills/{drillId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /files/{fileId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /games/{gameId} {
-        allow read, write: if isSignedIn();
-      }
-      
-      match /documents/{docId} {
+    match /facilities/{facilityId} {
+      allow read, write: if isSignedIn();
+      match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
@@ -105,12 +48,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read, write: if isOwner(userId);
-
-      match /teamMemberships/{membershipId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /hiddenChats/{chatId} {
+      match /{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
     }
@@ -119,29 +57,7 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    match /players/{playerId} {
-      allow read, write: if isSignedIn();
-
-      match /evaluations/{evalId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /videos/{videoId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /recruitingProfile/{docId} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /facilities/{facilityId} {
-      allow read, write: if isSignedIn();
-
-      match /fields/{fieldId} {
-        allow read, write: if isSignedIn();
-      }
-    }
+    // --- STATIC CATALOGS ---
 
     match /plans/{planId} {
       allow read: if true;
@@ -152,7 +68,7 @@ service cloud.firestore {
     }
 
     // --- COLLECTION GROUP ACCESS ---
-    // Specifically authorized for Master Intelligence queries in the Club/Family hubs
+    // Authorized for Master Intelligence queries in the Club/Family hubs
     
     match /{path=**}/registrationEntries/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/signatures/{id} { allow read, write: if isSignedIn(); }
@@ -162,6 +78,7 @@ service cloud.firestore {
     match /{path=**}/feedPosts/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/groupChats/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/teamMemberships/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/incidents/{id} { allow read, write: if isSignedIn(); }
 
     // --- GLOBAL DEFAULT DENY ---
     match /{path=**} {

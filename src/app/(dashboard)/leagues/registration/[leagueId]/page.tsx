@@ -77,7 +77,6 @@ export default function LeagueRegistrationAdminPage() {
 
   const configId = pipelineType === 'player' ? 'player_config' : 'team_config';
   
-  // Hardened Memoized References
   const configRef = useMemoFirebase(() => {
     if (!db || !leagueId || !isAuthResolved) return null;
     return doc(db, 'leagues', leagueId as string, 'registration', configId);
