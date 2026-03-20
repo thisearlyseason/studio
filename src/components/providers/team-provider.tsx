@@ -531,7 +531,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!firebaseUser || !db) { setUserProfile(null); return; }
-    // TACTICAL GUARD: Correctly map users vs userProfiles collection based on backend IR
     const userRef = doc(db, 'users', firebaseUser.uid);
     return onSnapshot(userRef, (snap) => {
       if (snap.exists()) {
