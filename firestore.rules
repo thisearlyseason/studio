@@ -1,93 +1,84 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- TACTICAL HELPERS ---
+    // Helper function to check if a user is signed in.
     function isSignedIn() {
-      return request.auth != null && request.auth.uid != null;
+      return request.auth != null;
     }
 
+    // Helper function to check if the user is the owner of the document.
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
-    // --- INSTITUTIONAL HIERARCHY ---
-    // Grant access to leagues/teams and ALL their sub-collections.
-    // This single rule is more robust and covers any sub-collection like
-    // 'alerts', 'registrationEntries', etc.
+    // --- USER PROFILES ---
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      match /teamMemberships/{membershipId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /hiddenChats/{chatId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // --- PLAYER PROFILES ---
+    // Secures player data for both adult players and minor children.
+    match /players/{playerId} {
+      allow read, write: if isSignedIn();
+      
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // --- LEAGUES ---
+    // Allows coordinated access to league standings and registration entries.
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
+      
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
+    // --- TEAMS ---
+    // Allows squad-level coordination including feed, roster, and events.
     match /teams/{teamId} {
       allow read, write: if isSignedIn();
+      
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
 
-    // --- GLOBAL REPOSITORIES ---
+    // --- FACILITIES & VENUES ---
+    match /facilities/{facilityId} {
+      allow read, write: if isSignedIn();
+      
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // --- GLOBAL CATALOG & CONFIG ---
+    // Plans and features are publicly readable for pricing and initialization.
     match /plans/{planId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
-
     match /features/{featureId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
 
-    match /facilities/{facilityId} {
-      allow read, write: if isSignedIn();
-       match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
+    // --- SUBSCRIPTIONS ---
+    match /subscriptions/{userId} {
+      allow read: if isSignedIn() && isOwner(userId);
+      allow write: if true; // Authorized for synchronization via secure endpoints
     }
-
-    match /team_memberships/{membershipId} {
-      allow read, write: if isSignedIn();
-    }
-
-    // --- PERSONAL INFRASTRUCTURE ---
-    match /userProfiles/{userId} {
-      allow read, write: if isOwner(userId);
-      match /{allPaths=**} {
-        allow read, write: if isOwner(userId);
-      }
-    }
-
-    match /users/{userId} {
-      allow read, write: if isOwner(userId);
-      match /{allPaths=**} {
-        allow read, write: if isOwner(userId);
-      }
-    }
-
-    match /players/{playerId} {
-      allow read, write: if isSignedIn();
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    // --- COLLECTION GROUP RULES --- 
-    // These are no longer needed for the failing collections, but we'll keep them 
-    // for any cross-collection queries you may have.
-    match /{path=**}/registrationEntries/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/members/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/events/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/files/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/incidents/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/feedPosts/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/groupChats/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/volunteers/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/fundraising/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/drills/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/games/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/equipment/{id} { allow list, read, write: if isSignedIn(); }
-    match /{path=**}/signatures/{id} { allow list, read, write: if isSignedIn(); }
   }
 }

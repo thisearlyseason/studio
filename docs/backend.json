@@ -2,142 +2,83 @@
 {
   "entities": {
     "UserProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "A user's profile information within the SquadForge application, including personal details and preferences.",
+      "description": "User's core identity and global role.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity."
-        },
-        "fullName": {
-          "type": "string",
-          "description": "The full name of the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "The user's optional phone number."
-        },
-        "avatarUrl": {
-          "type": "string",
-          "description": "URL to the user's optional avatar image.",
-          "format": "uri"
-        },
-        "role": {
-          "type": "string",
-          "enum": ["parent", "adult_player", "coach", "admin"],
-          "description": "The primary role of the user in the system."
-        },
-        "notificationsEnabled": {
-          "type": "boolean",
-          "description": "Indicates if the user has globally enabled push notifications."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user profile was created.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "fullName",
-        "email",
-        "notificationsEnabled",
-        "createdAt"
-      ]
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["parent", "adult_player", "coach", "admin"] },
+        "activePlanId": { "type": "string" },
+        "proTeamLimit": { "type": "number" }
+      }
+    },
+    "PlayerProfile": {
+      "title": "PlayerProfile",
+      "type": "object",
+      "description": "Athletic profile for minors or adults, used for recruitment and roster compliance.",
+      "properties": {
+        "id": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "dateOfBirth": { "type": "string" },
+        "parentId": { "type": "string" },
+        "userId": { "type": "string" },
+        "isMinor": { "type": "boolean" },
+        "recruitingProfileEnabled": { "type": "boolean" }
+      }
     },
     "Team": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Team",
       "type": "object",
-      "description": "Represents a sports team within the SquadForge application, managed by users.",
+      "description": "A squad coordination unit.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Team entity."
-        },
-        "teamName": {
-          "type": "string",
-          "description": "The name of the team."
-        },
-        "sport": {
-          "type": "string",
-          "description": "The sport associated with the team."
-        },
-        "teamLogoUrl": {
-          "type": "string",
-          "description": "URL to the team's optional logo image.",
-          "format": "uri"
-        },
-        "teamCode": {
-          "type": "string",
-          "description": "A unique 6-character alphanumeric code used for joining the team."
-        },
-        "createdBy": {
-          "type": "string",
-          "description": "Reference to the UserProfile ID of the user who created this team."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the team was created.",
-          "format": "date-time"
-        },
-        "isPro": {
-          "type": "boolean",
-          "description": "Whether the team is on a Pro subscription tier."
-        }
-      },
-      "required": [
-        "id",
-        "teamName",
-        "teamCode",
-        "createdBy",
-        "createdAt"
-      ]
+        "id": { "type": "string" },
+        "teamName": { "type": "string" },
+        "teamCode": { "type": "string" },
+        "sport": { "type": "string" },
+        "isPro": { "type": "boolean" },
+        "ownerUserId": { "type": "string" }
+      }
+    },
+    "RegistrationEntry": {
+      "title": "RegistrationEntry",
+      "type": "object",
+      "description": "A recruitment application for a league or team.",
+      "properties": {
+        "id": { "type": "string" },
+        "league_id": { "type": "string" },
+        "protocol_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "assigned", "accepted", "declined"] },
+        "answers": { "type": "object" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores user's private profile information. Document ID matches UID."
-        }
-      },
-      {
-        "path": "/leagues/{leagueId}",
-        "definition": {
-          "entityName": "League",
-          "description": "League management hierarchy."
-        }
-      },
-      {
-        "path": "/teams/{teamId}",
-        "definition": {
-          "entityName": "Team",
-          "schema": {
-            "$ref": "#/backend/entities/Team"
-          },
-          "description": "Core team documents."
-        }
-      }
-    ],
-    "reasoning": "Standardized on /users hierarchy to match existing implementation and ensure provable security rules for both live and demo accounts."
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Global user data."
+    },
+    "/players/{playerId}": {
+      "schema": { "$ref": "#/entities/PlayerProfile" },
+      "description": "Athletic portfolios."
+    },
+    "/teams/{teamId}": {
+      "schema": { "$ref": "#/entities/Team" },
+      "description": "Squad data and subcollections."
+    },
+    "/leagues/{leagueId}": {
+      "description": "League management and registration entries."
+    },
+    "/plans": {
+      "description": "Subscription tier definitions."
+    },
+    "/subscriptions/{userId}": {
+      "description": "Active entitlements from RevenueCat."
+    }
   }
 }
