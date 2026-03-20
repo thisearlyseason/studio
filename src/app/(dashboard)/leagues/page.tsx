@@ -49,7 +49,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateLeagueSchedule } from '@/lib/scheduler-utils';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { useTeam, League, TournamentGame, Field, Facility } from '@/components/providers/team-provider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -345,6 +345,20 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
     toast({ title: "Result Persisted" });
   };
 
+  /**
+   * Helper to detect if a specific game is part of a double header for a specific team on its day.
+   */
+  const getDoubleHeaderLabel = (game: TournamentGame) => {
+    const gamesOnDay = gamesByDay[game.date] || [];
+    const t1Games = gamesOnDay.filter(g => g.team1 === game.team1 || g.team2 === game.team1);
+    const t2Games = gamesOnDay.filter(g => g.team1 === game.team2 || g.team2 === game.team2);
+    
+    if (t1Games.length > 1 || t2Games.length > 1) {
+      return "DOUBLE HEADER";
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between px-2">
@@ -369,30 +383,39 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-muted/50">
-                  {schedule.map(game => (
-                    <tr key={game.id} className="hover:bg-muted/5 transition-colors group">
-                      <td className="px-8 py-6"><p className="font-black text-xs uppercase">{game.date}</p><p className="text-[10px] font-bold text-muted-foreground">{game.time}</p></td>
-                      <td className="px-4 py-6 font-bold text-xs uppercase text-muted-foreground">{game.location || 'TBD'}</td>
-                      <td className="px-4 py-6">
-                        <div className="flex items-center gap-4">
-                          <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team1}</span>
-                          {game.isCompleted ? (
-                            <div className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded-lg">
-                              <span className="font-black text-xs text-primary">{game.score1} - {game.score2}</span>
-                            </div>
-                          ) : <span className="opacity-20 text-[10px] font-black">VS</span>}
-                          <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team2}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        {isStaff && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100" onClick={() => { setEditingGame(game); setScoreForm({ s1: game.score1.toString(), s2: game.score2.toString() }); }}>
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {schedule.map(game => {
+                    const dhLabel = getDoubleHeaderLabel(game);
+                    return (
+                      <tr key={game.id} className="hover:bg-muted/5 transition-colors group">
+                        <td className="px-8 py-6">
+                          <p className="font-black text-xs uppercase">{game.date}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] font-bold text-muted-foreground">{game.time}</p>
+                            {dhLabel && <Badge className="bg-primary/10 text-primary border-none text-[7px] h-4 font-black">{dhLabel}</Badge>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-6 font-bold text-xs uppercase text-muted-foreground">{game.location || 'TBD'}</td>
+                        <td className="px-4 py-6">
+                          <div className="flex items-center gap-4">
+                            <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team1}</span>
+                            {game.isCompleted ? (
+                              <div className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded-lg">
+                                <span className="font-black text-xs text-primary">{game.score1} - {game.score2}</span>
+                              </div>
+                            ) : <span className="opacity-20 text-[10px] font-black">VS</span>}
+                            <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team2}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          {isStaff && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100" onClick={() => { setEditingGame(game); setScoreForm({ s1: game.score1.toString(), s2: game.score2.toString() }); }}>
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -428,7 +451,10 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
                       <span className="text-[10px] font-black uppercase text-primary">{game.time}</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-black text-lg uppercase truncate text-foreground">{game.team1} vs {game.team2}</p>
+                      <div className="flex items-center gap-3">
+                        <p className="font-black text-lg uppercase truncate text-foreground">{game.team1} vs {game.team2}</p>
+                        {getDoubleHeaderLabel(game) && <Badge className="bg-primary text-white border-none text-[8px] h-5 font-black uppercase">Double Header</Badge>}
+                      </div>
                       <div className="flex items-center gap-3 mt-1">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {game.location || 'Venue TBD'}</p>
                         {game.isCompleted && <Badge className="bg-black text-white border-none font-black text-[8px] h-5">FINAL: {game.score1}-{game.score2}</Badge>}

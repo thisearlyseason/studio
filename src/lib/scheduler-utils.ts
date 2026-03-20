@@ -177,8 +177,11 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
 
     if (foundMatchupIndex !== -1) {
       const { t1, t2 } = matchPool.splice(foundMatchupIndex, 1)[0];
+      // TACTICAL ID ENHANCEMENT: Use index and random component to ensure unique EIDs for calendar sync
+      const gameIdSuffix = `${Math.random().toString(36).substring(2, 7)}_${finalGames.length}`;
+      
       finalGames.push({
-        id: `lg_${Date.now()}_${finalGames.length}`,
+        id: `lg_${Date.now()}_${gameIdSuffix}`,
         team1: t1.name,
         team2: t2.name,
         team1Id: t1.id,

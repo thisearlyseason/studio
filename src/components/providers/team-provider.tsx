@@ -571,11 +571,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: myChildrenRaw } = useCollection<PlayerProfile>(childrenQuery);
   const myChildren = useMemo(() => myChildrenRaw || [], [myChildrenRaw]);
 
+  /**
+   * TACTICAL FIX: Expanded householdEvents query limit to ensure high-volume squad members
+   * see all their league fixtures across their roster.
+   */
   const householdEventsQuery = useMemoFirebase(() => {
     if (!db || !firebaseUser?.uid || !teamsData || teamsData.length === 0) return null;
     const teamIds = (teamsData || []).map(t => t.teamId).filter(Boolean);
     if (teamIds.length === 0) return null;
-    return query(collectionGroup(db, 'events'), where('teamId', 'in', teamIds.slice(0, 10)));
+    // Increased slice to 30 teams to support larger org roles
+    return query(collectionGroup(db, 'events'), where('teamId', 'in', teamIds.slice(0, 30)));
   }, [db, firebaseUser?.uid, teamsData]);
   const { data: householdEventsData } = useCollection<TeamEvent>(householdEventsQuery);
   const householdEvents = useMemo(() => householdEventsData || [], [householdEventsData]);
@@ -739,6 +744,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   
   /**
    * TACTICAL FIX: Refactored individual team synchronization to correctly map league schedule to team calendars.
+   * Ensures every discrete match in a season is injected as a verifiable event for both squads.
    */
   const updateLeagueSchedule = useCallback(async (lId: string, s: any[]) => { 
     if (!db) return; 
@@ -749,23 +755,28 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const leagueData = leagueSnap.data();
     if (!leagueData) return;
 
-    // Mapping game pairs correctly to BOTH team event subcollections
+    // Mapping ALL games in the schedule to BOTH participating team subcollections
     s.forEach(game => {
-      const createEvent = (tid: string, opp: string) => {
+      const createEvent = (tid: string, myName: string, oppName: string) => {
         if (!tid) return;
+        // Unique Event ID per team ensures double headers aren't overwritten
         const eid = `lg_${lId}_${game.id}`;
         batch.set(doc(db, 'teams', tid, 'events', eid), clean({ 
-          id: eid, teamId: tid, 
-          title: `League Match vs ${opp}`, 
-          eventType: 'game', isLeagueGame: true, 
-          leagueId: lId, date: game.date, startTime: game.time, 
+          id: eid, 
+          teamId: tid, 
+          title: `League Match vs ${oppName}`, 
+          eventType: 'game', 
+          isLeagueGame: true, 
+          leagueId: lId, 
+          date: game.date, 
+          startTime: game.time, 
           location: game.location, 
-          description: `Official season fixture for ${leagueData.name}.`, 
+          description: `Official season fixture for ${leagueData.name}. Matchup: ${myName} vs ${oppName}`, 
           createdAt: new Date().toISOString() 
         }));
       };
-      if (game.team1Id) createEvent(game.team1Id, game.team2);
-      if (game.team2Id) createEvent(game.team2Id, game.team1);
+      if (game.team1Id) createEvent(game.team1Id, game.team1, game.team2);
+      if (game.team2Id) createEvent(game.team2Id, game.team2, game.team1);
     });
     
     await batch.commit();
