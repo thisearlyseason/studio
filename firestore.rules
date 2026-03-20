@@ -11,46 +11,42 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
+    
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
+    }
+
+    // --- GLOBAL CATALOG ---
+    // Publicly readable for pricing and feature selection
+    match /plans/{planId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+    
+    match /features/{featureId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
 
     // --- USERS HIERARCHY ---
     match /users/{userId} {
-      allow get, list, write: if isOwner(userId);
-      
-      match /teamMemberships/{tid} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /hiddenChats/{cid} {
-        allow read, write: if isOwner(userId);
-      }
+      allow get, list, write: if isOwner(userId) || isSuperAdmin();
       
       match /{allPaths=**} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId) || isSuperAdmin();
       }
+    }
+    
+    // Sentinel for membership indexing
+    match /team_memberships/{membershipId} {
+      allow read, write: if isSignedIn();
     }
 
     // --- TEAMS HIERARCHY ---
+    // Flattened hierarchy to satisfy Firestore 'List Proving' for subcollections
     match /teams/{teamId} {
       allow get, list, write: if isSignedIn(); 
       
-      // Explicit matches for provable list operations
-      match /members/{mid} { allow read, write: if isSignedIn(); }
-      match /events/{eid} { allow read, write: if isSignedIn(); }
-      match /games/{gid} { allow read, write: if isSignedIn(); }
-      match /alerts/{aid} { allow read, write: if isSignedIn(); }
-      match /feedPosts/{pid} { allow read, write: if isSignedIn(); }
-      match /drills/{did} { allow read, write: if isSignedIn(); }
-      match /files/{fid} { allow read, write: if isSignedIn(); }
-      match /equipment/{eid} { allow read, write: if isSignedIn(); }
-      match /volunteers/{vid} { allow read, write: if isSignedIn(); }
-      match /fundraising/{fid} { allow read, write: if isSignedIn(); }
-      match /incidents/{iid} { allow read, write: if isSignedIn(); }
-      
-      match /groupChats/{cid} { 
-        allow read, write: if isSignedIn(); 
-        match /messages/{mid} { allow read, write: if isSignedIn(); }
-      }
-
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
@@ -59,10 +55,6 @@ service cloud.firestore {
     // --- LEAGUES HIERARCHY ---
     match /leagues/{leagueId} {
       allow read, write: if isSignedIn();
-      
-      match /registrationEntries/{eid} { allow read, write: if isSignedIn(); }
-      match /registration/{cid} { allow read, write: if isSignedIn(); }
-      match /payments/{pid} { allow read, write: if isSignedIn(); }
       
       match /{allPaths=**} {
         allow read, write: if isSignedIn();
@@ -85,8 +77,14 @@ service cloud.firestore {
       }
     }
 
+    // --- SUBSCRIPTIONS (Operational) ---
+    match /subscriptions/{userId} {
+      allow read: if isOwner(userId) || isSuperAdmin();
+      allow write: if true; // Unsafe, but required for prototype webhook synchronization
+    }
+
     // --- COLLECTION GROUP ACCESS ---
-    
+    // Required for cross-squad aggregation in Dashboard and Club hubs
     match /{path=**}/registrationEntries/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/members/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/events/{id} { allow read, write: if isSignedIn(); }
@@ -94,6 +92,7 @@ service cloud.firestore {
     match /{path=**}/files/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/incidents/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/feedPosts/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/teamMemberships/{id} { allow read, write: if isSignedIn(); }
 
     // --- GLOBAL DEFAULT DENY ---
     match /{path=**} {
