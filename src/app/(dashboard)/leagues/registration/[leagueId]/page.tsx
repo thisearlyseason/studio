@@ -81,6 +81,7 @@ export default function LeagueRegistrationAdminPage() {
 
   const entriesQuery = useMemoFirebase(() => {
     if (!db || !leagueId || !isAuthResolved) return null;
+    // TACTICAL GUARD: Explicit collection query for high-performance listing
     return query(
       collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
       where('protocol_id', '==', configId),
@@ -241,7 +242,7 @@ export default function LeagueRegistrationAdminPage() {
               {pipelineType === 'team' && (
                 <Dialog open={isManualAddOpen} onOpenChange={setIsManualAddOpen}>
                   <DialogTrigger asChild><Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] shadow-xl shadow-primary/20"><Plus className="h-4 w-4 mr-2" /> Enroll Squad</Button></DialogTrigger>
-                  <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden sm:max-w-md">
+                  <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden sm:max-w-md bg-white text-foreground">
                     <div className="h-2 bg-primary w-full" /><div className="p-8 lg:p-10 space-y-8">
                       <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Manual Enrollment</DialogTitle></DialogHeader>
                       <div className="space-y-5">
@@ -291,7 +292,7 @@ export default function LeagueRegistrationAdminPage() {
                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Dialog>
                                 <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border-2 bg-white hover:bg-primary hover:text-white transition-all"><UserPlus className="h-5 w-5" /></Button></DialogTrigger>
-                                <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden max-w-2xl">
+                                <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden max-w-2xl bg-white text-foreground">
                                   <div className="h-2 bg-primary w-full" /><div className="p-8 lg:p-10 space-y-8">
                                     <DialogHeader><DialogTitle className="text-3xl font-black uppercase">Recruit Intelligence</DialogTitle></DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -319,7 +320,7 @@ export default function LeagueRegistrationAdminPage() {
                                         <div className="bg-primary/5 p-6 rounded-[2rem] border-2 border-dashed border-primary/20 space-y-4"><div className="flex items-center gap-3"><Zap className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase text-primary tracking-widest">Command Note</p></div><p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">Assignments alert the squad's coach for final roster verification and fee collection. This action is recorded in the master ledger.</p></div>
                                       </div>
                                     </div>
-                                    <DialogFooter className="pt-4"><Button variant="outline" className="w-full h-14 rounded-xl border-2 font-black uppercase text-xs" onClick={() => {}}>Close Intelligence Report</Button></DialogFooter>
+                                    <DialogFooter className="pt-4"><DialogClose asChild><Button variant="outline" className="w-full h-14 rounded-xl border-2 font-black uppercase text-xs">Close Intelligence Report</Button></DialogClose></DialogFooter>
                                   </div>
                                 </DialogContent>
                               </Dialog>
@@ -363,7 +364,7 @@ export default function LeagueRegistrationAdminPage() {
                 <div className="flex items-center gap-4"><div className="bg-primary p-3 rounded-2xl text-white shadow-lg"><Users className="h-6 w-6" /></div><div><CardTitle className="text-2xl font-black uppercase tracking-tight">Form Architect</CardTitle></div></div>
                 <Dialog>
                   <DialogTrigger asChild><Button variant="secondary" className="rounded-full h-11 px-6 font-black uppercase text-[10px]"><Plus className="h-4 w-4 mr-2" /> Add Data Point</Button></DialogTrigger>
-                  <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-8 max-w-sm">
+                  <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-8 max-w-sm bg-white text-foreground">
                     <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black uppercase">New Data Point</DialogTitle></DialogHeader>
                     <div className="space-y-6 py-2">
                       <div className="space-y-2"><Label className="text-[10px] uppercase font-black ml-1">Field Headline</Label><Input value={editingField?.label || ''} onChange={e => setEditingField({ ...editingField, label: e.target.value })} className="h-12 rounded-xl border-2 font-bold" /></div>
@@ -379,7 +380,7 @@ export default function LeagueRegistrationAdminPage() {
                         </Select>
                       </div>
                     </div>
-                    <DialogFooter className="pt-4"><Button className="w-full h-14 rounded-2xl font-black shadow-xl" onClick={handleAddField} disabled={!editingField?.label}>Inject Spec</Button></DialogFooter>
+                    <DialogFooter className="pt-4"><Button className="w-full h-14 rounded-2xl font-black shadow-xl shadow-primary/20" onClick={handleAddField} disabled={!editingField?.label}>Inject Spec</Button></DialogFooter>
                   </DialogContent>
                 </Dialog>
               </CardHeader>

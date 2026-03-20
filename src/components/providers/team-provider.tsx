@@ -542,7 +542,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           avatar: data.avatarUrl || data.avatar || `https://picsum.photos/seed/${snap.id}/150/150`
         } as UserProfile);
       }
-    }, async (error) => {
+    }, (error) => {
       const permissionError = new FirestorePermissionError({
         path: `users/${firebaseUser.uid}`,
         operation: 'get'

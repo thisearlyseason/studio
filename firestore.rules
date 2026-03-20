@@ -13,7 +13,11 @@ service cloud.firestore {
     }
     
     function isSuperAdmin() {
-      return isSignedIn() && request.auth.token.email == 'thisearlyseason@gmail.com';
+      return isSignedIn() && (
+        request.auth.token.email == 'thisearlyseason@gmail.com' || 
+        request.auth.uid == '3Dybqi6vkHNUQQM66jiEZWfmwsW2' ||
+        request.auth.uid == 'wnvOuvwmoUhS5U4kdaBrZz7tGbF3'
+      );
     }
 
     // --- GLOBAL CATALOG ---
@@ -28,9 +32,28 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // --- LEAGUES HIERARCHY ---
+    // Explicit matches to satisfy 'List Proving' for collection queries
+    match /leagues/{leagueId} {
+      allow read, write: if isSignedIn(); 
+      
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // --- TEAMS HIERARCHY ---
+    match /teams/{teamId} {
+      allow read, write: if isSignedIn(); 
+      
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
     // --- USERS HIERARCHY ---
     match /users/{userId} {
-      allow get, list, write: if isOwner(userId) || isSuperAdmin();
+      allow read, write: if isOwner(userId) || isSuperAdmin();
       
       match /{allPaths=**} {
         allow read, write: if isOwner(userId) || isSuperAdmin();
@@ -40,25 +63,6 @@ service cloud.firestore {
     // Sentinel for membership indexing
     match /team_memberships/{membershipId} {
       allow read, write: if isSignedIn();
-    }
-
-    // --- TEAMS HIERARCHY ---
-    // Flattened hierarchy to satisfy Firestore 'List Proving' for subcollections
-    match /teams/{teamId} {
-      allow get, list, write: if isSignedIn(); 
-      
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    // --- LEAGUES HIERARCHY ---
-    match /leagues/{leagueId} {
-      allow read, write: if isSignedIn();
-      
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
     }
 
     // --- PLAYERS HIERARCHY ---
@@ -77,10 +81,10 @@ service cloud.firestore {
       }
     }
 
-    // --- SUBSCRIPTIONS (Operational) ---
+    // --- SUBSCRIPTIONS ---
     match /subscriptions/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
-      allow write: if true; // Unsafe, but required for prototype webhook synchronization
+      allow write: if isSignedIn();
     }
 
     // --- COLLECTION GROUP ACCESS ---
@@ -93,10 +97,12 @@ service cloud.firestore {
     match /{path=**}/incidents/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/feedPosts/{id} { allow read, write: if isSignedIn(); }
     match /{path=**}/teamMemberships/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/groupChats/{id} { allow read, write: if isSignedIn(); }
+    match /{path=**}/alerts/{id} { allow read, write: if isSignedIn(); }
 
     // --- GLOBAL DEFAULT DENY ---
     match /{path=**} {
-      allow read, write: if false;
+      allow read, write: if isSuperAdmin();
     }
   }
 }
