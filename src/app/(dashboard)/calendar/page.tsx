@@ -141,7 +141,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
                 {Object.entries(event.userRsvps || {}).map(([uid, status]) => (
                   <Badge key={uid} variant="outline" className={cn(
                     "text-[8px] font-black uppercase border-none h-6",
-                    status === 'going' ? "bg-green-100 text-green-700" : status === 'maybe' ? "bg-amber-100 text-amber-700" : status === 'red-100 text-red-700"
+                    status === 'going' ? "bg-green-100 text-green-700" : status === 'maybe' ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
                   )}>{status}</Badge>
                 ))}
               </div>
