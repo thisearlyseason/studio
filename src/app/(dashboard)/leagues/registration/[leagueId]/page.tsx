@@ -78,22 +78,22 @@ export default function LeagueRegistrationAdminPage() {
 
   const configId = pipelineType === 'player' ? 'player_config' : 'team_config';
   
-  // TACTICAL MEMO: Stabilized reference for List Proving compliance
+  // TACTICAL MEMO: Refactored query architecture to strictly adhere to List Proving path requirements
   const configRef = useMemoFirebase(() => {
-    if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
+    if (!db || !leagueId || !isAuthResolved) return null;
     return doc(db, 'leagues', leagueId as string, 'registration', configId);
-  }, [db, leagueId, configId, isAuthResolved, authUser?.uid]);
+  }, [db, leagueId, configId, isAuthResolved]);
 
   const { data: config, isLoading: isConfigLoading } = useDoc<LeagueRegistrationConfig>(configRef);
 
   const entriesQuery = useMemoFirebase(() => {
-    if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
+    if (!db || !leagueId || !isAuthResolved) return null;
     return query(
       collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
       where('protocol_id', '==', configId),
       orderBy('created_at', 'desc')
     );
-  }, [db, leagueId, configId, isAuthResolved, authUser?.uid]);
+  }, [db, leagueId, configId, isAuthResolved]);
 
   const { data: entries, isLoading: isEntriesLoading } = useCollection<RegistrationEntry>(entriesQuery);
 
@@ -107,9 +107,9 @@ export default function LeagueRegistrationAdminPage() {
   useEffect(() => {
     if (config) setLocalConfig(config);
     else setLocalConfig(null);
-  }, [config, configId]);
+  }, [config]);
 
-  const canRegister = hasFeature('league_registration') || (activeTeam?.isPro && isStaff);
+  const canRegister = isStaff && (hasFeature('league_registration') || activeTeam?.isPro);
 
   const handleUpdateConfig = (updates: Partial<LeagueRegistrationConfig>, immediate = false) => {
     if (!leagueId) return;
@@ -185,6 +185,16 @@ export default function LeagueRegistrationAdminPage() {
       setIsManualProcessing(false);
     }
   };
+
+  if (!isStaff) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4 text-center space-y-6">
+        <ShieldCheck className="h-16 w-16 text-muted-foreground opacity-20" />
+        <h1 className="text-3xl font-black uppercase tracking-tight">Access Restricted</h1>
+        <p className="text-muted-foreground font-bold max-w-sm">This coordination hub is reserved for authorized staff and organization leads.</p>
+      </div>
+    );
+  }
 
   if (!canRegister) {
     return (

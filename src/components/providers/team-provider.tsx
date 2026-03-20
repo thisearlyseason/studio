@@ -27,6 +27,8 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // --- TYPE DEFINITIONS ---
 export type UserRole = "parent" | "adult_player" | "coach" | "admin";
@@ -529,8 +531,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!firebaseUser || !db) { setUserProfile(null); return; }
-    // TACTICAL GUARD: Explicit mapping for UI property consistency
-    return onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
+    // TACTICAL GUARD: Correctly map users vs userProfiles collection based on backend IR
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    return onSnapshot(userRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         setUserProfile({ 
@@ -540,8 +543,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           avatar: data.avatarUrl || data.avatar || `https://picsum.photos/seed/${snap.id}/150/150`
         } as UserProfile);
       }
-    }, (error) => {
-      console.error("User profile sync error:", error);
+    }, async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: `users/${firebaseUser.uid}`,
+        operation: 'get'
+      });
+      errorEmitter.emit('permission-error', permissionError);
     });
   }, [firebaseUser, db]);
 
@@ -586,15 +593,16 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   // TACTICAL MEMO: Refined staff authority detection logic for robust UI provisioning
   const isStaff = useMemo(() => {
-    if (!activeTeam || !firebaseUser) return false;
-    // 1. Check Global Authority
-    if (userProfile?.role === 'coach') return true; 
-    // 2. Check Contextual Authority (Squad Hub Switcher)
-    if (activeTeam.role === 'Admin') return true;
-    // 3. Check Position Eligibility
+    if (!firebaseUser) return false;
+    // 1. Check Global Authority (Role is 'coach' or 'admin')
+    if (userProfile?.role === 'coach' || userProfile?.role === 'admin') return true; 
+    // 2. Check Contextual Authority (Active Team role is 'Admin')
+    if (activeTeam?.role === 'Admin') return true;
+    // 3. Check Position Eligibility within the current roster
     const currentMember = members.find(m => m.userId === firebaseUser.uid);
-    return ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Squad Leader', 'Coach Guest'].includes(currentMember?.position || '');
-  }, [activeTeam, firebaseUser, members, userProfile?.role]);
+    const staffPositions = ['Coach', 'Assistant Coach', 'Team Representative', 'Manager', 'Squad Leader', 'Coach Guest'];
+    return staffPositions.includes(currentMember?.position || '');
+  }, [activeTeam, firebaseUser, members, userProfile]);
 
   const isSuperAdmin = useMemo(() => userProfile?.email === 'thisearlyseason@gmail.com', [userProfile?.email]);
   const isClubManager = useMemo(() => ['elite_teams', 'elite_league'].includes(userProfile?.activePlanId || '') || isSuperAdmin, [userProfile?.activePlanId, isSuperAdmin]);
@@ -868,7 +876,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const resolveQuota = useCallback(async (selectedTeamIds: string[]) => { if (!db || !userProfile?.id) return; const batch = writeBatch(db); const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro); ownedProTeams.forEach(t => { if (!selectedTeamIds.includes(t.id)) { batch.update(doc(db, 'teams', t.id), { isPro: false, planId: 'starter_squad' }); } }); await batch.commit(); }, [db, userProfile, teamsRaw]);
   const exportAttendanceCSV = useCallback(async (eventId: string) => { if (!db || !activeTeam?.id) return; const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'events', eventId)); if (!snap.exists()) return; const rsvps = snap.data().userRsvps || {}; const rows = [["Name", "Status"]]; members.forEach(m => { rows.push([m.name, rsvps[m.userId] || 'no_response']); }); const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `attendance_${eventId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam, members]);
-  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam]);
+  const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam]);
 
   const addRegistration = useCallback(async (teamId: string, eventId: string, data: any) => { if (db) { await addDoc(collection(db, 'teams', teamId, 'events', eventId, 'registrations'), clean(data)); return true; } return false; }, [db]);
   const manageSubscription = useCallback(async () => { setIsPaywallOpen(true); }, []);
