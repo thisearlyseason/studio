@@ -53,6 +53,19 @@
         "status": { "type": "string", "enum": ["pending", "assigned", "accepted", "declined"] },
         "answers": { "type": "object" }
       }
+    },
+    "Member": {
+      "title": "Member",
+      "type": "object",
+      "description": "A teammate belonging to a squad.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "name": { "type": "string" },
+        "position": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Member"] }
+      }
     }
   },
   "auth": {
@@ -69,10 +82,18 @@
     },
     "/teams/{teamId}": {
       "schema": { "$ref": "#/entities/Team" },
-      "description": "Squad data and subcollections."
+      "description": "Squad data hub."
+    },
+    "/teams/{teamId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/Member" },
+      "description": "Roster membership data."
     },
     "/leagues/{leagueId}": {
-      "description": "League management and registration entries."
+      "description": "League management hub."
+    },
+    "/leagues/{leagueId}/registrationEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/RegistrationEntry" },
+      "description": "Applications for league enrollment."
     },
     "/plans": {
       "description": "Subscription tier definitions."

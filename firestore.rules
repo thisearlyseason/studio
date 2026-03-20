@@ -39,14 +39,6 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    match /{allPaths=**}/incidents/{incidentId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /{allPaths=**}/signatures/{sigId} {
-      allow read, write: if isSignedIn();
-    }
-
     // --- TOP LEVEL COLLECTIONS ---
 
     match /users/{userId} {
@@ -64,23 +56,42 @@ service cloud.firestore {
     }
 
     match /leagues/{leagueId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSignedIn() || isSuperAdmin();
+      
+      // Explicit subcollection matching for collection-level queries
+      match /registrationEntries/{entryId} {
+        allow read, write: if isSignedIn() || isSuperAdmin();
+      }
+      
+      match /registration/{configId} {
+        allow read, write: if isSignedIn() || isSuperAdmin();
+      }
+
       match /{allPaths=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isSignedIn() || isSuperAdmin();
       }
     }
 
     match /teams/{teamId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSignedIn() || isSuperAdmin();
+      
+      match /members/{memberId} {
+        allow read, write: if isSignedIn() || isSuperAdmin();
+      }
+      
+      match /events/{eventId} {
+        allow read, write: if isSignedIn() || isSuperAdmin();
+      }
+
       match /{allPaths=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isSignedIn() || isSuperAdmin();
       }
     }
 
     match /facilities/{facilityId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSignedIn() || isSuperAdmin();
       match /{allPaths=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isSignedIn() || isSuperAdmin();
       }
     }
 
