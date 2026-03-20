@@ -53,12 +53,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export default function LeagueRegistrationAdminPage() {
   const { leagueId } = useParams();
   const router = useRouter();
-  const { isAuthResolved } = useUser();
+  const { isAuthResolved, user: authUser } = useUser();
   const { 
     saveLeagueRegistrationConfig, 
     assignEntryToTeam, 
@@ -77,23 +78,23 @@ export default function LeagueRegistrationAdminPage() {
 
   const configId = pipelineType === 'player' ? 'player_config' : 'team_config';
   
-  // TACTICAL MEMO: We use explicit identity resolution to prevent 403 ghost queries.
+  // TACTICAL MEMO: Refined identity-aware reference to satisfy rules engine
   const configRef = useMemoFirebase(() => {
-    if (!db || !leagueId || !isAuthResolved) return null;
+    if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
     return doc(db, 'leagues', leagueId as string, 'registration', configId);
-  }, [db, leagueId, configId, isAuthResolved]);
+  }, [db, leagueId, configId, isAuthResolved, authUser?.uid]);
 
   const { data: config, isLoading: isConfigLoading } = useDoc<LeagueRegistrationConfig>(configRef);
 
   const entriesQuery = useMemoFirebase(() => {
-    if (!db || !leagueId || !isAuthResolved) return null;
-    // We use a flat query structure to satisfy Firestore List Proving
+    if (!db || !leagueId || !isAuthResolved || !authUser?.uid) return null;
+    // Flat query structure to satisfy Firestore List Proving
     return query(
       collection(db, 'leagues', leagueId as string, 'registrationEntries'), 
       where('protocol_id', '==', configId),
       orderBy('created_at', 'desc')
     );
-  }, [db, leagueId, configId, isAuthResolved]);
+  }, [db, leagueId, configId, isAuthResolved, authUser?.uid]);
 
   const { data: entries, isLoading: isEntriesLoading } = useCollection<RegistrationEntry>(entriesQuery);
 

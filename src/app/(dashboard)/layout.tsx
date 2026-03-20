@@ -137,7 +137,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   /**
    * TACTICAL HYDRATION GUARD: 
    * To prevent hydration errors, we ensure the loading UI text remains static 
-   * during the initial boot sequence.
+   * during the initial boot sequence. We use a dedicated mounting check.
    */
   const showLoading = !mounted || isUserLoading || !isAuthResolved || isSeedingDemo || isDemoInitializing || isTeamsLoading || !userProfile;
 
