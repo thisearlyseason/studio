@@ -90,7 +90,7 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
 
 /**
  * Generates a full League Season schedule with multi-venue and blackout support.
- * Hardened for balanced distribution and regularity.
+ * Hardened for balanced distribution, back-to-back double headers, and regularity.
  */
 export function generateLeagueSchedule(config: ScheduleConfig & { playDays: number[] }): TournamentGame[] {
   const { 
@@ -110,11 +110,10 @@ export function generateLeagueSchedule(config: ScheduleConfig & { playDays: numb
 
   if (teams.length < 2 || fields.length === 0) return [];
 
-  const games: TournamentGame[] = [];
   const startD = new Date(startDate);
-  const endD = endDate ? new Date(endDate) : addDays(startD, 120); // Default 4 month window
+  const endD = endDate ? new Date(endDate) : addDays(startD, 120); 
   
-  // 1. Generate Match Pool (Balanced Round-Robin)
+  // 1. Match Pool Generation
   const roundRobin: [string, string][] = [];
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
@@ -122,29 +121,32 @@ export function generateLeagueSchedule(config: ScheduleConfig & { playDays: numb
     }
   }
 
-  // If double headers are on, we need to ensure each team plays each other in pairs (Home/Guest)
-  const totalRequiredMatchesPerTeam = gamesPerTeam;
-  const totalRequiredMatches = Math.floor((teams.length * totalRequiredMatchesPerTeam) / 2);
   const matchPool: [string, string][] = [];
-  
   let rrIdx = 0;
-  while (matchPool.length < totalRequiredMatches) {
-    const baseMatch = roundRobin[rrIdx % roundRobin.length];
-    const cycle = Math.floor(rrIdx / roundRobin.length);
-    const isReverse = cycle % 2 === 1;
+  
+  // If Double Headers are active, we schedule in pairs (A-B and B-A)
+  if (doubleHeaders) {
+    const totalPairsPerTeam = Math.floor(gamesPerTeam / 2);
+    const totalPairsNeeded = Math.floor((teams.length * totalPairsPerTeam) / 2);
     
-    // If doubleHeaders is true, we want to alternate roles frequently
-    // If not, we still alternate roles each time we go through the round robin
-    if (isReverse) {
-      matchPool.push([baseMatch[1], baseMatch[0]]);
-    } else {
-      matchPool.push([baseMatch[0], baseMatch[1]]);
+    while (matchPool.length < totalPairsNeeded * 2) {
+      const base = roundRobin[rrIdx % roundRobin.length];
+      matchPool.push([base[0], base[1]]);
+      matchPool.push([base[1], base[0]]);
+      rrIdx++;
     }
-    
-    rrIdx++;
+  } else {
+    const totalMatchesNeeded = Math.floor((teams.length * gamesPerTeam) / 2);
+    while (matchPool.length < totalMatchesNeeded) {
+      const base = roundRobin[rrIdx % roundRobin.length];
+      const isReverse = Math.floor(rrIdx / roundRobin.length) % 2 === 1;
+      if (isReverse) matchPool.push([base[1], base[0]]);
+      else matchPool.push([base[0], base[1]]);
+      rrIdx++;
+    }
   }
 
-  // 2. Identify Available Time Slots (Respecting regularity and fields)
+  // 2. Slot Mapping
   const availableSlots: { date: Date; time: Date; field: string }[] = [];
   let currentDay = new Date(startD);
   
@@ -172,33 +174,63 @@ export function generateLeagueSchedule(config: ScheduleConfig & { playDays: numb
 
   if (availableSlots.length === 0 || matchPool.length === 0) return [];
 
-  // 3. Distribution Strategy (Spreading games regularly across the season)
-  // Step ensures games are distributed across the available time window evenly
-  const step = Math.max(1, Math.floor(availableSlots.length / matchPool.length));
+  const finalGames: TournamentGame[] = [];
+  
+  if (doubleHeaders) {
+    // Allocation for Back-to-Back pairs
+    let slotIdx = 0;
+    for (let i = 0; i < matchPool.length; i += 2) {
+      if (slotIdx + 1 >= availableSlots.length) break;
+      
+      const s1 = availableSlots[slotIdx];
+      const s2 = availableSlots[slotIdx + 1];
+      
+      // Verification: same location, same day
+      if (s1.field === s2.field && format(s1.date, 'yyyy-MM-dd') === format(s2.date, 'yyyy-MM-dd')) {
+        const matchup1 = matchPool[i];
+        const matchup2 = matchPool[i+1];
+        
+        finalGames.push({
+          id: `lg_${Date.now()}_${i}`,
+          team1: matchup1[0], team2: matchup1[1], score1: 0, score2: 0,
+          date: format(s1.date, 'yyyy-MM-dd'), time: format(s1.time, 'h:mm a'),
+          location: s1.field, isCompleted: false, updatedAt: new Date().toISOString()
+        });
+        
+        finalGames.push({
+          id: `lg_${Date.now()}_${i+1}`,
+          team1: matchup2[0], team2: matchup2[1], score1: 0, score2: 0,
+          date: format(s2.date, 'yyyy-MM-dd'), time: format(s2.time, 'h:mm a'),
+          location: s2.field, isCompleted: false, updatedAt: new Date().toISOString()
+        });
+        
+        slotIdx += 2;
+      } else {
+        // Skip current slot to find a pair
+        slotIdx++;
+        i -= 2; // Retry matchup
+      }
+    }
+  } else {
+    // Regular balanced distribution
+    const step = Math.max(1, Math.floor(availableSlots.length / matchPool.length));
+    for (let i = 0; i < matchPool.length; i++) {
+      const slotIdx = i * step;
+      if (slotIdx >= availableSlots.length) break;
+      
+      const slot = availableSlots[slotIdx];
+      const [t1, t2] = matchPool[i];
 
-  for (let i = 0; i < matchPool.length; i++) {
-    const slotIdx = i * step;
-    if (slotIdx >= availableSlots.length) break;
-    
-    const slot = availableSlots[slotIdx];
-    const [t1, t2] = matchPool[i];
-
-    games.push({
-      id: `lg_${Date.now()}_${i}`,
-      team1: t1,
-      team2: t2,
-      score1: 0,
-      score2: 0,
-      date: format(slot.date, 'yyyy-MM-dd'),
-      time: format(slot.time, 'h:mm a'),
-      location: slot.field,
-      isCompleted: false,
-      updatedAt: new Date().toISOString()
-    });
+      finalGames.push({
+        id: `lg_${Date.now()}_${i}`,
+        team1: t1, team2: t2, score1: 0, score2: 0,
+        date: format(slot.date, 'yyyy-MM-dd'), time: format(slot.time, 'h:mm a'),
+        location: slot.field, isCompleted: false, updatedAt: new Date().toISOString()
+      });
+    }
   }
 
-  // Final Sort by Date/Time
-  return games.sort((a, b) => {
+  return finalGames.sort((a, b) => {
     const dateComp = a.date.localeCompare(b.date);
     if (dateComp !== 0) return dateComp;
     return a.time.localeCompare(b.time);

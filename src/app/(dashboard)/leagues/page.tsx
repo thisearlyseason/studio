@@ -49,7 +49,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateLeagueSchedule } from '@/lib/scheduler-utils';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { useTeam, League, TournamentGame, Field, Facility } from '@/components/providers/team-provider';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -93,8 +93,8 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
   const { db, updateLeagueSchedule } = useTeam();
   const [isProcessing, setIsProcessing] = useState(false);
   const [config, setConfig] = useState({
-    startDate: '',
-    endDate: '',
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: format(new Date(Date.now() + 90 * 86400000), 'yyyy-MM-dd'),
     startTime: '18:00',
     endTime: '22:00',
     gameLength: '60',
@@ -113,15 +113,20 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
   const { data: facilities } = useCollection<Facility>(facilitiesQuery);
 
+  const leagueTeams = useMemo(() => {
+    if (!league?.teams) return [];
+    return Object.values(league.teams).map((t: any) => t.teamName);
+  }, [league?.teams]);
+
   const handleGenerate = async () => {
-    if (!config.startDate || !config.selectedFields.length || !Object.keys(league.teams || {}).length) {
-      toast({ title: "Config Required", description: "Define timeline, fields, and teams first.", variant: "destructive" });
+    if (!config.startDate || !config.selectedFields.length || !leagueTeams.length) {
+      toast({ title: "Config Required", description: "Define timeline, fields, and ensure squads are enrolled.", variant: "destructive" });
       return;
     }
     setIsProcessing(true);
     try {
       const schedule = generateLeagueSchedule({
-        teams: Object.values(league.teams).map((t: any) => t.teamName),
+        teams: leagueTeams,
         fields: config.selectedFields,
         startDate: config.startDate,
         endDate: config.endDate || undefined,
@@ -261,14 +266,14 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
                     <div className="bg-primary p-2 rounded-xl"><CalendarIcon className="h-4 w-4" /></div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Blackout Calendar</p>
                   </div>
-                  <p className="text-[10px] font-medium text-white/60 leading-relaxed italic">Select dates where no league matches should be scheduled (holidays, venue maintenance).</p>
+                  <p className="text-[10px] font-medium text-white/60 leading-relaxed italic">Select dates where no league matches should be scheduled.</p>
                   <Calendar mode="multiple" selected={config.blackoutDates} onSelect={(dates) => setConfig({...config, blackoutDates: dates || []})} />
                 </div>
               </div>
 
               <div className="bg-primary/5 p-6 rounded-3xl border-2 border-dashed border-primary/20 space-y-4">
-                <div className="flex items-center gap-3 text-primary"><Info className="h-4 w-4" /><h4 className="text-[10px] font-black uppercase tracking-widest">Balanced Distribution</h4></div>
-                <p className="text-[11px] font-medium leading-relaxed italic text-muted-foreground">The architect uses a Round-Robin algorithm to ensure every squad plays an equal amount of home/guest matches regularly across the season timeline.</p>
+                <div className="flex items-center gap-3 text-primary"><Info className="h-4 w-4" /><h4 className="text-[10px] font-black uppercase tracking-widest">Enrollment Status</h4></div>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase">{leagueTeams.length} squads detected in active roster.</p>
               </div>
             </aside>
           </div>
@@ -292,7 +297,18 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
   const [editingGame, setEditingGame] = useState<TournamentGame | null>(null);
   const [scoreForm, setScoreForm] = useState({ s1: '', s2: '' });
 
-  const gamesOnSelectedDate = useMemo(() => (schedule || []).filter(g => format(new Date(g.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')), [schedule, selectedDate]);
+  const gamesByDay = useMemo(() => {
+    const map: Record<string, TournamentGame[]> = {};
+    (schedule || []).forEach(g => {
+      const d = g.date;
+      if (!map[d]) map[d] = [];
+      map[d].push(g);
+    });
+    return map;
+  }, [schedule]);
+
+  const gameDays = useMemo(() => Object.keys(gamesByDay).map(d => new Date(d)), [gamesByDay]);
+  const gamesOnSelectedDate = useMemo(() => gamesByDay[format(selectedDate, 'yyyy-MM-dd')] || [], [gamesByDay, selectedDate]);
 
   const handleUpdateScore = async () => {
     if (!editingGame || !scoreForm.s1 || !scoreForm.s2) return;
@@ -310,73 +326,121 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
           <Button variant={viewMode === 'calendar' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('calendar')} className="h-9 px-6 rounded-xl font-black text-[10px] uppercase">Calendar</Button>
         </div>
       </div>
+      
       {viewMode === 'list' ? (
         <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-foreground">
-                <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b"><tr><th className="px-8 py-5">Date/Time</th><th className="px-4 py-5">Matchup</th><th className="px-8 py-5 text-right">Status</th></tr></thead>
-                <tbody className="divide-y">{schedule.map(game => (
-                  <tr key={game.id} className="hover:bg-muted/5 transition-colors group">
-                    <td className="px-8 py-6"><p className="font-black text-xs uppercase">{game.date}</p><p className="text-[10px] font-bold text-muted-foreground">{game.time}</p></td>
-                    <td className="px-4 py-6">
-                      <div className="flex items-center gap-4">
-                        <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team1}</span>
-                        {game.isCompleted ? (
-                          <div className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded-lg">
-                            <span className="font-black text-xs text-primary">{game.score1} - {game.score2}</span>
-                          </div>
-                        ) : <span className="opacity-20 text-[10px] font-black">VS</span>}
-                        <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team2}</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      {isStaff && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100" onClick={() => { setEditingGame(game); setScoreForm({ s1: game.score1.toString(), s2: game.score2.toString() }); }}>
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </td>
+                <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b">
+                  <tr>
+                    <th className="px-8 py-5">Date/Time</th>
+                    <th className="px-4 py-5">Location</th>
+                    <th className="px-4 py-5">Matchup</th>
+                    <th className="px-8 py-5 text-right">Status</th>
                   </tr>
-                ))}</tbody>
+                </thead>
+                <tbody className="divide-y">
+                  {schedule.map(game => (
+                    <tr key={game.id} className="hover:bg-muted/5 transition-colors group">
+                      <td className="px-8 py-6"><p className="font-black text-xs uppercase">{game.date}</p><p className="text-[10px] font-bold text-muted-foreground">{game.time}</p></td>
+                      <td className="px-4 py-6 font-bold text-xs uppercase text-muted-foreground">{game.location || 'TBD'}</td>
+                      <td className="px-4 py-6">
+                        <div className="flex items-center gap-4">
+                          <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team1}</span>
+                          {game.isCompleted ? (
+                            <div className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded-lg">
+                              <span className="font-black text-xs text-primary">{game.score1} - {game.score2}</span>
+                            </div>
+                          ) : <span className="opacity-20 text-[10px] font-black">VS</span>}
+                          <span className="font-black text-xs uppercase truncate max-w-[120px]">{game.team2}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        {isStaff && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100" onClick={() => { setEditingGame(game); setScoreForm({ s1: game.score1.toString(), s2: game.score2.toString() }); }}>
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <Card className="lg:col-span-5 rounded-[2.5rem] border-none shadow-xl bg-white p-6"><Calendar mode="single" selected={selectedDate} onSelect={(d) => d && setSelectedDate(d)} /></Card>
-          <div className="lg:col-span-7 space-y-4">
-            {gamesOnSelectedDate.map(game => (
-              <Card key={game.id} className="rounded-2xl border-none shadow-sm p-5 flex items-center justify-between bg-white text-foreground" onClick={() => isStaff && setEditingGame(game)}>
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 rounded-xl bg-primary/5 flex flex-col items-center justify-center border shrink-0">
-                    <Clock className="h-4 w-4 text-primary" /><span className="text-[8px] font-black uppercase text-primary">{game.time}</span>
+        <div className="space-y-10">
+          <div className="w-full flex justify-center">
+            <Calendar 
+              mode="single" 
+              selected={selectedDate} 
+              onSelect={(d) => d && setSelectedDate(d)}
+              modifiers={{ hasGame: gameDays }}
+              modifiersClassNames={{
+                hasGame: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:bg-primary after:rounded-full"
+              }}
+              className="w-full max-w-4xl"
+            />
+          </div>
+          
+          <div className="space-y-4 max-w-4xl mx-auto">
+            <div className="flex items-center justify-between px-2">
+              <h4 className="text-xl font-black uppercase tracking-tight">{format(selectedDate, 'EEEE, MMMM do')}</h4>
+              <Badge variant="outline" className="font-black text-[10px]">{gamesOnSelectedDate.length} MATCHES</Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {gamesOnSelectedDate.map(game => (
+                <Card key={game.id} className="rounded-[2rem] border-none shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between bg-white text-foreground group hover:ring-2 hover:ring-primary/20 transition-all" onClick={() => isStaff && setEditingGame(game)}>
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/5 flex flex-col items-center justify-center border shrink-0">
+                      <Clock className="h-5 w-5 text-primary mb-1" />
+                      <span className="text-[10px] font-black uppercase text-primary">{game.time}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-black text-lg uppercase truncate text-foreground">{game.team1} vs {game.team2}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {game.location || 'Venue TBD'}</p>
+                        {game.isCompleted && <Badge className="bg-black text-white border-none font-black text-[8px] h-5">FINAL: {game.score1}-{game.score2}</Badge>}
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-black text-sm uppercase truncate text-foreground">{game.team1} vs {game.team2}</p>
-                    {game.isCompleted && <span className="font-black text-xs text-primary">{game.score1}-{game.score2}</span>}
-                  </div>
+                  <ChevronRight className="h-6 w-6 text-primary opacity-20 group-hover:opacity-100 transition-all hidden md:block" />
+                </Card>
+              ))}
+              {gamesOnSelectedDate.length === 0 && (
+                <div className="py-24 text-center opacity-20 italic font-black uppercase text-sm border-2 border-dashed rounded-[3rem] bg-muted/10">
+                  No matches scheduled for this window.
                 </div>
-                <ChevronRight className="h-4 w-4 opacity-20" />
-              </Card>
-            ))}
-            {gamesOnSelectedDate.length === 0 && (
-              <div className="py-20 text-center opacity-20 italic font-black uppercase text-xs text-foreground">Clear Schedule</div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
+      
       <Dialog open={!!editingGame} onOpenChange={(o) => !o && setEditingGame(null)}>
         <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white text-foreground">
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 space-y-8">
-            <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Result Verification</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase">Result Verification</DialogTitle>
+              <DialogDescription className="font-bold text-[10px] uppercase text-primary">{editingGame?.team1} vs {editingGame?.team2}</DialogDescription>
+            </DialogHeader>
             <div className="grid grid-cols-2 gap-8">
-              <Input type="number" value={scoreForm.s1} onChange={e => setScoreForm({...scoreForm, s1: e.target.value})} className="h-16 text-center text-3xl font-black rounded-2xl" />
-              <Input type="number" value={scoreForm.s2} onChange={e => setScoreForm({...scoreForm, s2: e.target.value})} className="h-16 text-center text-3xl font-black rounded-2xl" />
+              <div className="space-y-2">
+                <Label className="text-[8px] font-black uppercase opacity-40 ml-1">{editingGame?.team1}</Label>
+                <Input type="number" value={scoreForm.s1} onChange={e => setScoreForm({...scoreForm, s1: e.target.value})} className="h-16 text-center text-3xl font-black rounded-2xl" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[8px] font-black uppercase opacity-40 ml-1">{editingGame?.team2}</Label>
+                <Input type="number" value={scoreForm.s2} onChange={e => setScoreForm({...scoreForm, s2: e.target.value})} className="h-16 text-center text-3xl font-black rounded-2xl" />
+              </div>
             </div>
-            <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateScore}>Commit Result</Button></DialogFooter>
+            <DialogFooter>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateScore}>Commit Result</Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
@@ -552,7 +616,7 @@ export default function LeaguesPage() {
           <div className="bg-white w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl"><Shield className="h-10 w-10 text-primary opacity-20" /></div>
           <div className="space-y-2">
             <h3 className="text-2xl font-black uppercase">No Competitive Enrollment</h3>
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-w-sm mx-auto leading-relaxed">Initialize your own league architect to begin the competitive season.</p>
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-sm:px-4 max-w-sm mx-auto leading-relaxed">Initialize your own league architect to begin the competitive season.</p>
           </div>
           {isStaff && (
             <Button onClick={() => setIsCreateOpen(true)} variant="outline" className="rounded-full px-10 h-12 border-2 font-black uppercase text-xs">Initialize Hub</Button>
