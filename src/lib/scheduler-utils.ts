@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Core logic for the Elite Scheduling Engine.
  * Hardened for balanced distribution, multi-venue resource mapping, and intelligent double-headers.
@@ -35,6 +34,29 @@ export interface ScheduleConfig {
   dailyWindows?: DailyWindow[];
   playDays?: number[];
   tournamentType?: 'round_robin' | 'single_elimination' | 'double_elimination';
+}
+
+/**
+ * Robust time parser handling 12h and 24h formats.
+ */
+function parseTime(timeStr: string, referenceDate: Date): Date {
+  const formats = ['HH:mm', 'h:mm a', 'h:mm A', 'HH:mm:ss'];
+  for (const f of formats) {
+    const d = parse(timeStr, f, referenceDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  // Fallback: simple split if standard parse fails
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (match) {
+    let [_, hours, mins, ampm] = match;
+    let h = parseInt(hours);
+    if (ampm?.toUpperCase() === 'PM' && h < 12) h += 12;
+    if (ampm?.toUpperCase() === 'AM' && h === 12) h = 0;
+    const date = new Date(referenceDate);
+    date.setHours(h, parseInt(mins), 0, 0);
+    return date;
+  }
+  return new Date(NaN);
 }
 
 /**
@@ -106,8 +128,8 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
     const isBlackout = blackoutDates.some(d => format(new Date(d), 'yyyy-MM-dd') === dayKey);
 
     if (playDays.includes(currentDay.getDay()) && !isBlackout) {
-      let currentTime = parse(startTime, 'HH:mm', currentDay);
-      const dayEndTime = parse(endTime, 'HH:mm', currentDay);
+      let currentTime = parseTime(startTime, currentDay);
+      const dayEndTime = parseTime(endTime, currentDay);
 
       while (isBefore(currentTime, dayEndTime)) {
         for (const field of fields) {
@@ -229,8 +251,8 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
     const dayStr = format(day, 'yyyy-MM-dd');
     const window = dailyWindows?.find(w => w.date === dayStr);
     
-    let currentTime = parse(window?.startTime || startTime, 'HH:mm', day);
-    const dayEndTime = parse(window?.endTime || endTime, 'HH:mm', day);
+    let currentTime = parseTime(window?.startTime || startTime, day);
+    const dayEndTime = parseTime(window?.endTime || endTime, day);
     
     while (isBefore(currentTime, dayEndTime)) {
       for (const f of fields) {

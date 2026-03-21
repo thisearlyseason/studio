@@ -184,6 +184,7 @@ export type TeamEvent = {
   isHome?: boolean;
   leagueId?: string;
   tournamentTeams?: string[];
+  tournamentTeamsData?: any[];
   tournamentGames?: any[];
   userRsvps?: Record<string, string>;
   teamWaiverText?: string;
