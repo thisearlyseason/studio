@@ -90,7 +90,7 @@ function EventItem({ event, teams, onClick }: { event: TeamEvent, teams: any[], 
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="outline" className="text-[7px] font-black uppercase px-1.5 h-4 border-none bg-muted/50">{event.eventType}</Badge>
             <span className="text-[10px] font-bold text-muted-foreground uppercase">{event.startTime}</span>
-            {event.eventType === 'game' && event.isLeagueGame && (
+            {event.isLeagueGame && (
               <Badge className={cn("text-[7px] font-black uppercase px-1.5 h-4 border-none", event.isHome ? "bg-primary text-white" : "bg-black text-white")}>
                 {event.isHome ? 'HOME' : 'AWAY'}
               </Badge>
@@ -119,7 +119,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
             <div className="flex justify-between items-start mb-8 relative z-10">
               <div className="flex gap-2">
                 <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
-                {event.eventType === 'game' && event.isLeagueGame && (
+                {event.isLeagueGame && (
                   <Badge className={cn("uppercase font-black tracking-widest text-[9px] h-6 px-3 border-none", event.isHome ? "bg-white text-black" : "bg-primary/20 text-white")}>
                     {event.isHome ? 'HOME TEAM' : 'VISITING TEAM'}
                   </Badge>

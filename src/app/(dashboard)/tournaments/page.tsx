@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -5,11 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 /**
- * TACTICAL LOADING HUB
- * This file is neutralized to resolve parallel route conflicts with /app/tournaments.
- * The management interface has been moved to /manage-tournaments.
+ * TACTICAL HQ REDIRECT
+ * Management is consolidated at /manage-tournaments to prevent routing conflicts.
  */
-export default function TournamentLoadingNeutralizer() {
+export default function Page() {
   const router = useRouter();
 
   useEffect(() => {
@@ -17,11 +17,11 @@ export default function TournamentLoadingNeutralizer() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-      <div className="bg-primary/10 p-6 rounded-[2.5rem] shadow-xl">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+    <div className="flex flex-col items-center justify-center py-32 text-center animate-pulse">
+      <div className="bg-primary/10 p-8 rounded-[3rem] shadow-xl mb-6">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
-      <p className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">Synchronizing Tactical Hub...</p>
+      <p className="text-xl font-black uppercase tracking-tight text-foreground">Redirecting to Hub...</p>
     </div>
   );
 }

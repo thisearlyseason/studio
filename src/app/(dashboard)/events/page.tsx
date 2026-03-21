@@ -45,7 +45,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { downloadICS } from '@/lib/calendar-utils';
-import TournamentsPage from '../tournaments/page';
 
 const EVENT_TYPE_COLORS: Record<EventType, string> = {
   game: 'bg-primary border-primary text-white',
@@ -91,7 +90,7 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
             <div className="flex justify-between items-start mb-8 relative z-10">
               <div className="flex gap-2">
                 <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
-                {event.eventType === 'game' && event.isLeagueGame && (
+                {event.isLeagueGame && (
                   <Badge className={cn("uppercase font-black tracking-widest text-[9px] h-6 px-3 border-none", event.isHome ? "bg-white text-black" : "bg-primary/20 text-white")}>
                     {event.isHome ? 'HOME TEAM' : 'VISITING TEAM'}
                   </Badge>
@@ -190,11 +189,10 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
 }
 
 export default function EventsPage() {
-  const { activeTeamEvents, updateRSVP, isSuperAdmin, isStaff, addEvent, updateEvent, deleteEvent, members, activeTeam } = useTeam();
+  const { activeTeamEvents, updateRSVP, isSuperAdmin, isStaff, addEvent, updateEvent, deleteEvent, members } = useTeam();
   const [filterMode, setFilterMode] = useState<'live' | 'past'>('live');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TeamEvent | null>(null);
-  const [viewingTournament, setViewingTournament] = useState<TeamEvent | null>(null);
   
   const [newTitle, setNewTitle] = useState('');
   const [newDate, setNewDate] = useState('');
@@ -240,10 +238,6 @@ export default function EventsPage() {
     setNewDescription(event.description); 
     setIsCreateOpen(true); 
   };
-
-  if (viewingTournament) {
-    return <TournamentsPage preSelectedTournament={viewingTournament} onExit={() => setViewingTournament(null)} />;
-  }
 
   const isAdmin = isStaff || isSuperAdmin;
 
@@ -297,63 +291,37 @@ export default function EventsPage() {
         <div className="flex items-center justify-between px-2"><h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Itinerary</h2><div className="flex bg-muted/50 p-1 rounded-xl border shadow-inner"><Button variant={filterMode === 'live' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('live')} className="h-8 rounded-lg font-black text-[10px] uppercase">Live</Button><Button variant={filterMode === 'past' ? 'default' : 'ghost'} size="sm" onClick={() => setFilterMode('past')} className="h-8 rounded-lg font-black text-[10px] uppercase">History</Button></div></div>
         <div className="grid gap-4">
           {filteredEvents.map((event) => (
-            <div key={event.id} onClick={() => event.isTournament ? setViewingTournament(event) : null} className={cn(event.isTournament && "cursor-pointer")}>
-              {event.isTournament ? (
-                <Card className="hover:border-primary/30 transition-all duration-500 rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
-                  <div className="flex items-stretch h-32">
-                    <div className="w-24 lg:w-32 flex flex-col items-center justify-center border-r-2 shrink-0 px-2 text-center bg-black text-white">
-                      <span className="text-[9px] font-black uppercase opacity-60 leading-none mb-1">{format(new Date(event.date), 'MMM').toUpperCase()}</span>
-                      <span className="text-3xl lg:text-4xl font-black tracking-tighter leading-none">{format(new Date(event.date), 'd')}</span>
-                    </div>
-                    <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex gap-2 mb-1.5"><Badge className="text-[7px] uppercase font-black bg-primary">Elite Series</Badge><Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">MULTIDAY</Badge></div>
-                          <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors uppercase">{event.title}</h3>
-                          <div className="flex items-center gap-4 mt-1">
-                            <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location || 'Location TBD'}</p>
-                            <p className="text-[8px] font-black text-primary uppercase">{formatDateRange(event.date, event.endDate)}</p>
-                          </div>
+            <EventDetailDialog key={event.id} event={event} updateRSVP={updateRSVP} isAdmin={isAdmin} onEdit={handleEdit} onDelete={deleteEvent} members={members}>
+              <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
+                <div className="flex items-stretch h-32">
+                  <div className={cn("w-24 lg:w-32 flex flex-col items-center justify-center border-r-2 shrink-0 px-2 text-center", EVENT_TYPE_COLORS[event.eventType || 'other'])}>
+                    <span className="text-[9px] font-black uppercase opacity-60 leading-none mb-1">{format(new Date(event.date), 'MMM').toUpperCase()}</span>
+                    <span className="text-3xl lg:text-4xl font-black tracking-tighter leading-none">{format(new Date(event.date), 'd')}</span>
+                  </div>
+                  <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex gap-2 mb-1.5">
+                          <Badge className="text-[7px] uppercase font-black">{(event.eventType || 'Activity')}</Badge>
+                          <Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{event.startTime}</Badge>
+                          {event.isLeagueGame && (
+                            <Badge className={cn("text-[7px] uppercase font-black border-none", event.isHome ? "bg-primary text-white" : "bg-black text-white")}>
+                              {event.isHome ? 'HOME' : 'AWAY'}
+                            </Badge>
+                          )}
                         </div>
-                        <ChevronRight className="h-5 w-5 text-primary opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all mt-2" />
+                        <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors uppercase">{event.title}</h3>
+                        <div className="flex items-center gap-4 mt-1">
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
+                          <p className="text-[8px] font-black text-primary uppercase">{formatDateRange(event.date, event.endDate)}</p>
+                        </div>
                       </div>
+                      <ChevronRight className="h-5 w-5 text-primary opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all mt-2" />
                     </div>
                   </div>
-                </Card>
-              ) : (
-                <EventDetailDialog event={event} updateRSVP={updateRSVP} isAdmin={isAdmin} onEdit={handleEdit} onDelete={deleteEvent} members={members}>
-                  <Card className="hover:border-primary/30 transition-all duration-500 cursor-pointer group rounded-3xl border-none shadow-md ring-1 ring-black/5 overflow-hidden bg-white">
-                    <div className="flex items-stretch h-32">
-                      <div className={cn("w-24 lg:w-32 flex flex-col items-center justify-center border-r-2 shrink-0 px-2 text-center", EVENT_TYPE_COLORS[event.eventType || 'other'])}>
-                        <span className="text-[9px] font-black uppercase opacity-60 leading-none mb-1">{format(new Date(event.date), 'MMM').toUpperCase()}</span>
-                        <span className="text-3xl lg:text-4xl font-black tracking-tighter leading-none">{format(new Date(event.date), 'd')}</span>
-                      </div>
-                      <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex gap-2 mb-1.5">
-                              <Badge className="text-[7px] uppercase font-black">{(event.eventType || 'Activity')}</Badge>
-                              <Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{event.startTime}</Badge>
-                              {event.eventType === 'game' && event.isLeagueGame && (
-                                <Badge className={cn("text-[7px] uppercase font-black border-none", event.isHome ? "bg-primary text-white" : "bg-black text-white")}>
-                                  {event.isHome ? 'HOME' : 'AWAY'}
-                                </Badge>
-                              )}
-                            </div>
-                            <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors uppercase">{event.title}</h3>
-                            <div className="flex items-center gap-4 mt-1">
-                              <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>
-                              <p className="text-[8px] font-black text-primary uppercase">{formatDateRange(event.date, event.endDate)}</p>
-                            </div>
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-primary opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all mt-2" />
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </EventDetailDialog> 
-              )}
-            </div>
+                </div>
+              </Card>
+            </EventDetailDialog>
           ))}
         </div>
       </section>

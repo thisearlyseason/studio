@@ -1,24 +1,19 @@
+
 "use client";
 
+/**
+ * TACTICAL FILE RENAMED TO REDIRECT
+ * Resolves Next.js 15 parallel route error.
+ */
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 
-/**
- * PUBLIC ROUTE REDIRECT
- * Resolves parallel route conflict by redirecting to the authenticated management hub
- * or specific spectator routes.
- */
-export default function TournamentRedirectPage() {
+export default function RootTournamentPage() {
   const router = useRouter();
 
   useEffect(() => {
     router.replace('/manage-tournaments');
   }, [router]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
+  return null;
 }
