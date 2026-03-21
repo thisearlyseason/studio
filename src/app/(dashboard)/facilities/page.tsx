@@ -136,7 +136,7 @@ export default function FacilityManagementPage() {
     <div className="space-y-10 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <Badge className="bg-primary/10 text-primary border-none font-black tracking-widest text-[9px] h-6 px-3">Master Infrastructure</Badge>
+          <Badge className="bg-primary/10 text-primary border-none font-black tracking-widest text-[9px] h-6 px-3 shadow-sm">Master Infrastructure</Badge>
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground">Facilities</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Asset Scheduling & Venue Coordination</p>
         </div>
@@ -173,15 +173,15 @@ export default function FacilityManagementPage() {
                   </Alert>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Venue Name</Label>
-                    <Input placeholder="e.g. Metro Sports Complex" value={newFac.name} onChange={e => setNewFac({...newFac, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground" />
+                    <Input placeholder="e.g. Metro Sports Complex" value={newFac.name} onChange={e => setNewFac({...newFac, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground shadow-inner" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Physical Address</Label>
-                    <Input placeholder="123 Stadium Way..." value={newFac.address} onChange={e => setNewFac({...newFac, address: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground" />
+                    <Input placeholder="123 Stadium Way..." value={newFac.address} onChange={e => setNewFac({...newFac, address: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground shadow-inner" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Operational Notes</Label>
-                    <Input placeholder="Parking, gate codes, etc." value={newFac.notes} onChange={e => setNewFac({...newFac, notes: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground" />
+                    <Input placeholder="Parking, gate codes, etc." value={newFac.notes} onChange={e => setNewFac({...newFac, notes: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground shadow-inner" />
                   </div>
                 </div>
                 <DialogFooter className="pt-4">

@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Core logic for the Elite Scheduling Engine.
  * Hardened for balanced distribution, multi-venue resource mapping, and intelligent double-headers.
@@ -49,7 +48,7 @@ function parseTime(timeStr: string, referenceDate: Date): Date {
     if (!isNaN(d.getTime())) return d;
   }
   
-  // Robust regex fallback for non-standard inputs
+  // Robust regex fallback for non-standard inputs like "8:00pm" or "08:00"
   const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
   if (match) {
     let [_, hours, mins, ampm] = match;
@@ -199,6 +198,7 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
       }
     }
   } else {
+    // Basic single elimination seeding
     const shuffledTeams = shuffle([...teamList]);
     for (let i = 0; i < Math.floor(shuffledTeams.length / 2); i++) {
       matchups.push([shuffledTeams[i], shuffledTeams[shuffledTeams.length - 1 - i]]);

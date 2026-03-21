@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -32,13 +31,11 @@ import {
   Settings,
   Building,
   CheckCircle2,
-  Calendar as CalendarDaysIcon,
   Save,
   Trash2,
   Signature,
   FileText,
-  Play,
-  Table as TableIcon
+  Play
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -64,7 +61,6 @@ import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 import { generateTournamentSchedule, DailyWindow, TeamIdentity } from '@/lib/scheduler-utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { downloadICS } from '@/lib/calendar-utils';
 import html2canvas from 'html2canvas';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -180,7 +176,7 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
 
 function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () => void }) {
   const { user: authUser } = useUser();
-  const { isStaff, activeTeam, db, exportAttendanceCSV } = useTeam();
+  const { isStaff, activeTeam, db } = useTeam();
   
   const [tournamentTeams, setTournamentTeams] = useState<TournamentTeam[]>([]);
   const standings = useMemo(() => calculateTournamentStandings(tournamentTeams, event.tournamentGames || []), [tournamentTeams, event.tournamentGames]);
@@ -388,12 +384,18 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           <div className="p-8 h-[500px]">
             <ScrollArea className="h-full pr-4">
               <div className="space-y-4">
+                <div className="bg-amber-50 p-4 rounded-2xl border-2 border-dashed border-amber-200 mb-6 flex items-start gap-3">
+                  <Info className="h-5 w-5 text-amber-600 shrink-0" />
+                  <p className="text-[11px] font-bold text-amber-700 uppercase leading-relaxed italic">
+                    Tactical Protocol: Finalize your squad roster before generating the itinerary. Balanced pairings require a completed team list.
+                  </p>
+                </div>
                 {teamRows.map((team, idx) => (
                   <div key={team.id} className="grid grid-cols-12 gap-3 items-center">
                     <div className="col-span-1 text-[10px] font-black opacity-20 text-center">{idx + 1}</div>
-                    <div className="col-span-4"><Input placeholder="Squad Name" value={team.name} onChange={e => { const n = [...teamRows]; n[idx].name = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2" /></div>
-                    <div className="col-span-3"><Input placeholder="Coach Name" value={team.coach} onChange={e => { const n = [...teamRows]; n[idx].coach = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2" /></div>
-                    <div className="col-span-3"><Input placeholder="Email" type="email" value={team.email} onChange={e => { const n = [...teamRows]; n[idx].email = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2" /></div>
+                    <div className="col-span-4"><Input placeholder="Squad Name" value={team.name} onChange={e => { const n = [...teamRows]; n[idx].name = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2 font-bold" /></div>
+                    <div className="col-span-3"><Input placeholder="Coach Name" value={team.coach} onChange={e => { const n = [...teamRows]; n[idx].coach = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2 font-bold" /></div>
+                    <div className="col-span-3"><Input placeholder="Email" type="email" value={team.email} onChange={e => { const n = [...teamRows]; n[idx].email = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2 font-bold" /></div>
                     <div className="col-span-1 flex justify-end"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setTeamRows(teamRows.filter(t => t.id !== team.id))}><X className="h-4 w-4" /></Button></div>
                   </div>
                 ))}
@@ -401,7 +403,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               </div>
             </ScrollArea>
           </div>
-          <div className="p-8 bg-muted/10 border-t"><Button className="w-full h-16 rounded-2xl text-lg font-black" onClick={handleUpdateTeams}>Save Roster</Button></div>
+          <div className="p-8 bg-muted/10 border-t"><Button className="w-full h-16 rounded-2xl text-lg font-black" onClick={handleUpdateTeams}>Commit Roster Hub</Button></div>
         </DialogContent>
       </Dialog>
 
@@ -450,8 +452,8 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                           <div key={win.date} className="bg-muted/30 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-6 border-2 border-transparent hover:border-primary/10 transition-all">
                             <p className="text-sm font-black uppercase tracking-widest text-foreground min-w-[150px]">{format(new Date(win.date), 'EEEE, MMM d')}</p>
                             <div className="flex items-center gap-8 w-full sm:w-auto">
-                              <div className="space-y-2"><Label className="text-[8px] font-black uppercase opacity-40">Start</Label><Input type="time" value={win.startTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].startTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl bg-white" /></div>
-                              <div className="space-y-2"><Label className="text-[8px] font-black uppercase opacity-40">End</Label><Input type="time" value={win.endTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].endTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl bg-white" /></div>
+                              <div className="space-y-2"><Label className="text-[8px] font-black uppercase opacity-40">Start</Label><Input type="time" value={win.startTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].startTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl bg-white font-bold" /></div>
+                              <div className="space-y-2"><Label className="text-[8px] font-black uppercase opacity-40">End</Label><Input type="time" value={win.endTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].endTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl bg-white font-bold" /></div>
                             </div>
                           </div>
                         ))}
@@ -474,7 +476,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                             }} />
                           </div>
                         ))}
-                        <div className="space-y-4 pt-6 border-t border-muted"><Label className="text-[10px] font-black uppercase ml-1">Manual Location</Label><Input placeholder="Manual Venue Override..." value={genConfig.manualVenue} onChange={e => setGenConfig({...genConfig, manualVenue: e.target.value})} className="h-14 rounded-2xl border-2 font-bold" /></div>
+                        <div className="space-y-4 pt-6 border-t border-muted"><Label className="text-[10px] font-black uppercase ml-1">Manual Venue Override</Label><Input placeholder="Stadium Name..." value={genConfig.manualVenue} onChange={e => setGenConfig({...genConfig, manualVenue: e.target.value})} className="h-14 rounded-2xl border-2 font-bold" /></div>
                       </div>
                     </section>
                   </div>
@@ -482,7 +484,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 
                 {genStep === 4 && (
                   <div className="space-y-8 animate-in slide-in-from-right-4 text-center py-10">
-                    <div className="bg-primary/10 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto"><Sparkles className="h-12 w-12 text-primary" /></div>
+                    <div className="bg-primary/10 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner"><Sparkles className="h-12 w-12 text-primary" /></div>
                     <h3 className="text-3xl font-black uppercase tracking-tight">Ready to Deploy</h3>
                     <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Verify the {genConfig.tournamentType.replace('_', ' ')} itinerary for {tournamentTeams.length} squads.</p>
                   </div>
@@ -492,7 +494,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 
             <div className="p-8 bg-background border-t flex gap-4 mt-auto">
               {genStep > 1 && <Button variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase text-xs border-2" onClick={() => setGenStep(genStep - 1)}>Back</Button>}
-              {genStep < 4 ? <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl" onClick={() => setGenStep(genStep + 1)}>Next Step</Button> : <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleGenerateItinerary}>Deploy Itinerary</Button>}
+              {genStep < 4 ? <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl" onClick={() => setGenStep(genStep + 1)}>Next Step</Button> : <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleGenerateItinerary}>Deploy Full Itinerary</Button>}
             </div>
           </div>
         </DialogContent>
@@ -545,7 +547,7 @@ export default function ManageTournamentsPage() {
     <div className="space-y-10 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Elite Series</Badge>
+          <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3 shadow-sm">Elite Series</Badge>
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none">Championships</h1>
         </div>
         {isStaff && (
@@ -575,7 +577,7 @@ export default function ManageTournamentsPage() {
               <div>
                 <h3 className="text-3xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors uppercase">{tourney.title}</h3>
                 <div className="flex items-center gap-2 mt-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                  <CalendarDaysIcon className="h-3 w-3 text-primary" />
+                  <CalendarDays className="h-3 w-3 text-primary" />
                   <span>{format(new Date(tourney.date), 'MMM d')} - {format(new Date(tourney.endDate || tourney.date), 'MMM d, yyyy')}</span>
                 </div>
               </div>
@@ -612,13 +614,13 @@ export default function ManageTournamentsPage() {
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Series Headline</Label>
-                <Input placeholder="e.g. 2024 Winter Classic" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-14 rounded-2xl border-2 font-bold focus:border-primary/20 transition-all" />
+                <Input placeholder="e.g. 2024 Winter Classic" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-14 rounded-2xl border-2 font-bold focus:border-primary/20 transition-all shadow-inner" />
               </div>
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Launch Date</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-bold" /></div>
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Finale Date</Label><Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Launch Date</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-bold shadow-inner" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Finale Date</Label><Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 border-2 rounded-xl font-bold shadow-inner" /></div>
               </div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Primary Venue</Label><Input placeholder="Stadium Name" value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Primary Venue</Label><Input placeholder="Stadium Name" value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 border-2 rounded-xl font-bold shadow-inner" /></div>
             </div>
             <DialogFooter>
               <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all border-none" onClick={handleCreateTournament} disabled={!newTitle || !newDate}>
