@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -138,7 +137,7 @@ export default function FacilityManagementPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <Badge className="bg-primary/10 text-primary border-none font-black tracking-widest text-[9px] h-6 px-3">Master Infrastructure</Badge>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Facilities</h1>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground">Facilities</h1>
           <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Asset Scheduling & Venue Coordination</p>
         </div>
 
@@ -149,7 +148,7 @@ export default function FacilityManagementPage() {
                 <Plus className="h-5 w-5 mr-2" /> Enroll Facility
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+            <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
               <DialogTitle className="sr-only">Facility Registration</DialogTitle>
               <div className="h-2 bg-primary w-full" />
               <div className="p-8 lg:p-12 space-y-10">
@@ -173,16 +172,16 @@ export default function FacilityManagementPage() {
                     </AlertDescription>
                   </Alert>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Venue Name</Label>
-                    <Input placeholder="e.g. Metro Sports Complex" value={newFac.name} onChange={e => setNewFac({...newFac, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Venue Name</Label>
+                    <Input placeholder="e.g. Metro Sports Complex" value={newFac.name} onChange={e => setNewFac({...newFac, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Physical Address</Label>
-                    <Input placeholder="123 Stadium Way..." value={newFac.address} onChange={e => setNewFac({...newFac, address: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Physical Address</Label>
+                    <Input placeholder="123 Stadium Way..." value={newFac.address} onChange={e => setNewFac({...newFac, address: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Notes</Label>
-                    <Input placeholder="Parking, gate codes, etc." value={newFac.notes} onChange={e => setNewFac({...newFac, notes: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Operational Notes</Label>
+                    <Input placeholder="Parking, gate codes, etc." value={newFac.notes} onChange={e => setNewFac({...newFac, notes: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all text-foreground" />
                   </div>
                 </div>
                 <DialogFooter className="pt-4">
@@ -213,7 +212,7 @@ export default function FacilityManagementPage() {
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-3xl font-black uppercase tracking-tight group-hover:text-primary transition-colors leading-none">{facility.name}</h3>
+                <h3 className="text-3xl font-black uppercase tracking-tight group-hover:text-primary transition-colors leading-none text-foreground">{facility.name}</h3>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed flex items-center gap-2">
                   <Globe className="h-3 w-3" /> {facility.address}
                 </p>
@@ -239,7 +238,7 @@ export default function FacilityManagementPage() {
         {facilities?.length === 0 && (
           <div className="col-span-full py-32 text-center border-2 border-dashed rounded-[3rem] bg-muted/10 opacity-40">
             <LayoutGrid className="h-16 w-16 mx-auto mb-4" />
-            <p className="text-sm font-black uppercase tracking-widest">No organization facilities enrolled yet.</p>
+            <p className="text-sm font-black uppercase tracking-widest text-foreground">No organization facilities enrolled yet.</p>
           </div>
         )}
       </div>
@@ -249,7 +248,7 @@ export default function FacilityManagementPage() {
           <CalendarDays className="h-48 w-48" />
         </div>
         <CardContent className="p-12 relative z-10 space-y-6">
-          <Badge className="bg-primary text-white border-none font-black text-[10px] px-4 h-7">Conflict Resolution</Badge>
+          <Badge className="bg-primary text-white border-none font-black text-[10px] px-4 h-7 uppercase tracking-widest">Conflict Resolution</Badge>
           <h2 className="text-4xl font-black tracking-tight leading-tight uppercase">Master Scheduling</h2>
           <p className="text-white/60 font-medium text-lg leading-relaxed max-w-2xl">
             Facility management ensures your organization never encounters field conflicts. Select a venue and field during event deployment to automatically verify availability across all squads in your club.

@@ -34,8 +34,6 @@ import {
   CheckCircle2,
   Calendar as CalendarDaysIcon,
   Save,
-  Mail,
-  User,
   Trash2,
   Signature,
   FileText,
@@ -57,9 +55,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useTeam, TeamEvent, TournamentGame, Member, Facility, Field, TeamDocument, League, RegistrationEntry } from '@/components/providers/team-provider';
+import { useTeam, TeamEvent, TournamentGame, Member, Facility, Field } from '@/components/providers/team-provider';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, where, doc, updateDoc, collectionGroup, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format, isPast, isSameDay, eachDayOfInterval } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -69,7 +67,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { downloadICS } from '@/lib/calendar-utils';
 import html2canvas from 'html2canvas';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 
 interface TournamentTeam extends TeamIdentity {
   coach?: string;
@@ -138,9 +135,9 @@ function BracketVisualizer({ games }: { games: TournamentGame[] }) {
           <ArrowRight className="h-10 w-10 text-primary opacity-40 animate-pulse" />
           <div className="flex flex-col">
             <p className="text-[10px] font-black uppercase text-center text-primary mb-6 tracking-widest">Championship Final</p>
-            <div className="w-72 h-40 bg-white text-black rounded-[2.5rem] border-4 border-primary flex flex-col justify-center items-center gap-4 shadow-[0_0_50px_rgba(255,0,0,0.3)] relative group">
+            <div className="w-72 h-40 bg-white text-black rounded-[2.5rem] border-4 border-primary flex flex-col justify-center items-center gap-4 shadow-2xl relative group">
               <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-5 transition-opacity" />
-              <Trophy className="absolute -top-8 h-16 w-16 text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+              <Trophy className="absolute -top-8 h-16 w-16 text-amber-500" />
               <div className="text-center pt-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Finalist Matchup</p>
                 <div className="flex items-center gap-4">
@@ -183,7 +180,7 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
 
 function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () => void }) {
   const { user: authUser } = useUser();
-  const { members, isStaff, activeTeam, db, exportTournamentStandingsCSV, exportAttendanceCSV } = useTeam();
+  const { isStaff, activeTeam, db, exportAttendanceCSV } = useTeam();
   
   const [tournamentTeams, setTournamentTeams] = useState<TournamentTeam[]>([]);
   const standings = useMemo(() => calculateTournamentStandings(tournamentTeams, event.tournamentGames || []), [tournamentTeams, event.tournamentGames]);
@@ -247,13 +244,9 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
   const handleUpdateTeams = async () => {
     if (!db || !event.id) return;
     const validTeams = teamRows.filter(t => t.name.trim());
-    const invitedMap: Record<string, string> = {};
-    validTeams.forEach((t) => { if (t.email) invitedMap[t.email] = t.name; });
-    
     await updateDoc(doc(db, 'teams', event.teamId, 'events', event.id), { 
       tournamentTeams: validTeams.map(t => t.name),
-      tournamentTeamsData: validTeams,
-      invitedTeamEmails: invitedMap 
+      tournamentTeamsData: validTeams
     });
     setIsEditOpen(false);
     toast({ title: "Tournament Roster Updated" });
@@ -279,7 +272,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
     });
 
     if (schedule.length === 0) {
-      toast({ title: "Generation Failure", description: "Check time windows and field allocation. Ensure you have added teams to the roster first.", variant: "destructive" });
+      toast({ title: "Generation Failure", description: "Verify timelines and team roster count.", variant: "destructive" });
       return;
     }
 
@@ -296,24 +289,20 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
+    <div className="space-y-10 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-6 w-6" /></Button>
           <div>
             <Badge className="bg-primary text-white border-none font-black uppercase text-[10px] h-6 px-3 shadow-lg">Live Series</Badge>
             <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tight mt-1">{event.title}</h1>
-            <div className="flex flex-wrap items-center gap-4 mt-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-              <span className="flex items-center gap-1.5"><CalendarDaysIcon className="h-3 w-3 text-primary" /> {format(new Date(event.date), 'MMM d')} - {format(new Date(event.endDate || event.date), 'MMM d, yyyy')}</span>
-              <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-primary" /> {event.location || 'Location TBD'}</span>
-            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {isOrganizer && (
             <>
-              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black border-black hover:bg-black hover:text-white transition-all shadow-sm" onClick={initGenModal}><Sparkles className="h-4 w-4 mr-2" /> Itinerary</Button>
-              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black border-black hover:bg-black hover:text-white transition-all shadow-sm" onClick={() => setIsEditOpen(true)}><Edit3 className="h-4 w-4 mr-2" /> Roster</Button>
+              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black border-black" onClick={initGenModal}><Sparkles className="h-4 w-4 mr-2" /> Itinerary</Button>
+              <Button variant="outline" className="rounded-xl h-10 px-6 border-2 font-black uppercase text-[10px] bg-white text-black border-black" onClick={() => setIsEditOpen(true)}><Edit3 className="h-4 w-4 mr-2" /> Roster</Button>
             </>
           )}
         </div>
@@ -321,21 +310,9 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 
       <div className="flex flex-col lg:flex-row gap-8">
         <aside className="w-full lg:w-1/3 flex flex-col text-white bg-black rounded-[3rem] p-8 lg:p-10 space-y-8">
-          <div className="space-y-4"><p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Operational Brief</p><p className="text-sm font-medium text-white/80 leading-relaxed italic">"{event.description || 'Championship coordination itinerary established.'}"</p></div>
-          
-          <div className="grid grid-cols-1 gap-3">
-            <Button variant="outline" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] border-none hover:bg-primary hover:text-white transition-all shadow-xl" onClick={() => downloadICS([{ title: event.title, start: new Date(event.date), end: event.endDate ? new Date(event.endDate) : undefined, location: event.location, description: event.description }], `${event.title.replace(/\s+/g, '_')}.ics`)}>
-              <CalendarIcon className="h-4 w-4 mr-2 text-black" /> <span className="text-black">Add to Calendar</span>
-            </Button>
-            {isOrganizer && (
-              <Button variant="outline" className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] border-none hover:bg-primary hover:text-white transition-all shadow-xl" onClick={() => exportAttendanceCSV(event.id)}>
-                <Download className="h-4 w-4 mr-2 text-black" /> <span className="text-black">Export RSVP Ledger</span>
-              </Button>
-            )}
-          </div>
-
+          <div className="space-y-4"><p className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Brief</p><p className="text-sm font-medium text-white/80 leading-relaxed italic">"{event.description || 'Championship itinerary established.'}"</p></div>
           <div className="space-y-4 pt-4 border-t border-white/10">
-            <div className="flex justify-between items-center"><h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard Pulse</h4></div>
+            <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard</h4>
             <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
               {standings.length > 0 ? standings.map((team) => (
                 <div className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0" key={team.name}>
@@ -360,7 +337,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             <div className="flex-1 p-8 lg:p-10">
               <TabsContent value="itinerary" className="mt-0 space-y-4">
                 {event.tournamentGames?.map((game) => (
-                  <Card key={game.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-6 flex items-center justify-between group bg-white hover:shadow-md transition-all">
+                  <Card key={game.id} className="rounded-2xl border shadow-sm p-6 flex items-center justify-between group bg-white hover:shadow-md transition-all">
                     <div className="flex items-center gap-6 flex-1">
                       <div className="w-12 h-12 rounded-xl bg-muted/30 flex flex-col items-center justify-center shrink-0 border"><Clock className="h-4 w-4 text-primary" /><span className="text-[8px] font-black uppercase">{game.time}</span></div>
                       <div className="min-w-0 flex-1">
@@ -371,7 +348,6 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                           <span className="text-xl font-black text-primary">{game.score2}</span>
                           <span className="font-black text-sm uppercase truncate flex-1">{game.team2}</span>
                         </div>
-                        {game.location && <p className="text-[8px] font-black text-center text-muted-foreground uppercase mt-2 tracking-widest">{game.location}</p>}
                       </div>
                     </div>
                   </Card>
@@ -381,24 +357,24 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               <TabsContent value="bracket" className="mt-0"><BracketVisualizer games={event.tournamentGames || []} /></TabsContent>
               <TabsContent value="portals" className="mt-0 space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <Card className="rounded-[2.5rem] border-none shadow-xl bg-primary text-white p-8 space-y-4 group cursor-pointer hover:ring-4 hover:ring-primary/20 transition-all" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Waiver URL Copied" }); }}>
-                    <Badge className="bg-white text-primary border-none font-black text-[8px] h-5 px-2">COMPLIANCE HUB</Badge>
+                  <Card className="rounded-[2.5rem] border-none shadow-xl bg-primary text-white p-8 space-y-4 group cursor-pointer" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/tournaments/${event.teamId}/waiver/${event.id}`); toast({ title: "Waiver URL Copied" }); }}>
+                    <Badge className="bg-white text-primary border-none font-black text-[8px] h-5 px-2">COMPLIANCE</Badge>
                     <h4 className="text-2xl font-black uppercase tracking-tight">Public Waiver Link</h4>
-                    <p className="text-xs text-white/80 font-medium leading-relaxed italic">Unauthenticated link for participating squad representatives to execute agreements.</p>
-                    <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-[10px] bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary transition-all">Copy Portal URL <Share2 className="ml-2 h-3 w-3" /></Button>
+                    <p className="text-xs text-white/80 font-medium leading-relaxed italic">Public link for squad captains to sign digital agreements.</p>
+                    <Button variant="outline" className="w-full h-12 rounded-xl bg-white/10 border-white/20 text-white">Copy Portal URL <Share2 className="ml-2 h-3 w-3" /></Button>
                   </Card>
-                  <Card className="rounded-[2.5rem] border-none shadow-xl bg-black text-white p-8 space-y-4 group cursor-pointer hover:ring-4 hover:ring-primary/20 transition-all" onClick={() => window.open(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`, '_blank')}>
-                    <Badge className="bg-primary text-white border-none font-black text-[8px] h-5 px-2">LIVE PORTAL</Badge>
-                    <h4 className="text-2xl font-black uppercase tracking-tight">Spectator Portal</h4>
-                    <p className="text-xs text-white/60 font-medium leading-relaxed italic">Public link for fans to track real-time standings and championships.</p>
-                    <Button variant="outline" className="w-full h-12 rounded-xl font-black uppercase text-[10px] bg-white/10 border-white/20 text-white hover:bg-primary hover:border-transparent transition-all">Open Live View <ExternalLink className="ml-2 h-3 w-3" /></Button>
+                  <Card className="rounded-[2.5rem] border-none shadow-xl bg-black text-white p-8 space-y-4 group cursor-pointer" onClick={() => window.open(`${baseUrl}/tournaments/spectator/${event.teamId}/${event.id}`, '_blank')}>
+                    <Badge className="bg-primary text-white border-none font-black text-[8px] h-5 px-2">LIVE</Badge>
+                    <h4 className="text-2xl font-black uppercase tracking-tight">Spectator Hub</h4>
+                    <p className="text-xs text-white/60 font-medium leading-relaxed italic">Public link for live standings and bracket tracking.</p>
+                    <Button variant="outline" className="w-full h-12 rounded-xl bg-white/10 border-white/20 text-white">Open Live View <ExternalLink className="ml-2 h-3 w-3" /></Button>
                   </Card>
                 </div>
               </TabsContent>
               <TabsContent value="compliance" className="mt-0">
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-primary" /><h3 className="text-xl font-black uppercase tracking-tight">Team Agreement Ledger</h3></div></div>
-                  <div className="grid grid-cols-1 gap-3">{tournamentTeams.map(t => { const agreement = event.teamAgreements?.[t.name]; return (<Card key={t.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white flex items-center justify-between"><div className="flex items-center gap-4"><div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", agreement ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground/30")}>{agreement ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}</div><span className="font-black text-sm uppercase truncate">{t.name}</span></div>{agreement ? (<div className="text-right"><p className="text-[8px] font-black uppercase text-muted-foreground">Signed by {agreement.captainName}</p><p className="text-[7px] font-bold text-muted-foreground opacity-40">{format(new Date(agreement.signedAt), 'MMM d, h:mm a')}</p></div>) : (<Badge variant="outline" className="text-[7px] font-black uppercase border-muted-foreground/20 text-muted-foreground">Pending Execution</Badge>)}</Card>); })}</div>
+                  <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><FileSignature className="h-5 w-5 text-primary" /><h3 className="text-xl font-black uppercase tracking-tight">Signature Ledger</h3></div></div>
+                  <div className="grid grid-cols-1 gap-3">{tournamentTeams.map(t => { const agreement = event.teamAgreements?.[t.name]; return (<Card key={t.id} className="rounded-2xl border-none shadow-sm ring-1 ring-black/5 p-4 bg-white flex items-center justify-between"><div className="flex items-center gap-4"><div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", agreement ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground/30")}>{agreement ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}</div><span className="font-black text-sm uppercase truncate">{t.name}</span></div>{agreement ? (<div className="text-right"><p className="text-[8px] font-black uppercase text-muted-foreground">Signed by {agreement.captainName}</p></div>) : (<Badge variant="outline" className="text-[7px] font-black uppercase border-muted-foreground/20 text-muted-foreground">Pending</Badge>)}</Card>); })}</div>
                 </div>
               </TabsContent>
             </div>
@@ -408,65 +384,56 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-5xl p-0 overflow-hidden border-none shadow-2xl bg-white">
-          <div className="bg-primary/5 p-8 border-b"><DialogHeader><DialogTitle className="text-3xl font-black uppercase">Tournament Roster Architect</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] mt-1">Enroll participating squads & manage personnel metadata</DialogDescription></DialogHeader></div>
-          <div className="grid grid-cols-1 lg:grid-cols-12 h-[600px]">
-            <div className="lg:col-span-8 flex flex-col overflow-hidden">
-              <div className="p-6 bg-muted/30 border-b flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Squad Entries ({teamRows.length})</p><Button variant="ghost" size="sm" className="h-8 text-[10px] font-black uppercase text-primary" onClick={addTeamRow}><Plus className="h-3 w-3 mr-1" /> Add Squad</Button></div>
-              <ScrollArea className="flex-1 p-6">
-                <div className="space-y-4">
-                  {teamRows.map((team, idx) => (
-                    <div key={team.id} className="grid grid-cols-12 gap-3 items-center animate-in fade-in transition-all">
-                      <div className="col-span-1 text-[10px] font-black opacity-20 text-center">{idx + 1}</div>
-                      <div className="col-span-4"><Input placeholder="Squad Name" value={team.name} onChange={e => { const n = [...teamRows]; n[idx].name = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl font-bold border-2" /></div>
-                      <div className="col-span-3"><Input placeholder="Coach Name" value={team.coach} onChange={e => { const n = [...teamRows]; n[idx].coach = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl font-medium border-2" /></div>
-                      <div className="col-span-3"><Input placeholder="Coach Email" type="email" value={team.email} onChange={e => { const n = [...teamRows]; n[idx].email = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl font-medium border-2" /></div>
-                      <div className="col-span-1 flex justify-end"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-40 hover:opacity-100" onClick={() => setTeamRows(teamRows.filter(t => t.id !== team.id))}><X className="h-4 w-4" /></Button></div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-            <div className="lg:col-span-4 bg-black text-white p-8 space-y-8 border-l border-white/5">
-              <div className="bg-primary/10 p-6 rounded-[2rem] border-2 border-dashed border-primary/20 space-y-3">
-                <div className="flex items-center gap-2"><Info className="h-4 w-4 text-primary" /><span className="text-[10px] font-black uppercase">Elite Strategy</span></div>
-                <p className="text-[10px] font-medium leading-relaxed italic text-white/60">Finalize the roster before generating the itinerary to ensure balanced pairings.</p>
+          <div className="bg-primary/5 p-8 border-b"><DialogHeader><DialogTitle className="text-3xl font-black uppercase">Tournament Roster</DialogTitle></DialogHeader></div>
+          <div className="p-8 h-[500px]">
+            <ScrollArea className="h-full pr-4">
+              <div className="space-y-4">
+                {teamRows.map((team, idx) => (
+                  <div key={team.id} className="grid grid-cols-12 gap-3 items-center">
+                    <div className="col-span-1 text-[10px] font-black opacity-20 text-center">{idx + 1}</div>
+                    <div className="col-span-4"><Input placeholder="Squad Name" value={team.name} onChange={e => { const n = [...teamRows]; n[idx].name = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2" /></div>
+                    <div className="col-span-3"><Input placeholder="Coach Name" value={team.coach} onChange={e => { const n = [...teamRows]; n[idx].coach = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2" /></div>
+                    <div className="col-span-3"><Input placeholder="Email" type="email" value={team.email} onChange={e => { const n = [...teamRows]; n[idx].email = e.target.value; setTeamRows(n); }} className="h-10 rounded-xl border-2" /></div>
+                    <div className="col-span-1 flex justify-end"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setTeamRows(teamRows.filter(t => t.id !== team.id))}><X className="h-4 w-4" /></Button></div>
+                  </div>
+                ))}
+                <Button variant="ghost" className="w-full h-12 border-2 border-dashed font-black uppercase text-[10px]" onClick={addTeamRow}>+ Add Squad Entry</Button>
               </div>
-            </div>
+            </ScrollArea>
           </div>
-          <div className="p-8 bg-muted/10 border-t"><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleUpdateTeams}>Commit Roster Synchronization</Button></div>
+          <div className="p-8 bg-muted/10 border-t"><Button className="w-full h-16 rounded-2xl text-lg font-black" onClick={handleUpdateTeams}>Save Roster</Button></div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
         <DialogContent className="rounded-[3rem] sm:max-w-5xl p-0 border-none shadow-2xl overflow-hidden bg-white">
           <div className="h-2 bg-primary w-full" />
-          <div className="flex flex-col h-[85vh]">
-            <div className="p-8 lg:p-12 space-y-10 overflow-y-auto custom-scrollbar text-foreground flex-1">
-              <DialogHeader>
-                <DialogTitle className="text-3xl font-black uppercase tracking-tight">Tournament Deployment Wizard</DialogTitle>
-                <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Multi-Venue Resource Allocation & Match Distribution</DialogDescription>
-              </DialogHeader>
+          <div className="p-8 lg:p-12 space-y-10 h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tight">Itinerary Wizard</DialogTitle>
+              <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Guided Championship Deployment</DialogDescription>
+            </DialogHeader>
 
-              <div className="flex items-center justify-center gap-4 mb-8">
-                {[1, 2, 3, 4].map(step => (
-                  <div key={step} className="flex items-center gap-2">
-                    <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black text-xs transition-all", genStep >= step ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground")}>{step}</div>
-                    {step < 4 && <div className={cn("h-1 w-8 rounded-full transition-all", genStep > step ? "bg-primary" : "bg-muted")} />}
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center justify-center gap-4 mb-8">
+              {[1, 2, 3, 4].map(step => (
+                <div key={step} className="flex items-center gap-2">
+                  <div className={cn("h-8 w-8 rounded-full flex items-center justify-center font-black text-xs", genStep >= step ? "bg-primary text-white" : "bg-muted text-muted-foreground")}>{step}</div>
+                  {step < 4 && <div className={cn("h-1 w-8 rounded-full", genStep > step ? "bg-primary" : "bg-muted")} />}
+                </div>
+              ))}
+            </div>
 
-              <div className="min-h-[400px]">
+            <ScrollArea className="flex-1">
+              <div className="pr-4 pb-10">
                 {genStep === 1 && (
                   <div className="space-y-8 animate-in slide-in-from-right-4">
                     <section className="space-y-6">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Competition Protocol</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Protocol Selection</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         {(['round_robin', 'single_elimination', 'double_elimination'] as const).map(type => (
                           <button key={type} onClick={() => setGenConfig({...genConfig, tournamentType: type})} className={cn("p-6 rounded-[2rem] border-2 transition-all text-left space-y-2", genConfig.tournamentType === type ? "border-primary bg-primary/5 shadow-md" : "border-muted hover:border-muted-foreground/20")}>
-                            <Badge variant="outline" className="border-primary/20 text-primary font-black uppercase text-[8px] px-2">{type.replace('_', ' ')}</Badge>
-                            <p className="text-sm font-black uppercase tracking-widest">{type === 'round_robin' ? 'Pool Play' : 'Knockout'}</p>
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase leading-relaxed">{type === 'round_robin' ? 'Every squad plays every other squad.' : 'Winners advance to the championship.'}</p>
+                            <p className="text-sm font-black uppercase">{type.replace('_', ' ')}</p>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase leading-relaxed">{type === 'round_robin' ? 'Balanced play for all squads.' : 'High stakes knockout progression.'}</p>
                           </button>
                         ))}
                       </div>
@@ -477,14 +444,14 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                 {genStep === 2 && (
                   <div className="space-y-8 animate-in slide-in-from-right-4">
                     <section className="space-y-6">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Timeline Mapping</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Daily Windows</h3>
                       <div className="grid grid-cols-1 gap-4">
                         {genConfig.dailyWindows.map((win, idx) => (
                           <div key={win.date} className="bg-muted/30 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-6 border-2 border-transparent hover:border-primary/10 transition-all">
                             <p className="text-sm font-black uppercase tracking-widest text-foreground min-w-[150px]">{format(new Date(win.date), 'EEEE, MMM d')}</p>
                             <div className="flex items-center gap-8 w-full sm:w-auto">
-                              <div className="space-y-2 flex-1 sm:w-32"><Label className="text-[8px] font-black uppercase ml-1 opacity-40">Start Window</Label><Input type="time" value={win.startTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].startTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl font-bold bg-white" /></div>
-                              <div className="space-y-2 flex-1 sm:w-32"><Label className="text-[8px] font-black uppercase ml-1 opacity-40">End Window</Label><Input type="time" value={win.endTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].endTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl font-bold bg-white" /></div>
+                              <div className="space-y-2"><Label className="text-[8px] font-black uppercase opacity-40">Start</Label><Input type="time" value={win.startTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].startTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl bg-white" /></div>
+                              <div className="space-y-2"><Label className="text-[8px] font-black uppercase opacity-40">End</Label><Input type="time" value={win.endTime} onChange={e => { const n = [...genConfig.dailyWindows]; n[idx].endTime = e.target.value; setGenConfig({...genConfig, dailyWindows: n}); }} className="h-12 rounded-xl bg-white" /></div>
                             </div>
                           </div>
                         ))}
@@ -496,42 +463,36 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                 {genStep === 3 && (
                   <div className="space-y-8 animate-in slide-in-from-right-4">
                     <section className="space-y-6">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Multi-Venue Allocation</h3>
-                      <ScrollArea className="h-[400px] border-2 rounded-[2.5rem] bg-muted/5 p-8 shadow-inner">
-                        <div className="space-y-10">
-                          {facilities?.map(f => (
-                            <div key={f.id} className="space-y-4">
-                              <div className="flex items-center gap-3"><Building className="h-5 w-5 text-primary" /><span className="text-sm font-black uppercase tracking-widest">{f.name}</span></div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pl-8">
-                                <FacilityFieldLoader facilityId={f.id} selectedFields={genConfig.selectedFields} onToggleField={(name) => {
-                                  const fullName = `${f.name}: ${name}`;
-                                  setGenConfig(p => ({ ...p, selectedFields: p.selectedFields.includes(fullName) ? p.selectedFields.filter(sf => sf !== fullName) : [...p.selectedFields, fullName] }));
-                                }} />
-                              </div>
-                            </div>
-                          ))}
-                          <div className="space-y-4 pt-6 border-t border-muted"><Label className="text-[10px] font-black uppercase ml-1">Venue Override</Label><Input placeholder="e.g. Regional Field 4" value={genConfig.manualVenue} onChange={e => setGenConfig({...genConfig, manualVenue: e.target.value})} className="h-14 rounded-2xl border-2 font-bold" /></div>
-                        </div>
-                      </ScrollArea>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Resource Mapping</h3>
+                      <div className="space-y-10">
+                        {facilities?.map(f => (
+                          <div key={f.id} className="space-y-4">
+                            <div className="flex items-center gap-3"><Building className="h-5 w-5 text-primary" /><span className="text-sm font-black uppercase tracking-widest">{f.name}</span></div>
+                            <FacilityFieldLoader facilityId={f.id} selectedFields={genConfig.selectedFields} onToggleField={(name) => {
+                              const fullName = `${f.name}: ${name}`;
+                              setGenConfig(p => ({ ...p, selectedFields: p.selectedFields.includes(fullName) ? p.selectedFields.filter(sf => sf !== fullName) : [...p.selectedFields, fullName] }));
+                            }} />
+                          </div>
+                        ))}
+                        <div className="space-y-4 pt-6 border-t border-muted"><Label className="text-[10px] font-black uppercase ml-1">Manual Location</Label><Input placeholder="Manual Venue Override..." value={genConfig.manualVenue} onChange={e => setGenConfig({...genConfig, manualVenue: e.target.value})} className="h-14 rounded-2xl border-2 font-bold" /></div>
+                      </div>
                     </section>
                   </div>
                 )}
 
                 {genStep === 4 && (
                   <div className="space-y-8 animate-in slide-in-from-right-4 text-center py-10">
-                    <div className="bg-primary/10 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl"><Sparkles className="h-12 w-12 text-primary" /></div>
-                    <div className="space-y-3 max-w-md mx-auto">
-                      <h3 className="text-3xl font-black uppercase tracking-tight">Review Deployment</h3>
-                      <p className="text-sm font-medium text-muted-foreground leading-relaxed uppercase tracking-widest">Authorize the {genConfig.tournamentType.replace('_', ' ')} itinerary for {tournamentTeams.length} squads across {genConfig.selectedFields.length || 'manual'} resources.</p>
-                    </div>
+                    <div className="bg-primary/10 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto"><Sparkles className="h-12 w-12 text-primary" /></div>
+                    <h3 className="text-3xl font-black uppercase tracking-tight">Ready to Deploy</h3>
+                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Verify the {genConfig.tournamentType.replace('_', ' ')} itinerary for {tournamentTeams.length} squads.</p>
                   </div>
                 )}
               </div>
-            </div>
+            </ScrollArea>
 
-            <div className="p-8 bg-background border-t flex gap-4 shrink-0">
-              {genStep > 1 && <Button variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase text-xs border-2" onClick={() => setGenStep(genStep - 1)}>Previous</Button>}
-              {genStep < 4 ? <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl" onClick={() => setGenStep(genStep + 1)}>Next Protocol Step</Button> : <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" onClick={handleGenerateItinerary}>Authorize Deployment</Button>}
+            <div className="p-8 bg-background border-t flex gap-4 mt-auto">
+              {genStep > 1 && <Button variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase text-xs border-2" onClick={() => setGenStep(genStep - 1)}>Back</Button>}
+              {genStep < 4 ? <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl" onClick={() => setGenStep(genStep + 1)}>Next Step</Button> : <Button className="flex-1 h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleGenerateItinerary}>Deploy Itinerary</Button>}
             </div>
           </div>
         </DialogContent>
@@ -541,15 +502,13 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 }
 
 export default function ManageTournamentsPage() {
-  const { activeTeamEvents, isStaff, addEvent, deleteEvent } = useTeam();
+  const { activeTeamEvents, isStaff, addEvent } = useTeam();
   const [selectedTournament, setSelectedTournament] = useState<TeamEvent | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDate, setNewDate] = useState('');
   const [newEndDate, setNewEndDate] = useState('');
-  const [newTime, setNewTime] = useState('');
   const [newLocation, setNewLocation] = useState('');
-  const [newDescription, setNewDescription] = useState('');
 
   const tournaments = useMemo(() => 
     (activeTeamEvents || []).filter(e => e.isTournament), 
@@ -562,19 +521,19 @@ export default function ManageTournamentsPage() {
       title: newTitle,
       date: new Date(newDate).toISOString(),
       endDate: newEndDate ? new Date(newEndDate).toISOString() : new Date(newDate).toISOString(),
-      startTime: newTime || '08:00',
+      startTime: '08:00',
       location: newLocation,
-      description: newDescription,
+      description: '',
       eventType: 'tournament',
       isTournament: true,
       tournamentTeams: [],
       tournamentGames: [],
-      teamWaiverText: 'By participating in this tournament, all teams and members agree to the host organization\'s rules and liability terms.'
+      teamWaiverText: 'By participating in this tournament, all teams agree to the institutional rules and liability protocols.'
     });
     if (success) {
       setIsAddOpen(false);
-      setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription('');
-      toast({ title: "Tournament Strategy Initialized" });
+      setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewLocation('');
+      toast({ title: "Series Deployed" });
     }
   };
 
@@ -588,11 +547,10 @@ export default function ManageTournamentsPage() {
         <div className="space-y-1">
           <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Elite Series</Badge>
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none">Championships</h1>
-          <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Tournament Management & Deployment Hub</p>
         </div>
         {isStaff && (
           <Button onClick={() => setIsAddOpen(true)} className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 transition-all active:scale-95">
-            <Plus className="h-5 w-5 mr-2" /> Launch Tournament
+            <Plus className="h-5 w-5 mr-2" /> Launch Series
           </Button>
         )}
       </div>
@@ -615,20 +573,10 @@ export default function ManageTournamentsPage() {
                 </Badge>
               </div>
               <div>
-                <h3 className="text-3xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{tourney.title}</h3>
+                <h3 className="text-3xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors uppercase">{tourney.title}</h3>
                 <div className="flex items-center gap-2 mt-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                  <CalendarIcon className="h-3 w-3 text-primary" />
+                  <CalendarDaysIcon className="h-3 w-3 text-primary" />
                   <span>{format(new Date(tourney.date), 'MMM d')} - {format(new Date(tourney.endDate || tourney.date), 'MMM d, yyyy')}</span>
-                </div>
-              </div>
-              <div className="pt-4 border-t space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground opacity-60">Squads Enrolled</span>
-                  <span className="text-sm font-black text-primary">{(tourney.tournamentTeamsData || tourney.tournamentTeams || []).length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground opacity-60">Compliance</span>
-                  <span className="text-sm font-black text-green-600">{Object.keys(tourney.teamAgreements || {}).length} VERIFIED</span>
                 </div>
               </div>
             </CardContent>
@@ -643,13 +591,13 @@ export default function ManageTournamentsPage() {
         {tournaments.length === 0 && (
           <div className="col-span-full py-32 text-center border-2 border-dashed rounded-[3rem] bg-muted/10 opacity-40">
             <Trophy className="h-16 w-16 mx-auto mb-4" />
-            <p className="text-sm font-black uppercase tracking-widest">No championship series established yet.</p>
+            <p className="text-sm font-black uppercase tracking-widest">No championships established yet.</p>
           </div>
         )}
       </div>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-12 space-y-10">
             <DialogHeader>
@@ -664,14 +612,13 @@ export default function ManageTournamentsPage() {
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Series Headline</Label>
-                <Input placeholder="e.g. 2024 Metro Winter Classic" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
+                <Input placeholder="e.g. 2024 Winter Classic" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-14 rounded-2xl border-2 font-bold focus:border-primary/20 transition-all" />
               </div>
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Launch Date</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Launch Date</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 rounded-xl border-2 font-bold" /></div>
                 <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Finale Date</Label><Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
               </div>
               <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Primary Venue</Label><Input placeholder="Stadium Name" value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Narrative Brief</Label><Textarea placeholder="Define the stakes and coordination notes..." value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-2xl min-h-[100px] border-2 font-medium" /></div>
             </div>
             <DialogFooter>
               <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all border-none" onClick={handleCreateTournament} disabled={!newTitle || !newDate}>

@@ -1,26 +1,10 @@
 
-"use client";
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
 /**
- * REDIRECT HUB
- * Neutralizes the parallel route conflict with the root /tournaments path.
- * Management HQ is consolidated at /manage-tournaments.
+ * ROUTE NEUTRALIZED
+ * This file is intentionally left empty to resolve the Next.js parallel route conflict
+ * with src/app/tournaments/page.tsx. 
+ * Administrative management is now at /manage-tournaments.
  */
-export default function RedirectToManage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace('/manage-tournaments');
-  }, [router]);
-
-  return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="animate-pulse font-black uppercase tracking-widest text-muted-foreground text-xs">
-        Redirecting to Command HQ...
-      </div>
-    </div>
-  );
+export default function NeutralizedPage() {
+  return null;
 }

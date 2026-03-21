@@ -309,7 +309,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </Sidebar>
 
           <div className="flex flex-col flex-1 h-screen overflow-hidden">
-            <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between">
+            <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between text-foreground">
               <div className="flex items-center gap-4">
                 <div className="md:hidden">
                   <DropdownMenu>
@@ -524,7 +524,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         )}
 
                         <div className="space-y-3">
-                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground px-2">Account Management</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2">Account Management</p>
                           <div className="grid grid-cols-1 gap-2">
                             <Link 
                               href="/settings"

@@ -49,7 +49,7 @@ function parseTime(timeStr: string, referenceDate: Date): Date {
     if (!isNaN(d.getTime())) return d;
   }
   
-  // Robust regex fallback for non-standard inputs (e.g., "8:30" or "14:00")
+  // Robust regex fallback for non-standard inputs
   const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
   if (match) {
     let [_, hours, mins, ampm] = match;
@@ -80,22 +80,12 @@ function shuffle<T>(array: T[]): T[] {
  */
 export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[] {
   const {
-    teams,
-    fields,
-    startDate,
-    endDate,
-    startTime,
-    endTime,
-    gameLength,
-    breakLength,
-    playDays = [1, 2, 3, 4, 5, 6, 0],
-    gamesPerTeam = 10,
-    doubleHeaderOption = 'none',
-    blackoutDates = [],
+    teams, fields, startDate, endDate, startTime, endTime,
+    gameLength, breakLength, playDays = [1, 2, 3, 4, 5, 6, 0],
+    gamesPerTeam = 10, doubleHeaderOption = 'none', blackoutDates = [],
   } = config;
 
   const teamIdentities = teams.map((t, idx) => typeof t === 'string' ? { id: `t_${idx}`, name: t } : t);
-
   if (teamIdentities.length < 2 || fields.length === 0) return [];
 
   const startD = new Date(startDate);
@@ -112,14 +102,9 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
   const requiredGames = Math.ceil((teamIdentities.length * gamesPerTeam) / 2);
 
   while (matchPool.length < requiredGames) {
-    const round = Math.floor(matchPool.length / basePairs.length);
     const roundPairs = shuffle([...basePairs]);
     for (const pair of roundPairs) {
-      if (round % 2 === 0) {
-        matchPool.push({ t1: pair.t1, t2: pair.t2 });
-      } else {
-        matchPool.push({ t1: pair.t2, t2: pair.t1 });
-      }
+      matchPool.push(pair);
       if (matchPool.length >= requiredGames) break;
     }
   }
@@ -139,11 +124,7 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
       if (!isNaN(currentTime.getTime()) && !isNaN(dayEndTime.getTime())) {
         while (isBefore(currentTime, dayEndTime)) {
           for (const field of fields) {
-            availableSlots.push({
-              date: new Date(currentDay),
-              time: new Date(currentTime),
-              field,
-            });
+            availableSlots.push({ date: new Date(currentDay), time: new Date(currentTime), field });
           }
           currentTime = addMinutes(currentTime, gameLength + breakLength);
         }
@@ -154,7 +135,7 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
 
   const finalGames: TournamentGame[] = [];
   const teamGameCounts = new Map<string, number>(teamIdentities.map(t => [t.id, 0]));
-  const dailyTeamUsage = new Map<string, { teamId: string; field: string; opponentId: string; time: string }[]>();
+  const dailyTeamUsage = new Map<string, { teamId: string; time: string; field: string }[]>();
 
   for (const slot of availableSlots) {
     if (matchPool.length === 0) break;
@@ -168,30 +149,11 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
     for (let i = 0; i < matchPool.length; i++) {
       const { t1, t2 } = matchPool[i];
 
-      const isT1BusyNow = todaysGames.some(g => g.teamId === t1.id && g.time === timeKey);
-      const isT2BusyNow = todaysGames.some(g => g.teamId === t2.id && g.time === timeKey);
-      if (isT1BusyNow || isT2BusyNow) continue;
+      const isT1Busy = todaysGames.some(g => g.teamId === t1.id && g.time === timeKey);
+      const isT2Busy = todaysGames.some(g => g.teamId === t2.id && g.time === timeKey);
+      if (isT1Busy || isT2Busy) continue;
 
       if ((teamGameCounts.get(t1.id) || 0) >= gamesPerTeam || (teamGameCounts.get(t2.id) || 0) >= gamesPerTeam) continue;
-
-      const t1PrevGames = todaysGames.filter(g => g.teamId === t1.id);
-      const t2PrevGames = todaysGames.filter(g => g.teamId === t2.id);
-
-      if (doubleHeaderOption === 'none') {
-        if (t1PrevGames.length > 0 || t2PrevGames.length > 0) continue;
-      } else {
-        if (t1PrevGames.length >= 2 || t2PrevGames.length >= 2) continue;
-        if (t1PrevGames.length === 1 && t1PrevGames[0].field !== slot.field) continue;
-        if (t2PrevGames.length === 1 && t2PrevGames[0].field !== slot.field) continue;
-
-        if (doubleHeaderOption === 'sameTeam') {
-          if (t1PrevGames.length === 1 && t1PrevGames[0].opponentId !== t2.id) continue;
-          if (t2PrevGames.length === 1 && t2PrevGames[0].opponentId !== t1.id) continue;
-        } else if (doubleHeaderOption === 'differentTeams') {
-          if (t1PrevGames.length === 1 && t1PrevGames[0].opponentId === t2.id) continue;
-          if (t2PrevGames.length === 1 && t2PrevGames[0].opponentId === t1.id) continue;
-        }
-      }
 
       foundMatchupIndex = i;
       break;
@@ -199,31 +161,25 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
 
     if (foundMatchupIndex !== -1) {
       const { t1, t2 } = matchPool.splice(foundMatchupIndex, 1)[0];
-      const gameIdSuffix = `${Math.random().toString(36).substring(2, 7)}_${finalGames.length}`;
-      
       finalGames.push({
-        id: `lg_${Date.now()}_${gameIdSuffix}`,
-        team1: t1.name,
-        team2: t2.name,
-        team1Id: t1.id,
-        team2Id: t2.id,
-        score1: 0,
-        score2: 0,
+        id: `lg_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        team1: t1.name, team2: t2.name, team1Id: t1.id, team2Id: t2.id,
+        score1: 0, score2: 0,
         date: format(slot.date, 'yyyy-MM-dd'),
         time: format(slot.time, 'h:mm a'),
         location: slot.field,
         isCompleted: false,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
 
       teamGameCounts.set(t1.id, (teamGameCounts.get(t1.id) || 0) + 1);
       teamGameCounts.set(t2.id, (teamGameCounts.get(t2.id) || 0) + 1);
-      todaysGames.push({ teamId: t1.id, field: slot.field, opponentId: t2.id, time: timeKey });
-      todaysGames.push({ teamId: t2.id, field: slot.field, opponentId: t1.id, time: timeKey });
+      todaysGames.push({ teamId: t1.id, time: timeKey, field: slot.field });
+      todaysGames.push({ teamId: t2.id, time: timeKey, field: slot.field });
     }
   }
 
-  return finalGames.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  return finalGames;
 }
 
 /**
@@ -235,10 +191,6 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
   const teamList = teams.map((t, i) => typeof t === 'string' ? { id: `t_${i}`, name: t } : t);
   if (teamList.length < 2) return [];
 
-  const games: TournamentGame[] = [];
-  const startD = new Date(startDate);
-  const endD = endDate ? new Date(endDate) : startD;
-  
   const matchups: [TeamIdentity, TeamIdentity][] = [];
   if (tournamentType === 'round_robin') {
     for (let i = 0; i < teamList.length; i++) {
@@ -247,13 +199,14 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
       }
     }
   } else {
-    // Elimination logic (seeding first round)
     const shuffledTeams = shuffle([...teamList]);
     for (let i = 0; i < Math.floor(shuffledTeams.length / 2); i++) {
       matchups.push([shuffledTeams[i], shuffledTeams[shuffledTeams.length - 1 - i]]);
     }
   }
   
+  const startD = new Date(startDate);
+  const endD = endDate ? new Date(endDate) : startD;
   const dayInterval = eachDayOfInterval({ start: startD, end: endD });
   const slots: { date: Date; time: Date; field: string }[] = [];
   
@@ -276,17 +229,14 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
 
   if (slots.length === 0) return [];
 
-  // Balanced match assignment
+  const games: TournamentGame[] = [];
   const totalMatches = Math.min(matchups.length, slots.length);
   for (let i = 0; i < totalMatches; i++) {
     games.push({
       id: `tg_${Date.now()}_${i}`,
-      team1: matchups[i][0].name,
-      team2: matchups[i][1].name,
-      team1Id: matchups[i][0].id,
-      team2Id: matchups[i][1].id,
-      score1: 0,
-      score2: 0,
+      team1: matchups[i][0].name, team2: matchups[i][1].name,
+      team1Id: matchups[i][0].id, team2Id: matchups[i][1].id,
+      score1: 0, score2: 0,
       date: format(slots[i].date, 'yyyy-MM-dd'),
       time: format(slots[i].time, 'h:mm a'),
       location: slots[i].field,
