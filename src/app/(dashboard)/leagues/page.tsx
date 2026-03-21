@@ -120,8 +120,9 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
   const leagueTeams = useMemo(() => {
     if (!league?.teams) return [];
+    // TACTICAL INCLUSION: Include accepted AND assigned squads so they can be scheduled
     return Object.entries(league.teams)
-      .filter(([_, t]) => t.status === 'accepted')
+      .filter(([_, t]) => t.status === 'accepted' || t.status === 'assigned')
       .map(([id, t]) => ({ id, name: t.teamName }));
   }, [league?.teams]);
 
@@ -129,7 +130,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     if (!config.startDate || !config.selectedFields.length || leagueTeams.length < 2) {
       toast({ 
         title: "Config Required", 
-        description: leagueTeams.length < 2 ? "Minimum 2 accepted squads required." : "Define timeline and select fields.", 
+        description: leagueTeams.length < 2 ? "Minimum 2 enrolled squads required." : "Define timeline and select fields.", 
         variant: "destructive" 
       });
       return;
@@ -158,7 +159,6 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
       await updateLeagueSchedule(league.id, schedule);
       onOpenChange(false);
-      toast({ title: "Season Deployed", description: `Synchronized ${schedule.length} matches to squad calendars.` });
     } finally {
       setIsProcessing(false);
     }
@@ -180,12 +180,12 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground text-black">
+      <DialogContent className="sm:max-w-5xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
         <DialogTitle className="sr-only">Season Architect</DialogTitle>
         <div className="h-2 bg-primary w-full" />
         <div className="p-8 lg:p-12 space-y-10 overflow-y-auto max-h-[90vh] custom-scrollbar text-foreground">
           <DialogHeader>
-            <div className="flex items-center gap-4 mb-2 text-black">
+            <div className="flex items-center gap-4 mb-2">
               <div className="bg-primary/10 p-3 rounded-2xl text-primary"><Settings className="h-6 w-6" /></div>
               <div>
                 <DialogTitle className="text-3xl font-black uppercase tracking-tight">Season Architect</DialogTitle>
@@ -194,7 +194,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
             </div>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 text-black">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-7 space-y-10">
               <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Timeline & Availability</h3>
@@ -268,7 +268,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
               <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary ml-1">Venue Allocation</h3>
-                <ScrollArea className="h-64 border-2 rounded-[2.5rem] bg-muted/5 p-6 shadow-inner text-foreground">
+                <ScrollArea className="h-64 border-2 rounded-[2.5rem] bg-muted/5 p-6 shadow-inner">
                   {facilities?.length ? facilities.map(f => (
                     <div key={f.id} className="space-y-4 mb-8 last:mb-0">
                       <div className="flex items-center gap-3 px-2">
@@ -293,7 +293,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Blackout Calendar</p>
                   </div>
                   <p className="text-[10px] font-medium text-white/60 leading-relaxed italic">Select dates where no league matches should be scheduled.</p>
-                  <div className="bg-white rounded-2xl p-2 text-black [&_button:hover]:text-black">
+                  <div className="bg-white rounded-2xl p-2 text-black">
                     <Calendar 
                       mode="multiple" 
                       selected={config.blackoutDates} 
@@ -428,7 +428,7 @@ function LeagueOverview({ league, schedule }: { league: League, schedule: Tourna
               modifiersClassNames={{
                 hasGame: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:bg-primary after:rounded-full after:z-20",
               }}
-              className="w-full max-w-4xl text-black [&_button:hover]:text-black"
+              className="w-full max-w-4xl text-black"
             />
           </div>
           

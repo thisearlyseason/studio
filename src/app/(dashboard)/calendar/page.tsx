@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -125,7 +126,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
                 <div className="grid grid-cols-1 gap-2">
                   <Button variant={myRsvp === 'going' ? 'default' : 'outline'} className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'going' ? "bg-primary border-none" : "bg-white/5 border-white/10")} onClick={() => updateRSVP(event.id, 'going')}>Going</Button>
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant={myRsvp === 'maybe' ? 'default' : 'outline'} className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'maybe' ? "bg-amber-50" : "bg-white/5 border-white/10")} onClick={() => updateRSVP(event.id, 'maybe')}>Maybe</Button>
+                    <Button variant={myRsvp === 'maybe' ? 'default' : 'outline'} className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'maybe' ? "bg-amber-500" : "bg-white/5 border-white/10")} onClick={() => updateRSVP(event.id, 'maybe')}>Maybe</Button>
                     <Button variant={myRsvp === 'declined' ? 'default' : 'outline'} className={cn("h-12 rounded-xl font-black text-xs uppercase", myRsvp === 'declined' ? "bg-red-600" : "bg-white/5 border-white/10")} onClick={() => updateRSVP(event.id, 'declined')}>Decline</Button>
                   </div>
                 </div>
