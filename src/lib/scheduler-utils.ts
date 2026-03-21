@@ -132,15 +132,17 @@ export function generateLeagueSchedule(config: ScheduleConfig): TournamentGame[]
       let currentTime = parseTime(startTime, currentDay);
       const dayEndTime = parseTime(endTime, currentDay);
 
-      while (isBefore(currentTime, dayEndTime)) {
-        for (const field of fields) {
-          availableSlots.push({
-            date: new Date(currentDay),
-            time: new Date(currentTime),
-            field,
-          });
+      if (!isNaN(currentTime.getTime()) && !isNaN(dayEndTime.getTime())) {
+        while (isBefore(currentTime, dayEndTime)) {
+          for (const field of fields) {
+            availableSlots.push({
+              date: new Date(currentDay),
+              time: new Date(currentTime),
+              field,
+            });
+          }
+          currentTime = addMinutes(currentTime, gameLength + breakLength);
         }
-        currentTime = addMinutes(currentTime, gameLength + breakLength);
       }
     }
     currentDay = addDays(currentDay, 1);

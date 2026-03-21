@@ -341,7 +341,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
             <div className="flex justify-between items-center"><h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard Pulse</h4>{isOrganizer && <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-white/10" onClick={() => exportTournamentStandingsCSV(event.id)}><Download className="h-4 w-4" /></Button>}</div>
             <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
               {standings.length > 0 ? standings.map((team) => (
-                <div key={team.name} className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0">
+                <div className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0" key={team.name}>
                   <span className="text-xs font-black uppercase truncate pr-2">{team.name}</span>
                   <Badge className="bg-primary text-white border-none font-black text-[9px] px-2 h-5">{team.points} PTS</Badge>
                 </div>
@@ -560,103 +560,144 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
   );
 }
 
-export default function TournamentsPage({ preSelectedTournament, onExit }: { preSelectedTournament?: TeamEvent | null, onExit?: () => void }) {
-  const { isStaff, addEvent, activeTeam, activeTeamEvents, db } = useTeam();
-  const [isDeployOpen, setIsDeployOpen] = useState(false);
-  const [selectedTournament, setSelectedTournament] = useState<TeamEvent | null>(preSelectedTournament || null);
-  const [newTourney, setNewTourney] = useState({ title: '', date: '', endDate: '', location: '', description: '', selectedWaiverId: '' });
-  const [isProcessing, setIsProcessing] = useState(false);
+export default function ManageTournamentsPage() {
+  const { activeTeamEvents, isStaff, addEvent, deleteEvent } = useTeam();
+  const [selectedTournament, setSelectedTournament] = useState<TeamEvent | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDate, setNewDate] = useState('');
+  const [newEndDate, setNewEndDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [newLocation, setNewLocation] = useState('');
+  const [newDescription, setNewDescription] = useState('');
 
-  const tournaments = useMemo(() => activeTeamEvents.filter(e => (e.isTournament || e.eventType === 'tournament')), [activeTeamEvents]);
+  const tournaments = useMemo(() => 
+    (activeTeamEvents || []).filter(e => e.isTournament), 
+    [activeTeamEvents]
+  );
 
-  const docsQuery = useMemoFirebase(() => (db && activeTeam?.id) ? query(collection(db, 'teams', activeTeam.id, 'documents'), where('isActive', '==', true)) : null, [db, activeTeam?.id]);
-  const { data: activeDocs } = useCollection<TeamDocument>(docsQuery);
-  const waiverOptions = useMemo(() => activeDocs?.filter(d => d.type === 'waiver' || d.type === 'tournament_waiver') || [], [activeDocs]);
-
-  const handleDeployTournament = async () => {
-    if (!newTourney.title || !newTourney.date || !activeTeam) return;
-    setIsProcessing(true);
-    try {
-      const selectedWaiver = waiverOptions.find(w => w.id === newTourney.selectedWaiverId);
-      await addEvent({
-        title: newTourney.title,
-        date: new Date(newTourney.date).toISOString(),
-        endDate: newTourney.endDate ? new Date(newTourney.endDate).toISOString() : new Date(newTourney.date).toISOString(),
-        location: newTourney.location,
-        description: newTourney.description,
-        isTournament: true,
-        eventType: 'tournament',
-        tournamentTeams: [activeTeam.name], 
-        tournamentTeamsData: [{ id: `t_${Date.now()}`, name: activeTeam.name, coach: 'Organizer', email: '' }],
-        tournamentGames: [],
-        startTime: '08:00',
-        teamWaiverText: selectedWaiver?.content || ''
-      });
-      setIsDeployOpen(false);
-      setNewTourney({ title: '', date: '', endDate: '', location: '', description: '', selectedWaiverId: '' });
-      toast({ title: "Tournament Initialized" });
-    } finally { setIsProcessing(false); }
+  const handleCreateTournament = async () => {
+    if (!newTitle || !newDate) return;
+    const success = await addEvent({
+      title: newTitle,
+      date: new Date(newDate).toISOString(),
+      endDate: newEndDate ? new Date(newEndDate).toISOString() : new Date(newDate).toISOString(),
+      startTime: newTime || '08:00',
+      location: newLocation,
+      description: newDescription,
+      eventType: 'tournament',
+      isTournament: true,
+      tournamentTeams: [],
+      tournamentGames: [],
+      teamWaiverText: 'By participating in this tournament, all teams and members agree to the host organization\'s rules and liability terms.'
+    });
+    if (success) {
+      setIsAddOpen(false);
+      setNewTitle(''); setNewDate(''); setNewEndDate(''); setNewTime(''); setNewLocation(''); setNewDescription('');
+      toast({ title: "Tournament Strategy Initialized" });
+    }
   };
 
-  const handleBack = () => { if (onExit) onExit(); else setSelectedTournament(null); };
-
-  if (selectedTournament) return <TournamentDetailView event={selectedTournament} onBack={handleBack} />;
+  if (selectedTournament) {
+    return <TournamentDetailView event={selectedTournament} onBack={() => setSelectedTournament(null)} />;
+  }
 
   return (
-    <div className="space-y-12 pb-32 animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-        <div className="space-y-2">
-          <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] h-7 px-4">Institutional Hub</Badge>
-          <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-[0.9]">Tournaments</h1>
-          <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[11px] ml-1">Elite Bracket & Operational Command</p>
+    <div className="space-y-10 pb-20 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">Elite Series</Badge>
+          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none">Championships</h1>
+          <p className="text-muted-foreground font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Tournament Management & Deployment Hub</p>
         </div>
         {isStaff && (
-          <Button className="h-16 px-10 rounded-[2rem] text-lg font-black shadow-2xl shadow-primary/20 transition-all active:scale-95" onClick={() => setIsDeployOpen(true)}>
-            <Plus className="h-5 w-5 mr-2" /> Deploy Tourney
+          <Button onClick={() => setIsAddOpen(true)} className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 transition-all active:scale-95">
+            <Plus className="h-5 w-5 mr-2" /> Launch Tournament
           </Button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
-        {tournaments.map((tournament) => (
-          <Card key={tournament.id} className="rounded-[3rem] border-none shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden bg-white group cursor-pointer" onClick={() => setSelectedTournament(tournament)}>
-            <div className="flex flex-col md:flex-row items-stretch">
-              <div className="w-full md:w-40 bg-black text-white flex flex-col items-center justify-center p-8 border-r group-hover:bg-primary transition-colors">
-                <span className="text-[11px] font-black uppercase opacity-60 mb-1">{new Date(tournament.date).toLocaleString('default', { month: 'short' }).toUpperCase()}</span>
-                <span className="text-5xl font-black tracking-tighter">{new Date(tournament.date).getDate()}</span>
-              </div>
-              <div className="flex-1 p-10 flex items-center justify-between">
-                <div className="space-y-3">
-                  <h3 className="text-4xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors uppercase">{tournament.title}</h3>
-                  <p className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> {tournament.location || 'Location TBD'}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {tournaments.map((tourney) => (
+          <Card 
+            key={tourney.id} 
+            className="rounded-[3rem] border-none shadow-xl overflow-hidden bg-white flex flex-col group transition-all hover:shadow-2xl hover:ring-2 hover:ring-primary/10 cursor-pointer"
+            onClick={() => setSelectedTournament(tourney)}
+          >
+            <div className="h-2 bg-black w-full" />
+            <CardContent className="p-8 lg:p-10 space-y-8 flex-1">
+              <div className="flex justify-between items-start">
+                <div className="bg-primary/5 p-5 rounded-[1.5rem] text-primary shadow-inner">
+                  <Trophy className="h-10 w-10" />
                 </div>
-                <ChevronRight className="h-8 w-8 text-primary opacity-20 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
+                <Badge variant="secondary" className="bg-black text-white border-none font-black text-[10px] h-7 px-4 shadow-lg uppercase">
+                  {isPast(new Date(tourney.endDate || tourney.date)) ? 'ARCHIVED' : 'ACTIVE'}
+                </Badge>
               </div>
-            </div>
+              <div>
+                <h3 className="text-3xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{tourney.title}</h3>
+                <div className="flex items-center gap-2 mt-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <CalendarIcon className="h-3 w-3 text-primary" />
+                  <span>{format(new Date(tourney.date), 'MMM d')} - {format(new Date(tourney.endDate || tourney.date), 'MMM d, yyyy')}</span>
+                </div>
+              </div>
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-muted-foreground opacity-60">Squads Enrolled</span>
+                  <span className="text-sm font-black text-primary">{(tourney.tournamentTeamsData || tourney.tournamentTeams || []).length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-muted-foreground opacity-60">Compliance</span>
+                  <span className="text-sm font-black text-green-600">{Object.keys(tourney.teamAgreements || {}).length} VERIFIED</span>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="px-8 lg:p-10 pt-0">
+              <Button className="w-full h-12 rounded-xl font-black uppercase text-xs tracking-widest bg-muted/20 text-foreground group-hover:bg-primary group-hover:text-white transition-all shadow-none">
+                Manage Hub <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
           </Card>
         ))}
+
+        {tournaments.length === 0 && (
+          <div className="col-span-full py-32 text-center border-2 border-dashed rounded-[3rem] bg-muted/10 opacity-40">
+            <Trophy className="h-16 w-16 mx-auto mb-4" />
+            <p className="text-sm font-black uppercase tracking-widest">No championship series established yet.</p>
+          </div>
+        )}
       </div>
 
-      <Dialog open={isDeployOpen} onOpenChange={setIsDeployOpen}>
-        <DialogContent className="rounded-[3rem] sm:max-w-2xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
           <div className="h-2 bg-primary w-full" />
-          <div className="p-10 space-y-8">
-            <DialogHeader><DialogTitle className="text-3xl font-black uppercase">Initialize Series</DialogTitle></DialogHeader>
+          <div className="p-8 lg:p-12 space-y-10">
+            <DialogHeader>
+              <div className="flex items-center gap-4 mb-2">
+                <div className="bg-primary/10 p-3 rounded-2xl text-primary"><Trophy className="h-6 w-6" /></div>
+                <div>
+                  <DialogTitle className="text-3xl font-black uppercase tracking-tight">Launch Series</DialogTitle>
+                  <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Deploy a new championship block</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
             <div className="space-y-6">
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Series Title</Label><Input placeholder="e.g. Winter Regionals" value={newTourney.title} onChange={e => setNewTourney({...newTourney, title: e.target.value})} className="h-14 rounded-2xl border-2 font-bold" /></div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Start Date</Label><Input type="date" value={newTourney.date} onChange={e => setNewTourney({...newTourney, date: e.target.value})} className="h-12 border-2" /></div>
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">End Date</Label><Input type="date" value={newTourney.endDate} onChange={e => setNewTourney({...newTourney, endDate: e.target.value})} className="h-12 border-2" /></div>
-              </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase ml-1">Participation Protocol (Waiver)</Label>
-                <Select value={newTourney.selectedWaiverId} onValueChange={(v) => setNewTourney({...newTourney, selectedWaiverId: v})}>
-                  <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue placeholder="Select waiver..." /></SelectTrigger>
-                  <SelectContent className="rounded-xl">{waiverOptions.map(w => <SelectItem key={w.id} value={w.id} className="font-bold">{w.title}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Series Headline</Label>
+                <Input placeholder="e.g. 2024 Metro Winter Classic" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
               </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Launch Date</Label><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Finale Date</Label><Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
+              </div>
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Primary Venue</Label><Input placeholder="Stadium Name" value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 border-2 rounded-xl font-bold" /></div>
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Narrative Brief</Label><Textarea placeholder="Define the stakes and coordination notes..." value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-2xl min-h-[100px] border-2 font-medium" /></div>
             </div>
-            <DialogFooter className="pt-4"><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleDeployTournament} disabled={isProcessing || !newTourney.title || !newTourney.date}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Championship Hub"}</Button></DialogFooter>
+            <DialogFooter>
+              <Button className="w-full h-16 rounded-[2rem] text-lg font-black shadow-xl shadow-primary/20 active:scale-[0.98] transition-all border-none" onClick={handleCreateTournament} disabled={!newTitle || !newDate}>
+                Authorize Series Launch
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>

@@ -6,7 +6,8 @@ import { Loader2 } from 'lucide-react';
 
 /**
  * PUBLIC ROUTE REDIRECT
- * Resolves parallel route conflict by redirecting to /manage-tournaments.
+ * Resolves parallel route conflict by redirecting to the authenticated management hub
+ * or specific spectator routes.
  */
 export default function TournamentRedirectPage() {
   const router = useRouter();
