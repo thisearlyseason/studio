@@ -45,7 +45,8 @@ function parseTime(timeStr: string, referenceDate: Date): Date {
     const d = parse(timeStr, f, referenceDate);
     if (!isNaN(d.getTime())) return d;
   }
-  // Fallback: manual regex if standard parse fails
+  
+  // Robust regex fallback for non-standard inputs
   const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
   if (match) {
     let [_, hours, mins, ampm] = match;
@@ -229,6 +230,8 @@ export function generateTournamentSchedule(config: ScheduleConfig): TournamentGa
   const { teams, fields, startDate, endDate, startTime, endTime, gameLength, breakLength, dailyWindows, tournamentType = 'round_robin' } = config;
   
   const teamList = teams.map((t, i) => typeof t === 'string' ? { id: `t_${i}`, name: t } : t);
+  if (teamList.length < 2) return [];
+
   const games: TournamentGame[] = [];
   const startD = new Date(startDate);
   const endD = endDate ? new Date(endDate) : startD;

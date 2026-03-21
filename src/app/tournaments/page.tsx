@@ -1,14 +1,13 @@
-
 "use client";
 
-/**
- * TACTICAL FILE RENAMED TO REDIRECT
- * Resolves Next.js 15 parallel route error.
- */
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function RootTournamentPage() {
+/**
+ * ROOT REDIRECT
+ * Resolves parallel route conflict by acting as a global redirect to management HQ.
+ */
+export default function TournamentRootRedirect() {
   const router = useRouter();
 
   useEffect(() => {

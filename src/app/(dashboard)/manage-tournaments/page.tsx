@@ -196,12 +196,6 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
     }
   }, [event.tournamentTeamsData, event.tournamentTeams]);
 
-  const leaguesQuery = useMemoFirebase(() => (db && isOrganizer) ? query(collection(db, 'leagues'), where('creatorId', '==', authUser?.uid)) : null, [db, isOrganizer, authUser?.uid]);
-  const { data: myLeagues } = useCollection<League>(leaguesQuery);
-
-  const pipelineQuery = useMemoFirebase(() => (db && isOrganizer) ? query(collectionGroup(db, 'registrationEntries'), where('status', '==', 'accepted')) : null, [db, isOrganizer]);
-  const { data: pipelineEntries } = useCollection<RegistrationEntry>(pipelineQuery);
-
   const facilitiesQuery = useMemoFirebase(() => {
     if (!db || !authUser?.uid) return null;
     return query(collection(db, 'facilities'), where('clubId', '==', authUser.uid));
@@ -211,19 +205,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
   const initGenModal = () => {
     const days = eachDayOfInterval({ start: new Date(event.date), end: new Date(event.endDate || event.date) });
     let normalizedStartTime = '08:00';
-    if (event.startTime) {
-      const timeMatch = event.startTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-      if (timeMatch) {
-        let [_, hours, mins, ampm] = timeMatch;
-        let h = parseInt(hours);
-        if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
-        if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
-        normalizedStartTime = `${h.toString().padStart(2, '0')}:${mins}`;
-      } else if (event.startTime.includes(':')) {
-        normalizedStartTime = event.startTime;
-      }
-    }
-
+    
     setGenConfig(p => ({
       ...p,
       dailyWindows: days.map(d => ({
@@ -271,7 +253,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
     });
 
     if (schedule.length === 0) {
-      toast({ title: "Generation Failure", description: "Check time windows and field allocation.", variant: "destructive" });
+      toast({ title: "Generation Failure", description: "Check time windows and field allocation. Ensure you have added teams to the roster first.", variant: "destructive" });
       return;
     }
 
@@ -281,17 +263,6 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
     });
     setIsGenOpen(false);
     toast({ title: "Itinerary Synchronized", description: `Deployed ${schedule.length} matches.` });
-  };
-
-  const importFromLeague = (league: League) => {
-    const leagueTeams = Object.values(league.teams || {}).map((t: any) => ({
-      id: `l_${Date.now()}_${Math.random()}`,
-      name: t.teamName,
-      coach: t.coachName || '',
-      email: t.coachEmail || ''
-    }));
-    setTeamRows(prev => [...prev, ...leagueTeams]);
-    toast({ title: "Import Successful", description: `Added ${leagueTeams.length} squads.` });
   };
 
   const addTeamRow = () => {
@@ -338,7 +309,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
           </div>
 
           <div className="space-y-4 pt-4 border-t border-white/10">
-            <div className="flex justify-between items-center"><h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard Pulse</h4>{isOrganizer && <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-white/10" onClick={() => exportTournamentStandingsCSV(event.id)}><Download className="h-4 w-4" /></Button>}</div>
+            <div className="flex justify-between items-center"><h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em]">Leaderboard Pulse</h4></div>
             <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden">
               {standings.length > 0 ? standings.map((team) => (
                 <div className="flex justify-between items-center px-5 py-4 border-b border-white/5 last:border-0" key={team.name}>
