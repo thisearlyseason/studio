@@ -89,7 +89,14 @@ function EventDetailDialog({ event, updateRSVP, isAdmin, onEdit, onDelete, child
         <div className="flex flex-col lg:flex-row">
           <div className="w-full lg:w-1/3 flex flex-col text-white bg-black p-8 relative shrink-0">
             <div className="flex justify-between items-start mb-8 relative z-10">
-              <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
+              <div className="flex gap-2">
+                <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
+                {event.eventType === 'game' && event.isLeagueGame && (
+                  <Badge className={cn("uppercase font-black tracking-widest text-[9px] h-6 px-3 border-none", event.isHome ? "bg-white text-black" : "bg-primary/20 text-white")}>
+                    {event.isHome ? 'HOME TEAM' : 'VISITING TEAM'}
+                  </Badge>
+                )}
+              </div>
             </div>
             <div className="space-y-8 relative z-10">
               <div className="space-y-4">
@@ -324,7 +331,15 @@ export default function EventsPage() {
                       <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
                         <div className="flex items-start justify-between">
                           <div>
-                            <div className="flex gap-2 mb-1.5"><Badge className="text-[7px] uppercase font-black">{(event.eventType || 'Activity')}</Badge><Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{event.startTime}</Badge></div>
+                            <div className="flex gap-2 mb-1.5">
+                              <Badge className="text-[7px] uppercase font-black">{(event.eventType || 'Activity')}</Badge>
+                              <Badge variant="outline" className="text-[7px] uppercase font-black text-primary border-primary/20">{event.startTime}</Badge>
+                              {event.eventType === 'game' && event.isLeagueGame && (
+                                <Badge className={cn("text-[7px] uppercase font-black border-none", event.isHome ? "bg-primary text-white" : "bg-black text-white")}>
+                                  {event.isHome ? 'HOME' : 'AWAY'}
+                                </Badge>
+                              )}
+                            </div>
                             <h3 className="text-xl font-black tracking-tight leading-none truncate group-hover:text-primary transition-colors uppercase">{event.title}</h3>
                             <div className="flex items-center gap-4 mt-1">
                               <p className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> {event.location}</p>

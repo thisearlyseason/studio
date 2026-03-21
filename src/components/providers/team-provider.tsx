@@ -182,6 +182,7 @@ export type TeamEvent = {
   eventType: string;
   isTournament?: boolean;
   isLeagueGame?: boolean;
+  isHome?: boolean;
   leagueId?: string;
   tournamentTeams?: string[];
   tournamentGames?: any[];
@@ -558,7 +559,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: membersData, isLoading: isMembersLoading } = useCollection<Member>(membersQuery);
   const members = useMemo(() => membersData || [], [membersData]);
 
-  // NEW: Dedicated listener for active team events to ensure perfect synchronization
   const activeEventsQuery = useMemoFirebase(() => {
     if (!db || !activeTeam?.id) return null;
     return query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'asc'));
@@ -660,14 +660,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const tid = `team_${Date.now()}`; 
     const batch = writeBatch(db); 
     
-    // Core Team Hub
     batch.set(doc(db, 'teams', tid), clean({ 
       id: tid, teamName: name, teamCode: tid.slice(-6).toUpperCase(), type, sport: 'General', 
       description, createdBy: firebaseUser.uid, ownerUserId: firebaseUser.uid, 
       planId: planId || 'starter_squad', isPro: planId !== 'starter_squad', createdAt: new Date().toISOString() 
     })); 
     
-    // Membership Sync
     batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', tid), clean({ 
       teamId: tid, name, role: 'Admin', joinedAt: new Date().toISOString() 
     })); 
@@ -678,7 +676,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       joinedAt: new Date().toISOString(), avatar: userProfile?.avatar || '' 
     })); 
 
-    // TACTICAL IDENTITY SWEEP: Check for existing league assignments by email
     try {
       const qEntries = query(collectionGroup(db, 'registrationEntries'), where('answers.email', '==', firebaseUser.email));
       const entriesSnap = await getDocs(qEntries);
@@ -790,7 +787,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const updateLeagueSchedule = useCallback(async (lId: string, s: any[]) => { 
     if (!db) return; 
     
-    // TACTICAL SYNC: Ensure we have league metadata for event descriptions
     const leagueSnap = await getDoc(doc(db, 'leagues', lId));
     const leagueData = leagueSnap.data();
     if (!leagueData) return;
@@ -798,9 +794,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const batch = writeBatch(db);
     batch.update(doc(db, 'leagues', lId), { schedule: clean(s) }); 
     
-    // TACTICAL OMNI-SYNC: Inject events into team itineraries
     s.forEach(game => {
-      const createEvent = (tid: string, myName: string, oppName: string) => {
+      const createEvent = (tid: string, myName: string, oppName: string, isHome: boolean) => {
         if (!tid) return;
         const eid = `lg_${lId}_${game.id}`;
         batch.set(doc(db, 'teams', tid, 'events', eid), clean({ 
@@ -809,6 +804,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           title: `League Match vs ${oppName}`, 
           eventType: 'game', 
           isLeagueGame: true, 
+          isHome,
           leagueId: lId, 
           date: game.date, 
           startTime: game.time, 
@@ -817,8 +813,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           createdAt: new Date().toISOString() 
         }));
       };
-      if (game.team1Id) createEvent(game.team1Id, game.team1, game.team2);
-      if (game.team2Id) createEvent(game.team2Id, game.team2, game.team1);
+      if (game.team1Id) createEvent(game.team1Id, game.team1, game.team2, true);
+      if (game.team2Id) createEvent(game.team2Id, game.team2, game.team1, false);
     });
     
     await batch.commit();
@@ -890,7 +886,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       const placeholderKey = `recruit_${entryId}`;
       const placeholderData = leagueData.teams?.[placeholderKey] || {};
       
-      // Update Standings Identity
       batch.update(leagueRef, { 
         [`teams.${placeholderKey}`]: deleteField(),
         [`teams.${activeTeam.id}`]: { ...placeholderData, status: 'accepted', teamName: activeTeam.name },
@@ -898,10 +893,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         memberTeamIds: arrayUnion(activeTeam.id)
       });
       
-      // Link real team to league
       batch.update(doc(db, 'teams', activeTeam.id), { [`leagueIds.${contextId}`]: true });
 
-      // TACTICAL OMNI-SYNC: Copy all league matches to new team itinerary AND update opponents
       const schedule = leagueData.schedule || [];
       const updatedSchedule = schedule.map((game: any) => {
         let changed = false;
@@ -917,16 +910,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const oppTid = mySide === 1 ? game.team2Id : game.team1Id;
           const eid = `lg_${contextId}_${game.id}`;
           
-          // 1. Create event for the joining team
           batch.set(doc(db, 'teams', activeTeam.id, 'events', eid), clean({
             id: eid, teamId: activeTeam.id, title: `League Match vs ${oppName}`,
-            eventType: 'game', isLeagueGame: true, leagueId: contextId,
+            eventType: 'game', isLeagueGame: true, isHome: mySide === 1, leagueId: contextId,
             date: game.date, startTime: game.time, location: game.location,
             description: `Official season fixture for ${leagueData.name}. Matchup: ${activeTeam.name} vs ${oppName}`,
             createdAt: new Date().toISOString()
           }));
 
-          // 2. Update opponent's event if they are a real squad (not recruit/manual)
           if (oppTid && !oppTid.startsWith('recruit_') && !oppTid.startsWith('manual_')) {
             batch.update(doc(db, 'teams', oppTid, 'events', eid), {
               title: `League Match vs ${activeTeam.name}`,
@@ -1003,7 +994,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const batch = writeBatch(db);
     batch.update(doc(db, 'leagues', leagueId), { schedule, teams }); 
 
-    // Sync to team scorekeeping hubs
     const syncToTeamHub = (tid: string, myScore: number, oppScore: number, opponentName: string) => {
       if (!tid || tid.startsWith('manual_') || tid.startsWith('recruit_')) return;
       const result = myScore > oppScore ? 'Win' : myScore < oppScore ? 'Loss' : 'Tie';

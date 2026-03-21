@@ -31,7 +31,8 @@ import {
   X,
   Info,
   CalendarDays,
-  Users
+  Users,
+  Shield
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,6 +90,11 @@ function EventItem({ event, teams, onClick }: { event: TeamEvent, teams: any[], 
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="outline" className="text-[7px] font-black uppercase px-1.5 h-4 border-none bg-muted/50">{event.eventType}</Badge>
             <span className="text-[10px] font-bold text-muted-foreground uppercase">{event.startTime}</span>
+            {event.eventType === 'game' && event.isLeagueGame && (
+              <Badge className={cn("text-[7px] font-black uppercase px-1.5 h-4 border-none", event.isHome ? "bg-primary text-white" : "bg-black text-white")}>
+                {event.isHome ? 'HOME' : 'AWAY'}
+              </Badge>
+            )}
           </div>
           <h4 className="font-black text-sm uppercase truncate group-hover:text-primary transition-colors text-foreground">{event.title}</h4>
           <p className="text-[9px] font-medium text-muted-foreground truncate uppercase flex items-center gap-1 mt-1"><MapPin className="h-2 w-2" /> {event.location}</p>
@@ -111,7 +117,14 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
         <div className="flex flex-col lg:flex-row h-full">
           <div className="w-full lg:w-1/2 flex flex-col text-white bg-black p-8 relative">
             <div className="flex justify-between items-start mb-8 relative z-10">
-              <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
+              <div className="flex gap-2">
+                <Badge className="uppercase font-black tracking-widest text-[9px] h-6 px-3 bg-primary text-white border-none">{(event.eventType || 'other').toUpperCase()}</Badge>
+                {event.eventType === 'game' && event.isLeagueGame && (
+                  <Badge className={cn("uppercase font-black tracking-widest text-[9px] h-6 px-3 border-none", event.isHome ? "bg-white text-black" : "bg-primary/20 text-white")}>
+                    {event.isHome ? 'HOME TEAM' : 'VISITING TEAM'}
+                  </Badge>
+                )}
+              </div>
               <DialogClose asChild><X className="h-5 w-5 text-white/40 cursor-pointer hover:text-white" /></DialogClose>
             </div>
             <div className="space-y-6 relative z-10">
@@ -155,7 +168,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
 }
 
 export default function MasterCalendarPage() {
-  const { teams, householdEvents, isParent } = useTeam();
+  const { teams, householdEvents, activeTeamEvents, isParent } = useTeam();
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
@@ -165,11 +178,20 @@ export default function MasterCalendarPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeDetailedEvent, setActiveDetailedEvent] = useState<TeamEvent | null>(null);
 
+  // TACTICAL SYNC: Merge household events with the high-reliability active team stream
+  const allEvents = useMemo(() => {
+    const map = new Map<string, TeamEvent>();
+    [...(householdEvents || []), ...(activeTeamEvents || [])].forEach(e => {
+      map.set(e.id, e);
+    });
+    return Array.from(map.values());
+  }, [householdEvents, activeTeamEvents]);
+
   const discoveryTeamIds = useMemo(() => {
     const fromTeams = (teams || []).map(t => t.id);
-    const fromEvents = (householdEvents || []).map(e => e.teamId);
+    const fromEvents = allEvents.map(e => e.teamId);
     return Array.from(new Set([...fromTeams, ...fromEvents]));
-  }, [teams, householdEvents]);
+  }, [teams, allEvents]);
 
   useEffect(() => {
     if (discoveryTeamIds.length > 0 && selectedTeamIds.length === 0) {
@@ -178,14 +200,13 @@ export default function MasterCalendarPage() {
   }, [discoveryTeamIds, selectedTeamIds.length]);
 
   const filteredEvents = useMemo(() => {
-    if (!householdEvents || !Array.isArray(householdEvents)) return [];
-    return householdEvents.filter(event => {
+    return allEvents.filter(event => {
       const matchesTeam = selectedTeamIds.includes(event.teamId);
       const matchesType = selectedEventTypes.includes(event.eventType as EventType || 'other');
       const matchesSearch = (event.title || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesTeam && matchesType && matchesSearch;
     });
-  }, [householdEvents, selectedTeamIds, selectedEventTypes, searchTerm]);
+  }, [allEvents, selectedTeamIds, selectedEventTypes, searchTerm]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
