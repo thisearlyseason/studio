@@ -120,7 +120,6 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
   const leagueTeams = useMemo(() => {
     if (!league?.teams) return [];
-    // TACTICAL INCLUSION: Include accepted AND assigned squads so they can be scheduled
     return Object.entries(league.teams)
       .filter(([_, t]) => t.status === 'accepted' || t.status === 'assigned')
       .map(([id, t]) => ({ id, name: t.teamName }));

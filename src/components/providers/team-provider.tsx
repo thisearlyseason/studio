@@ -868,7 +868,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!db || !activeTeam?.id) return; 
     const batch = writeBatch(db);
     const entryRef = doc(db, 'leagues', contextId, 'registrationEntries', entryId);
-    const entrySnap = await getDoc(entryRef);
     
     batch.update(entryRef, { status }); 
     
