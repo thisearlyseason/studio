@@ -60,6 +60,8 @@ export type UserProfile = {
   isPrimaryClubAuthority?: boolean;
   isStaff?: boolean;
   division?: string; // High-level organizational tier
+  isBetaTester?: boolean;
+  betaDemoSeeded?: boolean;
 };
 
 export type PlayerProfile = {
@@ -952,12 +954,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         const data = snap.data();
         
         // Explicitly inject Elite League overrides for Superadmin into the global userProfile state
-        const isSuper = data.email === 'thisearlyseason@gmail.com' || data.role === 'superadmin';
+        const isSuper = data.email === 'thisearlyseason@gmail.com' || firebaseUser.email === 'thisearlyseason@gmail.com' || data.role === 'superadmin';
         
+        // For beta testers, always prefer Firebase Auth identity so the real
+        // logged-in email/name shows instead of seeded demo placeholders
+        const isBeta = data.isBetaTester === true;
+        const resolvedName = isBeta
+          ? (firebaseUser.displayName || data.fullName || data.name || 'User')
+          : (data.fullName || data.name || 'User');
+        const resolvedEmail = isBeta
+          ? (firebaseUser.email || data.email || '')
+          : (data.email);
+
         setUserProfile({ 
           ...data, 
           id: snap.id,
-          name: data.fullName || data.name || 'User',
+          name: resolvedName,
+          email: resolvedEmail,
           plan_type: isSuper ? 'league' : data.plan_type,
           team_limit: isSuper ? 100 : data.team_limit,
           role: isSuper ? 'superadmin' : data.role,

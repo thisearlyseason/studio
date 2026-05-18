@@ -88,13 +88,13 @@ service cloud.firestore {
         resource.data.isDemo == true ||
         isTeamMember(teamId)
       ));
-      allow create: if isSignedIn() && (
+      allow create: if isSuperAdmin() || (isSignedIn() && (
         request.resource.data.ownerUserId == request.auth.uid ||
         // Demo seeder creates teams with fictional ownerUserId (e.g. parent/player demos use
         // a coach stand-in so the guest user doesn't trigger pro-quota enforcement).
         // Any signed-in user may create a demo-flagged team; demo data is ephemeral.
         request.resource.data.isDemo == true
-      );
+      ));
       allow update: if isSuperAdmin() || (isSignedIn() && (
         (resource != null && resource.data.ownerUserId == request.auth.uid) ||
         (resource != null && isTeamMember(teamId))
@@ -110,9 +110,14 @@ service cloud.firestore {
         ));
         allow write: if isSuperAdmin() || (isSignedIn() && (
           isTeamOwner(teamId) ||
-          // During batch-seeding, the team doc is written atomically with members in the same
-          // commit. The exists() guard in isTeamOwner() returns false until propagation completes,
-          // so we allow writes where the member record itself carries isDemo == true.
+          // Atomic-batch escape: when a user creates a new team, the team doc and the first
+          // member doc are committed in the same writeBatch(). At rule-evaluation time the
+          // team doc doesn't exist yet, so isTeamOwner() (which calls exists()) returns false.
+          // Reading ownerUserId from the *incoming* document (not a cross-doc get()) is safe —
+          // only the authenticated user can claim their own UID as ownerUserId.
+          request.resource.data.ownerUserId == request.auth.uid ||
+          // Demo-seeder escape: batch writes with isDemo == true bypass ownership checks
+          // because the team doc may not have propagated yet when members are written.
           request.resource.data.isDemo == true
         ));
 
@@ -401,7 +406,11 @@ service cloud.firestore {
     // Beta broadcast notifications — superadmin write, beta testers read
     match /beta_notifications/{notifId} {
       allow create, update, delete: if isSuperAdmin();
-      allow read: if isSignedIn(); // All signed-in users (beta testers) can read
+      // Beta testers and super admins can read notifications
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBetaTester == true
+      );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

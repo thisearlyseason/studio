@@ -471,8 +471,9 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '', 
 /**
  * HIGH-SPEED ATOMIC SEEDER
  * Ensures a stable, predictable reset for demo users.
+ * Pass isBetaTester=true to preserve the user's real name/email (beta accounts use real auth identities).
  */
-export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string) {
+export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: string, isBetaTester = false) {
   const nowObj = new Date();
   const now = nowObj.toISOString();
   const day = (d: number) => new Date(nowObj.getTime() + d * 86400000).toISOString();
@@ -552,24 +553,43 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   const batch = new BatchHelper(db);
 
   // 1. Core Profile Reset
-  batch.set(doc(db, 'users', userId), clean({
-    id: userId, 
-    fullName: isSchoolDemo ? 'Guest Admin' : `Guest ${pos}`, 
-    email: `${userRole}@thesquad.pro`,
-    role: userRole, 
-    plan_type: plan_type,
-    team_limit: team_limit,
-    subscription_status: 'active',
-    createdAt: now, 
-    isDemo: true, 
-    seenAlertIds: [],
-    avatarUrl: `https://picsum.photos/seed/${userId}/150/150`,
-    clubDescription: isEliteDemo ? 'Precision performance at a professional scale.' : (isSchoolDemo ? 'Secondary Athletic Program Command' : undefined),
-    schoolAdminIds: isSchoolDemo ? [userId] : [],
-    isPrimaryClubAuthority: (isProTier || isEliteDemo || isSchoolDemo) && !isPlayerDemo && !isParentDemo,
-    clubName: isSchoolDemo ? 'Springfield High School' : (isEliteDemo ? 'Apex Academy' : 'Squad Sports Hub'),
-    isStaff: true
-  }), { merge: true });
+  // For beta testers: preserve their real name/email — only update plan/role/flags.
+  // For guest demo users: write a full generic profile.
+  const profileDoc = isBetaTester
+    ? clean({
+        id: userId,
+        role: userRole,
+        plan_type: plan_type,
+        team_limit: team_limit,
+        subscription_status: 'active',
+        isBetaTester: true,
+        isDemo: false, // Beta testers are NOT demo accounts
+        seenAlertIds: [],
+        isPrimaryClubAuthority: (isProTier || isEliteDemo || isSchoolDemo) && !isPlayerDemo && !isParentDemo,
+        isStaff: true,
+        ...(isEliteDemo ? { clubName: 'Apex Academy', clubDescription: 'Precision performance at a professional scale.' } : {}),
+        ...(isSchoolDemo ? { clubName: 'Springfield High School', schoolAdminIds: [userId] } : {}),
+      })
+    : clean({
+        id: userId,
+        fullName: isSchoolDemo ? 'Guest Admin' : `Guest ${pos}`,
+        email: `${userRole}@thesquad.pro`,
+        role: userRole,
+        plan_type: plan_type,
+        team_limit: team_limit,
+        subscription_status: 'active',
+        createdAt: now,
+        isDemo: true,
+        seenAlertIds: [],
+        avatarUrl: `https://picsum.photos/seed/${userId}/150/150`,
+        clubDescription: isEliteDemo ? 'Precision performance at a professional scale.' : (isSchoolDemo ? 'Secondary Athletic Program Command' : undefined),
+        schoolAdminIds: isSchoolDemo ? [userId] : [],
+        isPrimaryClubAuthority: (isProTier || isEliteDemo || isSchoolDemo) && !isPlayerDemo && !isParentDemo,
+        clubName: isSchoolDemo ? 'Springfield High School' : (isEliteDemo ? 'Apex Academy' : 'Squad Sports Hub'),
+        isStaff: true
+      });
+
+  batch.set(doc(db, 'users', userId), profileDoc, { merge: true });
   await batch.flush();
 
   // 1.1 Secure Facilities Seeding (All Pro Tiers)

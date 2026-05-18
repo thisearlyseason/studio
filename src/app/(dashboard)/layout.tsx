@@ -7,6 +7,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { StripePaywall } from '@/components/StripePaywall';
 import { QuotaResolutionOverlay } from '@/components/layout/QuotaResolutionOverlay';
+import { BetaNotificationBanner } from '@/components/layout/BetaNotificationBanner';
 import { useTeam } from '@/components/providers/team-provider';
 import { Loader2, Timer } from 'lucide-react';
 import { seedGuestDemoTeam } from '@/lib/db-seeder';
@@ -136,6 +137,92 @@ function DemoSeedWrapper({
     };
     seed();
   }, [user, isTeamsLoading, teamsCount, isDemoInitializing, searchParams, auth, db, setIsDemoInitializing, setIsSeedingDemo]);
+
+  return null;
+}
+
+/**
+ * Auto-seeds a demo team for newly approved beta testers.
+ * Fires once per session when the user is a beta tester with no teams.
+ * Stores a Firestore flag (betaDemoSeeded) so it only seeds once ever.
+ */
+function BetaDemoSeeder({
+  user,
+  userProfile,
+  isTeamsLoading,
+  teamsCount,
+  isDemoInitializing,
+  setIsDemoInitializing,
+  setIsSeedingDemo,
+}: {
+  user: any;
+  userProfile: any;
+  isTeamsLoading: boolean;
+  teamsCount: number;
+  isDemoInitializing: boolean;
+  setIsDemoInitializing: (v: boolean) => void;
+  setIsSeedingDemo: (v: boolean) => void;
+}) {
+  const db = useFirestore();
+  const seederFiredRef = useRef(false);
+
+  useEffect(() => {
+    // Only run for approved beta testers who have no teams yet
+    if (!user?.uid || !userProfile || !db) return;
+    if (!userProfile.isBetaTester) return;
+    if (isTeamsLoading || teamsCount > 0) return;
+    if (isDemoInitializing) return;
+    if (seederFiredRef.current) return;
+
+    // Firestore-persisted guard: if the flag is set, this user already has their demo
+    // (survives logout, different browsers, new devices)
+    if (userProfile.betaDemoSeeded) return;
+
+    // Session-level guard: prevents re-running on every React remount within a tab
+    const sessionKey = `squad_beta_demo_seeded_${user.uid}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    // Determine which plan to seed from the user's beta plan_type
+    const planMap: Record<string, string> = {
+      free: 'starter_squad',
+      team: 'squad_pro',
+      elite: 'elite_teams',
+      league: 'elite_teams',
+      school: 'school_demo',
+    };
+    const planId = planMap[userProfile.plan_type] || 'starter_squad';
+
+    seederFiredRef.current = true;
+    sessionStorage.setItem(sessionKey, 'true');
+    setIsDemoInitializing(true);
+    setIsSeedingDemo(true);
+
+    const seed = async (attempt = 1) => {
+      try {
+        const primaryId = await seedGuestDemoTeam(db, user.uid, planId, true /* isBetaTester */);
+        if (primaryId) {
+          localStorage.setItem('sf_session_team_id', primaryId);
+        }
+        // Mark as seeded in Firestore so we never re-seed across devices/sessions
+        const { updateDoc, doc: fsDoc } = await import('firebase/firestore');
+        await updateDoc(fsDoc(db, 'users', user.uid), { betaDemoSeeded: true });
+
+        toast({ title: '🎮 Beta Environment Ready', description: 'Your demo workspace has been set up.' });
+        setTimeout(() => window.location.replace('/dashboard'), 1500);
+      } catch (e: any) {
+        if (attempt < 3) {
+          setTimeout(() => seed(attempt + 1), attempt * 1500);
+        } else {
+          seederFiredRef.current = false;
+          sessionStorage.removeItem(sessionKey);
+          setIsDemoInitializing(false);
+          setIsSeedingDemo(false);
+          console.error('[BetaDemoSeeder] Failed after 3 attempts:', e?.message);
+        }
+      }
+    };
+    seed();
+  }, [user, userProfile, isTeamsLoading, teamsCount, isDemoInitializing, db, setIsDemoInitializing, setIsSeedingDemo]);
 
   return null;
 }
@@ -406,7 +493,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {userProfile?.isDemo && (
+      {userProfile?.isDemo && !userProfile?.isBetaTester && (
         <div className="w-full bg-black text-white h-9 flex items-center justify-center gap-4 z-[40] border-b border-primary/20 shrink-0 sticky top-0">
           <Timer className="h-3.5 w-3.5 text-primary animate-pulse" />
           <div className="flex items-center gap-3">
@@ -422,6 +509,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         <AlertOverlay />
         <StripePaywall />
         <QuotaResolutionOverlay />
+        {/* BetaNotificationBanner is now rendered inside Shell to prevent layout overlap */}
+        {/* BetaDemoSeeder runs in background to provision demo workspace for beta users */}
+        <BetaDemoSeeder
+          user={user}
+          userProfile={userProfile}
+          isTeamsLoading={isTeamsLoading}
+          teamsCount={teams.length}
+          isDemoInitializing={isDemoInitializing}
+          setIsDemoInitializing={setIsDemoInitializing}
+          setIsSeedingDemo={setIsSeedingDemo}
+        />
         <Shell>{children}</Shell>
       </div>
     </div>

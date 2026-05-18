@@ -86,6 +86,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import BrandLogo from '@/components/BrandLogo';
+import { BetaNotificationBanner } from '@/components/layout/BetaNotificationBanner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   AlertDialog,
@@ -463,7 +464,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full bg-background selection:bg-primary/20">
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-y-hidden">
           <Sidebar className="border-r bg-white w-72 shrink-0 shadow-sm" collapsible="offcanvas">
             <SidebarHeader className="p-6 bg-white">
               <BrandLogo variant="light-background" className="h-10 w-44 justify-start mb-10" priority />
@@ -654,7 +655,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </SidebarFooter>
           </Sidebar>
 
-          <div className="flex flex-col flex-1 h-screen overflow-hidden">
+          <div className="flex flex-col flex-1 min-h-0">
             <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between text-foreground">
               <div className="flex items-center gap-4">
                 <div className="md:hidden">
@@ -798,10 +799,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </DropdownMenu>
               </div>
             </header>
-            
-            <main className="flex-1 overflow-y-auto p-4 md:p-10 max-w-7xl mx-auto w-full custom-scrollbar pb-32 md:pb-10 text-foreground">
-              {children}
-            </main>
+
+            {/* Banner + scrollable main in their own flex column so the banner
+                expands naturally and never gets clipped by overflow:hidden */}
+            <div className="flex flex-col flex-1 min-h-0">
+              <BetaNotificationBanner />
+              <main className="flex-1 overflow-y-auto p-4 md:p-10 max-w-7xl mx-auto w-full custom-scrollbar pb-32 md:pb-10 text-foreground">
+                {children}
+              </main>
+            </div>
 
             <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-max max-w-[95vw]">
               <nav className="flex items-center gap-1 bg-white/95 backdrop-blur-md border rounded-full px-2 py-2 shadow-2xl ring-1 ring-black/5">

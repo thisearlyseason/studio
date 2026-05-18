@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin } from 'lucide-react';
+import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:    { label: 'Free',          color: 'bg-gray-100 text-gray-700' },
@@ -59,7 +59,7 @@ export default function AdminPortalPage() {
   const db = useFirestore();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs' | 'users'>('accounts');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,10 +86,29 @@ export default function AdminPortalPage() {
   const [notifBody, setNotifBody] = useState('');
   const [sendingNotif, setSendingNotif] = useState(false);
 
+  // Existing-account confirmation dialog state
+  const [existingAccountConfirm, setExistingAccountConfirm] = useState<{
+    email: string;
+    existingUid: string | null;
+    pendingPlanType: string;
+    pendingPassword: string;
+  } | null>(null);
+  const [upgradingExisting, setUpgradingExisting] = useState(false);
+
+  // ── Users Directory state ──────────────────────────────────────────────────
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userPlanFilter, setUserPlanFilter] = useState('all');
+  const [userSortField, setUserSortField] = useState<'createdAt' | 'plan_type' | 'fullName'>('createdAt');
+  const [userSortDir, setUserSortDir] = useState<'asc' | 'desc'>('desc');
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isSuperAdmin || !db) return;
     if (activeTab === 'beta') fetchBetaApps();
     if (activeTab === 'bugs') fetchBugs();
+    if (activeTab === 'users') fetchAllUsers();
   }, [activeTab, isSuperAdmin, db]);
 
   const fetchBetaApps = async () => {
@@ -115,6 +134,20 @@ export default function AdminPortalPage() {
       toast({ title: 'Failed to load Bugs', description: e.message, variant: 'destructive' });
     } finally {
       setLoadingBugs(false);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      // Fetch up to 500 users ordered by creation date
+      const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(500));
+      const snap = await getDocs(q);
+      setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e: any) {
+      toast({ title: 'Failed to load users', description: e.message, variant: 'destructive' });
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -159,7 +192,7 @@ export default function AdminPortalPage() {
     if (!selectedBetaApp || !betaPassword || !db) return;
     setProcessingBeta(true);
     try {
-      // Create user via Firebase Auth REST API using the web API key
+      // Attempt to create user via Firebase Auth REST API
       const { firebaseConfig } = await import('@/firebase/config');
       const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
         method: 'POST',
@@ -171,6 +204,23 @@ export default function AdminPortalPage() {
         })
       });
       const data = await res.json();
+
+      // ── Email already exists: offer plan-upgrade instead of hard failure ──
+      if (data.error?.message === 'EMAIL_EXISTS') {
+        // Try to look up the existing user doc by email to get their UID
+        const emailQ = query(collection(db, 'users'), where('email', '==', selectedBetaApp.email), limit(1));
+        const emailSnap = await getDocs(emailQ);
+        const existingUid = emailSnap.empty ? null : emailSnap.docs[0].id;
+
+        setExistingAccountConfirm({
+          email: selectedBetaApp.email,
+          existingUid,
+          pendingPlanType: betaPlanType,
+          pendingPassword: betaPassword,
+        });
+        return;
+      }
+
       if (data.error) throw new Error(data.error.message);
       
       const newUid = data.localId;
@@ -197,6 +247,85 @@ export default function AdminPortalPage() {
       setBetaPassword('');
       setBetaPlanType('free');
       toast({ title: 'Beta User Approved', description: 'Account created successfully.' });
+    } catch (e: any) {
+      toast({ title: 'Approval Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setProcessingBeta(false);
+    }
+  };
+
+  // Called when admin confirms plan upgrade for an already-existing account
+  const handleUpgradeExistingBeta = async () => {
+    if (!existingAccountConfirm || !selectedBetaApp || !db) return;
+    setUpgradingExisting(true);
+    try {
+      const { existingUid, pendingPlanType } = existingAccountConfirm;
+
+      if (existingUid) {
+        // Update the existing Firestore user doc
+        await updateDoc(doc(db, 'users', existingUid), {
+          isBetaTester: true,
+          plan_type: pendingPlanType,
+          team_limit: pendingPlanType === 'elite' ? 5 : (pendingPlanType === 'league' || pendingPlanType === 'school' ? 100 : (pendingPlanType === 'team' ? 1 : 0)),
+          betaUpgradedAt: new Date().toISOString(),
+        });
+      }
+
+      // Mark the application as approved
+      await updateDoc(doc(db, 'beta_applications', selectedBetaApp.id), {
+        status: 'approved',
+        note: 'Approved on existing account',
+      });
+
+      setBetaApps(prev => prev.map(a => a.id === selectedBetaApp.id ? { ...a, status: 'approved' } : a));
+      setSelectedBetaApp(null);
+      setBetaPassword('');
+      setBetaPlanType('free');
+      setExistingAccountConfirm(null);
+      toast({
+        title: '✅ Existing Account Upgraded',
+        description: `Plan set to "${PLAN_LABELS[pendingPlanType]?.label ?? pendingPlanType}" on existing account.`,
+      });
+    } catch (e: any) {
+      toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setUpgradingExisting(false);
+    }
+  };
+
+  // Direct approve for a user who already has an account — no password needed
+  const handleDirectApproveExisting = async () => {
+    if (!selectedBetaApp || !db) return;
+    setProcessingBeta(true);
+    try {
+      // Look up existing user doc by email
+      const emailQ = query(collection(db, 'users'), where('email', '==', selectedBetaApp.email), limit(1));
+      const emailSnap = await getDocs(emailQ);
+
+      if (!emailSnap.empty) {
+        const existingUid = emailSnap.docs[0].id;
+        await updateDoc(doc(db, 'users', existingUid), {
+          isBetaTester: true,
+          plan_type: betaPlanType,
+          team_limit: betaPlanType === 'elite' ? 5 : (betaPlanType === 'league' || betaPlanType === 'school' ? 100 : (betaPlanType === 'team' ? 1 : 0)),
+          betaUpgradedAt: new Date().toISOString(),
+        });
+      }
+
+      await updateDoc(doc(db, 'beta_applications', selectedBetaApp.id), {
+        status: 'approved',
+        note: 'Approved on existing account (no new account created)',
+      });
+
+      setBetaApps(prev => prev.map(a => a.id === selectedBetaApp.id ? { ...a, status: 'approved' } : a));
+      setSelectedBetaApp(null);
+      setBetaPlanType('free');
+      toast({
+        title: '✅ Existing Account Approved',
+        description: emailSnap.empty
+          ? 'Application approved — no matching account found to update.'
+          : `Plan upgraded to "${PLAN_LABELS[betaPlanType]?.label ?? betaPlanType}" on existing account.`,
+      });
     } catch (e: any) {
       toast({ title: 'Approval Failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -335,7 +464,67 @@ export default function AdminPortalPage() {
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-[#0a0a0a]' : 'bg-gray-50'}`}>
-      {/* Header */}
+
+      {/* ── Existing Account Confirmation Dialog ── */}
+      <Dialog open={!!existingAccountConfirm} onOpenChange={(open) => { if (!open) setExistingAccountConfirm(null); }}>
+        <DialogContent className="max-w-md rounded-3xl bg-white dark:bg-[#111] border-2 border-amber-500/30 p-0 overflow-hidden">
+          <div className="bg-amber-500/10 px-8 pt-8 pb-6 border-b border-amber-500/20">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              </div>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+                Account Already Exists
+              </DialogTitle>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-white/60 font-medium">
+              <span className="font-black text-amber-600 dark:text-amber-400">{existingAccountConfirm?.email}</span> already has a Squad account.
+            </p>
+          </div>
+          <div className="px-8 py-6 space-y-5">
+            <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-200 dark:border-white/10 space-y-3">
+              <p className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-white/40">Proposed Change</p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">New Plan</p>
+                  <p className="text-base font-black text-gray-900 dark:text-white uppercase">{PLAN_LABELS[existingAccountConfirm?.pendingPlanType || 'free']?.label}</p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Beta Access</p>
+                  <p className="text-base font-black text-emerald-600 uppercase">Enabled ✓</p>
+                </div>
+              </div>
+              {!existingAccountConfirm?.existingUid && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 rounded-xl px-3 py-2">
+                  ⚠️ Could not find this user's Firestore profile — their plan may not update. Consider locating the account manually.
+                </p>
+              )}
+            </div>
+            <p className="text-sm text-gray-600 dark:text-white/60 font-medium leading-relaxed">
+              Do you want to <strong>approve this application</strong> and upgrade their existing account to the selected plan?
+            </p>
+          </div>
+          <DialogFooter className="px-8 pb-8 flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 h-12 border-2 font-black uppercase tracking-widest text-xs rounded-xl"
+              onClick={() => setExistingAccountConfirm(null)}
+              disabled={upgradingExisting}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 h-12 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-amber-500/20"
+              onClick={handleUpgradeExistingBeta}
+              disabled={upgradingExisting}
+            >
+              {upgradingExisting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Upgrade Account'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <div className="border-b border-gray-200 dark:border-white/10 bg-white/80 dark:bg-black/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -362,12 +551,18 @@ export default function AdminPortalPage() {
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
         
         {/* Tabs */}
-        <div className="flex gap-4 border-b border-gray-200 dark:border-white/10 pb-4">
+        <div className="flex flex-wrap gap-3 border-b border-gray-200 dark:border-white/10 pb-4">
           <button 
             onClick={() => setActiveTab('accounts')} 
             className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors ${activeTab === 'accounts' ? 'bg-white text-black' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
           >
             Accounts
+          </button>
+          <button 
+            onClick={() => { setActiveTab('users'); }}
+            className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'users' ? 'bg-sky-500 text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
+          >
+            <Users className="w-4 h-4" /> Users Directory
           </button>
           <button 
             onClick={() => setActiveTab('beta')} 
@@ -377,11 +572,289 @@ export default function AdminPortalPage() {
           </button>
           <button 
             onClick={() => setActiveTab('bugs')} 
-            className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'bugs' ? 'bg-orange-500 text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
+            className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'bugs' ? 'bg-orange-500 text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
           >
             <Bug className="w-4 h-4" /> Bug Reports
           </button>
         </div>
+
+        {/* ══════════ USERS DIRECTORY TAB ══════════ */}
+        {activeTab === 'users' && (() => {
+          // Filter out demo/guest accounts — only show real subscribers
+          const realUsers = allUsers.filter(u => !u.isDemo);
+
+          // — Derived metrics
+          const PLAN_MRR: Record<string, number> = { free: 0, team: 19, elite: 49, league: 149, school: 99 };
+          const paidUsers = realUsers.filter(u => u.plan_type && u.plan_type !== 'free');
+          const totalMRR = paidUsers.reduce((acc, u) => acc + (PLAN_MRR[u.plan_type] ?? 0), 0);
+          const betaUsers = realUsers.filter(u => u.isBetaTester);
+          const cancelledUsers = realUsers.filter(u => u.cancelledAt || u.subscription_cancelled_at);
+
+          // — Filter + search + sort
+          const term = userSearch.toLowerCase();
+          const filtered = realUsers
+            .filter(u => {
+              if (userPlanFilter !== 'all' && u.plan_type !== userPlanFilter) return false;
+              if (!term) return true;
+              return (
+                (u.fullName || '').toLowerCase().includes(term) ||
+                (u.email || '').toLowerCase().includes(term) ||
+                (u.phone || '').toLowerCase().includes(term) ||
+                (u.organization || '').toLowerCase().includes(term)
+              );
+            })
+            .sort((a, b) => {
+              let av = a[userSortField] ?? '';
+              let bv = b[userSortField] ?? '';
+              if (typeof av === 'string') av = av.toLowerCase();
+              if (typeof bv === 'string') bv = bv.toLowerCase();
+              if (av < bv) return userSortDir === 'asc' ? -1 : 1;
+              if (av > bv) return userSortDir === 'asc' ? 1 : -1;
+              return 0;
+            });
+
+          const toggleSort = (field: typeof userSortField) => {
+            if (userSortField === field) setUserSortDir(d => d === 'asc' ? 'desc' : 'asc');
+            else { setUserSortField(field); setUserSortDir('asc'); }
+          };
+
+          const SortIcon = ({ field }: { field: typeof userSortField }) => {
+            if (userSortField !== field) return <ArrowUpDown className="w-3 h-3 opacity-30" />;
+            return userSortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-sky-400" /> : <ArrowDown className="w-3 h-3 text-sky-400" />;
+          };
+
+          const fmt = (s?: string) => {
+            if (!s) return '—';
+            try { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+            catch { return s; }
+          };
+
+          return (
+            <div className="space-y-8">
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Users Directory</h1>
+                  <p className="text-gray-400 dark:text-white/30 text-xs font-bold uppercase tracking-widest mt-1">
+                    {loadingUsers ? 'Loading...' : `${allUsers.length} total accounts`}
+                  </p>
+                </div>
+                <button
+                  onClick={fetchAllUsers}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 font-black uppercase tracking-widest text-xs transition-colors"
+                  disabled={loadingUsers}
+                >
+                  {loadingUsers ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Refresh
+                </button>
+              </div>
+
+              {/* KPI Overview Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Users', value: allUsers.length, icon: Users, color: 'bg-sky-500/10 text-sky-500', border: 'border-sky-500/20' },
+                  { label: 'Paid Subscribers', value: paidUsers.length, icon: CreditCard, color: 'bg-emerald-500/10 text-emerald-500', border: 'border-emerald-500/20' },
+                  { label: 'Est. Monthly Revenue', value: `$${totalMRR.toLocaleString()}`, icon: TrendingUp, color: 'bg-violet-500/10 text-violet-500', border: 'border-violet-500/20' },
+                  { label: 'Beta Testers', value: betaUsers.length, icon: Shield, color: 'bg-primary/10 text-primary', border: 'border-primary/20' },
+                ].map(card => (
+                  <div key={card.label} className={`rounded-2xl border-2 ${card.border} bg-white dark:bg-white/5 p-5 space-y-3`}>
+                    <div className={`w-9 h-9 rounded-xl ${card.color} flex items-center justify-center`}>
+                      <card.icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-black text-gray-900 dark:text-white">{card.value}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 mt-0.5">{card.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Plan Breakdown Bar */}
+              <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 p-6 space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">Subscription Breakdown</p>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {Object.entries(PLAN_LABELS).map(([key, { label, color }]) => {
+                    const count = allUsers.filter(u => (u.plan_type ?? 'free') === key).length;
+                    const pct = allUsers.length ? Math.round((count / allUsers.length) * 100) : 0;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setUserPlanFilter(userPlanFilter === key ? 'all' : key)}
+                        className={`rounded-xl p-3 border-2 text-left transition-all ${userPlanFilter === key ? 'border-primary scale-105' : 'border-gray-200 dark:border-white/10'}`}
+                      >
+                        <p className="text-lg font-black text-gray-900 dark:text-white">{count}</p>
+                        <div className="w-full h-1.5 rounded-full bg-gray-100 dark:bg-white/10 mt-2 mb-1.5">
+                          <div className="h-full rounded-full bg-primary/60" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${color}`}>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Search + Filter bar */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-white/30" />
+                  <input
+                    type="text"
+                    value={userSearch}
+                    onChange={e => setUserSearch(e.target.value)}
+                    placeholder="Search by name, email, phone, or org..."
+                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-white dark:bg-white/5 border-2 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm font-bold placeholder:text-gray-300 dark:placeholder:text-white/20 focus:outline-none focus:border-sky-400/60"
+                  />
+                </div>
+                <select
+                  value={userPlanFilter}
+                  onChange={e => setUserPlanFilter(e.target.value)}
+                  className="h-12 px-4 rounded-xl bg-white dark:bg-white/5 border-2 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs font-black uppercase tracking-widest focus:outline-none focus:border-sky-400/60"
+                >
+                  <option value="all">All Plans</option>
+                  {Object.entries(PLAN_LABELS).map(([k, { label }]) => (
+                    <option key={k} value={k}>{label}</option>
+                  ))}
+                </select>
+                {(userSearch || userPlanFilter !== 'all') && (
+                  <button
+                    onClick={() => { setUserSearch(''); setUserPlanFilter('all'); }}
+                    className="h-12 px-4 rounded-xl border-2 border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-red-400 hover:text-red-500 font-black uppercase tracking-widest text-xs transition-colors flex items-center gap-2"
+                  >
+                    <X className="w-3.5 h-3.5" /> Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Results count */}
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">
+                Showing {filtered.length} of {allUsers.length} users
+              </p>
+
+              {/* Table */}
+              {loadingUsers ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-20 text-gray-400 dark:text-white/30 font-bold uppercase tracking-widest text-sm">
+                  No users match your search
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden bg-white dark:bg-[#0a0a0a]">
+                  {/* Table header */}
+                  <div className="grid grid-cols-12 gap-0 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10 px-5 py-3">
+                    <button onClick={() => toggleSort('fullName')} className="col-span-3 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 hover:text-gray-600 dark:hover:text-white/60 text-left">
+                      Name / Email <SortIcon field="fullName" />
+                    </button>
+                    <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">Role</div>
+                    <button onClick={() => toggleSort('plan_type')} className="col-span-2 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 hover:text-gray-600 dark:hover:text-white/60 text-left">
+                      Plan <SortIcon field="plan_type" />
+                    </button>
+                    <button onClick={() => toggleSort('createdAt')} className="col-span-2 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 hover:text-gray-600 dark:hover:text-white/60 text-left">
+                      Joined <SortIcon field="createdAt" />
+                    </button>
+                    <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">Cancelled</div>
+                    <div className="col-span-1 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">Beta</div>
+                  </div>
+
+                  {/* Table rows */}
+                  <div className="divide-y divide-gray-100 dark:divide-white/5">
+                    {filtered.map((u) => {
+                      const isExpanded = expandedUserId === u.id;
+                      const cancelDate = u.cancelledAt || u.subscription_cancelled_at || u.canceledAt;
+                      return (
+                        <div key={u.id}>
+                          <button
+                            onClick={() => setExpandedUserId(isExpanded ? null : u.id)}
+                            className="w-full grid grid-cols-12 gap-0 px-5 py-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left group"
+                          >
+                            {/* Name + Email */}
+                            <div className="col-span-3 min-w-0">
+                              <p className="text-sm font-black text-gray-900 dark:text-white truncate">
+                                {u.fullName || u.name || <span className="text-gray-400 italic font-normal text-xs">No name</span>}
+                              </p>
+                              <p className="text-[10px] text-gray-400 dark:text-white/30 font-mono truncate">{u.email || '—'}</p>
+                            </div>
+                            {/* Role */}
+                            <div className="col-span-2 flex items-center">
+                              <span className="text-[9px] font-black uppercase tracking-widest bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 px-2 py-0.5 rounded-lg">
+                                {u.role || 'user'}
+                              </span>
+                            </div>
+                            {/* Plan */}
+                            <div className="col-span-2 flex items-center">
+                              {planBadge(u.plan_type)}
+                            </div>
+                            {/* Joined */}
+                            <div className="col-span-2 flex items-center">
+                              <span className="text-[10px] font-bold text-gray-500 dark:text-white/40">{fmt(u.createdAt)}</span>
+                            </div>
+                            {/* Cancelled */}
+                            <div className="col-span-2 flex items-center">
+                              {cancelDate
+                                ? <span className="text-[10px] font-bold text-red-500">{fmt(cancelDate)}</span>
+                                : <span className="text-[10px] font-bold text-gray-300 dark:text-white/20">—</span>
+                              }
+                            </div>
+                            {/* Beta */}
+                            <div className="col-span-1 flex items-center">
+                              {u.isBetaTester
+                                ? <span className="w-2 h-2 rounded-full bg-primary inline-block" title="Beta Tester" />
+                                : <span className="w-2 h-2 rounded-full bg-gray-200 dark:bg-white/10 inline-block" />
+                              }
+                            </div>
+                          </button>
+
+                          {/* Expanded detail row */}
+                          {isExpanded && (
+                            <div className="bg-gray-50 dark:bg-white/3 border-t border-gray-100 dark:border-white/5 px-5 py-5 animate-in slide-in-from-top-1 duration-200">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {[
+                                  { label: 'User ID', value: u.id },
+                                  { label: 'Email', value: u.email },
+                                  { label: 'Phone', value: u.phone || '—' },
+                                  { label: 'Organization', value: u.organization || u.clubName || u.schoolName || '—' },
+                                  { label: 'Plan Type', value: u.plan_type || 'free' },
+                                  { label: 'Team Limit', value: u.team_limit ?? '—' },
+                                  { label: 'Stripe Customer', value: u.stripe_customer_id || '—' },
+                                  { label: 'Stripe Sub ID', value: u.stripe_subscription_id || '—' },
+                                  { label: 'Joined', value: fmt(u.createdAt) },
+                                  { label: 'Beta Upgraded', value: fmt(u.betaUpgradedAt) },
+                                  { label: 'Cancelled', value: fmt(cancelDate) },
+                                  { label: 'Is Demo', value: u.isDemo ? 'Yes' : 'No' },
+                                ].map(({ label, value }) => (
+                                  <div key={label} className="space-y-1">
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 dark:text-white/25">{label}</p>
+                                    <p className="text-xs font-bold text-gray-700 dark:text-white/70 font-mono break-all">{value}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex gap-2 mt-4">
+                                <button
+                                  onClick={() => { setActiveTab('accounts'); setSearchTerm(u.email || ''); }}
+                                  className="text-[9px] font-black uppercase tracking-widest text-sky-500 hover:text-sky-400 flex items-center gap-1 transition-colors"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> Open in Account Lookup
+                                </button>
+                                <span className="text-gray-300 dark:text-white/20">·</span>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(u.id); toast({ title: 'UID Copied' }); }}
+                                  className="text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white/60 flex items-center gap-1 transition-colors"
+                                >
+                                  <Copy className="w-3 h-3" /> Copy UID
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {activeTab === 'accounts' && (
           <>
@@ -897,16 +1370,27 @@ export default function AdminPortalPage() {
                             />
                           </div>
                           <div className="relative z-10 flex flex-col gap-3 pt-2">
+                            {/* Divider: New Account path */}
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 ml-1">New Account</p>
                             <Button 
                               className="w-full h-14 bg-[#4ade80] hover:bg-[#22c55e] text-black font-black uppercase tracking-widest text-xs sm:text-sm rounded-xl shadow-xl shadow-emerald-500/20"
                               onClick={handleApproveBeta}
                               disabled={!betaPassword || processingBeta}
                             >
-                              {processingBeta ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Approve Application & Create Account'}
+                              {processingBeta ? <Loader2 className="w-5 h-5 animate-spin" /> : '✦ Approve & Create New Account'}
+                            </Button>
+                            {/* Divider: Existing Account path */}
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 ml-1 mt-1">Already Has Account</p>
+                            <Button 
+                              className="w-full h-14 bg-amber-400 hover:bg-amber-500 text-black font-black uppercase tracking-widest text-xs sm:text-sm rounded-xl shadow-lg shadow-amber-400/20"
+                              onClick={handleDirectApproveExisting}
+                              disabled={processingBeta}
+                            >
+                              {processingBeta ? <Loader2 className="w-5 h-5 animate-spin" /> : '⚡ Approve — Upgrade Existing Account'}
                             </Button>
                             <Button 
                               variant="outline"
-                              className="w-full h-14 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-black uppercase tracking-widest text-xs sm:text-sm rounded-xl transition-all"
+                              className="w-full h-14 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-black uppercase tracking-widest text-xs sm:text-sm rounded-xl transition-all mt-1"
                               onClick={handleDenyBeta}
                               disabled={processingBeta}
                             >
