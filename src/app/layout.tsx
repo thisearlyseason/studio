@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   description: 'Unite your team and coordinate like pros with The Squad.',
 };
 
+
 export default function RootLayout({
   children,
 }: Readonly<{
