@@ -3,17 +3,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useTeam } from '@/components/providers/team-provider';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy, limit, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy, limit, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText } from 'lucide-react';
+import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:    { label: 'Free',          color: 'bg-gray-100 text-gray-700' },
@@ -80,6 +81,11 @@ export default function AdminPortalPage() {
   const [bugReports, setBugReports] = useState<any[]>([]);
   const [loadingBugs, setLoadingBugs] = useState(false);
 
+  // Notification state
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody] = useState('');
+  const [sendingNotif, setSendingNotif] = useState(false);
+
   useEffect(() => {
     if (!isSuperAdmin || !db) return;
     if (activeTab === 'beta') fetchBetaApps();
@@ -112,7 +118,43 @@ export default function AdminPortalPage() {
     }
   };
 
-  
+  const markBugFixed = async (bugId: string, currentlyFixed: boolean) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, 'bug_reports', bugId), {
+        fixed: !currentlyFixed,
+        fixedAt: !currentlyFixed ? new Date().toISOString() : null,
+      });
+      setBugReports(prev =>
+        prev.map(b => b.id === bugId ? { ...b, fixed: !currentlyFixed } : b)
+      );
+      toast({ title: !currentlyFixed ? '✅ Marked as Fixed' : 'Reopened Bug' });
+    } catch (e: any) {
+      toast({ title: 'Update failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const sendBetaNotification = async () => {
+    if (!db || !notifTitle.trim() || !notifBody.trim()) return;
+    setSendingNotif(true);
+    try {
+      await addDoc(collection(db, 'beta_notifications'), {
+        title: notifTitle.trim(),
+        body: notifBody.trim(),
+        sentBy: user?.email || 'superadmin',
+        sentAt: serverTimestamp(),
+        type: 'broadcast',
+      });
+      setNotifTitle('');
+      setNotifBody('');
+      toast({ title: '📣 Notification Sent', description: 'All beta users will see this update.' });
+    } catch (e: any) {
+      toast({ title: 'Send failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSendingNotif(false);
+    }
+  };
+
   const handleApproveBeta = async () => {
     if (!selectedBetaApp || !betaPassword || !db) return;
     setProcessingBeta(true);
@@ -623,7 +665,7 @@ export default function AdminPortalPage() {
         )}
 
         {activeTab === 'beta' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Beta Applications</h1>
@@ -632,6 +674,47 @@ export default function AdminPortalPage() {
               <Button onClick={fetchBetaApps} variant="outline" className="border-gray-200 dark:border-white/10 text-gray-900 dark:text-white">
                 <RefreshCw className="w-4 h-4 mr-2" /> Refresh
               </Button>
+            </div>
+
+            {/* ── NOTIFY BETA USERS ── */}
+            <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/30 rounded-[2rem] p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Notify Beta Users</h2>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-white/30">Broadcast a message to all beta testers</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/40">Notification Title</Label>
+                  <Input
+                    value={notifTitle}
+                    onChange={e => setNotifTitle(e.target.value)}
+                    placeholder="e.g. v1.2 Update — New Scheduling Features"
+                    className="h-12 rounded-xl bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white font-bold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/40">Message / Update Body</Label>
+                  <Textarea
+                    value={notifBody}
+                    onChange={e => setNotifBody(e.target.value)}
+                    placeholder="What's new? Describe the update or announcement for beta testers…"
+                    className="min-h-[100px] rounded-xl bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white font-medium resize-y"
+                  />
+                </div>
+                <Button
+                  onClick={sendBetaNotification}
+                  disabled={sendingNotif || !notifTitle.trim() || !notifBody.trim()}
+                  className="h-12 rounded-xl bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 flex items-center gap-2 w-full md:w-auto"
+                >
+                  {sendingNotif ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Send to All Beta Users
+                </Button>
+              </div>
             </div>
             
             {loadingBeta ? (
@@ -758,6 +841,24 @@ export default function AdminPortalPage() {
                           <div className="space-y-1.5">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/40 ml-1">Social Media Handles</Label>
                             <div className="h-12 w-full flex items-center px-4 rounded-xl border-2 border-gray-200 dark:border-white/20 bg-white dark:bg-white/5 font-bold text-sm text-gray-900 dark:text-white">{selectedBetaApp.socials || 'N/A'}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section 6: Mailing Address */}
+                      <div className="space-y-6 pt-6 border-t border-gray-200 dark:border-white/10">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">6</div>
+                          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Mailing Address</h3>
+                        </div>
+                        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">📦 "The Squad" Gift Shipping Address</p>
+                          <div className="space-y-2 text-sm font-bold text-gray-900 dark:text-white">
+                            <p>{selectedBetaApp.address_street || <span className="text-gray-400 italic">No street provided</span>}</p>
+                            <p>
+                              {[selectedBetaApp.address_city, selectedBetaApp.address_state, selectedBetaApp.address_zip]
+                                .filter(Boolean).join(', ') || <span className="text-gray-400 italic">No city/state/zip provided</span>}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -915,9 +1016,17 @@ export default function AdminPortalPage() {
                 <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Bug Reports</h1>
                 <p className="text-gray-400 dark:text-gray-900 dark:text-white/30 text-xs font-bold uppercase tracking-widest">Global user feedback and issues</p>
               </div>
-              <Button onClick={fetchBugs} variant="outline" className="border-gray-200 dark:border-white/10 text-gray-900 dark:text-white">
-                <RefreshCw className="w-4 h-4 mr-2" /> Refresh
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                  <span className="text-gray-500 dark:text-white/40">{bugReports.filter(b => b.fixed).length} Fixed</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block ml-2" />
+                  <span className="text-gray-500 dark:text-white/40">{bugReports.filter(b => !b.fixed).length} Open</span>
+                </div>
+                <Button onClick={fetchBugs} variant="outline" className="border-gray-200 dark:border-white/10 text-gray-900 dark:text-white">
+                  <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+                </Button>
+              </div>
             </div>
             
             {loadingBugs ? (
@@ -926,9 +1035,30 @@ export default function AdminPortalPage() {
               <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-12 text-center text-gray-500 dark:text-gray-900 dark:text-white/40">No bug reports found.</div>
             ) : (
               <div className="space-y-4">
-                {bugReports.map(bug => (
-                  <div key={bug.id} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-6 flex flex-col md:flex-row gap-6 items-start">
+                {/* Open bugs first */}
+                {[...bugReports].sort((a, b) => (a.fixed === b.fixed ? 0 : a.fixed ? 1 : -1)).map(bug => (
+                  <div
+                    key={bug.id}
+                    className={`border rounded-2xl p-6 flex flex-col md:flex-row gap-6 items-start transition-all ${
+                      bug.fixed
+                        ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-500/20 opacity-70'
+                        : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10'
+                    }`}
+                  >
+                    {/* Left metadata */}
                     <div className="w-full md:w-64 shrink-0 space-y-4">
+                      {/* Fixed / Open badge */}
+                      <div className="flex items-center gap-2">
+                        {bug.fixed ? (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                            <CheckCircle2 className="w-3 h-3" /> Fixed
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 text-[10px] font-black uppercase tracking-widest">
+                            <Bug className="w-3 h-3" /> Open
+                          </span>
+                        )}
+                      </div>
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Reported By</p>
                         <p className="text-sm text-gray-900 dark:text-white">{bug.userEmail}</p>
@@ -939,7 +1069,28 @@ export default function AdminPortalPage() {
                         <a href={bug.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline break-all">{bug.url}</a>
                       </div>
                       <p className="text-[10px] text-gray-400 dark:text-gray-900 dark:text-white/30 font-mono mt-2">{bug.createdAt?.toDate?.()?.toLocaleString()}</p>
+                      {bug.fixed && bug.fixedAt && (
+                        <p className="text-[10px] text-emerald-500 font-mono">Fixed: {new Date(bug.fixedAt).toLocaleString()}</p>
+                      )}
+
+                      {/* Mark as Fixed / Reopen */}
+                      <button
+                        onClick={() => markBugFixed(bug.id, !!bug.fixed)}
+                        className={`flex items-center gap-2 w-full justify-center px-4 py-2.5 rounded-xl border-2 font-black uppercase text-[10px] tracking-widest transition-all hover:scale-105 ${
+                          bug.fixed
+                            ? 'border-orange-400 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10'
+                            : 'border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+                        }`}
+                      >
+                        {bug.fixed ? (
+                          <><Bug className="w-3.5 h-3.5" /> Reopen Bug</>
+                        ) : (
+                          <><CheckCircle2 className="w-3.5 h-3.5" /> Mark as Fixed</>
+                        )}
+                      </button>
                     </div>
+
+                    {/* Right content */}
                     <div className="flex-1 space-y-4">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-2">Description</p>

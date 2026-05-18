@@ -18,7 +18,7 @@ service cloud.firestore {
       // Allow bypass for internal support via custom claims or hardcoded UI token
       return request.auth != null && (
         request.auth.token.role == 'superadmin' ||
-        request.auth.uid == 'aNRFj2FY4fhYQx1X6UfTbS7yRvH2'
+        request.auth.uid == 'ai2QThECAwfkAFw608m7TgPZTmk2'
       );
     }
 
@@ -396,6 +396,12 @@ service cloud.firestore {
     match /bug_reports/{bugId} {
       allow create: if isSignedIn(); // Beta testers must be signed in
       allow read, update, delete: if isSuperAdmin();
+    }
+
+    // Beta broadcast notifications — superadmin write, beta testers read
+    match /beta_notifications/{notifId} {
+      allow create, update, delete: if isSuperAdmin();
+      allow read: if isSignedIn(); // All signed-in users (beta testers) can read
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

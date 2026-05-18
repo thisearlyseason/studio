@@ -15,7 +15,10 @@ import {
   MessageSquare,
   Smartphone,
   Bug,
-  Percent
+  Percent,
+  Package,
+  MapPin,
+  Gift
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -344,6 +347,76 @@ export default function BetaApplicationPage() {
                   <Label htmlFor="socials" className="text-xs font-bold uppercase tracking-widest text-white/70">Social Media Handles (Optional)</Label>
                   <Input id="socials" name="socials" className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-primary" placeholder="@yourhandle" />
                 </div>
+              </div>
+            </div>
+
+            {/* 6. Mailing Address — The Squad Beta Gift */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-white/10">
+                <div className="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">6</div>
+                <h3 className="text-2xl font-black uppercase tracking-tight">Mailing Address</h3>
+              </div>
+
+              {/* Gift Banner */}
+              <div className="relative overflow-hidden rounded-[1.5rem] border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-6 flex items-start gap-4">
+                <div className="shrink-0 w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center">
+                  <Gift className="w-6 h-6 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-black uppercase tracking-widest text-primary">🎁 Beta Tester Gift — "The Squad" Merch Package</p>
+                  <p className="text-sm text-white/80 font-medium leading-relaxed">
+                    All approved beta testers will receive an exclusive <strong className="text-primary">"The Squad"</strong> beta gift in the mail.
+                    Please make sure your mailing address below is <strong className="text-white">accurate and up to date</strong> so we can send it to the right place!
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5">
+                <div className="space-y-2">
+                  <Label htmlFor="address_street" className="text-xs font-bold uppercase tracking-widest text-white/70">
+                    <MapPin className="inline-block w-3.5 h-3.5 mr-1 mb-0.5" />Street Address *
+                  </Label>
+                  <Input
+                    id="address_street"
+                    name="address_street"
+                    required
+                    className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-primary"
+                    placeholder="123 Main Street, Apt 4B"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2 md:col-span-1">
+                    <Label htmlFor="address_city" className="text-xs font-bold uppercase tracking-widest text-white/70">City *</Label>
+                    <Input
+                      id="address_city"
+                      name="address_city"
+                      required
+                      className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-primary"
+                      placeholder="Chicago"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address_state" className="text-xs font-bold uppercase tracking-widest text-white/70">State *</Label>
+                    <Input
+                      id="address_state"
+                      name="address_state"
+                      required
+                      className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-primary"
+                      placeholder="IL"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address_zip" className="text-xs font-bold uppercase tracking-widest text-white/70">ZIP Code *</Label>
+                    <Input
+                      id="address_zip"
+                      name="address_zip"
+                      required
+                      className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-primary"
+                      placeholder="60601"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary/70">⚠ Double-check your address — we can only ship to the address provided at the time of application.</p>
               </div>
             </div>
 
