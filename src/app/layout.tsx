@@ -8,8 +8,65 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import BugReporter from '@/components/BugReporter';
 
 export const metadata: Metadata = {
-  title: 'The Squad - Ultimate Team Hub',
-  description: 'Unite your team and coordinate like pros with The Squad.',
+  metadataBase: new URL('https://thesquad.pro'),
+  title: {
+    default: 'The Squad — Elite Sports Team Management Platform',
+    template: '%s | The Squad',
+  },
+  description:
+    'The all-in-one institutional platform for elite sports organizations. Coordinate rosters, automate tournament brackets, verify film compliance, and recruit athletes — all in one tactical hub.',
+  keywords: [
+    'sports team management',
+    'athletic coordination platform',
+    'tournament bracket generator',
+    'team scheduling software',
+    'athlete recruiting portfolio',
+    'school athletic director software',
+    'sports organization hub',
+    'the squad',
+  ],
+  authors: [{ name: 'The Squad', url: 'https://thesquad.pro' }],
+  creator: 'The Squad',
+  publisher: 'The Squad',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  alternates: {
+    canonical: 'https://thesquad.pro',
+  },
+  openGraph: {
+    type: 'website',
+    url: 'https://thesquad.pro',
+    title: 'The Squad — Elite Sports Team Management Platform',
+    description:
+      'Coordinate rosters, automate brackets, verify film compliance, and recruit athletes — all in one institutional sports hub.',
+    siteName: 'The Squad',
+    images: [
+      {
+        url: '/favicon-512.png',
+        width: 512,
+        height: 512,
+        alt: 'The Squad — Elite Sports Team Management',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'The Squad — Elite Sports Team Management Platform',
+    description:
+      'The all-in-one institutional platform for elite sports organizations.',
+    images: ['/favicon-512.png'],
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-192.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: [{ url: '/favicon-192.png', sizes: '192x192', type: 'image/png' }],
+    shortcut: '/favicon.ico',
+  },
 };
 
 

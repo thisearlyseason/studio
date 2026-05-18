@@ -102,7 +102,7 @@ function SectionHeader({ badge, title, subtitle }: { badge: string; title: React
       <motion.div variants={fadeUp}>
         <Badge variant="secondary" className="bg-primary/5 text-primary border-none font-black px-4 py-1 uppercase tracking-widest text-[10px]">{badge}</Badge>
       </motion.div>
-      <motion.h3 variants={fadeUp} className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9]">{title}</motion.h3>
+      <motion.h2 variants={fadeUp} className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9]">{title}</motion.h2>
       <motion.div variants={fadeUp} className="text-muted-foreground font-medium text-lg pt-4 leading-relaxed">{subtitle}</motion.div>
     </motion.div>
   );
@@ -380,8 +380,10 @@ export default function LandingPage() {
             </Badge>
           </motion.div>
 
-          {/* Headline — word-by-word masked slide-up */}
+          {/* H1 Headline — word-by-word masked slide-up */}
+          <h1 className="sr-only">Dominate Your Season — The Squad Elite Sports Management Platform</h1>
           <motion.div
+            aria-hidden="true"
             className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-[0.88] max-w-5xl mx-auto drop-shadow-2xl"
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.13, delayChildren: 0.05 } } }}
           >
@@ -495,7 +497,7 @@ export default function LandingPage() {
               <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
                 <TableIcon className="h-8 w-8 text-white" />
               </div>
-              <h4 className="text-2xl font-black uppercase tracking-tight">Tournament & League Elite Engines</h4>
+              <h3 className="text-2xl font-black uppercase tracking-tight">Tournament & League Elite Engines</h3>
               <p className="text-sm font-medium leading-relaxed opacity-70">
                 Automated <strong>League Itineraries</strong> and bracket generation with a <strong>Public Spectator Hub</strong> and mobile <strong>Scorekeeper Portal</strong> for real-time results.
               </p>
@@ -511,7 +513,7 @@ export default function LandingPage() {
               <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
                 <PenTool className="h-8 w-8 text-white" />
               </div>
-              <h4 className="text-2xl font-black uppercase tracking-tight">Branded Briefing Unit</h4>
+              <h3 className="text-2xl font-black uppercase tracking-tight">Branded Briefing Unit</h3>
               <p className="text-sm font-medium leading-relaxed opacity-70">
                 Export professionally branded <strong>Tactical PDF Briefings</strong> for every event. Automated <strong>AI Image Optimization</strong> ensures drill assets load instantly.
               </p>
@@ -527,7 +529,7 @@ export default function LandingPage() {
               <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
                 <Video className="h-8 w-8 text-white" />
               </div>
-              <h4 className="text-2xl font-black uppercase tracking-tight">Film Watch Verification</h4>
+              <h3 className="text-2xl font-black uppercase tracking-tight">Film Watch Verification</h3>
               <p className="text-sm font-medium leading-relaxed opacity-70">
                 The <strong>75% Watch Rule</strong> ensures teammates study their assignments. Monitor video compliance directly in your master roster ledger.
               </p>
@@ -543,7 +545,7 @@ export default function LandingPage() {
               <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
                 <ClipboardList className="h-8 w-8 text-white" />
               </div>
-              <h4 className="text-2xl font-black uppercase tracking-tight">Recruitment Engine</h4>
+              <h3 className="text-2xl font-black uppercase tracking-tight">Recruitment Engine</h3>
               <p className="text-sm font-medium leading-relaxed opacity-70">
                 Custom <strong>Form Architect</strong> for registration. Collect medical waivers and fees with automated coach assignment and performance portfolios.
               </p>
@@ -644,27 +646,27 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <div className="space-y-8">
               <Badge className="bg-primary text-white border-none font-black px-4 h-7 uppercase tracking-widest text-[10px]">Strategic Advantages</Badge>
-              <h3 className="text-4xl md:text-6xl font-black tracking-tight leading-none uppercase">CHAMPIONSHIP <br /> <span className="text-primary italic">OPERATIONS.</span></h3>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none uppercase">CHAMPIONSHIP <br /> <span className="text-primary italic">OPERATIONS.</span></h2>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-3">
                   <BrainCircuit className="h-8 w-8 text-primary" />
-                  <h5 className="text-lg font-black uppercase">AI Scouting Analyst</h5>
+                  <h3 className="text-lg font-black uppercase">AI Scouting Analyst</h3>
                   <p className="text-xs text-white/60 leading-relaxed font-medium">Generate <strong>Structured Opponent Intel</strong> from match notes using integrated GenAI protocols.</p>
                 </div>
                 <div className="space-y-3">
                   <Video className="h-8 w-8 text-primary" />
-                  <h5 className="text-lg font-black uppercase">HD Tactical Capture</h5>
+                  <h3 className="text-lg font-black uppercase">HD Tactical Capture</h3>
                   <p className="text-xs text-white/60 leading-relaxed font-medium">Extract high-resolution <strong>Tactical Frames</strong> from raw film for granular play-by-play breakdown.</p>
                 </div>
                 <div className="space-y-3">
                   <Building className="h-8 w-8 text-primary" />
-                  <h5 className="text-lg font-black uppercase">Institutional Hub</h5>
+                  <h3 className="text-lg font-black uppercase">Institutional Hub</h3>
                   <p className="text-xs text-white/60 leading-relaxed font-medium"><strong>Fiscal Pulse Auditing</strong> for club directors managing 20+ squads with aggregated financial visibility.</p>
                 </div>
                 <div className="space-y-3">
                   <ShieldAlert className="h-8 w-8 text-primary" />
-                  <h5 className="text-lg font-black uppercase">Recruiting Portfolios</h5>
+                  <h3 className="text-lg font-black uppercase">Recruiting Portfolios</h3>
                   <p className="text-xs text-white/60 leading-relaxed font-medium">Certified <strong>Personnel Evaluations</strong> that athletes can export directly to college recruitment pipelines.</p>
                 </div>
               </div>
@@ -722,21 +724,21 @@ export default function LandingPage() {
             <motion.div whileHover={{ y: -10, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
               <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 h-full">
                 <Trophy className="h-12 w-12 text-primary" />
-                <h5 className="text-2xl font-black uppercase tracking-tight">Coaches & Managers</h5>
+                <h3 className="text-2xl font-black uppercase tracking-tight">Coaches & Managers</h3>
                 <p className="text-sm font-medium text-muted-foreground leading-relaxed">Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts, auto-generate brackets, and track personnel performance.</p>
               </Card>
             </motion.div>
             <motion.div whileHover={{ y: -10, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
               <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 h-full">
                 <Baby className="h-12 w-12 text-primary" />
-                <h5 className="text-2xl font-black uppercase tracking-tight">Guardian Hub</h5>
-                <p className="text-sm font-medium text-muted-foreground leading-relaxed">Manage multiple children from one unified **Household Hub**. Track consolidated dues, verify digital waivers, and manage volunteer assignments globally.</p>
+                <h3 className="text-2xl font-black uppercase tracking-tight">Guardian Hub</h3>
+                <p className="text-sm font-medium text-muted-foreground leading-relaxed">Manage multiple children from one unified Household Hub. Track consolidated dues, verify digital waivers, and manage volunteer assignments globally.</p>
               </Card>
             </motion.div>
             <motion.div whileHover={{ y: -10, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
               <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 h-full">
                 <User className="h-12 w-12 text-primary" />
-                <h5 className="text-2xl font-black uppercase tracking-tight">Athlete Performance</h5>
+                <h3 className="text-2xl font-black uppercase tracking-tight">Athlete Performance</h3>
                 <p className="text-sm font-medium text-muted-foreground leading-relaxed">A personal dashboard. Sign waivers, watch study film, track match results, and manage your <strong>Professional Recruiting Portfolio</strong>.</p>
               </Card>
             </motion.div>
@@ -928,8 +930,8 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">
               <div className="space-y-4">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Get in touch</h2>
-                <h3 className="text-4xl md:text-5xl font-black tracking-tight">Institutional Scale <br />Custom Solutions.</h3>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Get in touch</p>
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight">Institutional Scale <br />Custom Solutions.</h2>
                 <p className="text-muted-foreground font-medium text-lg leading-relaxed">
                   We offer enterprise-grade configurations for national leagues and professional clubs. Connect with our strategic analysts.
                 </p>
