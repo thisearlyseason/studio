@@ -473,9 +473,9 @@ export default function LandingPage() {
                 </Button>
               </Link>
             ) : BETA_MODE ? (
-              <a href="#newsletter" className="w-full">
+              <a href="#notify" className="w-full">
                 <Button size="lg" className="h-12 px-8 rounded-full text-sm font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
-                  Get Early Access <ArrowRight className="ml-2 h-4 w-4" />
+                  Get Notified at Launch <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </a>
             ) : (
@@ -529,136 +529,177 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ══ NEWSLETTER SIGNUP SECTION ══ */}
+      {/* ══ FLOATING BETA ACCESS PILL (always visible, right edge) ══ */}
       {BETA_MODE && (
-        <section id="newsletter" className="py-28 bg-black relative overflow-hidden">
-          {/* Deep radial glow */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_60%,rgba(var(--primary-rgb,234,179,8),0.18),transparent)] pointer-events-none" />
+        <motion.div
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-50"
+          initial={{ x: 80, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 1.2, type: 'spring', stiffness: 200, damping: 25 }}
+        >
+          <Link
+            href="/beta"
+            className="group flex items-center gap-2.5 bg-black text-white pl-4 pr-3 py-3 rounded-l-2xl shadow-2xl shadow-black/40 border border-white/10 hover:bg-primary hover:text-gray-900 hover:border-primary transition-all duration-300"
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary group-hover:bg-gray-900" />
+            </span>
+            <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">Beta Access</span>
+            <ChevronRight className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+          </Link>
+        </motion.div>
+      )}
 
-          {/* Animated grid lines */}
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
-
-          {/* Floating orbs */}
-          <motion.div
-            className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none"
-            animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
-            transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-          />
-          <motion.div
-            className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-primary/8 blur-3xl pointer-events-none"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut', delay: 2 }}
-          />
+      {/* ══ GET NOTIFIED AT LAUNCH SECTION ══ */}
+      {BETA_MODE && (
+        <section id="notify" className="py-28 bg-[#f8f7f4] relative overflow-hidden">
+          {/* Subtle texture */}
+          <div className="absolute inset-0 pointer-events-none opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(234,179,8,0.12) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(0,0,0,0.04) 0%, transparent 50%)' }} />
 
           <div className="container mx-auto px-6 relative z-10">
-            <motion.div
-              className="max-w-2xl mx-auto text-center space-y-8"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.3 }}
-              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.13 } } }}
-            >
-              {/* Badge */}
-              <motion.div variants={fadeUp}>
-                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-primary">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-                  </span>
-                  Private Beta — Limited Access
-                </span>
-              </motion.div>
+            <div className="max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-              {/* Heading */}
-              <motion.h2
-                variants={fadeUp}
-                className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-tight"
-              >
-                BE FIRST ON THE<br /><span className="text-primary italic">FIELD.</span>
-              </motion.h2>
-
-              {/* Subtext */}
-              <motion.p
-                variants={fadeUp}
-                className="text-white/60 font-medium text-lg leading-relaxed"
-              >
-                We're onboarding select organizations for our private beta. Drop your info and we'll reach out when a spot opens.
-              </motion.p>
-
-              {/* Form or success state */}
-              {newsletterDone ? (
+                {/* ── Left: Copy ── */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                  className="flex flex-col items-center gap-4 py-8"
+                  className="space-y-8"
+                  initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }}
+                  variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }}
                 >
-                  <motion.div
-                    initial={{ scale: 0, rotate: -30 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.1 }}
-                    className="w-20 h-20 rounded-full bg-primary/20 ring-4 ring-primary/30 flex items-center justify-center"
-                  >
-                    <CheckCircle2 className="h-10 w-10 text-primary" />
+                  <motion.div variants={fadeUp}>
+                    <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                      <span className="w-8 h-[2px] bg-primary rounded-full" />
+                      Launching Soon
+                    </span>
                   </motion.div>
-                  <motion.p
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 }}
-                    className="text-2xl font-black text-white uppercase tracking-tight"
+
+                  <motion.h2
+                    variants={fadeUp}
+                    className="text-5xl md:text-6xl font-black text-gray-900 tracking-tighter leading-[0.92]"
                   >
-                    You Got it!
-                  </motion.p>
+                    BE THE FIRST<br />TO<span className="text-primary italic"> KNOW.</span>
+                  </motion.h2>
+
                   <motion.p
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35 }}
-                    className="text-white/50 font-medium"
+                    variants={fadeUp}
+                    className="text-gray-500 font-medium text-lg leading-relaxed max-w-sm"
                   >
-                    We'll be in touch. Stay ready.
+                    The Squad is going live soon. Leave your info and we'll notify you the moment the doors open — no waiting, no missing out.
                   </motion.p>
+
+                  {/* Promise list */}
+                  <motion.ul variants={fadeUp} className="space-y-3">
+                    {[
+                      'Instant launch-day notification',
+                      'Early-bird access before the public',
+                      'Zero spam — one email, that\'s it',
+                    ].map((item) => (
+                      <li key={item} className="flex items-center gap-3 text-sm font-bold text-gray-700">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center">
+                          <Check className="h-3 w-3 text-primary" />
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </motion.ul>
                 </motion.div>
-              ) : (
-                <motion.form
-                  variants={fadeUp}
-                  onSubmit={handleNewsletterSignup}
-                  className="space-y-4"
+
+                {/* ── Right: Form card ── */}
+                <motion.div
+                  initial={{ opacity: 0, y: 32, scale: 0.97 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
                 >
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <motion.input
-                      whileFocus={{ scale: 1.01 }}
-                      type="text"
-                      placeholder="Your Name"
-                      value={newsletterName}
-                      onChange={(e) => setNewsletterName(e.target.value)}
-                      className="flex-1 h-14 px-5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 font-bold text-sm focus:outline-none focus:border-primary/60 focus:bg-white/15 transition-all"
-                    />
-                    <motion.input
-                      whileFocus={{ scale: 1.01 }}
-                      type="email"
-                      placeholder="your@email.com"
-                      required
-                      value={newsletterEmail}
-                      onChange={(e) => setNewsletterEmail(e.target.value)}
-                      className="flex-1 h-14 px-5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 font-bold text-sm focus:outline-none focus:border-primary/60 focus:bg-white/15 transition-all"
-                    />
+                  <div className="bg-white rounded-[2rem] shadow-2xl shadow-black/8 p-8 md:p-10 ring-1 ring-black/5 relative overflow-hidden">
+                    {/* Top accent bar */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-yellow-400 to-primary/60 rounded-t-[2rem]" />
+
+                    {newsletterDone ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.88 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                        className="flex flex-col items-center gap-5 py-8 text-center"
+                      >
+                        <motion.div
+                          initial={{ scale: 0, rotate: -30 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 16, delay: 0.1 }}
+                          className="w-20 h-20 rounded-full bg-primary/10 ring-4 ring-primary/20 flex items-center justify-center"
+                        >
+                          <CheckCircle2 className="h-10 w-10 text-primary" />
+                        </motion.div>
+                        <div className="space-y-2">
+                          <motion.p
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.22 }}
+                            className="text-2xl font-black text-gray-900 uppercase tracking-tight"
+                          >
+                            You Got it!
+                          </motion.p>
+                          <motion.p
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.32 }}
+                            className="text-gray-500 font-medium"
+                          >
+                            You're on the list. We'll hit you when we're live.
+                          </motion.p>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <form onSubmit={handleNewsletterSignup} className="space-y-5">
+                        <div className="space-y-1.5">
+                          <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Get launch-day notification</p>
+                          <p className="text-xl font-black text-gray-900">Drop your info below.</p>
+                        </div>
+
+                        <div className="space-y-3">
+                          <motion.input
+                            whileFocus={{ scale: 1.01 }}
+                            type="text"
+                            placeholder="Your Name"
+                            value={newsletterName}
+                            onChange={(e) => setNewsletterName(e.target.value)}
+                            className="w-full h-13 px-5 py-3.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 font-semibold text-sm focus:outline-none focus:border-primary/50 focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all"
+                          />
+                          <motion.input
+                            whileFocus={{ scale: 1.01 }}
+                            type="email"
+                            placeholder="your@email.com"
+                            required
+                            value={newsletterEmail}
+                            onChange={(e) => setNewsletterEmail(e.target.value)}
+                            className="w-full h-13 px-5 py-3.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 font-semibold text-sm focus:outline-none focus:border-primary/50 focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all"
+                          />
+                        </div>
+
+                        <motion.button
+                          type="submit"
+                          disabled={newsletterLoading}
+                          whileHover={{ scale: 1.02, boxShadow: '0 8px 30px rgba(234,179,8,0.35)' }}
+                          whileTap={{ scale: 0.97 }}
+                          className="w-full h-13 py-3.5 rounded-xl bg-gray-900 text-white font-black uppercase tracking-widest text-sm hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                          {newsletterLoading
+                            ? <Loader2 className="h-5 w-5 animate-spin" />
+                            : <><Mail className="h-4 w-4" /> Notify Me at Launch</>
+                          }
+                        </motion.button>
+
+                        <p className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          No spam · Unsubscribe anytime
+                        </p>
+                      </form>
+                    )}
                   </div>
-                  <motion.button
-                    type="submit"
-                    disabled={newsletterLoading}
-                    whileHover={{ scale: 1.02, boxShadow: '0 0 40px rgba(234,179,8,0.4)' }}
-                    whileTap={{ scale: 0.97 }}
-                    className="w-full h-14 rounded-2xl bg-primary font-black uppercase tracking-widest text-sm text-gray-900 hover:bg-primary/90 transition-all shadow-xl shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-60"
-                  >
-                    {newsletterLoading
-                      ? <Loader2 className="h-5 w-5 animate-spin" />
-                      : <><Mail className="h-5 w-5" /> Notify Me When Spots Open</>
-                    }
-                  </motion.button>
-                  <p className="text-white/30 text-xs font-bold uppercase tracking-widest">No spam. Unsubscribe anytime.</p>
-                </motion.form>
-              )}
-            </motion.div>
+                </motion.div>
+
+              </div>
+            </div>
           </div>
         </section>
       )}
