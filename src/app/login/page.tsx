@@ -100,7 +100,10 @@ export default function LoginPage() {
     }
     setForgotLoading(true);
     try {
-      await sendPasswordResetEmail(auth, target);
+      await sendPasswordResetEmail(auth, target, {
+        url: 'https://thesquad.pro/login',
+        handleCodeInApp: false,
+      });
       setForgotSent(true);
     } catch (error: any) {
       const msg = error.code === 'auth/user-not-found'
