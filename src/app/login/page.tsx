@@ -22,6 +22,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // ── BETA FLAG: set to false to re-enable Google sign-in ──────────────────
   const BETA_MODE = true;
@@ -87,17 +91,24 @@ export default function LoginPage() {
     }
   };
 
-  const handleForgotPassword = async (e: React.MouseEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      toast({ title: "Email Required", description: "Please enter your email above to reset your password.", variant: "destructive" });
+    const target = forgotEmail.trim() || email.trim();
+    if (!target) {
+      toast({ title: "Email Required", description: "Enter the email address tied to your account.", variant: "destructive" });
       return;
     }
+    setForgotLoading(true);
     try {
-      await sendPasswordResetEmail(auth, email.trim());
-      toast({ title: "Email Sent", description: "Check your inbox (and spam) for a password reset link!" });
+      await sendPasswordResetEmail(auth, target);
+      setForgotSent(true);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const msg = error.code === 'auth/user-not-found'
+        ? 'No account found with that email.'
+        : error.message;
+      toast({ title: "Reset Failed", description: msg, variant: "destructive" });
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -167,9 +178,56 @@ export default function LoginPage() {
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
         <Card className="border-none shadow-2xl rounded-[3rem] animate-in fade-in slide-in-from-left-8 duration-700 bg-white/95 backdrop-blur-sm">
           <CardHeader className="space-y-2 pt-12 text-center">
-            <CardTitle className="text-4xl font-black tracking-tighter uppercase">Authorized Access</CardTitle>
-            <CardDescription className="text-base font-bold uppercase tracking-widest text-primary/60 text-[10px]">Credential Verification Hub</CardDescription>
+            <CardTitle className="text-4xl font-black tracking-tighter uppercase">
+              {forgotMode ? 'Reset Password' : 'Authorized Access'}
+            </CardTitle>
+            <CardDescription className="text-base font-bold uppercase tracking-widest text-primary/60 text-[10px]">
+              {forgotMode ? 'Enter your email to receive a reset link' : 'Credential Verification Hub'}
+            </CardDescription>
           </CardHeader>
+
+          {/* ── Forgot Password flow ── */}
+          {forgotMode ? (
+            <form onSubmit={handleForgotPassword}>
+              <CardContent className="space-y-6 px-10">
+                {forgotSent ? (
+                  <div className="text-center space-y-4 py-6">
+                    <div className="text-5xl">📬</div>
+                    <p className="font-black text-lg uppercase tracking-tight">Check your inbox!</p>
+                    <p className="text-sm text-muted-foreground font-medium">A reset link was sent. Check spam if you don't see it within a minute.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email" className="font-black text-[10px] uppercase tracking-widest px-1 ml-1 text-muted-foreground">Account Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="name@organization.com"
+                      required
+                      autoFocus
+                      value={forgotEmail || email}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="h-14 rounded-2xl bg-muted/50 border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all text-base font-bold"
+                    />
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="flex flex-col space-y-4 pb-12 px-10 pt-4">
+                {!forgotSent && (
+                  <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all" type="submit" disabled={forgotLoading}>
+                    {forgotLoading ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : 'Send Reset Link'}
+                  </Button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(''); }}
+                  className="text-[10px] font-black text-primary uppercase hover:underline tracking-widest"
+                >
+                  ← Back to Login
+                </button>
+              </CardFooter>
+            </form>
+          ) : (
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-6 px-10">
               
@@ -225,7 +283,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
                   <Label htmlFor="password" className="font-black text-[10px] uppercase tracking-widest ml-1 text-muted-foreground">Encrypted Password</Label>
-                  <button onClick={handleForgotPassword} className="text-[10px] font-black text-primary uppercase hover:underline tracking-widest">Forgot?</button>
+                  <button type="button" onClick={() => { setForgotMode(true); setForgotEmail(email); }} className="text-[10px] font-black text-primary uppercase hover:underline tracking-widest">Forgot?</button>
                 </div>
                 <div className="relative">
                   <Input 
@@ -257,6 +315,7 @@ export default function LoginPage() {
               </div>
             </CardFooter>
           </form>
+          )}
         </Card>
 
         <div id="demos" className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-1000 overflow-y-auto max-h-[80vh] custom-scrollbar pr-4">
