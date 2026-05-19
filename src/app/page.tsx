@@ -532,22 +532,26 @@ export default function LandingPage() {
       {/* ══ FLOATING BETA ACCESS PILL (always visible, right edge) ══ */}
       {BETA_MODE && (
         <motion.div
-          className="fixed right-0 top-1/2 z-50"
-          style={{ translateX: '50%', translateY: '-50%', rotate: '-90deg', transformOrigin: 'center center' }}
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-50"
+          initial={{ x: 60, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 1.2, type: 'spring', stiffness: 200, damping: 25 }}
         >
           <Link
             href="/beta"
-            className="group flex items-center gap-2.5 bg-black text-white px-5 py-2.5 rounded-t-2xl shadow-2xl shadow-black/40 border border-white/10 hover:bg-primary hover:text-gray-900 hover:border-primary transition-all duration-300"
+            className="group flex flex-col items-center gap-2 bg-black text-white px-3 py-5 rounded-l-2xl shadow-2xl shadow-black/40 border border-white/10 hover:bg-primary hover:text-gray-900 hover:border-primary transition-all duration-300"
           >
-            <span className="relative flex h-2 w-2 shrink-0">
+            <ChevronRight className="h-3.5 w-3.5 rotate-[-90deg] opacity-60 group-hover:opacity-100 transition-all" />
+            <span
+              className="text-[11px] font-black uppercase tracking-widest"
+              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+            >
+              Beta Access
+            </span>
+            <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary group-hover:bg-gray-900" />
             </span>
-            <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">Beta Access</span>
-            <ChevronRight className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
           </Link>
         </motion.div>
       )}
