@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useTeam } from '@/components/providers/team-provider';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy, limit, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy, limit, deleteDoc, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -108,6 +108,83 @@ export default function AdminPortalPage() {
   const [newsletters, setNewsletters] = useState<any[]>([]);
   const [loadingNewsletters, setLoadingNewsletters] = useState(false);
   const [newsletterSearch, setNewsletterSearch] = useState('');
+
+  // ── Login activity summary ──────────────────────────────────────────────────
+  const [loginSummary, setLoginSummary] = useState<{
+    newNewsletters: number;
+    newBetaApps: number;
+    lastLogin: Date | null;
+    dismissed: boolean;
+  } | null>(null);
+
+  // ── On-mount: check activity since last admin login ─────────────────────────
+  useEffect(() => {
+    if (!isSuperAdmin || !user || !db) return;
+    let cancelled = false;
+
+    const checkSinceLastLogin = async () => {
+      try {
+        const userRef = doc(db, 'users', user.id);
+        const userSnap = await getDoc(userRef);
+        const lastLoginTs: Timestamp | null = userSnap.exists()
+          ? userSnap.data()?.lastAdminLoginAt ?? null
+          : null;
+        const lastLoginDate = lastLoginTs?.toDate?.() ?? null;
+
+        // Query new newsletter signups since last login
+        let newNewsletterCount = 0;
+        let newBetaCount = 0;
+
+        if (lastLoginDate) {
+          const sinceTs = Timestamp.fromDate(lastLoginDate);
+          const [nlSnap, betaSnap] = await Promise.all([
+            getDocs(query(
+              collection(db, 'newsletter_signups'),
+              where('createdAt', '>', sinceTs),
+              limit(200)
+            )),
+            getDocs(query(
+              collection(db, 'beta_applications'),
+              where('createdAt', '>', sinceTs),
+              where('status', '==', 'pending'),
+              limit(200)
+            )),
+          ]);
+          newNewsletterCount = nlSnap.size;
+          newBetaCount = betaSnap.size;
+        } else {
+          // First ever login — just count totals so the banner is useful
+          const [nlSnap, betaSnap] = await Promise.all([
+            getDocs(query(collection(db, 'newsletter_signups'), limit(200))),
+            getDocs(query(collection(db, 'beta_applications'), where('status', '==', 'pending'), limit(200))),
+          ]);
+          newNewsletterCount = nlSnap.size;
+          newBetaCount = betaSnap.size;
+        }
+
+        if (cancelled) return;
+
+        // Show banner only if there's something to report
+        if (newNewsletterCount > 0 || newBetaCount > 0) {
+          setLoginSummary({
+            newNewsletters: newNewsletterCount,
+            newBetaApps: newBetaCount,
+            lastLogin: lastLoginDate,
+            dismissed: false,
+          });
+        }
+
+        // Stamp this login time
+        await updateDoc(userRef, { lastAdminLoginAt: serverTimestamp() });
+      } catch (e) {
+        // Silently fail — non-critical
+      }
+    };
+
+    checkSinceLastLogin();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperAdmin, user?.id, db]);
 
   useEffect(() => {
     if (!isSuperAdmin || !db) return;
@@ -569,6 +646,60 @@ export default function AdminPortalPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
         
+        {/* ── Activity-since-last-login banner ── */}
+        {loginSummary && !loginSummary.dismissed && (
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-gradient-to-r from-violet-600 via-indigo-600 to-sky-600 text-white rounded-2xl px-6 py-4 shadow-xl shadow-indigo-500/20 animate-in slide-in-from-top-4 fade-in duration-500">
+            {/* pulsing ring */}
+            <div className="shrink-0 relative flex h-10 w-10 items-center justify-center">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/30" />
+              <span className="relative inline-flex h-10 w-10 rounded-full bg-white/20 items-center justify-center">
+                <Bell className="h-5 w-5 text-white" />
+              </span>
+            </div>
+
+            <div className="flex-1 space-y-1 min-w-0">
+              <p className="font-black uppercase tracking-widest text-[10px] text-white/60">
+                Since your last visit{loginSummary.lastLogin ? ` · ${loginSummary.lastLogin.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ' (first login)'}
+              </p>
+              <div className="flex flex-wrap gap-4">
+                {loginSummary.newNewsletters > 0 && (
+                  <button
+                    onClick={() => { setActiveTab('newsletters'); setLoginSummary(s => s ? { ...s, dismissed: true } : null); }}
+                    className="flex items-center gap-2 font-black text-sm hover:text-white/80 transition-colors group"
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400/30 text-emerald-200 text-xs font-black group-hover:bg-emerald-400/50 transition-colors">
+                      {loginSummary.newNewsletters}
+                    </span>
+                    New Newsletter Signup{loginSummary.newNewsletters !== 1 ? 's' : ''}
+                    <ChevronRight className="h-4 w-4 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                )}
+                {loginSummary.newBetaApps > 0 && (
+                  <button
+                    onClick={() => { setActiveTab('beta'); setLoginSummary(s => s ? { ...s, dismissed: true } : null); }}
+                    className="flex items-center gap-2 font-black text-sm hover:text-white/80 transition-colors group"
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/30 text-amber-200 text-xs font-black group-hover:bg-amber-400/50 transition-colors">
+                      {loginSummary.newBetaApps}
+                    </span>
+                    New Beta Application{loginSummary.newBetaApps !== 1 ? 's' : ''} Pending
+                    <ChevronRight className="h-4 w-4 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Dismiss */}
+            <button
+              onClick={() => setLoginSummary(s => s ? { ...s, dismissed: true } : null)}
+              className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex flex-wrap gap-3 border-b border-gray-200 dark:border-white/10 pb-4">
           <button 
