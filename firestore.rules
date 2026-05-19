@@ -473,5 +473,13 @@ service cloud.firestore {
       allow create: if true;
       allow update, delete: if isSuperAdmin() || isSignedIn();
     }
+
+    // newsletter_signups — landing page beta lead capture
+    // Public create: visitors can submit without being signed in.
+    // Super-admin only read/delete: protects PII from client exposure.
+    match /newsletter_signups/{docId} {
+      allow create: if true;
+      allow read, delete: if isSuperAdmin();
+    }
   }
 }

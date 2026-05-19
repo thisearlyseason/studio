@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download } from 'lucide-react';
+import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:    { label: 'Free',          color: 'bg-gray-100 text-gray-700' },
@@ -59,7 +59,7 @@ export default function AdminPortalPage() {
   const db = useFirestore();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs' | 'users'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs' | 'users' | 'newsletters'>('accounts');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,11 +104,17 @@ export default function AdminPortalPage() {
   const [userSortDir, setUserSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
+  // ── Newsletter state ────────────────────────────────────────────────────────
+  const [newsletters, setNewsletters] = useState<any[]>([]);
+  const [loadingNewsletters, setLoadingNewsletters] = useState(false);
+  const [newsletterSearch, setNewsletterSearch] = useState('');
+
   useEffect(() => {
     if (!isSuperAdmin || !db) return;
     if (activeTab === 'beta') fetchBetaApps();
     if (activeTab === 'bugs') fetchBugs();
     if (activeTab === 'users') fetchAllUsers();
+    if (activeTab === 'newsletters') fetchNewsletters();
   }, [activeTab, isSuperAdmin, db]);
 
   const fetchBetaApps = async () => {
@@ -148,6 +154,19 @@ export default function AdminPortalPage() {
       toast({ title: 'Failed to load users', description: e.message, variant: 'destructive' });
     } finally {
       setLoadingUsers(false);
+    }
+  };
+
+  const fetchNewsletters = async () => {
+    setLoadingNewsletters(true);
+    try {
+      const q = query(collection(db, 'newsletter_signups'), orderBy('createdAt', 'desc'), limit(500));
+      const snap = await getDocs(q);
+      setNewsletters(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e: any) {
+      toast({ title: 'Failed to load newsletters', description: e.message, variant: 'destructive' });
+    } finally {
+      setLoadingNewsletters(false);
     }
   };
 
@@ -575,6 +594,12 @@ export default function AdminPortalPage() {
             className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'bugs' ? 'bg-orange-500 text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
           >
             <Bug className="w-4 h-4" /> Bug Reports
+          </button>
+          <button 
+            onClick={() => setActiveTab('newsletters')} 
+            className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'newsletters' ? 'bg-emerald-500 text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
+          >
+            <Newspaper className="w-4 h-4" /> Newsletters
           </button>
         </div>
 
@@ -1595,6 +1620,124 @@ export default function AdminPortalPage() {
             )}
           </div>
         )}
+
+        {/* ══════════ NEWSLETTERS TAB ══════════ */}
+        {activeTab === 'newsletters' && (() => {
+          const term = newsletterSearch.toLowerCase();
+          const filtered = newsletters.filter(n =>
+            (n.name || '').toLowerCase().includes(term) ||
+            (n.email || '').toLowerCase().includes(term)
+          );
+
+          const exportCSV = () => {
+            const rows = [['Name', 'Email', 'Source', 'Date'], ...filtered.map(n => [
+              n.name || '',
+              n.email || '',
+              n.source || 'landing_page',
+              n.createdAt?.toDate ? n.createdAt.toDate().toLocaleDateString() : '—',
+            ])];
+            const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `squad_newsletter_leads_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          };
+
+          return (
+            <div className="space-y-8">
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Newsletters</h1>
+                  <p className="text-gray-400 dark:text-white/30 text-xs font-bold uppercase tracking-widest mt-1">
+                    {loadingNewsletters ? 'Loading...' : `${newsletters.length} total signups`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={fetchNewsletters}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-black uppercase tracking-widest text-xs transition-colors"
+                    disabled={loadingNewsletters}
+                  >
+                    {loadingNewsletters ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    Refresh
+                  </button>
+                  <button
+                    onClick={exportCSV}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 font-black uppercase tracking-widest text-xs transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Export CSV
+                  </button>
+                </div>
+              </div>
+
+              {/* KPI Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {[
+                  { label: 'Total Signups', value: newsletters.length, color: 'bg-emerald-500/10 text-emerald-500', border: 'border-emerald-500/20', icon: Mail },
+                  { label: 'This Week', value: newsletters.filter(n => {
+                    if (!n.createdAt?.toDate) return false;
+                    const d = n.createdAt.toDate();
+                    const now = new Date();
+                    const diff = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
+                    return diff <= 7;
+                  }).length, color: 'bg-sky-500/10 text-sky-500', border: 'border-sky-500/20', icon: TrendingUp },
+                  { label: 'With Names', value: newsletters.filter(n => n.name?.trim()).length, color: 'bg-violet-500/10 text-violet-500', border: 'border-violet-500/20', icon: Users },
+                ].map(card => (
+                  <div key={card.label} className={`rounded-2xl border-2 ${card.border} bg-white dark:bg-white/5 p-5 space-y-3`}>
+                    <div className={`w-9 h-9 rounded-xl ${card.color} flex items-center justify-center`}>
+                      <card.icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-black text-gray-900 dark:text-white">{card.value}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 mt-0.5">{card.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-white/30" />
+                <input
+                  type="text"
+                  placeholder="Search by name or email…"
+                  value={newsletterSearch}
+                  onChange={e => setNewsletterSearch(e.target.value)}
+                  className="w-full h-12 pl-10 pr-4 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                />
+              </div>
+
+              {/* Table */}
+              {loadingNewsletters ? (
+                <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-16 text-gray-400 dark:text-white/30 font-bold uppercase tracking-widest text-xs">
+                  {newsletters.length === 0 ? 'No newsletter signups yet.' : 'No results match your search.'}
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_2fr_1fr_auto] gap-0 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 px-6 py-3 border-b border-gray-100 dark:border-white/10">
+                    <span>Name</span><span>Email</span><span>Source</span><span>Date</span>
+                  </div>
+                  <div className="divide-y divide-gray-100 dark:divide-white/10">
+                    {filtered.map((lead, i) => (
+                      <div key={lead.id || i} className="grid grid-cols-[1fr_2fr_1fr_auto] gap-0 px-6 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white truncate pr-3">{lead.name || <span className="text-gray-300 dark:text-white/20 italic">—</span>}</span>
+                        <span className="text-sm text-gray-600 dark:text-white/60 font-mono truncate pr-3">{lead.email}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 w-fit">{lead.source || 'landing'}</span>
+                        <span className="text-[10px] text-gray-400 dark:text-white/30 font-mono whitespace-nowrap pl-3">{lead.createdAt?.toDate ? lead.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
       </div>
     </div>

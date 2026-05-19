@@ -58,8 +58,9 @@ import { Badge } from '@/components/ui/badge';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useFirestore } from '@/firebase';
 import { signInAnonymously, signOut } from 'firebase/auth';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { 
   Dialog, 
@@ -121,16 +122,45 @@ function StaggerGrid({ children, className }: { children: React.ReactNode; class
 }
 // ──────────────────────────────────────────────────────────────────────────
 
+// ── BETA FLAG: set to false to re-enable public signup ───────────────────
+const BETA_MODE = true;
+// ─────────────────────────────────────────────────────────────────────────
+
 export default function LandingPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isDemoDialogOpen, setIsDemoDialogOpen] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [isAuthResolvedFailsafe, setIsAuthResolvedFailsafe] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterName, setNewsletterName] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterDone, setNewsletterDone] = useState(false);
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const db = useFirestore();
   const router = useRouter();
+
+  const handleNewsletterSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail.trim()) return;
+    setNewsletterLoading(true);
+    try {
+      await addDoc(collection(db, 'newsletter_signups'), {
+        name: newsletterName.trim(),
+        email: newsletterEmail.trim().toLowerCase(),
+        createdAt: serverTimestamp(),
+        source: 'landing_page',
+      });
+      setNewsletterDone(true);
+      toast({ title: "You Got it!", description: "We'll keep you in the loop. \uD83C\uDFC6" });
+    } catch (err: any) {
+      toast({ title: 'Oops!', description: err.message || 'Something went wrong.', variant: 'destructive' });
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Failsafe to hide loading spinner even if Auth is slow or hangs
@@ -267,11 +297,16 @@ export default function LandingPage() {
                 Log In
               </Button>
             </Link>
-            <Link href="/signup">
-              <Button className="rounded-full px-6 font-bold shadow-lg shadow-primary/20">
-                Join Now
-              </Button>
-            </Link>
+            {BETA_MODE ? (
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/30 bg-primary/10 text-primary backdrop-blur-sm">
+                <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span></span>
+                Signup Coming Soon
+              </span>
+            ) : (
+              <Link href="/signup">
+                <Button className="rounded-full px-6 font-bold shadow-lg shadow-primary/20">Join Now</Button>
+              </Link>
+            )}
           </div>
 
           <div className="md:hidden flex items-center gap-2">
@@ -302,11 +337,16 @@ export default function LandingPage() {
                   <a href="#comparison" className="text-xl font-black uppercase tracking-tight hover:text-primary transition-colors py-2 border-b border-muted">Market Intel</a>
                   <a href="#pricing" className="text-xl font-black uppercase tracking-tight hover:text-primary transition-colors py-2 border-b border-muted">Pricing</a>
                   <div className="flex flex-col gap-4 mt-12 pt-6">
-                    <Link href="/signup" className="w-full">
-                      <Button className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20">
-                        Join Now
-                      </Button>
-                    </Link>
+                    {BETA_MODE ? (
+                      <div className="w-full h-14 rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center gap-2 text-primary font-black uppercase tracking-widest text-[10px]">
+                        <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span></span>
+                        Signup Coming Soon
+                      </div>
+                    ) : (
+                      <Link href="/signup" className="w-full">
+                        <Button className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20">Join Now</Button>
+                      </Link>
+                    )}
                     <Link href="/login" className="w-full">
                       <Button variant="outline" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-2">
                         Log In
@@ -432,6 +472,12 @@ export default function LandingPage() {
                   Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
+            ) : BETA_MODE ? (
+              <a href="#newsletter" className="w-full">
+                <Button size="lg" className="h-12 px-8 rounded-full text-sm font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
+                  Get Early Access <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </a>
             ) : (
               <Link href="/signup" className="w-full">
                 <Button size="lg" className="h-12 px-8 rounded-full text-sm font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all w-full">
@@ -482,6 +528,66 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </section>
+
+      {/* ══ NEWSLETTER SIGNUP SECTION ══ */}
+      {BETA_MODE && (
+        <section id="newsletter" className="py-24 bg-black relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-black to-black pointer-events-none" />
+          <div className="container mx-auto px-6 relative z-10 text-center">
+            <div className="max-w-2xl mx-auto space-y-8">
+              <div className="space-y-4">
+                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-primary">
+                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span></span>
+                  Private Beta — Limited Access
+                </span>
+                <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-tight">
+                  BE FIRST ON THE<br /><span className="text-primary italic">FIELD.</span>
+                </h2>
+                <p className="text-white/60 font-medium text-lg leading-relaxed">
+                  We're onboarding select organizations for our private beta. Drop your info and we'll reach out when a spot opens.
+                </p>
+              </div>
+              {newsletterDone ? (
+                <div className="flex flex-col items-center gap-4 py-8 animate-in fade-in duration-500">
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                    <CheckCircle2 className="h-8 w-8 text-primary" />
+                  </div>
+                  <p className="text-2xl font-black text-white uppercase tracking-tight">You Got it!</p>
+                  <p className="text-white/50 font-medium">We'll be in touch. Stay ready.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleNewsletterSignup} className="space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={newsletterName}
+                      onChange={(e) => setNewsletterName(e.target.value)}
+                      className="flex-1 h-14 px-5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 font-bold text-sm focus:outline-none focus:border-primary/60 focus:bg-white/15 transition-all"
+                    />
+                    <input
+                      type="email"
+                      placeholder="your@email.com"
+                      required
+                      value={newsletterEmail}
+                      onChange={(e) => setNewsletterEmail(e.target.value)}
+                      className="flex-1 h-14 px-5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 font-bold text-sm focus:outline-none focus:border-primary/60 focus:bg-white/15 transition-all"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={newsletterLoading}
+                    className="w-full h-14 rounded-2xl bg-primary font-black uppercase tracking-widest text-sm text-gray-900 hover:bg-primary/90 active:scale-95 transition-all shadow-xl shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {newsletterLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Mail className="h-5 w-5" /> Notify Me When Spots Open</>}
+                  </button>
+                  <p className="text-white/30 text-xs font-bold uppercase tracking-widest">No spam. Unsubscribe anytime.</p>
+                </form>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section id="features" className="py-32 bg-white relative overflow-hidden">
         <div className="container mx-auto px-6">
