@@ -461,10 +461,7 @@ export default function BetaApplicationPage() {
               <p className="text-sm text-white/70 leading-relaxed font-medium">
                 Detailed feedback is critical. When reporting issues, please include screenshots, device information, and step-by-step instructions to reproduce the bug. Active participation shapes the final product.
               </p>
-              <div className="flex items-center gap-2 text-sm font-bold pt-2">
-                <span className="text-white/50 uppercase tracking-widest text-xs">Direct Comms:</span>
-                <a href="mailto:thisearlyseason@gmail.com" className="text-primary hover:underline">thisearlyseason@gmail.com</a>
-              </div>
+
             </div>
 
             {/* Final CTA */}
