@@ -532,14 +532,15 @@ export default function LandingPage() {
       {/* ══ FLOATING BETA ACCESS PILL (always visible, right edge) ══ */}
       {BETA_MODE && (
         <motion.div
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-50"
-          initial={{ x: 80, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
+          className="fixed right-0 top-1/2 z-50"
+          style={{ translateX: '50%', translateY: '-50%', rotate: '-90deg', transformOrigin: 'center center' }}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 1.2, type: 'spring', stiffness: 200, damping: 25 }}
         >
           <Link
             href="/beta"
-            className="group flex items-center gap-2.5 bg-black text-white pl-4 pr-3 py-3 rounded-l-2xl shadow-2xl shadow-black/40 border border-white/10 hover:bg-primary hover:text-gray-900 hover:border-primary transition-all duration-300"
+            className="group flex items-center gap-2.5 bg-black text-white px-5 py-2.5 rounded-t-2xl shadow-2xl shadow-black/40 border border-white/10 hover:bg-primary hover:text-gray-900 hover:border-primary transition-all duration-300"
           >
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
