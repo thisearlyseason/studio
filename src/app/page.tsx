@@ -23,7 +23,7 @@ import {
   Video,
   ClipboardList,
   ShieldCheck,
-  Infinity,
+  Infinity as InfinityIcon,
   AlertCircle,
   Zap,
   User,
@@ -531,41 +531,110 @@ export default function LandingPage() {
 
       {/* ══ NEWSLETTER SIGNUP SECTION ══ */}
       {BETA_MODE && (
-        <section id="newsletter" className="py-24 bg-black relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-black to-black pointer-events-none" />
-          <div className="container mx-auto px-6 relative z-10 text-center">
-            <div className="max-w-2xl mx-auto space-y-8">
-              <div className="space-y-4">
+        <section id="newsletter" className="py-28 bg-black relative overflow-hidden">
+          {/* Deep radial glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_60%,rgba(var(--primary-rgb,234,179,8),0.18),transparent)] pointer-events-none" />
+
+          {/* Animated grid lines */}
+          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
+
+          {/* Floating orbs */}
+          <motion.div
+            className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none"
+            animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
+            transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-primary/8 blur-3xl pointer-events-none"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut', delay: 2 }}
+          />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <motion.div
+              className="max-w-2xl mx-auto text-center space-y-8"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.13 } } }}
+            >
+              {/* Badge */}
+              <motion.div variants={fadeUp}>
                 <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-primary">
-                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span></span>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                  </span>
                   Private Beta — Limited Access
                 </span>
-                <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-tight">
-                  BE FIRST ON THE<br /><span className="text-primary italic">FIELD.</span>
-                </h2>
-                <p className="text-white/60 font-medium text-lg leading-relaxed">
-                  We're onboarding select organizations for our private beta. Drop your info and we'll reach out when a spot opens.
-                </p>
-              </div>
+              </motion.div>
+
+              {/* Heading */}
+              <motion.h2
+                variants={fadeUp}
+                className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-tight"
+              >
+                BE FIRST ON THE<br /><span className="text-primary italic">FIELD.</span>
+              </motion.h2>
+
+              {/* Subtext */}
+              <motion.p
+                variants={fadeUp}
+                className="text-white/60 font-medium text-lg leading-relaxed"
+              >
+                We're onboarding select organizations for our private beta. Drop your info and we'll reach out when a spot opens.
+              </motion.p>
+
+              {/* Form or success state */}
               {newsletterDone ? (
-                <div className="flex flex-col items-center gap-4 py-8 animate-in fade-in duration-500">
-                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
-                    <CheckCircle2 className="h-8 w-8 text-primary" />
-                  </div>
-                  <p className="text-2xl font-black text-white uppercase tracking-tight">You Got it!</p>
-                  <p className="text-white/50 font-medium">We'll be in touch. Stay ready.</p>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                  className="flex flex-col items-center gap-4 py-8"
+                >
+                  <motion.div
+                    initial={{ scale: 0, rotate: -30 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.1 }}
+                    className="w-20 h-20 rounded-full bg-primary/20 ring-4 ring-primary/30 flex items-center justify-center"
+                  >
+                    <CheckCircle2 className="h-10 w-10 text-primary" />
+                  </motion.div>
+                  <motion.p
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                    className="text-2xl font-black text-white uppercase tracking-tight"
+                  >
+                    You Got it!
+                  </motion.p>
+                  <motion.p
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                    className="text-white/50 font-medium"
+                  >
+                    We'll be in touch. Stay ready.
+                  </motion.p>
+                </motion.div>
               ) : (
-                <form onSubmit={handleNewsletterSignup} className="space-y-4">
+                <motion.form
+                  variants={fadeUp}
+                  onSubmit={handleNewsletterSignup}
+                  className="space-y-4"
+                >
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <input
+                    <motion.input
+                      whileFocus={{ scale: 1.01 }}
                       type="text"
                       placeholder="Your Name"
                       value={newsletterName}
                       onChange={(e) => setNewsletterName(e.target.value)}
                       className="flex-1 h-14 px-5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 font-bold text-sm focus:outline-none focus:border-primary/60 focus:bg-white/15 transition-all"
                     />
-                    <input
+                    <motion.input
+                      whileFocus={{ scale: 1.01 }}
                       type="email"
                       placeholder="your@email.com"
                       required
@@ -574,17 +643,22 @@ export default function LandingPage() {
                       className="flex-1 h-14 px-5 rounded-2xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 font-bold text-sm focus:outline-none focus:border-primary/60 focus:bg-white/15 transition-all"
                     />
                   </div>
-                  <button
+                  <motion.button
                     type="submit"
                     disabled={newsletterLoading}
-                    className="w-full h-14 rounded-2xl bg-primary font-black uppercase tracking-widest text-sm text-gray-900 hover:bg-primary/90 active:scale-95 transition-all shadow-xl shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-60"
+                    whileHover={{ scale: 1.02, boxShadow: '0 0 40px rgba(234,179,8,0.4)' }}
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full h-14 rounded-2xl bg-primary font-black uppercase tracking-widest text-sm text-gray-900 hover:bg-primary/90 transition-all shadow-xl shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-60"
                   >
-                    {newsletterLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Mail className="h-5 w-5" /> Notify Me When Spots Open</>}
-                  </button>
+                    {newsletterLoading
+                      ? <Loader2 className="h-5 w-5 animate-spin" />
+                      : <><Mail className="h-5 w-5" /> Notify Me When Spots Open</>
+                    }
+                  </motion.button>
                   <p className="text-white/30 text-xs font-bold uppercase tracking-widest">No spam. Unsubscribe anytime.</p>
-                </form>
+                </motion.form>
               )}
-            </div>
+            </motion.div>
           </div>
         </section>
       )}
@@ -1048,7 +1122,7 @@ export default function LandingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <Mail className="h-5 w-5" />
                   </div>
-                  <span className="font-bold text-foreground">operations@thesquad.pro</span>
+                  <span className="font-bold text-foreground">teams@thesquad.pro</span>
                 </div>
                 <div className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">

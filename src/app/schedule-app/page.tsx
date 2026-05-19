@@ -476,7 +476,7 @@ export default function ScheduleApp() {
               thesquad.pro ↗
             </a>
             <p style={{ margin: 0, fontSize: 9, color: muted, fontWeight: 600 }}>
-              © {new Date().getFullYear()} The Squad · operations@thesquad.pro
+              © {new Date().getFullYear()} The Squad · teams@thesquad.pro
             </p>
           </div>
         </div>
