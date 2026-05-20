@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
+import { verifyFirebaseToken } from '@/lib/api-auth';
 
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
+/** Max request body: 10MB (base64 frames can be large, but this prevents abuse). */
+const MAX_BODY_BYTES = 10_000_000;
+
 /**
  * /api/highlights/analyze — Vision-based highlight detection via Straico (Primary) or Gemini (Fallback)
+ * REQUIRES: Firebase Auth token in Authorization header.
  *
  * Flow:
  *   Client extracts frames → uploads to Firebase Storage → sends HTTPS URLs here →
@@ -62,6 +67,16 @@ async function callStraico(apiKey: string, modelId: string, messages: any[]): Pr
   }
 }
 
+/** Allowed origins for server-side frame fetches. Only Firebase Storage buckets accepted. */
+const ALLOWED_FRAME_ORIGINS = [
+  'https://storage.googleapis.com/',
+  'https://firebasestorage.googleapis.com/',
+];
+
+function isAllowedFrameUrl(url: string): boolean {
+  return ALLOWED_FRAME_ORIGINS.some(prefix => url.startsWith(prefix));
+}
+
 async function callGemini(apiKey: string, model: string, prompt: string, frameUrls: Array<{url: string, timestamp: number}>): Promise<string | null> {
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -69,6 +84,12 @@ async function callGemini(apiKey: string, model: string, prompt: string, frameUr
 
     // Prepare multimodal content
     for (const frame of frameUrls) {
+      // ── SSRF Guard: only fetch from known Firebase Storage origins ──────
+      if (!isAllowedFrameUrl(frame.url)) {
+        console.warn(`[Gemini] Blocked non-allowlisted URL: ${frame.url.slice(0, 80)}`);
+        continue; // Skip this frame rather than aborting the whole request
+      }
+
       contents.push({ text: `[Timestamp: ${frame.timestamp.toFixed(1)}s]` });
       const imageRes = await fetch(frame.url);
       const imageBuffer = await imageRes.arrayBuffer();
@@ -92,7 +113,18 @@ async function callGemini(apiKey: string, model: string, prompt: string, frameUr
   }
 }
 
+
 export async function POST(req: NextRequest) {
+  // ── Auth guard: must be a signed-in user to use paid AI endpoints ──────
+  const authResult = await verifyFirebaseToken(req);
+  if (authResult instanceof NextResponse) return authResult;
+
+  // ── Payload size guard ──────────────────────────────────────────────────
+  const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+  if (contentLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: 'Request body too large.' }, { status: 413 });
+  }
+
   try {
     const body = await req.json();
     const {

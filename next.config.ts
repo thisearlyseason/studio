@@ -1,5 +1,46 @@
 import type {NextConfig} from 'next';
 
+/** Security headers applied to every response. */
+const securityHeaders = [
+  // Prevent browsers from guessing MIME type — blocks MIME-sniffing attacks
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  // Prevent clickjacking — disallow framing by any other origin
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  // Strict referrer — only send origin, not full URL, on cross-origin requests
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  // Disable legacy browser features not needed by this app
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+  },
+  // Force HTTPS for 1 year (enabled in production only; must not break dev)
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=31536000; includeSubDomains',
+  },
+  // Content Security Policy
+  // - Firebase Auth, Firestore, Storage: *.googleapis.com, *.firebaseapp.com, *.firebase.com
+  // - Stripe checkout: js.stripe.com, checkout.stripe.com
+  // - AI services: api.straico.com, identitytoolkit.googleapis.com
+  // - freeimage.host: used as frame upload proxy
+  // - data: required for canvas/FFmpeg blobs
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.stripe.com",
+      "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+      "font-src 'self' fonts.gstatic.com",
+      "img-src 'self' data: blob: https: storage.googleapis.com *.firebasestorage.app placehold.co images.unsplash.com picsum.photos api.dicebear.com freeimage.host",
+      "media-src 'self' blob: data: https: storage.googleapis.com *.firebasestorage.app",
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.firebaseapp.com https://api.stripe.com https://api.straico.com https://freeimage.host wss://*.firebaseio.com",
+      "frame-src 'self' js.stripe.com checkout.stripe.com",
+      "worker-src 'self' blob:",
+      "child-src 'self' blob:",
+    ].join('; '),
+  },
+];
+
 const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -57,6 +98,17 @@ const nextConfig: NextConfig = {
   // ─── Keep PDF/canvas libs server-side (they're only triggered on-click) ───
   // This removes jspdf (~800KB) and html2canvas (~400KB) from the client bundle entirely.
   serverExternalPackages: ['jspdf', 'html2canvas'],
+
+  // ─── HTTP Security Headers ────────────────────────────────────────────────
+  async headers() {
+    return [
+      {
+        // Apply to all routes: pages, API routes, and static files
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

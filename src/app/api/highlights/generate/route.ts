@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
+import { verifyFirebaseToken } from '@/lib/api-auth';
 
 /**
  * TEXT-ONLY FALLBACK route — used when only a URL is provided (no video upload).
+ * REQUIRES: Firebase Auth token in Authorization header.
  *
  * IMPORTANT: This route uses a text completion model (Straico) which CANNOT watch
  * a video stream. It produces timestamp estimates based on world knowledge and context.
@@ -10,6 +12,10 @@ import { GoogleGenAI } from "@google/genai";
  * accepts an uploaded video file and uses the Gemini File API.
  */
 export async function POST(req: NextRequest) {
+  // ── Auth guard: must be a signed-in user to use paid AI endpoints ──────
+  const authResult = await verifyFirebaseToken(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { videoUrl, prompt, videoDuration } = await req.json();
 

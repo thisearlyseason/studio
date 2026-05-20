@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWithStraico, USE_STRAICO } from '@/lib/straico';
+import { verifyFirebaseToken } from '@/lib/api-auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  // ── Auth guard: must be a signed-in user to use paid AI endpoints ──────
+  const authResult = await verifyFirebaseToken(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body = await req.json();
     const { prompt } = body as { prompt?: string };

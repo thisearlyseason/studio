@@ -1,25 +1,50 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Players media: owner or authenticated coach can upload
+
+    // ── Players media ──────────────────────────────────────────────────────
+    // Public read for scout portals and recruiting pages.
+    // Write: only the player's linked user account may upload.
+    // The playerId in storage must correspond to a player doc whose userId
+    // matches the authenticated user. Superadmin bypasses via custom claim.
     match /players/{playerId}/{allPaths=**} {
-      allow read: if true; // Public read for scout portals
-      allow write: if request.auth != null;
+      allow read: if true;
+      allow write: if request.auth != null && (
+        request.auth.token.role == 'superadmin' ||
+        firestore.get(/databases/(default)/documents/players/$(playerId)).data.userId == request.auth.uid
+      );
     }
-    // Team logos and branding
+
+    // ── Team logos and branding ────────────────────────────────────────────
+    // Public read (logos shown on public-facing pages).
+    // Write: only team members may upload to a team's storage path.
+    // Uses a Firestore member doc check (same pattern as isTeamMember in Firestore rules).
     match /teams/{teamId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && (
+        request.auth.token.role == 'superadmin' ||
+        firestore.exists(/databases/(default)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
+        firestore.get(/databases/(default)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid
+      );
     }
-    // User profile media
+
+    // ── User profile media ─────────────────────────────────────────────────
+    // Authenticated read (profile images shown within app).
+    // Write: owner only.
     match /users/{userId}/{allPaths=**} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && (
+        request.auth.token.role == 'superadmin' ||
+        request.auth.uid == userId
+      );
     }
-    // General uploads (authenticated users only)
+
+    // ── Catch-all ──────────────────────────────────────────────────────────
+    // Any path not matched above: read allowed for public assets,
+    // write locked to superadmin only (removes the open authenticated write).
     match /{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.role == 'superadmin';
     }
   }
 }

@@ -1446,7 +1446,7 @@ export default function AdminPortalPage() {
                         <div className="space-y-1.5">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/40 ml-1 mb-2 block">Selected modules to test</Label>
                           <div className="flex flex-wrap gap-3">
-                            {(selectedBetaApp.features || []).length > 0 ? (selectedBetaApp.features || []).map((feat, i) => (
+                            {(selectedBetaApp.features || []).length > 0 ? (selectedBetaApp.features || []).map((feat: string, i: number) => (
                               <div key={i} className="px-4 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-sm font-bold">
                                 {feat}
                               </div>
@@ -1631,7 +1631,7 @@ export default function AdminPortalPage() {
                           <div className="md:col-span-2 space-y-1.5">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1 block mb-2">Devices</Label>
                             <div className="flex flex-wrap gap-3">
-                              {(selectedBetaApp.devices || []).length > 0 ? (selectedBetaApp.devices || []).map((device, i) => (
+                              {(selectedBetaApp.devices || []).length > 0 ? (selectedBetaApp.devices || []).map((device: string, i: number) => (
                                 <div key={i} className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-white/20 bg-white dark:bg-white/5">
                                   <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                                   <span className="text-sm font-bold text-gray-900 dark:text-white">{device}</span>

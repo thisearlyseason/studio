@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyFirebaseToken } from '@/lib/api-auth';
 
 /**
  * /api/highlights/upload-frame
+ * REQUIRES: Firebase Auth token in Authorization header.
  *
  * Proxy route: accepts a base64 JPEG frame from the browser and uploads it to
  * freeimage.host (free public image host, no account needed) to get a real HTTPS URL.
@@ -15,11 +17,24 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+/** Max payload: 5MB — a single JPEG frame should be well under this. */
+const MAX_BODY_BYTES = 5_000_000;
+
 // freeimage.host public API key (free tier, no signup required)
 const FREEIMAGE_API_KEY = '6d207e02198a847aa98d0a2a901485a5';
 const FREEIMAGE_ENDPOINT = 'https://freeimage.host/api/1/upload';
 
 export async function POST(req: NextRequest) {
+  // ── Auth guard: prevent anonymous use of our upload proxy ──────────────
+  const authResult = await verifyFirebaseToken(req);
+  if (authResult instanceof NextResponse) return authResult;
+
+  // ── Payload size guard ──────────────────────────────────────────────────
+  const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+  if (contentLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: 'Frame too large (max 5MB).' }, { status: 413 });
+  }
+
   try {
     const { base64 } = await req.json();
 

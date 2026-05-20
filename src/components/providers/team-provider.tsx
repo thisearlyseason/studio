@@ -1257,18 +1257,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isSuperAdmin = useMemo(() => {
     if (!firebaseUser?.uid) return false;
 
-    // Support/ops UIDs — add the Firebase UID of any internal support account here.
-    // UIDs are NOT credentials and are safe in client code. Never put emails or passwords here.
-    // To add a new support account: create a Firebase Auth user, copy its UID from the
-    // Firebase Console (Authentication tab), and append it to this list.
-    const superAdminUids = [
-      process.env.NEXT_PUBLIC_SUPPORT_ADMIN_UID,  // Primary support account (set in .env.local)
-      '3Dybqi6vkHNUQQM66jiEZWfmwsW2',
-      'wnvOuvwmoUhS5U4kdaBrZz7tGbF3',
-      'PtT54iDDtUML1wslbZzxjDgbrFp1',
-      'zGh7D5JfrFOkxhVJr79gtbzHPVC3',
-      'E4EqTVTsEdfLI4rLEkMPHjeyxeJ2'
-    ].filter(Boolean) as string[];
+    // Support/ops UIDs loaded from environment only — never hardcoded in source.
+    // To grant superadmin access: add the Firebase UID to NEXT_PUBLIC_SUPPORT_ADMIN_UIDS
+    // in .env.local as a comma-separated list, e.g.:
+    //   NEXT_PUBLIC_SUPPORT_ADMIN_UIDS=uid1,uid2,uid3
+    // This keeps UIDs out of the shipped JS bundle and allows revoking access
+    // without a code change or redeploy (just update the env var).
+    const rawUids = process.env.NEXT_PUBLIC_SUPPORT_ADMIN_UIDS ?? '';
+    const superAdminUids = rawUids
+      .split(',')
+      .map(u => u.trim())
+      .filter(Boolean);
+
+    // Also support the legacy single-UID env var for backwards compatibility
+    const legacyUid = process.env.NEXT_PUBLIC_SUPPORT_ADMIN_UID;
+    if (legacyUid && !superAdminUids.includes(legacyUid)) {
+      superAdminUids.push(legacyUid);
+    }
 
     // Email fallback reads from env — never hardcode the support email in source code
     const superAdminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;

@@ -11,15 +11,14 @@ service cloud.firestore {
       return request.auth.uid == uid;
     }
 
-    // Super admin: verified server-side via Firebase Custom Claims.
+    // Super admin: verified server-side via Firebase Custom Claims ONLY.
     // Set with: admin.auth().setCustomUserClaims(uid, { role: 'superadmin' })
     // This cannot be forged by clients — it's signed into the JWT by Firebase.
+    // SECURITY: Never hardcode UIDs here. Use custom claims exclusively so
+    // access can be revoked without redeploying rules.
     function isSuperAdmin() {
-      // Allow bypass for internal support via custom claims or hardcoded UI token
-      return request.auth != null && (
-        request.auth.token.role == 'superadmin' ||
-        request.auth.uid == 'ai2QThECAwfkAFw608m7TgPZTmk2'
-      );
+      return request.auth != null &&
+        request.auth.token.role == 'superadmin';
     }
 
     function isTeamMember(teamId) {
@@ -258,12 +257,16 @@ service cloud.firestore {
 
       match /scores/{scoreId} {
         allow read: if true;
-        allow write: if isSignedIn();
+        // Only the league creator can write scores to prevent tampering
+        allow write: if isSuperAdmin() || (isSignedIn() &&
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
 
-      // Global invites collection
+      // League invites — readable by any signed-in user; writable only by league creator
       match /invites/{inviteId} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow write: if isSuperAdmin() || (isSignedIn() &&
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
     }
 
@@ -274,12 +277,13 @@ service cloud.firestore {
 
     // ─── Plans (pricing/feature tiers) ──────────────────────────────────────
     // Public read: pricing page and unauthenticated visitors need plan metadata.
-    // Write: superadmin for production changes; any signed-in user can upsert plan
-    // definitions (the seeder batch-writes plan docs so demo environments have
-    // the correct feature flags — plan docs contain no sensitive data).
+    // Write: superadmin only. Plan docs control teamLimit/feature flags — allowing
+    // arbitrary signed-in writes could let users inflate their own quota.
+    // NOTE: If the demo seeder needs to write plan docs, it should run server-side
+    // (Cloud Function or Admin SDK) rather than relying on client writes.
     match /plans/{planId} {
       allow read: if true;
-      allow write: if isSuperAdmin() || isSignedIn();
+      allow write: if isSuperAdmin();
     }
 
     // ─── Subscriptions audit log (server-write only via webhook) ────────────
@@ -291,7 +295,10 @@ service cloud.firestore {
     // ─── Calendar feeds (token-gated) ───────────────────────────────────────
     match /calendarFeeds/{feedId} {
       allow read: if true; // Token is the secret — anyone with the token URL can read
-      allow write: if isSignedIn();
+      // Write: only the feed owner (userId field must match auth uid) or superadmin.
+      // Prevents any signed-in user from overwriting another team's calendar feed.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSuperAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     // ─── Volunteers ─────────────────────────────────────────────────────────
