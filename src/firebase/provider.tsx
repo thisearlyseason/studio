@@ -6,6 +6,7 @@ import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { usePathname } from 'next/navigation';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -75,6 +76,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     userError: null,
   });
 
+  const pathname = usePathname();
+
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
     if (!auth) { // If no Auth service instance, cannot determine user state
@@ -93,12 +96,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           localStorage.removeItem('squad_seeding_lock');
           localStorage.removeItem('sf_session_team_id');
           sessionStorage.removeItem('squad_demo_start_time');
-        } else {
-          // Initialize FCM push notifications for this user (fire-and-forget)
-          // Runs after sign-in; requests permission if not yet granted and stores token.
-          import('@/lib/fcm-client').then(({ initFCM }) => {
-            initFCM(firebaseUser.uid).catch(() => { /* ignore — permission denied is fine */ });
-          });
         }
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       },
@@ -109,6 +106,30 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     );
     return () => unsubscribe(); // Cleanup
   }, [auth]); // Depends on the auth instance
+
+  // Initialize FCM push notifications when user is signed in and not on a public/spectator page
+  useEffect(() => {
+    const firebaseUser = userAuthState.user;
+    if (firebaseUser && !userAuthState.isUserLoading && pathname) {
+      const isPublicPath = 
+        pathname === '/' || 
+        pathname.startsWith('/login') || 
+        pathname.startsWith('/signup') || 
+        pathname.startsWith('/register') || 
+        pathname.startsWith('/privacy') || 
+        pathname.startsWith('/terms') || 
+        pathname.startsWith('/safety') ||
+        pathname.startsWith('/how-to') ||
+        pathname.includes('/spectator');
+
+      if (!isPublicPath) {
+        console.log(`[FCM] Scoping FCM initialization for ${firebaseUser.uid} on path ${pathname}`);
+        import('@/lib/fcm-client').then(({ initFCM }) => {
+          initFCM(firebaseUser.uid).catch(() => { /* ignore — permission denied is fine */ });
+        });
+      }
+    }
+  }, [userAuthState.user, userAuthState.isUserLoading, pathname]);
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {

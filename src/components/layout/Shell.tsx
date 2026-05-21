@@ -49,7 +49,9 @@ import {
   ShieldAlert,
   User,
   Medal,
-  Copy
+  Copy,
+  Download,
+  Share
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -85,6 +87,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import BrandLogo from '@/components/BrandLogo';
 import { BetaNotificationBanner } from '@/components/layout/BetaNotificationBanner';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -403,6 +412,55 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [sidebarSwitcherOpen, setSidebarSwitcherOpen] = useState(false);
   const [mobileSwitcherOpen, setMobileSwitcherOpen] = useState(false);
 
+  // PWA Installation Hook State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+
+  useEffect(() => {
+    // 1. Detect if already in standalone (PWA) mode
+    const checkStandalone = () => {
+      const isStandaloneMode = 
+        window.matchMedia('(display-mode: standalone)').matches || 
+        (navigator as any).standalone === true;
+      setIsStandalone(isStandaloneMode);
+    };
+    checkStandalone();
+
+    // 2. Intercept the browser's install prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // 3. Detect if user is on iOS
+    if (typeof navigator !== 'undefined') {
+      const ua = navigator.userAgent.toLowerCase();
+      setIsIOS(/iphone|ipad|ipod/.test(ua));
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowIOSInstructions(true);
+      return;
+    }
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`[PWA] Install prompt outcome: ${outcome}`);
+    setDeferredPrompt(null);
+  };
+
+  const showInstallBtn = !isStandalone && (!!deferredPrompt || isIOS);
+
   const filteredCoordTabs = coordinationTabs
     .filter(tab => {
       // Feed is filtered by plan/feature
@@ -650,8 +708,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </div>
               )}
 
-
-
+              {/* PWA Install Button */}
+              {showInstallBtn && (
+                <button
+                  onClick={handleInstallClick}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-dashed border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 active:scale-95 transition-all text-left group"
+                >
+                  <div className="p-2 rounded-xl bg-primary text-white shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-primary/10">
+                    <Download className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-widest leading-none">Install App</span>
+                    <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tight mt-1 truncate">
+                      Launch from home screen
+                    </span>
+                  </div>
+                </button>
+              )}
             </SidebarFooter>
           </Sidebar>
 
@@ -1046,6 +1119,26 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         <div className="space-y-3">
                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2">Account Management</p>
                           <div className="grid grid-cols-1 gap-2">
+                            {showInstallBtn && (
+                              <button
+                                onClick={() => {
+                                  setIsMoreMenuOpen(false);
+                                  handleInstallClick();
+                                }}
+                                className="w-full flex items-center justify-between p-4 rounded-2xl border border-dashed border-primary/20 bg-primary/5 transition-all text-left active:scale-[0.98] group"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="p-2 rounded-xl bg-primary text-white shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-primary/10">
+                                    <Download className="h-4 w-4" />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-black uppercase tracking-widest text-primary">Install Application</span>
+                                    <span className="text-[8px] font-bold text-muted-foreground uppercase">Launch from your home screen</span>
+                                  </div>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-primary/30" />
+                              </button>
+                            )}
                             <Link
                               href="/team"
                               onClick={() => setIsMoreMenuOpen(false)}
@@ -1106,6 +1199,55 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </div>
+
+      {/* iOS PWA Install Instructions Dialog */}
+      <Dialog open={showIOSInstructions} onOpenChange={setShowIOSInstructions}>
+        <DialogContent className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0 max-w-sm">
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-8 space-y-6">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                <Download className="h-6 w-6 text-primary" /> Install App
+              </DialogTitle>
+              <DialogDescription className="text-sm font-medium text-foreground/75 mt-2">
+                Add <strong>The Squad</strong> to your iOS Home Screen for a native app experience and to receive push notifications.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="flex gap-4 items-start p-3 bg-muted/40 rounded-2xl">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary shrink-0">1</div>
+                <div className="text-xs font-medium text-foreground/80 leading-relaxed">
+                  Tap Safari's <span className="font-bold text-primary inline-flex items-center gap-1"><Share className="h-3.5 w-3.5 inline" /> Share</span> button at the bottom of your browser.
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start p-3 bg-muted/40 rounded-2xl">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary shrink-0">2</div>
+                <div className="text-xs font-medium text-foreground/80 leading-relaxed">
+                  Scroll down the share sheet and select <span className="font-bold text-primary">Add to Home Screen</span>.
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start p-3 bg-muted/40 rounded-2xl">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary shrink-0">3</div>
+                <div className="text-xs font-medium text-foreground/80 leading-relaxed">
+                  Launch the app from your home screen, sign in, and accept notifications!
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Button 
+                onClick={() => setShowIOSInstructions(false)}
+                className="w-full rounded-xl h-12 bg-primary hover:bg-primary/95 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/10"
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }
