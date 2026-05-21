@@ -30,8 +30,15 @@ export async function POST(req: NextRequest) {
         url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.thesquad.pro'}/login`,
       });
     } catch (adminErr: any) {
-      // If user doesn't exist, return a generic success to prevent email enumeration
-      if (adminErr.code === 'auth/user-not-found') {
+      // Firebase Admin throws different errors for non-existent users depending on version:
+      // - adminErr.code === 'auth/user-not-found'
+      // - adminErr.message contains 'INTERNAL ASSERT FAILED' (user doesn't exist in project)
+      const isUserNotFound =
+        adminErr.code === 'auth/user-not-found' ||
+        adminErr.message?.includes('INTERNAL ASSERT FAILED') ||
+        adminErr.message?.includes('user-not-found');
+      if (isUserNotFound) {
+        // Return success silently — prevents email enumeration attacks
         return NextResponse.json({ success: true });
       }
       throw adminErr;
