@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 const MAX_BODY_BYTES = 5_000_000;
 
 // freeimage.host public API key (free tier, no signup required)
-const FREEIMAGE_API_KEY = '6d207e02198a847aa98d0a2a901485a5';
+const FREEIMAGE_API_KEY = process.env.FREEIMAGE_API_KEY || '6d207e02198a847aa98d0a2a901485a5';
 const FREEIMAGE_ENDPOINT = 'https://freeimage.host/api/1/upload';
 
 export async function POST(req: NextRequest) {

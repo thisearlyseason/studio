@@ -1,27 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { welcomeEmail } from '@/lib/email-templates';
+import { verifyFirebaseToken } from '@/lib/api-auth';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
 
 /**
  * POST /api/email/welcome
- * Called server-side from admin/page.tsx after successful beta user creation.
- * This route does NOT require a user token — it is called from the admin panel
- * which is already protected by isSuperAdmin. We verify a shared secret instead.
+ * Called from admin/page.tsx after successful beta user creation.
+ * Requires a Firebase ID token with role === 'superadmin' claim in the Authorization header.
  *
- * Body: { adminSecret, name, email, password, planType }
+ * Body: { name, email, password, planType }
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { adminSecret, name, email, password, planType } = body;
-
-    // Verify the admin secret matches the env var
-    if (!adminSecret || adminSecret !== process.env.ADMIN_API_SECRET) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // 1. Verify caller is authenticated and is a superadmin
+    const authResult = await verifyFirebaseToken(req);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+
+    if (authResult.role !== 'superadmin') {
+      return NextResponse.json({ error: 'Forbidden: Superadmin access required' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { name, email, password, planType } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });

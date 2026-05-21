@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 interface DecodedToken {
   uid: string;
   email?: string;
+  role?: string;
 }
 
 /**
@@ -67,7 +68,17 @@ export async function verifyFirebaseToken(
       );
     }
 
-    return { uid: userInfo.localId, email: userInfo.email };
+    let role: string | undefined;
+    if (userInfo.customAttributes) {
+      try {
+        const claims = JSON.parse(userInfo.customAttributes);
+        role = claims.role;
+      } catch (e) {
+        console.error('[verifyFirebaseToken] Failed to parse customAttributes:', e);
+      }
+    }
+
+    return { uid: userInfo.localId, email: userInfo.email, role };
   } catch (err: any) {
     console.error('[verifyFirebaseToken] Network error during verification:', err.message);
     return NextResponse.json(

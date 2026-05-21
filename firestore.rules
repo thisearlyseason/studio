@@ -41,7 +41,6 @@ service cloud.firestore {
     // We check teams/{teamId}/members/{playerId} where playerId == the player document ID.
     function isTeamCoachOfPlayer(playerId) {
       return isSignedIn() &&
-        exists(/databases/$(database)/documents/teams/$(request.auth.uid)) == false &&
         // The player must be a member of a team owned by the requesting coach.
         // We look up the player doc and then verify the coach owns a team the player belongs to.
         // Since we can't do nested loops in rules, we verify via the player's teamId field.
@@ -214,8 +213,14 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid ||
         request.resource.data.isDemo == true
       );
-      // Update/delete: profile owner, superadmin, or re-seed of a demo profile
-      allow update, delete: if isSuperAdmin() || (isSignedIn() && (
+      // Update: profile owner, superadmin, coach, or re-seed of a demo profile
+      allow update: if isSuperAdmin() || (isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isTeamCoachOfPlayer(playerId) ||
+        resource.data.isDemo == true
+      ));
+      // Delete: profile owner, superadmin, or re-seed of a demo profile
+      allow delete: if isSuperAdmin() || (isSignedIn() && (
         resource.data.userId == request.auth.uid ||
         resource.data.isDemo == true
       ));
@@ -461,14 +466,11 @@ service cloud.firestore {
       // Any signed-in user can query members they're related to.
       // Client-side queries always include a scoping where() clause (parentId, userId, schoolId).
       allow read: if isSignedIn();
-      // Writes stay scoped — only the team's owner/member can mutate membership docs.
-      allow write: if isSuperAdmin() || isSignedIn();
     }
 
     // events collectionGroup — used by: tournament auto-link (isTournament == true)
     match /{path=**}/events/{eventId} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin() || isSignedIn();
     }
 
     // signatures collectionGroup — used by: club page (teamId scoped), family page (userId scoped)
@@ -484,21 +486,16 @@ service cloud.firestore {
     // documents collectionGroup — used by: club page file library (ownerUserId scoped)
     match /{path=**}/documents/{docId} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin() || isSignedIn();
     }
 
     // incidents collectionGroup — used by: club page incident log (ownerUserId scoped)
     match /{path=**}/incidents/{incidentId} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin() || isSignedIn();
     }
 
     // registrationEntries collectionGroup — used by: team/page & manage-tournaments
     match /{path=**}/registrationEntries/{entryId} {
       allow read: if isSignedIn();
-      // Public write: allows team/player sign-up from public registration forms
-      allow create: if true;
-      allow update, delete: if isSuperAdmin() || isSignedIn();
     }
 
     // newsletter_signups — landing page beta lead capture

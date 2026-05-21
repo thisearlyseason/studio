@@ -55,7 +55,7 @@ interface TeamResult {
 }
 
 export default function AdminPortalPage() {
-  const { isSuperAdmin, user } = useTeam();
+  const { isSuperAdmin, user, firebaseUser } = useTeam();
   const db = useFirestore();
   const router = useRouter();
 
@@ -339,17 +339,23 @@ export default function AdminPortalPage() {
       await updateDoc(doc(db, 'beta_applications', selectedBetaApp.id), { status: 'approved' });
 
       // Send branded welcome email via Resend (fire-and-forget, don't block UI)
-      fetch('/api/email/welcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminSecret: process.env.NEXT_PUBLIC_ADMIN_API_SECRET,
-          name: selectedBetaApp.fullName || selectedBetaApp.name || 'Athlete',
-          email: selectedBetaApp.email,
-          password: betaPassword,
-          planType: betaPlanType,
-        }),
-      }).catch((err) => console.warn('[Welcome Email] Failed to send:', err));
+      if (firebaseUser) {
+        firebaseUser.getIdToken().then((idToken: string) => {
+          fetch('/api/email/welcome', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+              name: selectedBetaApp.fullName || selectedBetaApp.name || 'Athlete',
+              email: selectedBetaApp.email,
+              password: betaPassword,
+              planType: betaPlanType,
+            }),
+          }).catch((err) => console.warn('[Welcome Email] Failed to send:', err));
+        }).catch((err: any) => console.warn('[Welcome Email] Failed to get ID token:', err));
+      }
 
       setBetaApps(prev => prev.map(a => a.id === selectedBetaApp.id ? { ...a, status: 'approved' } : a));
       setSelectedBetaApp(null);

@@ -996,6 +996,22 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [activeTeamId, setManualActiveTeamId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!firebaseUser) {
+      setUserRole(null);
+      return;
+    }
+    firebaseUser.getIdTokenResult()
+      .then((tokenResult: any) => {
+        setUserRole((tokenResult.claims.role as string) || null);
+      })
+      .catch((err: any) => {
+        console.error('Error fetching ID token result:', err);
+        setUserRole(null);
+      });
+  }, [firebaseUser]);
 
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isSeedingDemo, setIsSeedingDemo] = useState(false);
@@ -1028,7 +1044,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         const data = snap.data();
         
         // Explicitly inject Elite League overrides for Superadmin into the global userProfile state
-        const isSuper = data.email === 'thisearlyseason@gmail.com' || firebaseUser.email === 'thisearlyseason@gmail.com' || data.role === 'superadmin';
+        const isSuper = userRole === 'superadmin' || data.role === 'superadmin';
         
         // For beta testers, always prefer Firebase Auth identity so the real
         // logged-in email/name shows instead of seeded demo placeholders
@@ -1330,31 +1346,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const isSuperAdmin = useMemo(() => {
     if (!firebaseUser?.uid) return false;
-
-    // Support/ops UIDs loaded from environment only — never hardcoded in source.
-    // To grant superadmin access: add the Firebase UID to NEXT_PUBLIC_SUPPORT_ADMIN_UIDS
-    // in .env.local as a comma-separated list, e.g.:
-    //   NEXT_PUBLIC_SUPPORT_ADMIN_UIDS=uid1,uid2,uid3
-    // This keeps UIDs out of the shipped JS bundle and allows revoking access
-    // without a code change or redeploy (just update the env var).
-    const rawUids = process.env.NEXT_PUBLIC_SUPPORT_ADMIN_UIDS ?? '';
-    const superAdminUids = rawUids
-      .split(',')
-      .map(u => u.trim())
-      .filter(Boolean);
-
-    // Also support the legacy single-UID env var for backwards compatibility
-    const legacyUid = process.env.NEXT_PUBLIC_SUPPORT_ADMIN_UID;
-    if (legacyUid && !superAdminUids.includes(legacyUid)) {
-      superAdminUids.push(legacyUid);
-    }
-
-    // Email fallback reads from env — never hardcode the support email in source code
-    const superAdminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
-    return (superAdminEmail ? userProfile?.email === superAdminEmail : false)
-      || superAdminUids.includes(firebaseUser.uid)
-      || userProfile?.role === 'superadmin';
-  }, [userProfile?.email, firebaseUser?.uid, userProfile?.role]);
+    return userRole === 'superadmin' || userProfile?.role === 'superadmin';
+  }, [firebaseUser?.uid, userRole, userProfile?.role]);
 
   const isStaff = useMemo(() => {
     if (!firebaseUser) return false;
@@ -2327,8 +2320,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           if (!currentUser) return;
           const idToken = await currentUser.getIdToken();
           const { generalNotificationEmail: _genEmail } = await import('@/lib/email-templates');
-          const memberUserIds = (members.map(m => m.userId).filter((id): id is string => !!id));
-          const memberEmails = (members.map(m => m.email).filter((e): e is string => !!e));
+          const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id && id !== currentUser.uid);
+          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e && e.toLowerCase().trim() !== currentUser.email?.toLowerCase().trim());
           const { subject: emailSubject, html: emailHtml } = _genEmail({
             recipientName: 'Team Member',
             title: `Document Requires Your Signature`,
@@ -2381,8 +2374,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           if (!currentUser) return;
           const idToken = await currentUser.getIdToken();
           const { eventNotificationEmail } = await import('@/lib/email-templates');
-          const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id);
-          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e);
+          const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id && id !== currentUser.uid);
+          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e && e.toLowerCase().trim() !== currentUser.email?.toLowerCase().trim());
           const eventTitle = data.title || data.name || 'New Event';
           const eventDate = data.date || data.startDate || '';
           const eventType = data.type || 'event';
@@ -2625,8 +2618,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           if (!currentUser) return;
           const idToken = await currentUser.getIdToken();
           const { drillNotificationEmail } = await import('@/lib/email-templates');
-          const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id);
-          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e);
+          const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id && id !== currentUser.uid);
+          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e && e.toLowerCase().trim() !== currentUser.email?.toLowerCase().trim());
           const { subject: emailSubject, html: emailHtml } = drillNotificationEmail({
             recipientName: 'Team Member',
             teamName: activeTeam.name,
