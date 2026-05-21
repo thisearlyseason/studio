@@ -3,6 +3,80 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useFirestore, useMemoFirebase, useUser, useCollection, useDoc, useStorage, useAuth } from '@/firebase';
 import { getAuthToken, authHeader } from '@/lib/client-auth';
+
+/**
+ * Dispatch push + email notifications to all team members.
+ * Called after addEvent, addDrill, addTeamDocument.
+ * Fire-and-forget — errors are logged but never block the main action.
+ */
+async function dispatchNotification({
+  idToken,
+  db,
+  teamId,
+  memberUserIds,
+  title,
+  body,
+  url,
+  emailSubject,
+  emailHtml,
+  memberEmails,
+}: {
+  idToken: string;
+  db: any;
+  teamId: string;
+  memberUserIds: string[];
+  title: string;
+  body: string;
+  url?: string;
+  emailSubject?: string;
+  emailHtml?: string;
+  memberEmails?: string[];
+}) {
+  try {
+    // 1. Collect FCM tokens from users/{uid}.fcmTokens
+    const { getDocs: _getDocs, collection: _col, doc: _doc, getDoc: _getDoc } = await import('firebase/firestore');
+    const tokens: string[] = [];
+    await Promise.all(
+      memberUserIds.map(async (uid) => {
+        try {
+          const snap = await _getDoc(_doc(db, 'users', uid));
+          const userTokens: string[] = snap.data()?.fcmTokens || [];
+          tokens.push(...userTokens);
+        } catch { /* skip missing user docs */ }
+      })
+    );
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    };
+
+    // 2. Send push notification
+    if (tokens.length) {
+      fetch('/api/notify', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ tokens, title, body, url }),
+      }).catch((e) => console.warn('[Push] dispatch error:', e));
+    }
+
+    // 3. Send email notifications
+    if (emailSubject && emailHtml && memberEmails?.length) {
+      fetch('/api/email/send', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          to: memberEmails,
+          subject: emailSubject,
+          html: emailHtml,
+        }),
+      }).catch((e) => console.warn('[Email] dispatch error:', e));
+    }
+  } catch (e) {
+    console.warn('[dispatchNotification] Error:', e);
+  }
+}
+
 import { 
   collection, 
   query, 
@@ -2241,8 +2315,44 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       toast({ title: "Vault Access Denied", description: "Only staff can archive new organizational documents.", variant: "destructive" });
       return;
     }
-    if (activeTeam?.id && db) await setDoc(doc(db, 'teams', activeTeam.id, 'documents', data.id), clean({ ...data, teamId: activeTeam.id, ownerUserId: activeTeam.ownerUserId, createdAt: new Date().toISOString() })); 
-  }, [db, activeTeam, isStaff]);
+    if (activeTeam?.id && db) {
+      await setDoc(doc(db, 'teams', activeTeam.id, 'documents', data.id), clean({ ...data, teamId: activeTeam.id, ownerUserId: activeTeam.ownerUserId, createdAt: new Date().toISOString() }));
+
+      // Fire push + email to all team members
+      Promise.resolve().then(async () => {
+        try {
+          const { getAuth } = await import('firebase/auth');
+          const { getApp } = await import('firebase/app');
+          const currentUser = getAuth(getApp()).currentUser;
+          if (!currentUser) return;
+          const idToken = await currentUser.getIdToken();
+          const { generalNotificationEmail: _genEmail } = await import('@/lib/email-templates');
+          const memberUserIds = (members.map(m => m.userId).filter((id): id is string => !!id));
+          const memberEmails = (members.map(m => m.email).filter((e): e is string => !!e));
+          const { subject: emailSubject, html: emailHtml } = _genEmail({
+            recipientName: 'Team Member',
+            title: `Document Requires Your Signature`,
+            message: `A new document "${data.title}" has been added to ${activeTeam.name} and may require your signature.`,
+            teamName: activeTeam.name,
+            ctaLabel: 'View Document',
+            ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard/team`,
+          });
+          dispatchNotification({
+            idToken,
+            db,
+            teamId: activeTeam.id,
+            memberUserIds,
+            memberEmails,
+            title: 'Document Added',
+            body: `"${data.title}" — check for signature requirements.`,
+            url: '/dashboard/team',
+            emailSubject,
+            emailHtml,
+          });
+        } catch { /* ignore */ }
+      });
+    }
+  }, [db, activeTeam, isStaff, members]);
 
   const updateTeamDocument = useCallback(async (docId: string, data: any) => { 
     if (!isStaff) return;
@@ -2259,9 +2369,51 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       toast({ title: "Scheduling Restricted", description: "Only staff members can coordinate team calendar events.", variant: "destructive" });
       return false;
     }
-    if (activeTeam?.id && db) { await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean({ ...data, teamId: activeTeam.id, ownerUserId: activeTeam.ownerUserId })); return true; } 
-    return false; 
-  }, [db, activeTeam, isStaff]);
+    if (activeTeam?.id && db) {
+      await addDoc(collection(db, 'teams', activeTeam.id, 'events'), clean({ ...data, teamId: activeTeam.id, ownerUserId: activeTeam.ownerUserId }));
+
+      // Fire push + email to all team members
+      Promise.resolve().then(async () => {
+        try {
+          const { getAuth } = await import('firebase/auth');
+          const { getApp } = await import('firebase/app');
+          const currentUser = getAuth(getApp()).currentUser;
+          if (!currentUser) return;
+          const idToken = await currentUser.getIdToken();
+          const { eventNotificationEmail } = await import('@/lib/email-templates');
+          const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id);
+          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e);
+          const eventTitle = data.title || data.name || 'New Event';
+          const eventDate = data.date || data.startDate || '';
+          const eventType = data.type || 'event';
+          const { subject: emailSubject, html: emailHtml } = eventNotificationEmail({
+            recipientName: 'Team Member',
+            teamName: activeTeam.name,
+            eventTitle,
+            eventDate,
+            eventTime: data.time || data.startTime,
+            location: data.location,
+            eventType,
+          });
+          dispatchNotification({
+            idToken,
+            db,
+            teamId: activeTeam.id,
+            memberUserIds,
+            memberEmails,
+            title: `${eventType === 'game' ? '⚽ Game Day' : eventType === 'practice' ? '🏃 Practice' : '📅 Event'}: ${eventTitle}`,
+            body: `${eventDate}${data.time ? ' at ' + data.time : ''}${data.location ? ' · ' + data.location : ''}`,
+            url: '/dashboard/team',
+            emailSubject,
+            emailHtml,
+          });
+        } catch { /* ignore */ }
+      });
+
+      return true;
+    }
+    return false;
+  }, [db, activeTeam, isStaff, members]);
 
   const updateEvent = useCallback(async (id: string, data: any) => { 
     if (!isStaff) return false;
@@ -2461,8 +2613,42 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const addDrill = useCallback(async (d: any) => { 
     if (!isStaff) return;
-    if (activeTeam?.id && db) await addDoc(collection(db, 'teams', activeTeam.id, 'drills'), { ...clean(d), createdAt: new Date().toISOString() }); 
-  }, [activeTeam, db, isStaff]);
+    if (activeTeam?.id && db) {
+      await addDoc(collection(db, 'teams', activeTeam.id, 'drills'), { ...clean(d), createdAt: new Date().toISOString() });
+
+      // Fire push + email to all team members
+      Promise.resolve().then(async () => {
+        try {
+          const { getAuth } = await import('firebase/auth');
+          const { getApp } = await import('firebase/app');
+          const currentUser = getAuth(getApp()).currentUser;
+          if (!currentUser) return;
+          const idToken = await currentUser.getIdToken();
+          const { drillNotificationEmail } = await import('@/lib/email-templates');
+          const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id);
+          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e);
+          const { subject: emailSubject, html: emailHtml } = drillNotificationEmail({
+            recipientName: 'Team Member',
+            teamName: activeTeam.name,
+            drillTitle: d.title || d.name || 'New Drill',
+            drillDescription: d.description,
+          });
+          dispatchNotification({
+            idToken,
+            db,
+            teamId: activeTeam.id,
+            memberUserIds,
+            memberEmails,
+            title: `New Drill: ${d.title || d.name || 'Playbook Update'}`,
+            body: `${activeTeam.name} playbook has a new drill. Check it out.`,
+            url: '/dashboard/team',
+            emailSubject,
+            emailHtml,
+          });
+        } catch { /* ignore */ }
+      });
+    }
+  }, [activeTeam, db, isStaff, members]);
 
   const updateDrill = useCallback(async (drillId: string, d: any) => {
     if (!isStaff) return;
