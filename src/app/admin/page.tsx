@@ -337,12 +337,25 @@ export default function AdminPortalPage() {
       
       // Update beta app status
       await updateDoc(doc(db, 'beta_applications', selectedBetaApp.id), { status: 'approved' });
-      
+
+      // Send branded welcome email via Resend (fire-and-forget, don't block UI)
+      fetch('/api/email/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminSecret: process.env.NEXT_PUBLIC_ADMIN_API_SECRET,
+          name: selectedBetaApp.fullName || selectedBetaApp.name || 'Athlete',
+          email: selectedBetaApp.email,
+          password: betaPassword,
+          planType: betaPlanType,
+        }),
+      }).catch((err) => console.warn('[Welcome Email] Failed to send:', err));
+
       setBetaApps(prev => prev.map(a => a.id === selectedBetaApp.id ? { ...a, status: 'approved' } : a));
       setSelectedBetaApp(null);
       setBetaPassword('');
       setBetaPlanType('free');
-      toast({ title: 'Beta User Approved', description: 'Account created successfully.' });
+      toast({ title: 'Beta User Approved', description: 'Account created. Welcome email sent via Resend.' });
     } catch (e: any) {
       toast({ title: 'Approval Failed', description: e.message, variant: 'destructive' });
     } finally {

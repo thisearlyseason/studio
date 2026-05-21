@@ -93,23 +93,26 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const target = forgotEmail.trim() || email.trim();
+    const target = (forgotEmail || email).trim();
     if (!target) {
       toast({ title: "Email Required", description: "Enter the email address tied to your account.", variant: "destructive" });
       return;
     }
     setForgotLoading(true);
     try {
-      await sendPasswordResetEmail(auth, target, {
-        url: 'https://thesquad.pro/login',
-        handleCodeInApp: false,
+      // Use our branded Resend email instead of Firebase's default template
+      const res = await fetch('/api/email/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: target }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to send reset email');
+      }
       setForgotSent(true);
     } catch (error: any) {
-      const msg = error.code === 'auth/user-not-found'
-        ? 'No account found with that email.'
-        : error.message;
-      toast({ title: "Reset Failed", description: msg, variant: "destructive" });
+      toast({ title: "Reset Failed", description: error.message || "Could not send reset email. Try again.", variant: "destructive" });
     } finally {
       setForgotLoading(false);
     }

@@ -93,6 +93,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           localStorage.removeItem('squad_seeding_lock');
           localStorage.removeItem('sf_session_team_id');
           sessionStorage.removeItem('squad_demo_start_time');
+        } else {
+          // Initialize FCM push notifications for this user (fire-and-forget)
+          // Runs after sign-in; requests permission if not yet granted and stores token.
+          import('@/lib/fcm-client').then(({ initFCM }) => {
+            initFCM(firebaseUser.uid).catch(() => { /* ignore — permission denied is fine */ });
+          });
         }
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       },
