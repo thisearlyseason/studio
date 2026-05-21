@@ -52,7 +52,7 @@ import { format } from 'date-fns';
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
 export default function EquipmentPage() {
-  const { activeTeam, isStaff, isPro, members, addEquipmentItem, updateEquipmentItem, deleteEquipmentItem, assignEquipment, returnEquipment } = useTeam();
+  const { activeTeam, isStaff, isPro, members, addEquipmentItem, updateEquipmentItem, deleteEquipmentItem, assignEquipment, returnEquipment, createAlert } = useTeam();
   
   if (!isStaff) return <AccessRestricted type="role" />;
   if (!isPro) return <AccessRestricted type="tier" />;
@@ -136,10 +136,19 @@ export default function EquipmentPage() {
 
     setIsProcessing(true);
     await assignEquipment(selectedItem.id, targetMember.userId, targetMember.name, qty);
+
+    // Fire an in-app alert so the player sees it when they next log in
+    await createAlert(
+      'Equipment Assigned',
+      `${selectedItem.name} ×${qty} has been checked out to you. Please confirm receipt with your coach.`,
+      'specific',
+      targetMember.userId
+    );
+
     setIsInviteOpen(false);
     setIsProcessing(false);
     setAssignment({ userId: '', quantity: '1' });
-    toast({ title: "Asset Deployed", description: `Assigned to ${targetMember.name}.` });
+    toast({ title: "Asset Deployed", description: `${selectedItem.name} assigned to ${targetMember.name}. They’ve been notified.` });
   };
 
   if (isLoading) {
@@ -251,9 +260,16 @@ export default function EquipmentPage() {
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Assignments</p>
                     <div className="max-h-[120px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                       {Object.values(item.assignments || {}).map(as => (
-                        <div key={as.userId} className="flex items-center justify-between p-2 bg-muted/20 rounded-xl border">
-                          <span className="text-[10px] font-bold uppercase">{as.userName}</span>
-                          <div className="flex items-center gap-3">
+                        <div key={as.userId} className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase truncate">{as.userName}</p>
+                            {as.date && (
+                              <p className="text-[8px] font-medium text-muted-foreground mt-0.5">
+                                {format(new Date(as.date), 'MMM d, yyyy ’ h:mm a')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[10px] font-black text-primary">QTY: {as.quantity}</span>
                             <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => returnEquipment(item.id, as.userId)}>
                               <RotateCcw className="h-3 w-3" />

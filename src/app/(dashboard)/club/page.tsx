@@ -332,9 +332,15 @@ export default function ClubManagementPage() {
       const entries: any[] = [];
       const seenLeagueIds = new Set<string>();
 
-      // Primary: leagues created by this hub owner
+      // Primary: leagues created by this hub owner (two fields used historically)
       const creatorSnap = await getDocs(query(collection(db, 'leagues'), where('creatorId', '==', user?.id)));
       creatorSnap.docs.forEach(d => seenLeagueIds.add(d.id));
+
+      // Fallback: leagues that store ownerUserId instead of creatorId (older creation path)
+      try {
+        const ownerSnap = await getDocs(query(collection(db, 'leagues'), where('ownerUserId', '==', user?.id)));
+        ownerSnap.docs.forEach(d => seenLeagueIds.add(d.id));
+      } catch { /* field may not exist on older documents */ }
 
       // Secondary: leagues any of the hub's teams are enrolled in (batch by team ID)
       const chunkSize = 10; // Firestore `in` limit

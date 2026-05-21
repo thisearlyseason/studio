@@ -3638,19 +3638,30 @@ export function IncidentDetailDialog({ incident, isOpen, onOpenChange, onEdit }:
                   <p className="text-sm font-bold leading-relaxed text-foreground/80">{incident.treatmentProvided || 'Standard site protocols followed.'}</p>
                 </div>
               </div>
-
-              <Card className="bg-black text-white rounded-[2.5rem] p-6 space-y-4 relative overflow-hidden group border-none">
-                <ShieldCheck className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
-                <div className="space-y-2 relative z-10">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Severity Classification</p>
-                  <p className="text-xl font-black uppercase">{incident.severity || 'Minor'}</p>
-                </div>
-                {incident.followUpRequired && (
-                  <Badge className="bg-amber-400 text-black border-none font-black text-[8px] uppercase px-3 h-5">Action Items Pending</Badge>
-                )}
-              </Card>
             </div>
           </div>
+
+          {/* Severity — full-width block below the 2-col grid, most prominent element in audit */}
+          <Card className="bg-black text-white rounded-[2.5rem] p-6 space-y-4 relative overflow-hidden group border-none">
+            <ShieldCheck className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
+            <div className="flex items-center justify-between relative z-10">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Severity / Injury Type</p>
+                <p className="text-2xl font-black uppercase">{incident.severity || 'Minor'}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                {incident.followUpRequired && (
+                  <Badge className="bg-amber-400 text-black border-none font-black text-[9px] uppercase px-3 h-6">Action Items Pending</Badge>
+                )}
+                <Badge className={cn(
+                  "border-none font-black text-[9px] uppercase px-3 h-6",
+                  incident.emergencyServicesCalled ? "bg-red-600 text-white" : "bg-white/20 text-white"
+                )}>
+                  {incident.emergencyServicesCalled ? 'Emergency Services Called' : 'No Emergency Services'}
+                </Badge>
+              </div>
+            </div>
+          </Card>
 
           <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
             <Button variant="outline" className="flex-1 h-14 rounded-2xl border-2 font-black uppercase text-xs tracking-widest transition-all hover:bg-muted" onClick={() => onOpenChange(false)}>

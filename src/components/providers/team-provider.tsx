@@ -848,7 +848,7 @@ interface TeamContextType {
   disputeLeagueMatchScore: (leagueId: string, gameId: string, notes: string) => Promise<void>;
   manageSubscription: () => Promise<void>;
   resolveQuota: (selectedTeamIds: string[]) => Promise<void>;
-  createAlert: (title: string, message: string, audience: TeamAlert['audience']) => Promise<void>;
+  createAlert: (title: string, message: string, audience: TeamAlert['audience'], targetUserId?: string) => Promise<void>;
   deleteAlert: (alertId: string) => Promise<void>;
   exportAttendanceCSV: (eventId: string) => Promise<void>;
   exportTournamentStandingsCSV: (tournamentId: string) => Promise<void>;

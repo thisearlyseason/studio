@@ -35,6 +35,21 @@ service cloud.firestore {
         get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid;
     }
 
+    // Returns true if the requesting user owns any team that has this player as a member.
+    // Used for scouting/recruiting pack edits: a coach edits their players' profiles,
+    // but the coach UID != the player's userId, so we need this cross-collection check.
+    // We check teams/{teamId}/members/{playerId} where playerId == the player document ID.
+    function isTeamCoachOfPlayer(playerId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/teams/$(request.auth.uid)) == false &&
+        // The player must be a member of a team owned by the requesting coach.
+        // We look up the player doc and then verify the coach owns a team the player belongs to.
+        // Since we can't do nested loops in rules, we verify via the player's teamId field.
+        exists(/databases/$(database)/documents/players/$(playerId)) &&
+        exists(/databases/$(database)/documents/teams/$(get(/databases/$(database)/documents/players/$(playerId)).data.get('teamId', ''))) &&
+        get(/databases/$(database)/documents/teams/$(get(/databases/$(database)/documents/players/$(playerId)).data.get('teamId', ''))).data.ownerUserId == request.auth.uid;
+    }
+
     // ─── Users ──────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if isSuperAdmin() || (isSignedIn() && isOwner(userId));
@@ -207,9 +222,14 @@ service cloud.firestore {
 
       match /{subCollection}/{docId} {
         allow read: if true;
-        // Sub-collection writes: owner, superadmin, or demo-flagged record (batch timing escape)
+        // Sub-collection writes:
+        // 1. The player themselves (userId match)
+        // 2. A superadmin
+        // 3. A team coach/owner whose roster includes this player (scouting pack sync)
+        // 4. Demo seeder batch timing escape
         allow write: if isSuperAdmin() || (isSignedIn() && (
           get(/databases/$(database)/documents/players/$(playerId)).data.userId == request.auth.uid ||
+          isTeamCoachOfPlayer(playerId) ||
           request.resource.data.isDemo == true
         ));
       }
