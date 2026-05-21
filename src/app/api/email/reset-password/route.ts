@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     let resetLink: string;
     try {
       resetLink = await admin.auth().generatePasswordResetLink(email, {
-        url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://studio-6850142148-fe343.web.app'}/login`,
+        url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.thesquad.pro'}/login`,
       });
     } catch (adminErr: any) {
       // If user doesn't exist, return a generic success to prevent email enumeration
