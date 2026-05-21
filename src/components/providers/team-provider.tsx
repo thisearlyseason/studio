@@ -1096,7 +1096,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         role: 'adult_player',
       } as unknown as UserProfile);
     });
-  }, [firebaseUser, db]);
+  }, [firebaseUser, db, userRole]);
 
   const teamsQuery = useMemoFirebase(() => (isAuthResolved && firebaseUser?.uid && db) ? query(collection(db, 'users', firebaseUser.uid, 'teamMemberships')) : null, [isAuthResolved, firebaseUser?.uid, db]);
   const { data: teamsData, isLoading: isTeamsLoading } = useCollection(teamsQuery);

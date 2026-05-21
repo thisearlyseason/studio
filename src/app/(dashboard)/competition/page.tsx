@@ -9,7 +9,7 @@ import { useTeam } from '@/components/providers/team-provider';
 
 // Dynamically import each hub's content component — keeps their internal state isolated and avoids SSR issues
 const LeaguesHub = dynamic(
-  () => import('../leagues/page').then(m => ({ default: m.LeaguesPageContent })),
+  () => import('../leagues/leagues-page-content').then(m => ({ default: m.LeaguesPageContent })),
   {
     ssr: false,
     loading: () => (
@@ -21,7 +21,7 @@ const LeaguesHub = dynamic(
 );
 
 const TournamentsHub = dynamic(
-  () => import('../manage-tournaments/page').then(m => ({ default: m.ManageTournamentsPageContent })),
+  () => import('../manage-tournaments/manage-tournaments-page-content').then(m => ({ default: m.ManageTournamentsPageContent })),
   {
     ssr: false,
     loading: () => (

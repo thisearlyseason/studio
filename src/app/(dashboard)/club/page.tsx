@@ -80,7 +80,7 @@ import { Progress } from '@/components/ui/progress';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collectionGroup, query, where, orderBy, collection, getDocs, limit, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { IncidentDetailDialog } from '@/app/(dashboard)/coaches-corner/page';
+import { IncidentDetailDialog } from '@/app/(dashboard)/coaches-corner/incident-detail-dialog';
 import { format, parseISO } from 'date-fns';
 
 function TeamComplianceCard({ teams, clubDocs }: { teams: Team[], clubDocs: TeamDocument[] }) {
