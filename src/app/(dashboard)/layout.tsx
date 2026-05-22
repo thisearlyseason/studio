@@ -236,7 +236,7 @@ function BetaDemoSeeder({
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading, isAuthResolved } = useUser();
   const auth = useAuth();
-  const { teams, isTeamsLoading, isSeedingDemo, setIsSeedingDemo, user: userProfile, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent } = useTeam();
+  const { teams, isTeamsLoading, isSeedingDemo, setIsSeedingDemo, user: userProfile, activeTeam, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent } = useTeam();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -275,14 +275,19 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     // Elite Club Organizers → Elite Club Hub (/club rendered as elite view)
     // Each role uses its own session key so they don't block each other.
     if (pathname === '/dashboard') {
-      if ((isSchoolMode && isPrimaryClubAuthority) || isEliteClubMode) {
-        // Athletic Directors (school or elite club) always land on their Hub — dashboard is not relevant for them
+      // Institution mode: school admin with no squad selected (or school hub record active)
+      const isSchoolInstitutionMode = isSchoolMode && isPrimaryClubAuthority && (!activeTeam || activeTeam?.type === 'school');
+      // Hub mode: elite club organizer with no squad selected
+      const isEliteHubMode = isEliteClubMode && !activeTeam;
+
+      if (isSchoolInstitutionMode || isEliteHubMode) {
+        // No squad selected — send AD to their institutional hub
         router.replace('/club');
       } else if (isParent) {
         router.push('/family');
       }
     }
-  }, [user, isAuthResolved, router, mounted, isDemoInitializing, pathname, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent]);
+  }, [user, isAuthResolved, router, mounted, isDemoInitializing, pathname, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent, activeTeam]);
 
   useEffect(() => {
     if (!mounted || isSeedingDemo || isTeamsLoading || !user || isDemoInitializing) return;

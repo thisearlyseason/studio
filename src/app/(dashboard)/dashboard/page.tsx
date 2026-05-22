@@ -54,12 +54,15 @@ export default function UniversalAccountDashboard() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Safety net: Athletic Directors (school/elite club) never land here — their hub is /club
+  // Safety net: only redirect when the AD is in hub/institution mode (no squad selected)
+  // When a specific squad IS selected, the dashboard is valid for that squad.
   useEffect(() => {
-    if ((isSchoolMode && isPrimaryClubAuthority) || isEliteClubMode) {
+    const isSchoolInstitutionMode = isSchoolMode && isPrimaryClubAuthority && (!activeTeam || activeTeam?.type === 'school');
+    const isEliteHubMode = isEliteClubMode && !activeTeam;
+    if (isSchoolInstitutionMode || isEliteHubMode) {
       router.replace('/club');
     }
-  }, [isSchoolMode, isPrimaryClubAuthority, isEliteClubMode, router]);
+  }, [isSchoolMode, isPrimaryClubAuthority, isEliteClubMode, activeTeam, router]);
 
   const gamesQuery = useMemoFirebase(() => {
     if (!db || !activeTeam?.id) return null;

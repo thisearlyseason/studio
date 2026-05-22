@@ -495,8 +495,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     isSchoolInstitutionMode || isEliteHubMode
       ? [] // hide all operational shortcuts until a squad is selected
       : [
-          // Athletic Directors (school/elite club) never use /dashboard — their hub is /club
-          ...(!isPrimaryClubAuthority && !isEliteClubMode
+          // Show Home/dashboard only when a squad is active (ADs in hub mode use /club instead)
+          ...(!isSchoolInstitutionMode && !isEliteHubMode
             ? [{ name: 'Home', href: '/dashboard', icon: Home }]
             : []),
           { name: 'Schedule', href: '/events', icon: CalendarDays },
@@ -543,8 +543,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <BrandLogo variant="light-background" className="h-10 w-44 justify-start mb-10" priority />
               
               <SidebarMenu className="space-y-2 mb-6">
-                {/* Dashboard — hidden for Athletic Directors (school/elite club), their hub is /club */}
-              {!isPrimaryClubAuthority && !isEliteClubMode && (
+                {/* Dashboard — hidden when AD is in hub/institution mode (no squad selected) */}
+              {!isSchoolInstitutionMode && !isEliteHubMode && (
                 <SidebarMenuItem>
                   <SidebarMenuButton 
                     asChild 
