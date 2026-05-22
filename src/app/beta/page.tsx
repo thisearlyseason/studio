@@ -53,6 +53,22 @@ export default function BetaApplicationPage() {
       });
       
       setIsSubmitted(true);
+
+      // Trigger admin notification asynchronously
+      fetch('/api/public/notify-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'beta',
+          name: data.fullName,
+          email: data.email,
+          role: data.role,
+          organization: data.organization,
+          sports: data.sports,
+          scale: data.scale,
+          whyBeta: data.whyBeta,
+        }),
+      }).catch(err => console.error('Admin notification failed:', err));
     } catch (err: any) {
       toast({ title: 'Application Failed', description: err.message, variant: 'destructive' });
     } finally {

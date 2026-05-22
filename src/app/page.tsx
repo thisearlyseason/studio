@@ -147,14 +147,27 @@ export default function LandingPage() {
     if (!newsletterEmail.trim()) return;
     setNewsletterLoading(true);
     try {
+      const emailVal = newsletterEmail.trim().toLowerCase();
+      const nameVal = newsletterName.trim();
       await addDoc(collection(db, 'newsletter_signups'), {
-        name: newsletterName.trim(),
-        email: newsletterEmail.trim().toLowerCase(),
+        name: nameVal,
+        email: emailVal,
         createdAt: serverTimestamp(),
         source: 'landing_page',
       });
       setNewsletterDone(true);
-      toast({ title: "You Got it!", description: "We'll keep you in the loop. \uD83C\uDFC6" });
+      toast({ title: "You Got it!", description: "We'll keep you in the loop. 🏆" });
+
+      // Trigger admin notification asynchronously
+      fetch('/api/public/notify-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'newsletter',
+          name: nameVal,
+          email: emailVal,
+        }),
+      }).catch(err => console.error('Admin notification failed:', err));
     } catch (err: any) {
       toast({ title: 'Oops!', description: err.message || 'Something went wrong.', variant: 'destructive' });
     } finally {

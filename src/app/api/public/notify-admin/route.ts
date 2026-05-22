@@ -1,0 +1,233 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM = 'The Squad Pro <noreply@thesquad.pro>';
+
+async function getFirebaseAdmin() {
+  const admin = await import('firebase-admin');
+  if (!admin.apps.length) {
+    const serviceAccountB64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    if (!serviceAccountB64) throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON env var not set');
+    const serviceAccount = JSON.parse(
+      Buffer.from(serviceAccountB64, 'base64').toString('utf8')
+    );
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
+  return admin;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { type, name, email, role, organization, sports, scale, whyBeta } = body;
+
+    if (!type || !email) {
+      return NextResponse.json({ error: 'Missing required fields: type, email' }, { status: 400 });
+    }
+
+    const admin = await getFirebaseAdmin();
+    const db = admin.firestore();
+
+    const emailLower = email.trim().toLowerCase();
+    const now = Date.now();
+    const fiveMinutesAgo = new Date(now - 5 * 60 * 1000);
+    const tsThreshold = admin.firestore.Timestamp.fromDate(fiveMinutesAgo);
+
+    // 1. Security check: verify there is an actual matching document in Firestore created recently
+    if (type === 'newsletter') {
+      const snap = await db.collection('newsletter_signups')
+        .where('email', '==', emailLower)
+        .where('createdAt', '>=', tsThreshold)
+        .limit(1)
+        .get();
+
+      if (snap.empty) {
+        return NextResponse.json({ error: 'Verification failed: No matching recent newsletter signup found' }, { status: 400 });
+      }
+    } else if (type === 'beta') {
+      const snap = await db.collection('beta_applications')
+        .where('email', '==', emailLower)
+        .where('createdAt', '>=', tsThreshold)
+        .limit(1)
+        .get();
+
+      if (snap.empty) {
+        return NextResponse.json({ error: 'Verification failed: No matching recent beta application found' }, { status: 400 });
+      }
+    } else {
+      return NextResponse.json({ error: 'Invalid notification type' }, { status: 400 });
+    }
+
+    // 2. Fetch all Super Admins
+    const adminsSnap = await db.collection('users').where('role', '==', 'superadmin').get();
+    if (adminsSnap.empty) {
+      console.warn('[Notify Admin] No superadmin users found in database.');
+      return NextResponse.json({ ok: true, message: 'No superadmins found to notify' });
+    }
+
+    const adminEmails: string[] = [];
+    const fcmTokens: string[] = [];
+
+    adminsSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.email) adminEmails.push(data.email);
+      if (Array.isArray(data.fcmTokens)) {
+        fcmTokens.push(...data.fcmTokens);
+      }
+    });
+
+    // Make sure we have at least the default admin email as fallback if none found
+    if (adminEmails.length === 0) {
+      adminEmails.push('admin@thesquad.pro');
+    }
+
+    // 3. Prepare Notification Content
+    const title = type === 'beta' ? 'New Beta Application! 🚀' : 'New Newsletter Signup! 🏆';
+    const msgBody = type === 'beta'
+      ? `${name || 'Someone'} (${email}) applied for Beta. Role: ${role || 'N/A'}, Org: ${organization || 'N/A'}`
+      : `${name ? `${name} (${email})` : email} signed up for the newsletter.`;
+
+    const clickUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.thesquad.pro'}/admin`;
+
+    // 4. Send Push Notifications asynchronously (catch and log errors)
+    let pushSent = false;
+    if (fcmTokens.length > 0) {
+      try {
+        const messaging = admin.messaging();
+        const webpush = {
+          notification: {
+            icon: '/favicon-192.png',
+            badge: '/favicon-192.png',
+            click_action: clickUrl,
+          },
+          fcmOptions: { link: clickUrl },
+        };
+
+        // De-duplicate tokens
+        const uniqueTokens = Array.from(new Set(fcmTokens));
+        
+        // FCM multicast allows sending up to 500 tokens at once
+        await messaging.sendEachForMulticast({
+          tokens: uniqueTokens,
+          notification: { title, body: msgBody },
+          webpush,
+        });
+        pushSent = true;
+      } catch (fcmErr) {
+        console.error('[Notify Admin] FCM send failed:', fcmErr);
+      }
+    }
+
+    // 5. Send Email Notifications using Resend (catch and log errors)
+    let emailSent = false;
+    try {
+      // Build HTML
+      const htmlLayout = (titleText: string, contentHtml: string) => `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>${titleText}</title>
+        </head>
+        <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 16px;">
+            <tr><td align="center">
+              <table width="100%" style="max-width:560px;">
+                <tr><td style="background:#6d28d9;border-radius:20px 20px 0 0;padding:32px 40px;text-align:center;">
+                  <p style="margin:0;color:rgba(255,255,255,0.7);font-size:10px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;">THE SQUAD PRO</p>
+                  <h1 style="margin:8px 0 0;color:#fff;font-size:26px;font-weight:900;letter-spacing:-0.5px;">${titleText}</h1>
+                </td></tr>
+                <tr><td style="background:#fff;padding:40px;border-radius:0 0 20px 20px;">
+                  ${contentHtml}
+                  <hr style="border:none;border-top:1px solid #e4e4e7;margin:32px 0;" />
+                  <p style="margin:0;color:#a1a1aa;font-size:11px;text-align:center;">
+                    © ${new Date().getFullYear()} The Squad Pro · <a href="https://www.thesquad.pro" style="color:#6d28d9;text-decoration:none;">thesquad.pro</a>
+                  </p>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body>
+        </html>
+      `;
+
+      const fieldRow = (label: string, val: string) => `
+        <tr>
+          <td style="padding:10px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.15em;color:#71717a;width:40%;">${label}</td>
+          <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#18181b;">${val}</td>
+        </tr>
+      `;
+
+      const emailSubject = type === 'beta' 
+        ? `[Beta Application] ${name || 'New applicant'} applied` 
+        : `[Newsletter Signup] ${email}`;
+
+      const emailHtml = type === 'beta' 
+        ? htmlLayout('New Beta Application', `
+            <p style="margin:0 0 8px;font-size:20px;font-weight:900;color:#18181b;">New Beta Application Received! 🚀</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#52525b;line-height:1.6;">
+              A new user has submitted their application for early beta access. Here are their details:
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;border-radius:16px;overflow:hidden;margin-bottom:24px;">
+              <tbody>
+                ${fieldRow('Full Name', name || 'N/A')}
+                ${fieldRow('Email', email)}
+                ${fieldRow('Role', role || 'N/A')}
+                ${fieldRow('Organization', organization || 'N/A')}
+                ${sports ? fieldRow('Sports Managed', sports) : ''}
+                ${scale ? fieldRow('Scale', scale) : ''}
+                ${whyBeta ? fieldRow('Why Beta?', whyBeta) : ''}
+              </tbody>
+            </table>
+            <div style="text-align:center;margin:28px 0;">
+              <a href="${clickUrl}" style="display:inline-block;background:#6d28d9;color:#fff;text-decoration:none;font-weight:900;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;padding:16px 40px;border-radius:100px;">
+                Review in Admin Portal
+              </a>
+            </div>
+          `)
+        : htmlLayout('New Newsletter Lead', `
+            <p style="margin:0 0 8px;font-size:20px;font-weight:900;color:#18181b;">New Newsletter Signup! 🏆</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#52525b;line-height:1.6;">
+              Someone subscribed to the newsletter mailing list.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;border-radius:16px;overflow:hidden;margin-bottom:24px;">
+              <tbody>
+                ${name ? fieldRow('Name', name) : ''}
+                ${fieldRow('Email', email)}
+                ${fieldRow('Source', 'Landing Page')}
+              </tbody>
+            </table>
+            <div style="text-align:center;margin:28px 0;">
+              <a href="${clickUrl}" style="display:inline-block;background:#6d28d9;color:#fff;text-decoration:none;font-weight:900;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;padding:16px 40px;border-radius:100px;">
+                Manage in Admin Portal
+              </a>
+            </div>
+          `);
+
+      const { error } = await resend.emails.send({
+        from: FROM,
+        to: adminEmails,
+        subject: emailSubject,
+        html: emailHtml,
+      });
+
+      if (error) {
+        console.error('[Notify Admin] Resend API error:', error);
+      } else {
+        emailSent = true;
+      }
+    } catch (resendErr) {
+      console.error('[Notify Admin] Email dispatch failed:', resendErr);
+    }
+
+    return NextResponse.json({ ok: true, pushSent, emailSent });
+
+  } catch (err: any) {
+    console.error('[Notify Admin] Route error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
