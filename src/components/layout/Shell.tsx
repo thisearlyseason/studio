@@ -417,6 +417,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [showGeneralInstructions, setShowGeneralInstructions] = useState(false);
 
   useEffect(() => {
     // 1. Detect if already in standalone (PWA) mode
@@ -452,14 +453,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       setShowIOSInstructions(true);
       return;
     }
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      setShowGeneralInstructions(true);
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log(`[PWA] Install prompt outcome: ${outcome}`);
     setDeferredPrompt(null);
   };
 
-  const showInstallBtn = !isStandalone && (!!deferredPrompt || isIOS);
+  const showInstallBtn = !isStandalone;
 
   const filteredCoordTabs = coordinationTabs
     .filter(tab => {
@@ -1240,6 +1244,55 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <div className="pt-2">
               <Button 
                 onClick={() => setShowIOSInstructions(false)}
+                className="w-full rounded-xl h-12 bg-primary hover:bg-primary/95 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/10"
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* General PWA Install Instructions Dialog */}
+      <Dialog open={showGeneralInstructions} onOpenChange={setShowGeneralInstructions}>
+        <DialogContent className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0 max-w-sm">
+          <div className="h-2 bg-primary w-full" />
+          <div className="p-8 space-y-6">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                <Download className="h-6 w-6 text-primary" /> Install App
+              </DialogTitle>
+              <DialogDescription className="text-sm font-medium text-foreground/75 mt-2">
+                Install <strong>The Squad</strong> on your device for a fast, native-app experience.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="flex gap-4 items-start p-3 bg-muted/40 rounded-2xl">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary shrink-0">1</div>
+                <div className="text-xs font-medium text-foreground/80 leading-relaxed">
+                  On <span className="font-bold text-primary">Desktop Chrome / Edge</span>: Look for the download icon in your address bar (top right) or click the menu and select <span className="font-bold text-primary">Install App</span>.
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start p-3 bg-muted/40 rounded-2xl">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary shrink-0">2</div>
+                <div className="text-xs font-medium text-foreground/80 leading-relaxed">
+                  On <span className="font-bold text-primary">Android</span>: Tap the three-dot menu icon in the top right and select <span className="font-bold text-primary">Add to Home Screen</span> or <span className="font-bold text-primary">Install app</span>.
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start p-3 bg-muted/40 rounded-2xl">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary shrink-0">3</div>
+                <div className="text-xs font-medium text-foreground/80 leading-relaxed">
+                  On <span className="font-bold text-primary">Mac Safari</span>: Select <span className="font-bold text-primary">File</span> &gt; <span className="font-bold text-primary">Add to Dock...</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Button 
+                onClick={() => setShowGeneralInstructions(false)}
                 className="w-full rounded-xl h-12 bg-primary hover:bg-primary/95 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/10"
               >
                 Got It
