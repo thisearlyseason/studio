@@ -62,15 +62,21 @@ function DemoSeedWrapper({
 
     // Also check the global Firestore write lock to avoid double-seeding
     const globalLock = localStorage.getItem('squad_seeding_lock');
-    if (globalLock === demoPlanId) {
-      console.warn('[Demo] Seeding lock active – skipping redundant seed.');
-      return;
+    if (globalLock) {
+      const [lockedPlanId, timestampStr] = globalLock.split('_');
+      const timestamp = parseInt(timestampStr, 10);
+      if (lockedPlanId === demoPlanId && !isNaN(timestamp) && Date.now() - timestamp < 60_000) {
+        console.warn('[Demo] Active seeding lock found in another tab/process – skipping redundant seed.');
+        return;
+      } else {
+        localStorage.removeItem('squad_seeding_lock');
+      }
     }
 
     // Mark as attempted BEFORE going async so concurrent re-renders don't race
     sessionStorage.setItem(sessionAttemptKey, 'true');
     setIsDemoInitializing(true);
-    localStorage.setItem('squad_seeding_lock', demoPlanId);
+    localStorage.setItem('squad_seeding_lock', `${demoPlanId}_${Date.now()}`);
     setIsSeedingDemo(true);
 
     // Immediately strip the URL param to prevent a loop if the user hits refresh
@@ -506,6 +512,16 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <div className="flex-1 flex flex-col relative">
+        {mounted && (
+          <DemoSeedWrapper 
+            user={user} 
+            isTeamsLoading={isTeamsLoading} 
+            teamsCount={teams.length} 
+            isDemoInitializing={isDemoInitializing}
+            setIsDemoInitializing={setIsDemoInitializing}
+            setIsSeedingDemo={setIsSeedingDemo}
+          />
+        )}
         <AlertOverlay />
         <StripePaywall />
         <QuotaResolutionOverlay />
