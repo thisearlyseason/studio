@@ -495,7 +495,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     isSchoolInstitutionMode || isEliteHubMode
       ? [] // hide all operational shortcuts until a squad is selected
       : [
-          { name: 'Home', href: '/dashboard', icon: Home },
+          // Athletic Directors (school/elite club) never use /dashboard — their hub is /club
+          ...(!isPrimaryClubAuthority && !isEliteClubMode
+            ? [{ name: 'Home', href: '/dashboard', icon: Home }]
+            : []),
           { name: 'Schedule', href: '/events', icon: CalendarDays },
           { name: 'Feed', href: '/feed', icon: LayoutDashboard, gate: () => hasFeature?.('live_feed_read') },
           { name: 'Tactical Chat', href: '/chats', icon: MessageCircle },
@@ -540,6 +543,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <BrandLogo variant="light-background" className="h-10 w-44 justify-start mb-10" priority />
               
               <SidebarMenu className="space-y-2 mb-6">
+                {/* Dashboard — hidden for Athletic Directors (school/elite club), their hub is /club */}
+              {!isPrimaryClubAuthority && !isEliteClubMode && (
                 <SidebarMenuItem>
                   <SidebarMenuButton 
                     asChild 
@@ -554,6 +559,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+              )}
 
                 {isParent && (
                   <SidebarMenuItem>

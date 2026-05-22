@@ -45,13 +45,21 @@ export default function UniversalAccountDashboard() {
   const { 
     user, activeTeam, activeTeamEvents, 
     householdBalance, isYouth, isParent,
-    householdEvents, householdGames, myChildren, teams
+    householdEvents, householdGames, myChildren, teams,
+    isPrimaryClubAuthority, isSchoolMode, isEliteClubMode
   } = useTeam();
   const router = useRouter();
   const db = useFirestore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Safety net: Athletic Directors (school/elite club) never land here — their hub is /club
+  useEffect(() => {
+    if ((isSchoolMode && isPrimaryClubAuthority) || isEliteClubMode) {
+      router.replace('/club');
+    }
+  }, [isSchoolMode, isPrimaryClubAuthority, isEliteClubMode, router]);
 
   const gamesQuery = useMemoFirebase(() => {
     if (!db || !activeTeam?.id) return null;

@@ -275,20 +275,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     // Elite Club Organizers → Elite Club Hub (/club rendered as elite view)
     // Each role uses its own session key so they don't block each other.
     if (pathname === '/dashboard') {
-      if (isSchoolMode && isPrimaryClubAuthority) {
-        const schoolLandingKey = `school_hub_landing_${user?.uid}`;
-        const hasRedirected = typeof window !== 'undefined' ? sessionStorage.getItem(schoolLandingKey) : null;
-        if (!hasRedirected) {
-          sessionStorage.setItem(schoolLandingKey, 'true');
-          router.push('/club');
-        }
-      } else if (isEliteClubMode) {
-        const eliteLandingKey = `elite_club_landing_${user?.uid}`;
-        const hasRedirected = typeof window !== 'undefined' ? sessionStorage.getItem(eliteLandingKey) : null;
-        if (!hasRedirected) {
-          sessionStorage.setItem(eliteLandingKey, 'true');
-          router.push('/club');
-        }
+      if ((isSchoolMode && isPrimaryClubAuthority) || isEliteClubMode) {
+        // Athletic Directors (school or elite club) always land on their Hub — dashboard is not relevant for them
+        router.replace('/club');
       } else if (isParent) {
         router.push('/family');
       }
