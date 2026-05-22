@@ -498,7 +498,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-screen overflow-hidden">
       {userProfile?.isDemo && !userProfile?.isBetaTester && (
         <div className="w-full bg-black text-white h-9 flex items-center justify-center gap-4 z-[40] border-b border-primary/20 shrink-0 sticky top-0">
           <Timer className="h-3.5 w-3.5 text-primary animate-pulse" />
@@ -511,7 +511,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
         {mounted && (
           <DemoSeedWrapper 
             user={user} 

@@ -406,6 +406,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     deleteTeam, deleteAccount
   } = useTeam();
   const auth = useAuth();
+  const hasDemoBanner = !!user?.isDemo && !user?.isBetaTester;
 
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   // Controlled open state for both squad switcher instances
@@ -525,9 +526,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex flex-col min-h-screen w-full bg-background selection:bg-primary/20">
+      <div className="flex flex-col h-full w-full bg-background selection:bg-primary/20">
         <div className="flex flex-1 overflow-y-hidden">
-          <Sidebar className="border-r bg-white w-72 shrink-0 shadow-sm" collapsible="offcanvas">
+          <Sidebar 
+            className="border-r bg-white w-72 shrink-0 shadow-sm" 
+            collapsible="offcanvas"
+            style={hasDemoBanner ? {
+              top: '2.25rem',
+              height: 'calc(100vh - 2.25rem)'
+            } : undefined}
+          >
             <SidebarHeader className="p-6 bg-white">
               <BrandLogo variant="light-background" className="h-10 w-44 justify-start mb-10" priority />
               
