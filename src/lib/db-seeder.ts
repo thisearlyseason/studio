@@ -667,6 +667,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         const tids = [strikerId, lakerId];
 
         // 1. Create a Global League Document
+        // ── Divisions: two age-group divisions for the Elite Youth League ──
+        const youthDivisions = [
+            { id: 'u12', name: 'U12 Division', fees: '$150', rosterLimit: 15, createdAt: now },
+            { id: 'u10', name: 'U10 Division', fees: '$120', rosterLimit: 12, createdAt: now },
+        ];
         batch.set(doc(db, 'leagues', leagueId), clean({
             id: leagueId,
             name: 'Elite Youth League',
@@ -676,20 +681,26 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             memberTeamIds: [strikerId, lakerId, 'hawks_id', 'tigers_id', 'eagles_id'],
             isDemo: true,
             status: 'active',
+            // ── Divisions array — required for division filter tabs to appear in UI ──
+            divisions: youthDivisions,
             teams: {
-                [strikerId]: { teamName: 'Strikers', coachName: 'Marcus Miller', coachEmail: 'm.miller@example.com', wins: 2, losses: 1, points: 6 },
-                [lakerId]: { teamName: 'Lakers', coachName: 'Sarah Thompson', coachEmail: 's.thompson@example.com', wins: 3, losses: 0, points: 9 },
-                ['hawks_id']: { teamName: 'Hawks', coachName: 'David Chen', coachEmail: 'd.chen@example.com', wins: 1, losses: 2, points: 3 },
-                ['tigers_id']: { teamName: 'Tigers', coachName: 'James Wilson', coachEmail: 'j.wilson@example.com', wins: 0, losses: 3, points: 0 }
+                // Strikers & Hawks are in U12; Lakers & Tigers are in U10
+                [strikerId]: { teamName: 'Strikers', coachName: 'Marcus Miller', coachEmail: 'm.miller@example.com', wins: 2, losses: 1, points: 6, division: 'u12' },
+                [lakerId]:   { teamName: 'Lakers',   coachName: 'Sarah Thompson', coachEmail: 's.thompson@example.com', wins: 3, losses: 0, points: 9, division: 'u10' },
+                ['hawks_id']:  { teamName: 'Hawks',   coachName: 'David Chen',    coachEmail: 'd.chen@example.com',    wins: 1, losses: 2, points: 3, division: 'u12' },
+                ['tigers_id']: { teamName: 'Tigers',  coachName: 'James Wilson',  coachEmail: 'j.wilson@example.com', wins: 0, losses: 3, points: 0, division: 'u10' }
             },
             schedule: [
-              { id: 'lg1', team1: 'Strikers', team1Id: strikerId, team2: 'Lakers', team2Id: lakerId, date: tomorrow, time: '10:00 AM', location: 'Court A', status: 'scheduled' },
-              { id: 'lg2', team1: 'Strikers', team1Id: strikerId, team2: 'Hawks', team2Id: 'hawks_id', date: later, time: '12:00 PM', location: 'Court B', status: 'scheduled' },
-              { id: 'lg3', team1: 'Lakers', team1Id: lakerId, team2: 'Tigers', team2Id: 'tigers_id', date: later, time: '02:00 PM', location: 'Court A', status: 'scheduled' },
-              { id: 'lg4', team1: 'Strikers', team1Id: strikerId, team2: 'Eagles', team2Id: 'eagles_id', date: new Date(nowObj.getTime() + 5 * 86400000).toISOString(), time: '04:00 PM', location: 'Main Arena', status: 'scheduled' },
-              { id: 'lg5', team1: 'Lakers', team1Id: lakerId, team2: 'Hawks', team2Id: 'hawks_id', date: new Date(nowObj.getTime() + 8 * 86400000).toISOString(), time: '06:00 PM', location: 'Court B', status: 'scheduled' },
-              { id: 'lg6', team1: 'Strikers', team1Id: strikerId, team2: 'Tigers', team2Id: 'tigers_id', date: new Date(nowObj.getTime() + 11 * 86400000).toISOString(), time: '01:00 PM', location: 'Court A', status: 'scheduled' },
-              { id: 'lg7', team1: 'Lakers', team1Id: lakerId, team2: 'Eagles', team2Id: 'eagles_id', date: new Date(nowObj.getTime() + 14 * 86400000).toISOString(), time: '03:00 PM', location: 'Main Arena', status: 'scheduled' }
+              // U12 Division games (Strikers vs Hawks)
+              { id: 'lg1', team1: 'Strikers', team1Id: strikerId, team2: 'Hawks',   team2Id: 'hawks_id',  date: tomorrow,                                               time: '10:00 AM', location: 'Court A',    status: 'scheduled', divisionId: 'u12' },
+              { id: 'lg2', team1: 'Strikers', team1Id: strikerId, team2: 'Hawks',   team2Id: 'hawks_id',  date: new Date(nowObj.getTime() + 8 * 86400000).toISOString(), time: '12:00 PM', location: 'Court B',    status: 'scheduled', divisionId: 'u12' },
+              { id: 'lg6', team1: 'Hawks',    team1Id: 'hawks_id',team2: 'Strikers',team2Id: strikerId,   date: new Date(nowObj.getTime() + 11 * 86400000).toISOString(),time: '01:00 PM', location: 'Court A',    status: 'scheduled', divisionId: 'u12' },
+              // U10 Division games (Lakers vs Tigers)
+              { id: 'lg3', team1: 'Lakers',   team1Id: lakerId,   team2: 'Tigers',  team2Id: 'tigers_id', date: later,                                                  time: '02:00 PM', location: 'Court A',    status: 'scheduled', divisionId: 'u10' },
+              { id: 'lg5', team1: 'Lakers',   team1Id: lakerId,   team2: 'Tigers',  team2Id: 'tigers_id', date: new Date(nowObj.getTime() + 8 * 86400000).toISOString(), time: '06:00 PM', location: 'Court B',    status: 'scheduled', divisionId: 'u10' },
+              { id: 'lg7', team1: 'Tigers',   team1Id: 'tigers_id',team2: 'Lakers', team2Id: lakerId,     date: new Date(nowObj.getTime() + 14 * 86400000).toISOString(),time: '03:00 PM', location: 'Main Arena', status: 'scheduled', divisionId: 'u10' },
+              // Cross-division showcase (no divisionId — shows in All view)
+              { id: 'lg4', team1: 'Strikers', team1Id: strikerId, team2: 'Lakers',  team2Id: lakerId,     date: new Date(nowObj.getTime() + 5 * 86400000).toISOString(), time: '04:00 PM', location: 'Main Arena', status: 'scheduled' },
             ],
             createdAt: now
         }));
@@ -1005,6 +1016,26 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         const primaryTid = `demo_${planId}_${userId.slice(-4)}${teamVariants[0] ? '_' + teamVariants[0].toLowerCase().replace(/\s+/g, '') : ''}`;
         const secondTid = Object.keys(leagueTeams)[1] || primaryTid;
         
+        // ── Divisions: Gold and Silver tiers for the main coach/elite league ──
+        const leagueDivisions = isSchoolDemo
+          ? [
+              { id: 'varsity',   name: 'Varsity',   fees: '$200', rosterLimit: 20, createdAt: now },
+              { id: 'jv',        name: 'JV',        fees: '$150', rosterLimit: 18, createdAt: now },
+            ]
+          : [
+              { id: 'gold',   name: 'Gold Division',   fees: '$350', rosterLimit: 20, createdAt: now },
+              { id: 'silver', name: 'Silver Division',  fees: '$250', rosterLimit: 20, createdAt: now },
+            ];
+
+        // Assign division IDs to team entries: even-indexed teams → first division, odd → second
+        const leagueTeamKeys = Object.keys(leagueTeams);
+        leagueTeamKeys.forEach((tid, idx) => {
+          leagueTeams[tid] = { ...leagueTeams[tid], division: leagueDivisions[idx % 2].id };
+        });
+
+        const div0 = leagueDivisions[0].id; // 'gold' or 'varsity'
+        const div1 = leagueDivisions[1].id; // 'silver' or 'jv'
+
         batch.set(doc(db, 'leagues', leagueId), clean({
             id: leagueId,
             name: isSchoolDemo ? 'State Academic Athletic League' : 'Apex Premier Circuit',
@@ -1015,15 +1046,20 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             isDemo: true,
             status: 'active',
             createdAt: now,
+            // ── Divisions array — required for division filter tabs to appear in UI ──
+            divisions: leagueDivisions,
             teams: leagueTeams,
             schedule: [
-              { id: 'sched1', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid, date: tomorrow, time: '10:00 AM', location: 'Main Arena', status: 'scheduled' },
-              { id: 'sched2', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid, date: later, time: '02:00 PM', location: 'Court B', status: 'scheduled' },
-              { id: 'sched3', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid, team2: Object.values(leagueTeams)[0]?.teamName || 'Team A', team2Id: primaryTid, date: new Date(nowObj.getTime() + 432000000).toISOString(), time: '11:00 AM', location: 'State Complex', status: 'scheduled' },
-              { id: 'sched4', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: 'City Wildcats', team2Id: 'wildcats_id', date: new Date(nowObj.getTime() + 7 * 86400000).toISOString(), time: '09:00 AM', location: 'Main Arena', status: 'scheduled' },
-              { id: 'sched5', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid, team2: 'Metro Stars', team2Id: 'stars_id', date: new Date(nowObj.getTime() + 9 * 86400000).toISOString(), time: '05:00 PM', location: 'Court C', status: 'scheduled' },
-              { id: 'sched6', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: 'Metro Stars', team2Id: 'stars_id', date: new Date(nowObj.getTime() + 12 * 86400000).toISOString(), time: '01:00 PM', location: 'State Complex', status: 'scheduled' },
-              { id: 'sched7', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid, team2: 'City Wildcats', team2Id: 'wildcats_id', date: new Date(nowObj.getTime() + 14 * 86400000).toISOString(), time: '03:30 PM', location: 'Main Arena', status: 'scheduled' }
+              // Division 0 (Gold/Varsity) — primaryTid is in div0
+              { id: 'sched1', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid,  team2: Object.values(leagueTeams)[2]?.teamName || 'City Wildcats', team2Id: leagueTeamKeys[2] || 'wildcats_id', date: tomorrow,                                                time: '10:00 AM', location: 'Main Arena',    status: 'scheduled', divisionId: div0 },
+              { id: 'sched3', team1: Object.values(leagueTeams)[2]?.teamName || 'City Wildcats', team1Id: leagueTeamKeys[2] || 'wildcats_id', team2: Object.values(leagueTeams)[0]?.teamName || 'Team A', team2Id: primaryTid,  date: new Date(nowObj.getTime() + 432000000).toISOString(), time: '11:00 AM', location: 'State Complex',  status: 'scheduled', divisionId: div0 },
+              { id: 'sched6', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid,  team2: Object.values(leagueTeams)[2]?.teamName || 'City Wildcats', team2Id: leagueTeamKeys[2] || 'wildcats_id', date: new Date(nowObj.getTime() + 12 * 86400000).toISOString(), time: '01:00 PM', location: 'State Complex',  status: 'scheduled', divisionId: div0 },
+              // Division 1 (Silver/JV) — secondTid is in div1
+              { id: 'sched2', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid,   team2: Object.values(leagueTeams)[3]?.teamName || 'Metro Stars',   team2Id: leagueTeamKeys[3] || 'stars_id',    date: later,                                                   time: '02:00 PM', location: 'Court B',         status: 'scheduled', divisionId: div1 },
+              { id: 'sched5', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid,   team2: Object.values(leagueTeams)[3]?.teamName || 'Metro Stars',   team2Id: leagueTeamKeys[3] || 'stars_id',    date: new Date(nowObj.getTime() + 9 * 86400000).toISOString(),  time: '05:00 PM', location: 'Court C',         status: 'scheduled', divisionId: div1 },
+              { id: 'sched7', team1: Object.values(leagueTeams)[3]?.teamName || 'Metro Stars',   team1Id: leagueTeamKeys[3] || 'stars_id',   team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid,   date: new Date(nowObj.getTime() + 14 * 86400000).toISOString(), time: '03:30 PM', location: 'Main Arena',    status: 'scheduled', divisionId: div1 },
+              // Cross-division showcase — visible in All Divisions view
+              { id: 'sched4', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid,  team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid,   date: new Date(nowObj.getTime() + 7 * 86400000).toISOString(),  time: '09:00 AM', location: 'Main Arena',    status: 'scheduled' },
             ]
         }));
     }
