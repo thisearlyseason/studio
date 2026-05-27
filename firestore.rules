@@ -463,20 +463,35 @@ service cloud.firestore {
 
     // members collectionGroup — used by: householdMembersQuery, school roster, auto-link
     match /{path=**}/members/{memberId} {
-      // Any signed-in user can query members they're related to.
-      // Client-side queries always include a scoping where() clause (parentId, userId, schoolId).
-      allow read: if isSignedIn();
+      // Secure check: verify query scoping or record properties
+      allow read: if isSuperAdmin() || (isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.parentId == request.auth.uid ||
+        resource.data.ownerUserId == request.auth.uid ||
+        (resource.data.schoolId != null && (isTeamMember(resource.data.schoolId) || isTeamOwner(resource.data.schoolId)))
+      ));
     }
 
     // events collectionGroup — used by: tournament auto-link (isTournament == true)
     match /{path=**}/events/{eventId} {
-      allow read: if isSignedIn();
+      // Secure check: only tournaments (shared) or team events if member/owner
+      allow read: if isSuperAdmin() || (isSignedIn() && (
+        resource.data.isTournament == true ||
+        resource.data.ownerUserId == request.auth.uid ||
+        resource.data.teamId == null ||
+        isTeamMember(resource.data.teamId) ||
+        isTeamOwner(resource.data.teamId)
+      ));
     }
 
     // signatures collectionGroup — used by: club page (teamId scoped), family page (userId scoped)
     match /{path=**}/signatures/{sigId} {
-      // Owners read their own; admins read all; all signed-in can query (client filters by userId)
-      allow read: if isSignedIn();
+      // Owners read their own; team owner/member can read team's waivers; superadmin can read all
+      allow read: if isSuperAdmin() || (isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.ownerUserId == request.auth.uid ||
+        (resource.data.teamId != null && (isTeamOwner(resource.data.teamId) || isTeamMember(resource.data.teamId)))
+      ));
       // Only the signer or an admin can write signature docs
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSuperAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
@@ -485,17 +500,22 @@ service cloud.firestore {
 
     // documents collectionGroup — used by: club page file library (ownerUserId scoped)
     match /{path=**}/documents/{docId} {
-      allow read: if isSignedIn();
+      allow read: if isSuperAdmin() || (isSignedIn() && resource.data.ownerUserId == request.auth.uid);
     }
 
     // incidents collectionGroup — used by: club page incident log (ownerUserId scoped)
     match /{path=**}/incidents/{incidentId} {
-      allow read: if isSignedIn();
+      allow read: if isSuperAdmin() || (isSignedIn() && resource.data.ownerUserId == request.auth.uid);
     }
 
     // registrationEntries collectionGroup — used by: team/page & manage-tournaments
     match /{path=**}/registrationEntries/{entryId} {
-      allow read: if isSignedIn();
+      allow read: if isSuperAdmin() || (isSignedIn() && (
+        resource.data.creatorId == request.auth.uid ||
+        resource.data.ownerUserId == request.auth.uid ||
+        resource.data.assigned_team_owner_id == request.auth.uid ||
+        (resource.data.league_id != null && get(/databases/$(database)/documents/leagues/$(resource.data.league_id)).data.creatorId == request.auth.uid)
+      ));
     }
 
     // newsletter_signups — landing page beta lead capture

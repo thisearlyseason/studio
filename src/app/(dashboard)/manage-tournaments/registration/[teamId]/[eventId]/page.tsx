@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationEntry, RegistrationFormField, TeamEvent, TeamDocument } from '@/components/providers/team-provider';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, query, orderBy, where, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, collection, query, orderBy, where, setDoc, updateDoc, getDocs, addDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,9 @@ import {
   Trophy,
   Target,
   FileSignature,
-  Info
+  Info,
+  FilePlus2,
+  Layers
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -62,6 +64,7 @@ export default function TournamentRegistrationAdminPage() {
   const db = useFirestore();
 
   // --- STATE ---
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'entries' | 'config'>('entries');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'accepted'>('all');
   const [editingField, setEditingField] = useState<Partial<RegistrationFormField> | null>(null);
@@ -69,9 +72,70 @@ export default function TournamentRegistrationAdminPage() {
   const [manualForm, setManualForm] = useState({ teamName: '', coachName: '', email: '' });
   const [isManualProcessing, setIsManualProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Multi-form state
+  const [formsListMode, setFormsListMode] = useState(true); // start on forms list
+  const [allForms, setAllForms] = useState<{ id: string; title: string; is_active: boolean; form_version?: number }[]>([]);
+  const [isCreatingForm, setIsCreatingForm] = useState(false);
+  const [newFormName, setNewFormName] = useState('');
+
+  // configId driven by URL param — defaults to 'team_config'
+  const configId = searchParams?.get('protocol') || 'team_config';
+  const setConfigId = (id: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('protocol', id);
+    router.replace(url.pathname + url.search);
+  };
+
+  // Division field — always prepended, non-removable system field
+  const DIVISION_FIELD: RegistrationFormField = {
+    id: 'f_sys_division',
+    label: 'Division',
+    type: 'dropdown',
+    required: false,
+    step: 'identity',
+    options: ['Unassigned'],
+  } as any;
+
+  // Fetch all forms in the registration subcollection
+  useEffect(() => {
+    if (!db || !teamId || !eventId || !isAuthResolved) return;
+    const registrationCol = collection(db, 'teams', teamId as string, 'events', eventId as string, 'registration');
+    getDocs(registrationCol).then(snap => {
+      const forms = snap.docs.map(d => ({
+        id: d.id,
+        title: (d.data() as any).title || d.id,
+        is_active: (d.data() as any).is_active || false,
+        form_version: (d.data() as any).form_version || 1,
+      }));
+      // Ensure team_config always exists in the list
+      if (!forms.find(f => f.id === 'team_config')) {
+        forms.unshift({ id: 'team_config', title: 'Default Enrollment Form', is_active: false, form_version: 1 });
+      }
+      setAllForms(forms);
+    });
+  }, [db, teamId, eventId, isAuthResolved, configId, isSaving]);
+
+  const handleCreateForm = async () => {
+    if (!newFormName.trim() || !db || !teamId || !eventId) return;
+    const slug = newFormName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    const newId = `form_${slug}_${Date.now().toString(36)}`;
+    const newForm: Partial<LeagueRegistrationConfig> = {
+      id: newId,
+      type: 'team',
+      title: newFormName.trim(),
+      is_active: false,
+      form_schema: [],
+      form_version: 1,
+    };
+    await setDoc(doc(db, 'teams', teamId as string, 'events', eventId as string, 'registration', newId), newForm);
+    setNewFormName('');
+    setIsCreatingForm(false);
+    setConfigId(newId);
+    setFormsListMode(false);
+    toast({ title: 'Form Created', description: `"${newFormName}" form is ready to configure.` });
+  };
 
   // --- SYNC ---
-  const configId = 'team_config';
   
   const eventRef = useMemoFirebase(() => {
     if (!db || !teamId || !eventId || !isAuthResolved) return null;
@@ -115,8 +179,16 @@ export default function TournamentRegistrationAdminPage() {
   useEffect(() => {
     // Don't overwrite optimistic local state while a save is in flight
     if (isSaving) return;
-    if (config) setLocalConfig(config);
-    else if (!isConfigLoading) {
+    if (config) {
+      // Ensure Division field is always first in the schema
+      const existing = config.form_schema || [];
+      const hasDivision = existing.some(f => f.id === 'f_sys_division');
+      if (!hasDivision) {
+        setLocalConfig({ ...config, form_schema: [DIVISION_FIELD, ...existing] });
+      } else {
+        setLocalConfig(config);
+      }
+    } else if (!isConfigLoading) {
       // Init default if missing
       setLocalConfig({
         id: configId,
@@ -125,10 +197,11 @@ export default function TournamentRegistrationAdminPage() {
         description: event?.description || '',
         is_active: true,
         form_schema: [
-           { id: 'f_core_sq', label: 'Team Name', type: 'short_text', required: true },
-           { id: 'f_core_co', label: 'Authorized Contact Name', type: 'short_text', required: true },
-           { id: 'f_core_em', label: 'Email Address', type: 'short_text', required: true },
-           { id: 'f_core_ph', label: 'Phone Number', type: 'short_text', required: true }
+          DIVISION_FIELD,
+          { id: 'f_core_sq', label: 'Team Name', type: 'short_text', required: true },
+          { id: 'f_core_co', label: 'Authorized Contact Name', type: 'short_text', required: true },
+          { id: 'f_core_em', label: 'Email Address', type: 'short_text', required: true },
+          { id: 'f_core_ph', label: 'Phone Number', type: 'short_text', required: true }
         ],
         form_version: 1
       });
@@ -202,7 +275,7 @@ export default function TournamentRegistrationAdminPage() {
     if (!manualForm.teamName || !manualForm.coachName || !manualForm.email || !teamId || !eventId) return;
     setIsManualProcessing(true);
     try {
-      await submitRegistrationEntry(eventId as string, 'team_config', { teamName: manualForm.teamName, name: manualForm.coachName, email: manualForm.email, manual_enrollment: true }, 0, 'Manual Enrollment', 'teams');
+      await submitRegistrationEntry(teamId as string, 'team_config', { teamName: manualForm.teamName, name: manualForm.coachName, email: manualForm.email, manual_enrollment: true }, 0, 'Manual Enrollment', 'teams', eventId as string);
       setIsManualAddOpen(false);
       setManualForm({ teamName: '', coachName: '', email: '' });
       toast({ title: "Squad Enrolled" });
@@ -220,13 +293,91 @@ export default function TournamentRegistrationAdminPage() {
     <div className="space-y-8 pb-32 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/manage-tournaments')} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-6 w-6" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => formsListMode ? router.push('/manage-tournaments') : setFormsListMode(true)} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-6 w-6" /></Button>
           <div>
             <Badge className="bg-orange-600 text-white border-none font-black uppercase text-[9px] h-6 px-3 shadow-lg">Series Architect</Badge>
-            <h1 className="text-3xl font-black uppercase tracking-tight mt-1">{event?.title || 'Championship Pipeline'}</h1>
+            <h1 className="text-3xl font-black uppercase tracking-tight mt-1">
+              {formsListMode ? (event?.title || 'Championship Pipeline') : (localConfig?.title || 'Form Builder')}
+            </h1>
+            {!formsListMode && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">← Protocol Architect — {event?.title}</p>}
           </div>
         </div>
+        {!formsListMode && (
+          <div className="flex items-center gap-3">
+            <Badge className="bg-muted border font-black uppercase text-[9px] h-8 px-4">{localConfig?.is_active ? '● Live' : '○ Draft'}</Badge>
+            <Button variant="outline" className="h-10 px-5 rounded-xl font-black uppercase text-[9px]" onClick={() => {
+              const url = `${window.location.origin}/register/tournament/${teamId}/${eventId}?protocol=${configId}`;
+              navigator.clipboard.writeText(url);
+              toast({ title: 'Portal Link Copied' });
+            }}><Share2 className="h-4 w-4 mr-2" /> Share Portal</Button>
+          </div>
+        )}
       </div>
+
+      {/* ─── FORMS LIST MODE ───────────────────────────── */}
+      {formsListMode ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-tight">Protocol Forms</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Select a form to edit or create a new one</p>
+            </div>
+            <Button onClick={() => setIsCreatingForm(true)} className="h-11 px-6 rounded-2xl font-black uppercase text-[10px] shadow-xl flex items-center gap-2">
+              <FilePlus2 className="h-4 w-4" /> + Create Form
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {allForms.map(form => (
+              <button
+                key={form.id}
+                onClick={() => { setConfigId(form.id); setFormsListMode(false); setActiveTab('entries'); }}
+                className="text-left p-6 rounded-[2rem] border-2 bg-white shadow-sm hover:border-primary hover:shadow-lg transition-all group"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="bg-primary/10 p-3 rounded-2xl text-primary"><Layers className="h-5 w-5" /></div>
+                  <Badge className={form.is_active ? 'bg-green-100 text-green-700 border-none font-black text-[8px] uppercase' : 'bg-muted text-muted-foreground border-none font-black text-[8px] uppercase'}>
+                    {form.is_active ? 'Live' : 'Draft'}
+                  </Badge>
+                </div>
+                <h3 className="font-black text-lg uppercase tracking-tight mt-4 group-hover:text-primary transition-colors">{form.title}</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Rev 0{form.form_version || 1} · {form.id}</p>
+              </button>
+            ))}
+            <button
+              onClick={() => setIsCreatingForm(true)}
+              className="text-left p-6 rounded-[2rem] border-2 border-dashed bg-muted/5 hover:bg-muted/10 transition-all flex flex-col items-center justify-center gap-3 min-h-[140px]"
+            >
+              <FilePlus2 className="h-8 w-8 text-muted-foreground/40" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">+ Create New Form</span>
+            </button>
+          </div>
+
+          {/* Create Form Dialog */}
+          <Dialog open={isCreatingForm} onOpenChange={setIsCreatingForm}>
+            <DialogContent className="rounded-[2.5rem] sm:max-w-sm p-0 overflow-hidden border-none shadow-2xl bg-white">
+              <div className="h-2 bg-primary w-full" />
+              <div className="p-8 space-y-6">
+                <DialogHeader><DialogTitle className="text-2xl font-black uppercase">New Protocol Form</DialogTitle></DialogHeader>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest">Form Name</Label>
+                  <Input
+                    placeholder="e.g. Division A Registration"
+                    value={newFormName}
+                    onChange={e => setNewFormName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleCreateForm()}
+                    className="h-12 rounded-xl border-2 font-bold"
+                    autoFocus
+                  />
+                  <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">A Division field is automatically added to every form.</p>
+                </div>
+                <DialogFooter><Button className="w-full h-12 rounded-2xl font-black" onClick={handleCreateForm} disabled={!newFormName.trim()}>Create Form</Button></DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      ) : (
+      <>
 
       <div className="bg-white p-1.5 rounded-2xl border-2 flex items-center shadow-sm w-fit">
         <Button variant={activeTab === 'entries' ? 'secondary' : 'ghost'} className="rounded-xl h-9 px-6 font-black uppercase text-[9px]" onClick={() => setActiveTab('entries')}>Recruit Ledger</Button>
@@ -545,12 +696,30 @@ export default function TournamentRegistrationAdminPage() {
               </CardHeader>
               <CardContent className="p-0 divide-y">
                 {((localConfig?.form_schema || config?.form_schema) || []).map((field, i) => {
+                  const isSystemField = field.id === 'f_sys_division';
                   const stepLabels: Record<string, string> = {
                     identity: 'Identity',
                     guardian: 'Guardian',
                     team_code: 'Team Code',
                     additional: 'Additional'
                   };
+                  if (isSystemField) return (
+                    <div key={field.id} className="p-8 flex items-center justify-between bg-primary/5 border-l-4 border-primary">
+                      <div className="flex items-center gap-6">
+                        <div className="text-[10px] font-black text-primary w-8 text-center opacity-60">{i + 1}</div>
+                        <div className="space-y-1">
+                          <p className="font-black text-base uppercase tracking-tight text-primary">{field.label}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-primary text-white border-none text-[8px] font-black uppercase h-5 px-2">Division</Badge>
+                            <Badge variant="outline" className="text-[7px] font-black uppercase opacity-60">System Enforced</Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-[9px] font-black uppercase tracking-widest text-primary/40 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Auto-Injected
+                      </div>
+                    </div>
+                  );
                   return (
                     <div key={field.id} className={cn(
                       "p-8 flex items-center justify-between group hover:bg-muted/10 transition-colors",
@@ -578,7 +747,7 @@ export default function TournamentRegistrationAdminPage() {
                           </div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleUpdateConfig({ form_schema: (localConfig?.form_schema || []).filter(f => f.id !== field.id) }, true)}><Trash2 className="h-5 w-5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleUpdateConfig({ form_schema: (localConfig?.form_schema || []).filter(f => f.id !== field.id && f.id !== 'f_sys_division') }, true)}><Trash2 className="h-5 w-5" /></Button>
                     </div>
                   );
                 })}
@@ -615,6 +784,8 @@ export default function TournamentRegistrationAdminPage() {
           </div>
         </DialogContent>
       </Dialog>
+      </> /* end formsListMode else fragment */
+      )} {/* end formsListMode ternary */}
     </div>
   );
 }

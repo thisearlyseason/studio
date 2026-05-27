@@ -1,13 +1,13 @@
 [
   {
     "id": "TC001",
-    "title": "Log in and reach the dashboard",
-    "description": "Verifies that a user can sign in with valid credentials and is redirected to the dashboard.",
+    "title": "Sign up and reach the dashboard",
+    "description": "A new user can complete registration and land on the authenticated dashboard workspace.",
     "category": "User Authentication",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /login"
+        "description": "Navigate to /signup"
       },
       {
         "type": "action",
@@ -19,49 +19,61 @@
       },
       {
         "type": "action",
-        "description": "Submit the login form"
+        "description": "Submit the registration form"
       },
       {
         "type": "assertion",
-        "description": "Verify the user lands on the dashboard"
+        "description": "Verify the dashboard is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the authenticated workspace is visible"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC002",
-    "title": "Protected routes redirect unauthenticated users to login",
-    "description": "Verifies that unauthenticated access to protected pages is gated by redirecting to the login page.",
+    "title": "Log in and reach the dashboard",
+    "description": "An existing user can log in successfully and land on the authenticated dashboard workspace.",
     "category": "User Authentication",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /events"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the user is on the login page"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Navigate to /roster"
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
       },
       {
         "type": "assertion",
-        "description": "Verify the user is on the login page"
+        "description": "Verify the dashboard is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the authenticated workspace is visible"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC003",
-    "title": "Deep link to protected page returns user to intended page after login",
-    "description": "Verifies that a logged-out user who deep-links to a protected page is redirected to login and then returned to the originally requested page after signing in.",
-    "category": "User Authentication",
+    "title": "Create a league division and configure its settings",
+    "description": "A league organizer can add a division, adjust its fee or rules override, and see the division appear in the league workspace.",
+    "category": "League Division Management",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /events"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
@@ -76,46 +88,90 @@
         "description": "Submit the login form"
       },
       {
+        "type": "action",
+        "description": "Navigate to /leagues"
+      },
+      {
+        "type": "action",
+        "description": "Open the Division Architect tab"
+      },
+      {
+        "type": "action",
+        "description": "Add a division and enter its name"
+      },
+      {
+        "type": "action",
+        "description": "Adjust the division fee or rules override"
+      },
+      {
         "type": "assertion",
-        "description": "Verify the user lands on the events page with events content displayed"
+        "description": "Verify the new division is listed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the division settings are available"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC004",
-    "title": "Sign up creates an account and redirects to dashboard",
-    "description": "Verifies that a new user can create an account with valid email/password and is redirected to the dashboard.",
-    "category": "User Authentication",
+    "title": "Assign league teams and generate a division schedule",
+    "description": "A league organizer can assign teams to divisions, generate a schedule, and see the schedule and standings reflected for the division.",
+    "category": "League Division Management",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /signup"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Fill in the email field with a new valid email address"
+        "description": "Fill in the email field with {{LOGIN_USER}}"
       },
       {
         "type": "action",
-        "description": "Fill in the password field with a valid password"
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
       },
       {
         "type": "action",
-        "description": "Submit the signup form"
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /leagues"
+      },
+      {
+        "type": "action",
+        "description": "Open the Division Architect tab"
+      },
+      {
+        "type": "action",
+        "description": "Add a division and enter its name"
+      },
+      {
+        "type": "action",
+        "description": "Assign teams to divisions in the teams list"
+      },
+      {
+        "type": "action",
+        "description": "Generate the schedule"
       },
       {
         "type": "assertion",
-        "description": "Verify the user lands on the dashboard"
+        "description": "Verify the division-filtered schedule is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the division-filtered standings are displayed"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC005",
-    "title": "View events list while authenticated",
-    "description": "Verifies that an authenticated user can access the events page and see scheduled events content.",
-    "category": "Events Management",
+    "title": "Create tournament divisions and assign teams in the roster",
+    "description": "A tournament organizer can add divisions in Architecture and assign each team to a division in the Roster tab.",
+    "category": "Tournament Division Management",
     "steps": [
       {
         "type": "action",
@@ -135,20 +191,40 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to events"
+        "description": "Navigate to /manage-tournaments"
+      },
+      {
+        "type": "action",
+        "description": "Open the Architecture tab"
+      },
+      {
+        "type": "action",
+        "description": "Add divisions and enter their names"
+      },
+      {
+        "type": "action",
+        "description": "Switch to the Roster tab"
+      },
+      {
+        "type": "action",
+        "description": "Select a division for each team"
       },
       {
         "type": "assertion",
-        "description": "Verify events content is displayed"
+        "description": "Verify the updated division organization is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the assigned teams are listed under their divisions"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC006",
-    "title": "Open event details and RSVP updates within details",
-    "description": "Verifies that a user can open an event’s details and set an RSVP that is reflected in the event details view.",
-    "category": "Events Management",
+    "title": "Filter league schedule and standings by division",
+    "description": "A league organizer can use division filters to narrow schedule and standings results to one division.",
+    "category": "League Division Management",
     "steps": [
       {
         "type": "action",
@@ -168,28 +244,40 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to events"
+        "description": "Navigate to /leagues"
       },
       {
         "type": "action",
-        "description": "Open an event from the events list"
+        "description": "Open the Division Architect tab"
       },
       {
         "type": "action",
-        "description": "Select an RSVP response"
+        "description": "Add multiple divisions and enter their names"
+      },
+      {
+        "type": "action",
+        "description": "Assign teams to different divisions in the teams list"
+      },
+      {
+        "type": "action",
+        "description": "Use a division filter chip to narrow the schedule and standings"
       },
       {
         "type": "assertion",
-        "description": "Verify the RSVP status is reflected in the event details"
+        "description": "Verify the filtered schedule results are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the filtered standings results are displayed"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC007",
-    "title": "Authenticated session persists across refresh on dashboard",
-    "description": "Verifies that an authenticated user remains signed in after refreshing a protected page.",
-    "category": "User Authentication",
+    "title": "Filter tournament itinerary and review division standings",
+    "description": "A tournament organizer can filter the itinerary by division and review the matching standings.",
+    "category": "Tournament Division Management",
     "steps": [
       {
         "type": "action",
@@ -209,20 +297,48 @@
       },
       {
         "type": "action",
-        "description": "Press Reload"
+        "description": "Navigate to /manage-tournaments"
+      },
+      {
+        "type": "action",
+        "description": "Open the Architecture tab"
+      },
+      {
+        "type": "action",
+        "description": "Add divisions and enter their names"
+      },
+      {
+        "type": "action",
+        "description": "Switch to the Roster tab"
+      },
+      {
+        "type": "action",
+        "description": "Select a division for each team"
+      },
+      {
+        "type": "action",
+        "description": "Switch to the Itinerary tab"
+      },
+      {
+        "type": "action",
+        "description": "Filter games by division"
       },
       {
         "type": "assertion",
-        "description": "Verify the user remains on the dashboard and protected content is displayed"
+        "description": "Verify the division-specific itinerary is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the division-specific standings are displayed"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC008",
-    "title": "RSVP persists after refresh and is reflected in list/details",
-    "description": "Verifies that updating an RSVP persists after refreshing the events page and remains reflected when reopening event details.",
-    "category": "Events Management",
+    "title": "Keep league division settings across management views",
+    "description": "A league organizer can move between league management views and still see the same division setup and assignments.",
+    "category": "League Division Management",
     "steps": [
       {
         "type": "action",
@@ -242,36 +358,40 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to events"
+        "description": "Navigate to /leagues"
       },
       {
         "type": "action",
-        "description": "Open an event from the events list"
+        "description": "Open the Division Architect tab"
       },
       {
         "type": "action",
-        "description": "Select an RSVP response different from the current state"
+        "description": "Add a division and enter its name"
       },
       {
         "type": "action",
-        "description": "Press Reload"
+        "description": "Assign teams to divisions in the teams list"
       },
       {
         "type": "action",
-        "description": "Open the same event from the events list"
+        "description": "Switch to the schedule or standings view"
       },
       {
         "type": "assertion",
-        "description": "Verify the RSVP status remains set in the event details"
+        "description": "Verify the division configuration is still present"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the team assignment is still present"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC009",
-    "title": "Staff can create a new event and see it in the schedule",
-    "description": "Verifies that a staff user can create an event, save it, and see the new event appear in the events list.",
-    "category": "Events Management",
+    "title": "Keep tournament division assignments across views",
+    "description": "A tournament organizer can move between tournament management views and still see the same division structure and roster assignments.",
+    "category": "Tournament Division Management",
     "steps": [
       {
         "type": "action",
@@ -291,40 +411,44 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to events"
+        "description": "Navigate to /manage-tournaments"
       },
       {
         "type": "action",
-        "description": "Start creating a new event"
+        "description": "Open the Architecture tab"
       },
       {
         "type": "action",
-        "description": "Fill a title into the event title field"
+        "description": "Add a division and enter its name"
       },
       {
         "type": "action",
-        "description": "Select a valid date for the event"
+        "description": "Switch to the Roster tab"
       },
       {
         "type": "action",
-        "description": "Select a valid start time for the event"
+        "description": "Select a division for each team"
       },
       {
         "type": "action",
-        "description": "Save the event"
+        "description": "Switch to another tournament view"
       },
       {
         "type": "assertion",
-        "description": "Verify the new event appears in the events list"
+        "description": "Verify the division structure is still present"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the roster assignment is still present"
       }
     ],
     "priority": "Medium"
   },
   {
     "id": "TC010",
-    "title": "Add a roster member with required details",
-    "description": "Verifies that a staff user can add a new member with required fields and the new member appears in the roster list.",
-    "category": "Roster management",
+    "title": "Show the locked division field in a new league form",
+    "description": "An organizer can create a new league form and see the required Division field automatically added at the top of the field list.",
+    "category": "Protocol Architect Multi-Form with Divisions",
     "steps": [
       {
         "type": "action",
@@ -332,7 +456,7 @@
       },
       {
         "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
+        "description": "Fill in the username field with {{LOGIN_USER}}"
       },
       {
         "type": "action",
@@ -344,36 +468,32 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to the roster area"
+        "description": "Click the link to manage leagues"
       },
       {
         "type": "action",
-        "description": "Start adding a new roster member"
+        "description": "Open a league registration protocol"
       },
       {
         "type": "action",
-        "description": "Fill \"Test Member A\" into the member name field"
-      },
-      {
-        "type": "action",
-        "description": "Fill valid values into any other required member fields"
-      },
-      {
-        "type": "action",
-        "description": "Save the new member"
+        "description": "Create a new form"
       },
       {
         "type": "assertion",
-        "description": "Verify the new member appears in the roster list"
+        "description": "Verify the Division field is displayed at the top of the field list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Division field is locked from editing or deletion"
       }
     ],
     "priority": "Medium"
   },
   {
     "id": "TC011",
-    "title": "Toggle between calendar and list views on events",
-    "description": "Verifies that a user can switch the events page between calendar and list views and still see events content in the selected view.",
-    "category": "Events Management",
+    "title": "Create a new league registration form",
+    "description": "An organizer can create a new league registration form from the protocol architect and see it added to the form list.",
+    "category": "Protocol Architect Multi-Form with Divisions",
     "steps": [
       {
         "type": "action",
@@ -381,7 +501,7 @@
       },
       {
         "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
+        "description": "Fill in the username field with {{LOGIN_USER}}"
       },
       {
         "type": "action",
@@ -393,24 +513,28 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to events"
+        "description": "Click the link to manage leagues"
       },
       {
         "type": "action",
-        "description": "Toggle the events view mode"
+        "description": "Open a league registration protocol"
+      },
+      {
+        "type": "action",
+        "description": "Create a new form"
       },
       {
         "type": "assertion",
-        "description": "Verify events content is displayed in the chosen view"
+        "description": "Verify the new form appears in the existing forms list"
       }
     ],
     "priority": "Medium"
   },
   {
     "id": "TC012",
-    "title": "View roster list and open a member profile",
-    "description": "Verifies that an authenticated user can view the roster list and open a member profile showing member status/details.",
-    "category": "Roster management",
+    "title": "Create a new tournament registration form",
+    "description": "An organizer can create a new tournament registration form from the protocol architect and see it added to the form list.",
+    "category": "Protocol Architect Multi-Form with Divisions",
     "steps": [
       {
         "type": "action",
@@ -418,7 +542,7 @@
       },
       {
         "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
+        "description": "Fill in the username field with {{LOGIN_USER}}"
       },
       {
         "type": "action",
@@ -430,24 +554,28 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to the roster area"
+        "description": "Click the link to manage tournaments"
       },
       {
         "type": "action",
-        "description": "Select a member from the roster list"
+        "description": "Open a tournament registration protocol"
+      },
+      {
+        "type": "action",
+        "description": "Create a new form"
       },
       {
         "type": "assertion",
-        "description": "Verify the member profile view is displayed"
+        "description": "Verify the new form appears in the existing forms list"
       }
     ],
     "priority": "Medium"
   },
   {
     "id": "TC013",
-    "title": "Search for a member and edit member details",
-    "description": "Verifies that a staff user can search/select a member, edit their details, save, and see the updated information reflected in the member profile.",
-    "category": "Roster management",
+    "title": "Create a league registration form with the locked division field",
+    "description": "A league organizer can add a registration form and see the Division field automatically included and locked at the top of the field list.",
+    "category": "Protocol Architect",
     "steps": [
       {
         "type": "action",
@@ -467,56 +595,32 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to the roster area"
+        "description": "Navigate to /leagues"
       },
       {
         "type": "action",
-        "description": "Start adding a new roster member"
+        "description": "Open a league registration protocol"
       },
       {
         "type": "action",
-        "description": "Fill \"Test Member Edit\" into the member name field"
-      },
-      {
-        "type": "action",
-        "description": "Fill valid values into any other required member fields"
-      },
-      {
-        "type": "action",
-        "description": "Save the new member"
-      },
-      {
-        "type": "action",
-        "description": "Use the roster search to find \"Test Member Edit\""
-      },
-      {
-        "type": "action",
-        "description": "Select the searched member from results"
-      },
-      {
-        "type": "action",
-        "description": "Enter edit mode for the member"
-      },
-      {
-        "type": "action",
-        "description": "Fill \"Test Member Edit Updated\" into the member name field"
-      },
-      {
-        "type": "action",
-        "description": "Save the member changes"
+        "description": "Create a new form"
       },
       {
         "type": "assertion",
-        "description": "Verify the member profile shows the updated member information"
+        "description": "Verify the new form is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the locked Division field is present at the top of the field list"
       }
     ],
     "priority": "Medium"
   },
   {
     "id": "TC014",
-    "title": "Remove a roster member and show removed status",
-    "description": "Verifies that a staff user can remove a member and the UI shows the member as removed.",
-    "category": "Roster management",
+    "title": "Open an existing league protocol and view its forms",
+    "description": "An organizer can open a league registration protocol and see the existing form list for that league.",
+    "category": "Protocol Architect Multi-Form with Divisions",
     "steps": [
       {
         "type": "action",
@@ -524,7 +628,7 @@
       },
       {
         "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
+        "description": "Fill in the username field with {{LOGIN_USER}}"
       },
       {
         "type": "action",
@@ -536,44 +640,24 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to the roster area"
+        "description": "Click the link to manage leagues"
       },
       {
         "type": "action",
-        "description": "Start adding a new roster member"
-      },
-      {
-        "type": "action",
-        "description": "Fill \"Test Member Remove\" into the member name field"
-      },
-      {
-        "type": "action",
-        "description": "Fill valid values into any other required member fields"
-      },
-      {
-        "type": "action",
-        "description": "Save the new member"
-      },
-      {
-        "type": "action",
-        "description": "Select \"Test Member Remove\" from the roster list"
-      },
-      {
-        "type": "action",
-        "description": "Remove the selected member"
+        "description": "Open a league registration protocol"
       },
       {
         "type": "assertion",
-        "description": "Verify the member is marked as removed in the member profile or roster list"
+        "description": "Verify the existing forms list is displayed"
       }
     ],
     "priority": "Medium"
   },
   {
     "id": "TC015",
-    "title": "View league standings and open match details",
-    "description": "Verifies that an authenticated user can view league standings and open a match to see its details.",
-    "category": "League standings & matches",
+    "title": "List existing registration forms and add another form",
+    "description": "A league or tournament organizer can view existing protocol forms and create an additional form from the same protocol workspace.",
+    "category": "Protocol Architect",
     "steps": [
       {
         "type": "action",
@@ -593,24 +677,36 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to leagues"
+        "description": "Navigate to /leagues"
       },
       {
         "type": "action",
-        "description": "Open a match from the schedule"
+        "description": "Open a league registration protocol"
+      },
+      {
+        "type": "action",
+        "description": "Review the existing forms list"
+      },
+      {
+        "type": "action",
+        "description": "Create an additional form"
       },
       {
         "type": "assertion",
-        "description": "Verify match details are displayed"
+        "description": "Verify multiple forms are listed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the newly added form is present"
       }
     ],
     "priority": "Medium"
   },
   {
     "id": "TC016",
-    "title": "Browse match schedule and inspect an upcoming match",
-    "description": "Verifies that an authenticated user can browse the match schedule and open an upcoming match to inspect opponent and time details.",
-    "category": "League standings & matches",
+    "title": "Show validation when a division name is empty",
+    "description": "A user is prevented from creating a division when the division name is left empty, and the validation message is shown.",
+    "category": "League Division Management",
     "steps": [
       {
         "type": "action",
@@ -630,102 +726,98 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to leagues"
+        "description": "Navigate to /leagues"
       },
       {
         "type": "action",
-        "description": "Scroll through the match schedule"
+        "description": "Open the Division Architect tab"
       },
       {
         "type": "action",
-        "description": "Open an upcoming match from the schedule"
+        "description": "Add a division without entering a name"
       },
       {
         "type": "assertion",
-        "description": "Verify opponent and scheduled time information are displayed for the match"
+        "description": "Verify a division name validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the division is not created"
       }
     ],
-    "priority": "Medium"
+    "priority": "Low"
   },
   {
     "id": "TC017",
-    "title": "Sign up rejects invalid email format",
-    "description": "Verifies that entering an invalid email on signup prevents account creation and shows an email validation error.",
-    "category": "User Authentication",
+    "title": "Prevent duplicate division names",
+    "description": "A user is prevented from creating a second division with a duplicate name and the duplicate-name validation is shown.",
+    "category": "League Division Management",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /signup"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Fill in the email field with invalid-email-format"
+        "description": "Fill in the email field with {{LOGIN_USER}}"
       },
       {
         "type": "action",
-        "description": "Fill in the password field with a valid password"
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
       },
       {
         "type": "action",
-        "description": "Submit the signup form"
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /leagues"
+      },
+      {
+        "type": "action",
+        "description": "Open the Division Architect tab"
+      },
+      {
+        "type": "action",
+        "description": "Add a division and enter its name"
+      },
+      {
+        "type": "action",
+        "description": "Add another division with the same name"
       },
       {
         "type": "assertion",
-        "description": "Verify an email validation error is visible"
+        "description": "Verify a duplicate division name error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the duplicate division is not created"
       }
     ],
     "priority": "Low"
   },
   {
     "id": "TC018",
-    "title": "Validate required member name when adding a member",
-    "description": "Verifies that saving a new member without a required name is blocked and a validation error is shown.",
-    "category": "Roster management",
+    "title": "Reject access to protocol architect without signing in",
+    "description": "A signed-out user cannot open a registration protocol page and is redirected to sign in.",
+    "category": "Protocol Architect Multi-Form with Divisions",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Click the navigation link to the roster area"
-      },
-      {
-        "type": "action",
-        "description": "Start adding a new roster member"
-      },
-      {
-        "type": "action",
-        "description": "Leave the member name field empty"
-      },
-      {
-        "type": "action",
-        "description": "Attempt to save the new member"
+        "description": "Navigate to /leagues/registration/[leagueId]"
       },
       {
         "type": "assertion",
-        "description": "Verify a required-field validation error is visible"
+        "description": "Verify the sign-in page is displayed"
       }
     ],
     "priority": "Low"
   },
   {
     "id": "TC019",
-    "title": "Handle no roster members empty state",
-    "description": "Verifies that when the roster has no members, the roster page shows an empty state rather than a broken list.",
-    "category": "Roster management",
+    "title": "Reset league filters back to the full view",
+    "description": "A league organizer can clear division filters and return to the full schedule and standings view.",
+    "category": "League Division Management",
     "steps": [
       {
         "type": "action",
@@ -745,15 +837,31 @@
       },
       {
         "type": "action",
-        "description": "Click the navigation link to the roster area"
+        "description": "Navigate to /leagues"
       },
       {
         "type": "action",
-        "description": "Remove visible members one by one until no members remain"
+        "description": "Open the Division Architect tab"
+      },
+      {
+        "type": "action",
+        "description": "Add multiple divisions and enter their names"
+      },
+      {
+        "type": "action",
+        "description": "Use a division filter chip to narrow the schedule and standings"
+      },
+      {
+        "type": "action",
+        "description": "Clear the division filter"
       },
       {
         "type": "assertion",
-        "description": "Verify an empty state is displayed for the roster list"
+        "description": "Verify the full schedule view is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the full standings view is displayed"
       }
     ],
     "priority": "Low"

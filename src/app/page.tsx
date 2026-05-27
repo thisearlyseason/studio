@@ -123,7 +123,7 @@ function StaggerGrid({ children, className }: { children: React.ReactNode; class
 // ──────────────────────────────────────────────────────────────────────────
 
 // ── BETA FLAG: set to false to re-enable public signup ───────────────────
-const BETA_MODE = true;
+const BETA_MODE = false;
 // ─────────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {

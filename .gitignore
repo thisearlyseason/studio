@@ -49,3 +49,6 @@ functions/node_modules/
 /create_user.js
 /users.json
 /latest_users.json
+
+testsprite_tests/tmp/
+testsprite_tests/__pycache__/

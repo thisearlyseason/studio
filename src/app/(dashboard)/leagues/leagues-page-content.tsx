@@ -63,12 +63,14 @@ import { collection, query, orderBy, where, doc, updateDoc, limit, or } from 'fi
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateIntelligentLeagueSchedule } from '@/lib/intelligent-scheduler';
+import { generateDivisionAwareLeagueSchedule } from '@/lib/division-scheduler';
 import { addSquadBranding, addSquadFooter } from '@/lib/pdf-utils';
 import { Calendar } from '@/components/ui/calendar';
 import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { jsPDF } from 'jspdf';
 import { useTeam, League, TournamentGame, Field, Facility, LeagueArchiveWaiver } from '@/components/providers/team-provider';
+import { Division, normalizeDivisions, createDivision, divisionMatchesFilter } from '@/lib/division-utils';
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 import { Select, SelectContent, SelectItem,  SelectTrigger,
   SelectValue
@@ -144,7 +146,13 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     if (!league?.teams) return [];
     return Object.entries(league.teams)
       .filter(([_, t]) => t.status === 'accepted' || t.status === 'assigned')
-      .map(([id, t]) => ({ id, name: t.teamName, logoUrl: t.teamLogoUrl }));
+      .map(([id, t]) => ({
+        id,
+        name: t.teamName,
+        logoUrl: t.teamLogoUrl,
+        // Include divisionId so division-aware scheduler can partition teams correctly
+        divisionId: (t as any).division || undefined,
+      }));
   }, [league?.teams]);
 
   const totalRegisteredTeams = useMemo(() => {
@@ -173,29 +181,56 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     }
     setIsProcessing(true);
     try {
-      const { games: schedule, report } = generateIntelligentLeagueSchedule({
-        teams: leagueTeams,
-        fields: config.selectedFields,
-        startDate: config.startDate,
-        endDate: config.endDate || undefined,
-        startTime: config.startTime,
-        endTime: config.endTime,
-        gameLength: parseInt(config.gameLength),
-        breakLength: parseInt(config.breakLength),
-        playDays: config.playDays,
-        gamesPerTeam: parseInt(config.gamesPerTeam),
-        doubleHeaderOption: config.doubleHeaderOption,
-        blackoutDates: config.blackoutDates.map(d => d.toISOString()),
-        blackoutDaysOfWeek: config.blackoutDaysOfWeek
-      });
-      
-      if (report.warnings.length > 0) {
-        toast({ title: 'Schedule Warnings', description: report.warnings[0] });
-      }
-      
-      if (schedule.length === 0) {
-        toast({ title: "Distribution Failure", description: "Could not satisfy scheduling constraints.", variant: "destructive" });
-        return;
+      const divisions = league.divisions;
+      const hasDivisions = Array.isArray(divisions) && divisions.length > 0;
+      let schedule: TournamentGame[];
+
+      if (hasDivisions) {
+        // Division-aware: partition teams by division, tag games with divisionId
+        const { games, divisionGameCounts } = generateDivisionAwareLeagueSchedule({
+          teams: leagueTeams,
+          divisions,
+          separateByDivision: true,
+          fields: config.selectedFields,
+          startDate: config.startDate,
+          endDate: config.endDate || undefined,
+          startTime: config.startTime,
+          endTime: config.endTime,
+          gameLength: parseInt(config.gameLength),
+          breakLength: parseInt(config.breakLength),
+          playDays: config.playDays,
+          gamesPerTeam: parseInt(config.gamesPerTeam),
+          doubleHeaderOption: config.doubleHeaderOption,
+          blackoutDates: config.blackoutDates.map(d => d.toISOString()),
+          blackoutDaysOfWeek: config.blackoutDaysOfWeek
+        });
+        schedule = games;
+        // Summarize per-division game counts in warning toast
+        const divSummary = Object.entries(divisionGameCounts)
+          .map(([id, count]) => `${id}: ${count} games`)
+          .join(', ');
+        if (divSummary) toast({ title: 'Division Schedule Generated', description: divSummary });
+      } else {
+        // Flat schedule (backwards compatible)
+        const { games: flatGames, report } = generateIntelligentLeagueSchedule({
+          teams: leagueTeams,
+          fields: config.selectedFields,
+          startDate: config.startDate,
+          endDate: config.endDate || undefined,
+          startTime: config.startTime,
+          endTime: config.endTime,
+          gameLength: parseInt(config.gameLength),
+          breakLength: parseInt(config.breakLength),
+          playDays: config.playDays,
+          gamesPerTeam: parseInt(config.gamesPerTeam),
+          doubleHeaderOption: config.doubleHeaderOption,
+          blackoutDates: config.blackoutDates.map(d => d.toISOString()),
+          blackoutDaysOfWeek: config.blackoutDaysOfWeek
+        });
+        schedule = flatGames;
+        if (report.warnings.length > 0) {
+          toast({ title: 'Schedule Warnings', description: report.warnings[0] });
+        }
       }
 
       await updateLeagueSchedule(league.id, schedule);
@@ -373,7 +408,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
 
 
-function LeagueOverview({ league, schedule, onOpenManualGame }: { league: League, schedule: TournamentGame[], onOpenManualGame?: () => void }) {
+function LeagueOverview({ league, schedule, selectedDivision, onOpenManualGame }: { league: League, schedule: TournamentGame[], selectedDivision?: string | null, onOpenManualGame?: () => void }) {
   const { isStaff, submitLeagueMatchScore, activeTeam, teams } = useTeam();
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -431,6 +466,12 @@ function LeagueOverview({ league, schedule, onOpenManualGame }: { league: League
 
   const filteredSchedule = useMemo(() => {
     return (schedule || []).filter(g => {
+      // Division filter: show game if no division selected, game has no divisionId, or divisionId matches
+      if (selectedDivision) {
+        const gameDivisionId = (g as any).divisionId;
+        // Show game if it belongs to this division OR if it has no divisionId (legacy / cross-division)
+        if (gameDivisionId && gameDivisionId !== selectedDivision) return false;
+      }
       if (teamFilter !== 'all' && g.team1 !== teamFilter && g.team2 !== teamFilter) return false;
       if (dateRange?.from) {
         const gameDate = new Date(g.date + 'T12:00:00');
@@ -439,7 +480,7 @@ function LeagueOverview({ league, schedule, onOpenManualGame }: { league: League
       }
       return true;
     });
-  }, [schedule, teamFilter, dateRange]);
+  }, [schedule, teamFilter, dateRange, selectedDivision]);
 
   const handleUpdateScore = async () => {
     if (!editingGame || !scoreForm.s1 || !scoreForm.s2) return;
@@ -927,10 +968,15 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   });
 
   const [isEditLeagueOpen, setIsEditLeagueOpen] = useState(false);
-  const [editLeagueForm, setEditLeagueForm] = useState({
+  const [editLeagueForm, setEditLeagueForm] = useState<{
+    name: string; sport: string; description: string; startDate: string; endDate: string; ages: string;
+    contactEmail: string; contactPhone: string; registrationCost: string; twitter: string; instagram: string;
+    paymentInstructions: string; slug: string; requiredSquads: string; blackoutDaysOfWeek: number[];
+    divisions: Division[];
+  }>({
     name: '', sport: '', description: '', startDate: '', endDate: '', ages: '', 
     contactEmail: '', contactPhone: '', registrationCost: '', twitter: '', instagram: '', paymentInstructions: '',
-    slug: '', requiredSquads: '', blackoutDaysOfWeek: [] as number[], divisions: [] as string[]
+    slug: '', requiredSquads: '', blackoutDaysOfWeek: [], divisions: []
   });
   const [duplicateTitle, setDuplicateTitle] = useState('');
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
@@ -969,6 +1015,14 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const [showArchived, setShowArchived] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [newDivisionName, setNewDivisionName] = useState('');
+  const [expandedDivisionId, setExpandedDivisionId] = useState<string | null>(null);
+
+  const handleUpdateDivision = (divisionId: string, updates: Partial<Division>) => {
+    setEditLeagueForm(f => ({
+      ...f,
+      divisions: f.divisions.map(d => d.id === divisionId ? { ...d, ...updates } : d)
+    }));
+  };
 
   const leagues = useMemo(() => {
     if (!allLeagues) return [];
@@ -1043,7 +1097,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
           || (activeTeam?.id === id ? activeTeam?.teamLogoUrl : undefined);
         return { id, ...stats, teamLogoUrl };
       })
-      .filter(team => !selectedDivision || team.division === selectedDivision)
+      .filter(team => divisionMatchesFilter((team as any).division, selectedDivision))
       .sort((a, b) => b.points - a.points || b.wins - a.wins);
   }, [activeLeague, selectedDivision, teamLogoMap, activeTeam?.id, activeTeam?.teamLogoUrl]);
 
@@ -1196,7 +1250,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
       slug: activeLeague.slug || '',
       requiredSquads: activeLeague.requiredSquads?.toString() || '',
       blackoutDaysOfWeek: activeLeague.blackoutDaysOfWeek || [],
-      divisions: activeLeague.divisions || []
+      divisions: normalizeDivisions(activeLeague.divisions)
     });
     setIsEditLeagueOpen(true);
   };
@@ -1228,21 +1282,21 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const handleAddDivision = () => {
     if (!newDivisionName.trim()) return;
     const current = editLeagueForm.divisions || [];
-    if (current.includes(newDivisionName.trim())) {
+    if (current.some(d => d.id === createDivision(newDivisionName).id || d.name.toLowerCase() === newDivisionName.trim().toLowerCase())) {
       toast({ title: "Duplicate Division", variant: "destructive" });
       return;
     }
     setEditLeagueForm({
       ...editLeagueForm,
-      divisions: [...current, newDivisionName.trim()]
+      divisions: [...current, createDivision(newDivisionName)]
     });
     setNewDivisionName('');
   };
 
-  const handleRemoveDivision = (name: string) => {
+  const handleRemoveDivision = (divisionId: string) => {
     setEditLeagueForm({
       ...editLeagueForm,
-      divisions: (editLeagueForm.divisions || []).filter(d => d !== name)
+      divisions: (editLeagueForm.divisions || []).filter(d => d.id !== divisionId)
     });
   };
 
@@ -1267,7 +1321,9 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
         },
         slug: editLeagueForm.slug,
         requiredSquads: editLeagueForm.requiredSquads ? parseInt(editLeagueForm.requiredSquads) : null,
-        blackoutDaysOfWeek: editLeagueForm.blackoutDaysOfWeek
+        blackoutDaysOfWeek: editLeagueForm.blackoutDaysOfWeek,
+        // ── Bug fix: persist divisions (was missing from original updateDoc call) ──
+        divisions: editLeagueForm.divisions,
       });
       setIsEditLeagueOpen(false);
     } finally { setIsProcessing(false); }
@@ -1298,7 +1354,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
         slug: `${newLeagueRef.id.slice(-6)}-clone`,
         requiredSquads: duplicatingLeague.requiredSquads || null,
         blackoutDaysOfWeek: duplicatingLeague.blackoutDaysOfWeek || [],
-        divisions: duplicatingLeague.divisions || [],
+        divisions: normalizeDivisions(duplicatingLeague.divisions),
         
         // Reset operational fields
         id: newLeagueRef.id,
@@ -1346,12 +1402,18 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   };
 
   const handleCreateLeague = async () => {
-    if (!leagueName.trim()) return;
+    if (!leagueName.trim()) {
+      toast({ title: "Name Required", description: "Please enter a valid league name to deploy.", variant: "destructive" });
+      return;
+    }
     setIsProcessing(true);
     try {
       await createLeague(leagueName);
       setIsCreateOpen(false); setLeagueName('');
       toast({ title: `${leagueLabel} Established` });
+    } catch (err: any) {
+      console.error("[Leagues] Creation failed:", err);
+      toast({ title: "Initialization Failed", description: err.message || "An error occurred during hub setup.", variant: "destructive" });
     } finally { setIsProcessing(false); }
   };
 
@@ -1612,15 +1674,15 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                     >
                       All Tiers
                     </Button>
-                    {activeLeague.divisions.map((d: string) => (
+                    {normalizeDivisions(activeLeague.divisions).map((d: Division) => (
                       <Button 
-                        key={d}
-                        variant={selectedDivision === d ? 'secondary' : 'ghost'} 
+                        key={d.id}
+                        variant={selectedDivision === d.id ? 'secondary' : 'ghost'} 
                         size="sm" 
-                        onClick={() => setSelectedDivision(d)}
+                        onClick={() => setSelectedDivision(d.id)}
                         className="h-8 rounded-xl font-black text-[9px] uppercase px-4 shrink-0 transition-all"
                       >
-                        {d} Division
+                        {d.name}
                       </Button>
                     ))}
                   </div>
@@ -1718,7 +1780,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                 </div>
               </Card>
             </TabsContent>
-            <TabsContent value="schedule" className="mt-0 animate-in fade-in duration-500"><LeagueOverview league={activeLeague} schedule={activeLeague.schedule || []} onOpenManualGame={() => setIsManualGameOpen(true)} /></TabsContent>
+            <TabsContent value="schedule" className="mt-0 animate-in fade-in duration-500"><LeagueOverview league={activeLeague} schedule={activeLeague.schedule || []} selectedDivision={selectedDivision} onOpenManualGame={() => setIsManualGameOpen(true)} /></TabsContent>
             <TabsContent value="players" className="mt-0 animate-in fade-in duration-500">
               <div className="space-y-6">
                 <div className="flex items-center justify-between px-2">
@@ -1992,8 +2054,8 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
                     <SelectItem value="none" className="font-bold uppercase text-[9px]">Unassigned / General</SelectItem>
-                    {activeLeague?.divisions?.map((d: string) => (
-                      <SelectItem key={d} value={d} className="font-bold uppercase text-[9px]">{d} Division</SelectItem>
+                    {normalizeDivisions(activeLeague?.divisions).map((d: Division) => (
+                      <SelectItem key={d.id} value={d.id} className="font-bold uppercase text-[9px]">{d.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -2140,45 +2202,124 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                       </div>
                     </div>
 
-                    <div className="space-y-5 pt-8 border-t border-white/10 font-black relative">
-                      {/* Coming Soon overlay — Division Architect is not yet active */}
-                      <div className="absolute inset-0 z-10 rounded-2xl flex flex-col items-center justify-center gap-3 pointer-events-all cursor-not-allowed" style={{backdropFilter:'blur(2px)', background:'rgba(0,0,0,0.55)'}}>
-                        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40">Feature In Development</span>
-                        <span className="bg-amber-400 text-black text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg">Coming Soon</span>
-                      </div>
-                      <div className="pointer-events-none select-none">
+                    <div className="space-y-5 pt-8 border-t border-white/10 font-black">
                       <div>
                         <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-2">Division Architect</Label>
                         <p className="text-[10px] font-medium text-white/40 italic leading-relaxed px-2">Define competitive tiers (e.g. Gold, Silver, U12) to partition squads and participants.</p>
                       </div>
                       
-                      <div className="flex gap-4">
-                        <Input 
-                          placeholder="New Division Title..." 
-                          value={newDivisionName} 
-                          onChange={e => setNewDivisionName(e.target.value)} 
-                          className="h-14 flex-1 rounded-xl bg-white/15 border-white/20 font-bold text-white focus-visible:ring-primary px-6 shadow-inner"
-                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDivision())}
-                        />
-                        <Button type="button" onClick={handleAddDivision} variant="outline" className="h-14 px-8 rounded-xl font-black uppercase text-[10px] border-white/20 text-white hover:bg-white/10 hover:text-white">Add</Button>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {(editLeagueForm.divisions || []).map((div, i) => (
-                          <Badge key={i} className="bg-white/10 text-white border-white/20 px-4 py-2 rounded-xl font-black text-[10px] uppercase flex items-center gap-2">
-                            {div}
-                            <button onClick={() => handleRemoveDivision(div)} className="text-white/40 hover:text-red-500 transition-colors">
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                        {(editLeagueForm.divisions || []).length === 0 && (
-                          <div className="py-8 w-full border-2 border-dashed border-white/10 rounded-2xl text-center">
-                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest italic">No divisions defined. Single-tier hub active.</p>
+                      {isStarter ? (
+                        <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center space-y-4">
+                          <p className="text-xs text-white/60 font-medium italic">Custom competitive divisions are exclusive to Pro & Elite plans. Upgrade your subscription to configure multiple tiers, per-division rosters, overrides, and automated scheduling.</p>
+                          <Button type="button" onClick={purchasePro} className="h-12 px-6 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-black uppercase text-[10px] tracking-widest transition-all">Upgrade Now</Button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex gap-4">
+                            <Input 
+                              placeholder="New Division Title..." 
+                              value={newDivisionName} 
+                              onChange={e => setNewDivisionName(e.target.value)} 
+                              className="h-14 flex-1 rounded-xl bg-white/15 border-white/20 font-bold text-white focus-visible:ring-primary px-6 shadow-inner"
+                              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDivision())}
+                            />
+                            <Button type="button" onClick={handleAddDivision} variant="outline" className="h-14 px-8 rounded-xl font-black uppercase text-[10px] border-white/20 text-white hover:bg-white/10 hover:text-white">Add</Button>
                           </div>
-                        )}
-                      </div>
-                      </div>
+
+                          <div className="space-y-2 pt-2">
+                            {(editLeagueForm.divisions || []).map((div: Division) => (
+                              <div key={div.id} className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                                {/* Division header row */}
+                                <div className="flex items-center justify-between px-5 py-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedDivisionId(expandedDivisionId === div.id ? null : div.id)}
+                                    className="flex items-center gap-3 flex-1 text-left"
+                                  >
+                                    <span className="font-black uppercase tracking-widest text-[11px] text-white">{div.name}</span>
+                                    <ChevronRight className={cn("h-3 w-3 text-white/40 transition-transform", expandedDivisionId === div.id && "rotate-90")} />
+                                    {(div.fees || div.rosterLimit || div.rules) && (
+                                      <span className="text-[8px] font-black uppercase tracking-widest text-primary/70">Overrides set</span>
+                                    )}
+                                  </button>
+                                  <button onClick={() => handleRemoveDivision(div.id)} className="text-white/30 hover:text-red-500 transition-colors ml-4 shrink-0">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                                {/* Override panel */}
+                                {expandedDivisionId === div.id && (
+                                  <div className="border-t border-white/10 px-5 pb-5 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label className="text-[9px] font-black uppercase tracking-widest text-white/50">Entry Fee Override</Label>
+                                      <Input
+                                        placeholder="e.g. $150 or Inherit"
+                                        value={div.fees || ''}
+                                        onChange={e => handleUpdateDivision(div.id, { fees: e.target.value })}
+                                        className="h-11 rounded-xl bg-white/10 border-white/15 font-bold text-white text-sm focus-visible:ring-primary"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-[9px] font-black uppercase tracking-widest text-white/50">Roster Cap Override</Label>
+                                      <Input
+                                        type="number"
+                                        placeholder="e.g. 20"
+                                        value={div.rosterLimit?.toString() || ''}
+                                        onChange={e => handleUpdateDivision(div.id, { rosterLimit: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        className="h-11 rounded-xl bg-white/10 border-white/15 font-bold text-white text-sm focus-visible:ring-primary"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-[9px] font-black uppercase tracking-widest text-white/50">Playoff Format Override</Label>
+                                      <Select
+                                        value={div.playoffSettings?.format || 'inherit'}
+                                        onValueChange={v => handleUpdateDivision(div.id, {
+                                          playoffSettings: { ...div.playoffSettings, format: v === 'inherit' ? undefined : v as any }
+                                        })}
+                                      >
+                                        <SelectTrigger className="h-11 rounded-xl bg-white/10 border-white/15 font-bold text-white text-sm">
+                                          <SelectValue placeholder="Inherit from event" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl">
+                                          <SelectItem value="inherit" className="font-bold uppercase text-[10px]">Inherit from Event</SelectItem>
+                                          <SelectItem value="single_elimination" className="font-bold uppercase text-[10px]">Single Elimination</SelectItem>
+                                          <SelectItem value="double_elimination" className="font-bold uppercase text-[10px]">Double Elimination</SelectItem>
+                                          <SelectItem value="round_robin" className="font-bold uppercase text-[10px]">Round Robin</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-[9px] font-black uppercase tracking-widest text-white/50">Teams Advancing</Label>
+                                      <Input
+                                        type="number"
+                                        placeholder="e.g. 4"
+                                        value={div.playoffSettings?.teamsAdvancing?.toString() || ''}
+                                        onChange={e => handleUpdateDivision(div.id, {
+                                          playoffSettings: { ...div.playoffSettings, teamsAdvancing: e.target.value ? parseInt(e.target.value) : undefined }
+                                        })}
+                                        className="h-11 rounded-xl bg-white/10 border-white/15 font-bold text-white text-sm focus-visible:ring-primary"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-2 space-y-2">
+                                      <Label className="text-[9px] font-black uppercase tracking-widest text-white/50">Division Rules / Notes</Label>
+                                      <textarea
+                                        placeholder="Special rules or eligibility notes for this division..."
+                                        value={div.rules || ''}
+                                        onChange={e => handleUpdateDivision(div.id, { rules: e.target.value })}
+                                        className="w-full h-20 rounded-xl bg-white/10 border border-white/15 font-medium text-white text-sm px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {(editLeagueForm.divisions || []).length === 0 && (
+                              <div className="py-8 w-full border-2 border-dashed border-white/10 rounded-2xl text-center">
+                                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest italic">No divisions defined. Single-tier hub active.</p>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div className="pt-12 border-t border-white/10 space-y-6">

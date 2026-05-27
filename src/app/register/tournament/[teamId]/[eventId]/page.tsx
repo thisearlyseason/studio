@@ -5,6 +5,7 @@ import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationFormField, TeamEvent } from '@/components/providers/team-provider';
+import { normalizeDivisions } from '@/lib/division-utils';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -373,7 +374,13 @@ function RegistrationForm() {
                                 <Select required={field.required} value={answers[field.id] || ''} onValueChange={v => handleInputChange(field.id, v)}>
                                   <SelectTrigger className="h-14 rounded-2xl border-2 font-black bg-muted/5 shadow-inner"><SelectValue placeholder="Select..." /></SelectTrigger>
                                   <SelectContent className="rounded-2xl">
-                                    {field.options?.map((opt: string) => <SelectItem key={opt} value={opt} className="font-bold text-[10px] uppercase">{opt}</SelectItem>)}
+                                    {field.id === 'f_sys_division' && event?.divisions ? (
+                                      normalizeDivisions(event.divisions).map((d) => (
+                                        <SelectItem key={d.id} value={d.id} className="font-bold text-[10px] uppercase">{d.name}</SelectItem>
+                                      ))
+                                    ) : (
+                                      field.options?.map((opt: string) => <SelectItem key={opt} value={opt} className="font-bold text-[10px] uppercase">{opt}</SelectItem>)
+                                    )}
                                   </SelectContent>
                                 </Select>
                               )}

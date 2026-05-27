@@ -28,7 +28,7 @@ export default function LoginPage() {
   const [forgotLoading, setForgotLoading] = useState(false);
 
   // ── BETA FLAG: set to false to re-enable Google sign-in ──────────────────
-  const BETA_MODE = true;
+  const BETA_MODE = false;
   // ─────────────────────────────────────────────────────────────────────────
 
   const auth = useAuth();

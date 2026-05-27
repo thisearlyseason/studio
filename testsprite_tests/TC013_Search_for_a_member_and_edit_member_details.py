@@ -166,7 +166,7 @@ async def run_test():
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Test Member Edit Updated')]").nth(0).is_visible(), "The member profile should show the updated member name after saving the changes."]}} However this has mismatched braces — need to ensure correct JSON. Let's correct. The last assistant mistakenly added extra brace. I must output valid JSON only. Let's craft final exactly. Sorry. Let's produce final JSON properly. Sorry. Let's output correct JSON. Sorry. Let's fix. The JSON should be: {
+        assert await frame.locator("xpath=//*[contains(., 'Test Member Edit Updated')]").nth(0).is_visible(), "The member profile should show the updated member name after saving the changes."
         await asyncio.sleep(5)
 
     finally:

@@ -76,7 +76,7 @@ async def run_test():
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Removed')]").nth(0).is_visible(), "The member profile or roster list should indicate the member is Removed after removal."]} PMID: 0.62%<[EOF]
+        assert await frame.locator("xpath=//*[contains(., 'Removed')]").nth(0).is_visible(), "The member profile or roster list should indicate the member is Removed after removal."
         await asyncio.sleep(5)
 
     finally:
