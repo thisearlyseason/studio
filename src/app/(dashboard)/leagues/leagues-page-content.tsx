@@ -1016,6 +1016,9 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const [isDeleting, setIsDeleting] = useState(false);
   const [newDivisionName, setNewDivisionName] = useState('');
   const [expandedDivisionId, setExpandedDivisionId] = useState<string | null>(null);
+  // ── Create-league division state (separate from edit-league state) ──
+  const [createDivisions, setCreateDivisions] = useState<Division[]>([]);
+  const [newCreateDivisionName, setNewCreateDivisionName] = useState('');
 
   const handleUpdateDivision = (divisionId: string, updates: Partial<Division>) => {
     setEditLeagueForm(f => ({
@@ -1408,13 +1411,31 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
     }
     setIsProcessing(true);
     try {
-      await createLeague(leagueName);
-      setIsCreateOpen(false); setLeagueName('');
+      await createLeague(leagueName, createDivisions);
+      setIsCreateOpen(false);
+      setLeagueName('');
+      setCreateDivisions([]);
+      setNewCreateDivisionName('');
       toast({ title: `${leagueLabel} Established` });
     } catch (err: any) {
       console.error("[Leagues] Creation failed:", err);
       toast({ title: "Initialization Failed", description: err.message || "An error occurred during hub setup.", variant: "destructive" });
     } finally { setIsProcessing(false); }
+  };
+
+  const handleAddCreateDivision = () => {
+    if (!newCreateDivisionName.trim()) return;
+    const newDiv = createDivision(newCreateDivisionName);
+    if (createDivisions.some(d => d.id === newDiv.id || d.name.toLowerCase() === newCreateDivisionName.trim().toLowerCase())) {
+      toast({ title: "Duplicate Division", variant: "destructive" });
+      return;
+    }
+    setCreateDivisions(prev => [...prev, newDiv]);
+    setNewCreateDivisionName('');
+  };
+
+  const handleRemoveCreateDivision = (divisionId: string) => {
+    setCreateDivisions(prev => prev.filter(d => d.id !== divisionId));
   };
 
   const handleEditTeam = (team: any) => {
@@ -1976,16 +1997,73 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
         </div>
       )}
 
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-md p-0 overflow-hidden bg-white text-foreground">
-          <div className="h-2 bg-primary w-full" />
+      <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) { setCreateDivisions([]); setNewCreateDivisionName(''); } }}>
+        <DialogContent className="rounded-[2.5rem] sm:max-w-lg p-0 overflow-hidden bg-[#050505] text-white border border-white/10">
+          <div className="h-1 bg-gradient-to-r from-primary via-orange-400 to-primary w-full" />
           <div className="p-10 space-y-8">
-            <DialogHeader><DialogTitle className="text-3xl font-black uppercase">{leagueLabel} Architect</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <Label className="text-[10px] font-black uppercase">{leagueLabel} Title</Label>
-              <Input placeholder="e.g. State Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black uppercase text-white">{leagueLabel} Architect</DialogTitle>
+              <DialogDescription className="text-white/40 font-bold text-[10px] uppercase tracking-widest">Configure your new {leagueLabel.toLowerCase()} hub</DialogDescription>
+            </DialogHeader>
+
+            {/* League Name */}
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-1">{leagueLabel} Title</Label>
+              <Input
+                placeholder="e.g. State Varsity Premier"
+                value={leagueName}
+                onChange={e => setLeagueName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreateLeague()}
+                className="h-14 rounded-2xl bg-white/10 border-white/20 font-black text-white focus-visible:ring-primary px-6"
+              />
             </div>
-            <DialogFooter><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleCreateLeague} disabled={isProcessing}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Hub"}</Button></DialogFooter>
+
+            {/* Division Architect */}
+            <div className="space-y-5 pt-6 border-t border-white/10">
+              <div>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Division Architect</Label>
+                <p className="text-[10px] font-medium text-white/40 italic leading-relaxed px-1 mt-1">Define competitive tiers (e.g. Gold, Silver, U12) — optional, can be added later.</p>
+              </div>
+
+              {isStarter ? (
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center space-y-3">
+                  <p className="text-xs text-white/50 font-medium italic">Custom divisions are exclusive to Pro &amp; Elite plans.</p>
+                  <Button type="button" onClick={purchasePro} className="h-10 px-6 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-black uppercase text-[10px] tracking-widest">Upgrade Now</Button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-3">
+                    <Input
+                      placeholder="New Division Title..."
+                      value={newCreateDivisionName}
+                      onChange={e => setNewCreateDivisionName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddCreateDivision())}
+                      className="h-12 flex-1 rounded-xl bg-white/10 border-white/20 font-bold text-white focus-visible:ring-primary px-5"
+                    />
+                    <Button type="button" onClick={handleAddCreateDivision} variant="outline" className="h-12 px-6 rounded-xl font-black uppercase text-[10px] border-white/20 text-white hover:bg-white/10 hover:text-white">Add</Button>
+                  </div>
+
+                  {createDivisions.length > 0 && (
+                    <div className="space-y-2">
+                      {createDivisions.map((div: Division) => (
+                        <div key={div.id} className="flex items-center justify-between px-5 py-3 rounded-2xl border border-white/10 bg-white/5">
+                          <span className="font-black uppercase tracking-widest text-[11px] text-white">{div.name}</span>
+                          <button onClick={() => handleRemoveCreateDivision(div.id)} className="text-white/30 hover:text-red-500 transition-colors ml-4">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button className="w-full h-14 rounded-2xl text-base font-black shadow-xl bg-white text-black hover:bg-white/90" onClick={handleCreateLeague} disabled={isProcessing}>
+                {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : `Deploy ${leagueLabel} Hub`}
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
