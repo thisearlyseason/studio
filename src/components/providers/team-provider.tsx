@@ -609,6 +609,7 @@ export type League = {
   blackoutDaysOfWeek?: number[];
   isArchived?: boolean;
   divisions?: string[]; // List of available divisions (e.g. 'Gold', 'Silver', 'U12')
+  divisionTitle?: string;
 };
 
 export type Facility = {
@@ -903,7 +904,7 @@ interface TeamContextType {
   deleteFacility: (id: string) => Promise<void>;
   addField: (facilityId: string, name: string) => Promise<void>;
   deleteField: (facilityId: string, fieldId: string) => Promise<void>;
-  createLeague: (name: string) => Promise<string>;
+  createLeague: (name: string, divisionTitle?: string) => Promise<string>;
   updateLeague: (leagueId: string, updates: Partial<League>) => Promise<void>;
   addLeagueGame: (leagueId: string, game: any) => Promise<void>;
   updateLeagueSchedule: (leagueId: string, schedule: any[]) => Promise<void>;
@@ -2708,7 +2709,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addField = useCallback(async (fid: string, n: string) => { if(db) await addDoc(collection(db, 'facilities', fid, 'fields'), { name: n, facilityId: fid }); }, [db]);
   const deleteFacilityField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
 
-  const createLeague = useCallback(async (name: string) => { 
+  const createLeague = useCallback(async (name: string, divisionTitle?: string) => { 
     if (!firebaseUser || !db || !activeTeam) return ''; 
 
     // Enforce Capacity Limits
@@ -2728,6 +2729,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     batch.set(doc(db, 'leagues', lid), clean({ 
       id: lid, 
       name, 
+      divisionTitle: divisionTitle || '',
       creatorId: firebaseUser.uid, 
       sport: activeTeam.sport || 'General', 
       teams: { 

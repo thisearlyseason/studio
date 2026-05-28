@@ -905,6 +905,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
 
 
   const [leagueName, setLeagueName] = useState('');
+  const [divisionTitle, setDivisionTitle] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'portals' | 'teams' | 'players' | 'compliance' | 'schedule'>('teams');
   const [mounted, setMounted] = useState(false);
@@ -1349,8 +1350,8 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
     if (!leagueName.trim()) return;
     setIsProcessing(true);
     try {
-      await createLeague(leagueName);
-      setIsCreateOpen(false); setLeagueName('');
+      await createLeague(leagueName, divisionTitle);
+      setIsCreateOpen(false); setLeagueName(''); setDivisionTitle('');
       toast({ title: `${leagueLabel} Established` });
     } finally { setIsProcessing(false); }
   };
@@ -1452,9 +1453,16 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                       <div className="bg-primary/5 p-5 rounded-[1.5rem] text-primary shadow-inner">
                         <Trophy className="h-10 w-10" />
                       </div>
-                      <Badge variant="secondary" className="bg-black text-white border-none font-black text-[10px] h-7 px-4 shadow-lg uppercase">
-                        {league.sport}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <Badge variant="secondary" className="bg-black text-white border-none font-black text-[10px] h-7 px-4 shadow-lg uppercase">
+                          {league.sport}
+                        </Badge>
+                        {league.divisionTitle && (
+                          <Badge className="bg-primary/10 text-primary border-none font-black text-[8px] h-5 px-2.5 uppercase tracking-widest">
+                            {league.divisionTitle}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-1 min-w-0">
                       <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight group-hover:text-primary transition-colors leading-tight break-words overflow-hidden">{league.name}</h3>
@@ -1920,8 +1928,14 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
           <div className="p-10 space-y-8">
             <DialogHeader><DialogTitle className="text-3xl font-black uppercase">{leagueLabel} Architect</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <Label className="text-[10px] font-black uppercase">{leagueLabel} Title</Label>
-              <Input placeholder="e.g. State Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">{leagueLabel} Title</Label>
+                <Input placeholder="e.g. State Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">Division Title <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                <Input placeholder="e.g. Gold Division or Varsity" value={divisionTitle} onChange={e => setDivisionTitle(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
+              </div>
             </div>
             <DialogFooter><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleCreateLeague} disabled={isProcessing}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Hub"}</Button></DialogFooter>
           </div>
