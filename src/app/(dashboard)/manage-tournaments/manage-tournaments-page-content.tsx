@@ -87,6 +87,7 @@ interface TournamentTeam extends TeamIdentity {
   source?: 'manual' | 'league' | 'pipeline';
   rosterLimit?: number;
   logoUrl?: string;
+  division?: string;
 }
 
 function calculateTournamentStandings(teams: TournamentTeam[], games: TournamentGame[], poolFilter?: number) {
@@ -197,12 +198,12 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
 }
 
 function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEvent }: { isOpen: boolean, onOpenChange: (o: boolean) => void, onComplete: () => void, editEvent?: TeamEvent }) {
-  const { activeTeam, user, hasFeature, isStarter } = useTeam();
+  const { activeTeam, user, hasFeature, isStarter, addEvent } = useTeam();
   const db = useFirestore();
-  const { addEvent } = useTeam();
 
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeWizardDivision, setActiveWizardDivision] = useState<string>('');
 
   const [form, setForm] = useState({
     title: '',
@@ -220,10 +221,20 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
     waiverIds: [] as string[],
     registration_cost: '0',
     teams: [] as TournamentTeam[],
-    adminEmails: [] as string[]
+    adminEmails: [] as string[],
+    sport: activeTeam?.sport || 'General',
+    divisionTitle: '',
+    stagedDivisions: [] as string[]
   });
 
   const [typeChangeWarning, setTypeChangeWarning] = useState(false);
+
+  // When step 2 (Roster) is entered, auto-select first staged division if empty
+  useEffect(() => {
+    if (step === 2 && form.stagedDivisions.length > 0 && !activeWizardDivision) {
+      setActiveWizardDivision(form.stagedDivisions[0]);
+    }
+  }, [step, form.stagedDivisions, activeWizardDivision]);
 
   useEffect(() => {
     if (isOpen && editEvent) {
@@ -243,14 +254,40 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
         waiverIds: editEvent.waiverIds || [],
         registration_cost: editEvent.registrationCost || '0',
         teams: editEvent.tournamentTeamsData || [],
-        adminEmails: editEvent.adminEmails || []
+        adminEmails: editEvent.adminEmails || [],
+        sport: editEvent.sport || activeTeam?.sport || 'General',
+        divisionTitle: editEvent.divisionTitle || '',
+        stagedDivisions: []
       });
+      setActiveWizardDivision('');
       setStep(1);
     } else if (isOpen && !editEvent) {
       // Reset for new creation
+      setForm({
+        title: '',
+        startDate: '',
+        endDate: '',
+        location: '',
+        description: '',
+        tournamentType: 'round_robin',
+        gameLength: '60',
+        breakLength: '15',
+        gamesPerTeam: '3',
+        dailyWindows: [],
+        selectedFields: [],
+        manualVenue: '',
+        waiverIds: [],
+        registration_cost: '0',
+        teams: [],
+        adminEmails: [],
+        sport: activeTeam?.sport || 'General',
+        divisionTitle: '',
+        stagedDivisions: []
+      });
+      setActiveWizardDivision('');
       setStep(1);
     }
-  }, [isOpen, editEvent]);
+  }, [isOpen, editEvent, activeTeam?.sport]);
 
   const facilitiesQuery = useMemoFirebase(() => {
     if (!db || !user?.id) return null;
@@ -269,12 +306,6 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
     return query(collection(db, 'leagues'), where('creatorId', '==', user.id));
   }, [db, user?.id]);
   const { data: leagues } = useCollection<League>(leaguesQuery);
-
-  const pipelineEntriesQuery = useMemoFirebase(() => {
-    if (!db || !user?.id) return null;
-    return query(collectionGroup(db, 'registrationEntries'), where('status', 'in', ['accepted', 'assigned']));
-  }, [db, user?.id]);
-  const { data: pipelineEntries } = useCollection<RegistrationEntry>(pipelineEntriesQuery);
 
   const initDailyWindows = () => {
     if (!form.startDate || !form.endDate) return;
@@ -310,85 +341,80 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
       coach: t.coachName || 'League Coach',
       email: t.coachEmail || '',
       source: 'league' as const,
-      logoUrl: (t as any).teamLogoUrl
+      logoUrl: (t as any).teamLogoUrl,
+      division: form.stagedDivisions.length > 0 ? activeWizardDivision : undefined
     }));
     setForm(p => ({ ...p, teams: [...p.teams, ...teamsToImport] }));
     toast({ title: "Teams Imported" });
   };
 
-  const importPipelineEntries = () => {
-    if (!pipelineEntries) return;
-    const teamsToImport = pipelineEntries.filter(e => e.protocol_id === 'team_config').map(e => ({
-      id: `p_${e.id}`,
-      name: e.answers.teamName || e.answers.name,
-      coach: e.answers.name || 'Pipeline Coach',
-      email: e.answers.email || '',
-      source: 'pipeline' as const,
-      logoUrl: (e.answers as any).teamLogoUrl
-    }));
-    setForm(p => ({ ...p, teams: [...p.teams, ...teamsToImport] }));
-    toast({ title: "Pipelines Imported" });
-  };
-
   const handleDeploy = async () => {
-    if (!form.title || form.teams.length < 2) return;
+    if (!form.title) return;
     setIsProcessing(true);
-    const { games: schedule, report } = generateIntelligentTournamentSchedule({
-      teams: form.teams,
-      fields: (form.selectedFields && form.selectedFields.length > 0) ? form.selectedFields : [form.manualVenue || form.location],
-      startDate: form.startDate,
-      endDate: form.endDate,
-      startTime: form.dailyWindows[0]?.startTime || '08:00',
-      endTime: form.dailyWindows[0]?.endTime || '20:00',
-      gameLength: parseInt(form.gameLength),
-      breakLength: parseInt(form.breakLength),
-      dailyWindows: form.dailyWindows,
-      gamesPerTeam: parseInt(form.gamesPerTeam),
-      tournamentType: form.tournamentType
-    });
 
-    const { addEvent, updateEvent } = useTeam();
+    const deploySingleEvent = async (divTitle?: string) => {
+      const filteredTeams = divTitle
+        ? form.teams.filter(t => t.division === divTitle)
+        : form.teams;
 
-    // Sanitize to remove 'undefined' fields which crash Firestore silently via 'Unsupported field value: undefined'
-    const cleanSchedule = JSON.parse(JSON.stringify(schedule));
+      const eventPayload = {
+        title: form.title,
+        date: new Date(form.startDate + 'T12:00:00').toISOString(),
+        endDate: new Date((form.endDate || form.startDate) + 'T12:00:00').toISOString(),
+        location: form.location,
+        description: form.description,
+        eventType: 'tournament',
+        isTournament: true,
+        tournamentTeamsData: filteredTeams,
+        tournamentTeams: filteredTeams.map(t => t.name),
+        tournamentGames: editEvent ? editEvent.tournamentGames || [] : [],
+        waiverIds: form.waiverIds,
+        registrationCost: form.registration_cost,
+        gameLength: parseInt(form.gameLength),
+        breakLength: parseInt(form.breakLength),
+        gamesPerTeam: parseInt(form.gamesPerTeam),
+        dailyWindows: form.dailyWindows,
+        selectedFields: form.selectedFields,
+        manualVenue: form.manualVenue,
+        tournamentType: form.tournamentType,
+        adminEmails: form.adminEmails || [],
+        sport: form.sport.trim() || activeTeam?.sport || 'General',
+        divisionTitle: divTitle || ''
+      };
 
-    const eventPayload = {
-      title: form.title,
-      date: new Date(form.startDate + 'T12:00:00').toISOString(),
-      endDate: new Date((form.endDate || form.startDate) + 'T12:00:00').toISOString(),
-      location: form.location,
-      description: form.description,
-      eventType: 'tournament',
-      isTournament: true,
-      tournamentTeamsData: form.teams,
-      tournamentTeams: form.teams.map(t => t.name),
-      tournamentGames: cleanSchedule,
-      waiverIds: form.waiverIds,
-      registrationCost: form.registration_cost,
-      gameLength: parseInt(form.gameLength),
-      breakLength: parseInt(form.breakLength),
-      gamesPerTeam: parseInt(form.gamesPerTeam),
-      dailyWindows: form.dailyWindows,
-      selectedFields: form.selectedFields,
-      manualVenue: form.manualVenue,
-      tournamentType: form.tournamentType,
-      adminEmails: form.adminEmails || []
+      if (editEvent) {
+        await updateDoc(doc(db, 'teams', activeTeam!.id, 'events', editEvent.id), eventPayload);
+        return true;
+      } else {
+        return await addEvent(eventPayload);
+      }
     };
 
     let success = false;
-    if (editEvent) {
-       await updateDoc(doc(db, 'teams', activeTeam!.id, 'events', editEvent.id), eventPayload);
-       success = true;
-    } else {
-       success = await addEvent(eventPayload);
-    }
+    try {
+      if (editEvent) {
+        success = await deploySingleEvent(form.divisionTitle.trim() || undefined);
+      } else {
+        if (form.stagedDivisions.length > 0) {
+          for (const div of form.stagedDivisions) {
+            success = await deploySingleEvent(div);
+          }
+        } else {
+          success = await deploySingleEvent(form.divisionTitle.trim() || undefined);
+        }
+      }
 
-    if (success) { 
-      onOpenChange(false); 
-      onComplete(); 
-      toast({ title: editEvent ? "SYS_UPDATE" : "SYS_DEPLOY", description: editEvent ? "Architectural modifications synchronized." : "Elite series architecture successfully calibrated." }); 
+      if (success) { 
+        onOpenChange(false); 
+        onComplete(); 
+        toast({ title: editEvent ? "SYS_UPDATE" : "SYS_DEPLOY", description: editEvent ? "Architectural modifications synchronized." : "Elite series architecture successfully calibrated." }); 
+      }
+    } catch (e: any) {
+      console.error("[Tournaments] Deployment failed:", e);
+      toast({ title: "Deployment Failed", description: e.message, variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
   return (
@@ -461,6 +487,78 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                         <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Official Series Designation</Label>
                         <Input placeholder="e.g. 2024 CHAMPIONSHIP INVITATIONAL" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="h-16 rounded-2xl bg-white/15 border-white/20 font-black text-2xl text-white placeholder:text-white/30 uppercase focus-visible:ring-primary focus-visible:border-primary px-6 transition-all shadow-inner" />
                       </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Sport Type</Label>
+                          <Input placeholder="e.g. Basketball, Soccer" value={form.sport} onChange={e => setForm({...form, sport: e.target.value})} className="h-14 rounded-xl bg-white/15 border-white/20 font-bold text-white px-6 shadow-inner" />
+                        </div>
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Divisions <span className="text-white/30 font-normal">(Optional)</span></Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              placeholder="Press enter or click Add to stage multiple" 
+                              value={form.divisionTitle} 
+                              onChange={e => setForm({...form, divisionTitle: e.target.value})} 
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  if (form.divisionTitle.trim()) {
+                                    if (!form.stagedDivisions.includes(form.divisionTitle.trim())) {
+                                      setForm({
+                                        ...form,
+                                        stagedDivisions: [...form.stagedDivisions, form.divisionTitle.trim()],
+                                        divisionTitle: ''
+                                      });
+                                    } else {
+                                      setForm({ ...form, divisionTitle: '' });
+                                    }
+                                  }
+                                }
+                              }}
+                              className="h-14 rounded-xl bg-white/15 border-white/20 font-bold text-white px-6 shadow-inner flex-1" 
+                            />
+                            <Button 
+                              type="button"
+                              onClick={() => {
+                                if (form.divisionTitle.trim()) {
+                                  if (!form.stagedDivisions.includes(form.divisionTitle.trim())) {
+                                    setForm({
+                                      ...form,
+                                      stagedDivisions: [...form.stagedDivisions, form.divisionTitle.trim()],
+                                      divisionTitle: ''
+                                    });
+                                  } else {
+                                    setForm({ ...form, divisionTitle: '' });
+                                  }
+                                }
+                              }}
+                              className="h-14 rounded-xl bg-white text-black hover:bg-white/90 px-6 font-black uppercase text-xs"
+                            >
+                              Add
+                            </Button>
+                          </div>
+                          {form.stagedDivisions.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              {form.stagedDivisions.map((div, idx) => (
+                                <Badge 
+                                  key={idx} 
+                                  className="bg-primary/20 text-primary border-primary/30 font-black text-[10px] h-8 px-3.5 rounded-full flex items-center gap-1.5 uppercase tracking-wider"
+                                >
+                                  {div}
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setForm({ ...form, stagedDivisions: form.stagedDivisions.filter(d => d !== div) })}
+                                    className="hover:text-red-500 transition-colors"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       
                       <div className="grid grid-cols-2 gap-8">
                         <div className="space-y-3">
@@ -498,7 +596,7 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                   </div>
                 )}
                 
-                {step === 2 && (
+                 {step === 2 && (
                   <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
                     <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-white/5 pb-8 mb-8 gap-6">
                       <div className="flex-1">
@@ -519,48 +617,74 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                              </SelectContent>
                            </Select>
                          )}
-                         <Button className="bg-white text-black hover:bg-white/80 h-10 font-black uppercase tracking-widest text-[9px]" onClick={importPipelineEntries}>Sync Pipelines</Button>
-                         <Button className="bg-white text-black hover:bg-white/80 h-10 font-black uppercase tracking-widest text-[9px]" onClick={() => setForm({...form, teams: [...form.teams, {id:`m_${Date.now()}`, name:'', coach:'', email:'', source:'manual'}]})}>Add Direct Asset</Button>
+                         <Button className="bg-white text-black hover:bg-white/80 h-10 font-black uppercase tracking-widest text-[9px]" onClick={() => setForm({...form, teams: [...form.teams, {id:`m_${Date.now()}`, name:'', coach:'', email:'', source:'manual', division: form.stagedDivisions.length > 0 ? activeWizardDivision : undefined}]})}>Add Direct Asset</Button>
                       </div>
                     </div>
+
+                    {form.stagedDivisions.length > 0 && (
+                      <div className="flex items-center gap-2 border-b border-white/5 pb-4 mb-4 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40 mr-2">Target Division:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {form.stagedDivisions.map(div => (
+                            <button
+                              key={div}
+                              type="button"
+                              onClick={() => setActiveWizardDivision(div)}
+                              className={cn(
+                                "h-9 px-4 rounded-xl font-black text-[10px] uppercase border transition-all",
+                                activeWizardDivision === div 
+                                  ? "bg-primary text-white border-primary" 
+                                  : "bg-white/5 text-white/60 border-white/10 hover:border-white/30"
+                              )}
+                            >
+                              {div}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="space-y-4">
-                      {form.teams.map((t, i) => (
-                        <div key={t.id} className="bg-white/5 p-5 rounded-[2rem] border border-white/5 hover:bg-white/10 transition-colors group relative overflow-hidden space-y-3">
-                          {t.source && (
-                            <div className={cn(
-                              "absolute top-0 right-12 px-3 py-1 text-[7px] font-black uppercase tracking-widest rounded-b-lg",
-                              t.source === 'league' ? "bg-emerald-500/20 text-emerald-500" :
-                              t.source === 'pipeline' ? "bg-primary/20 text-primary" :
-                              "bg-white/10 text-white/40"
-                            )}>
-                              {t.source}
+                      {form.teams.map((t, i) => {
+                        const isVisible = form.stagedDivisions.length === 0 || t.division === activeWizardDivision;
+                        if (!isVisible) return null;
+                        return (
+                          <div key={t.id} className="bg-white/5 p-5 rounded-[2rem] border border-white/5 hover:bg-white/10 transition-colors group relative overflow-hidden space-y-3">
+                            {t.source && (
+                              <div className={cn(
+                                "absolute top-0 right-12 px-3 py-1 text-[7px] font-black uppercase tracking-widest rounded-b-lg",
+                                t.source === 'league' ? "bg-emerald-500/20 text-emerald-500" :
+                                t.source === 'pipeline' ? "bg-primary/20 text-primary" :
+                                "bg-white/10 text-white/40"
+                              )}>
+                                {t.source}
+                              </div>
+                            )}
+                            <div className="grid grid-cols-12 gap-3 items-center">
+                              <div className="col-span-1 text-[10px] font-black opacity-20">T{i+1}</div>
+                              <div className="col-span-5">
+                                <Input value={t.name} onChange={e => {const n=[...form.teams]; n[i].name=e.target.value; setForm({...form, teams:n});}} placeholder="Squad Designation" className="h-12 bg-white/10 border-white/20 font-black uppercase rounded-xl text-white shadow-inner" />
+                              </div>
+                              <div className="col-span-4">
+                                <Input value={t.coach} onChange={e => {const n=[...form.teams]; n[i].coach=e.target.value; setForm({...form, teams:n});}} placeholder="Operator / Coach" className="h-12 bg-white/10 border-white/20 font-bold text-sm rounded-xl text-white shadow-inner" />
+                              </div>
+                              <div className="col-span-2 flex justify-end">
+                                 <Button variant="ghost" size="icon" onClick={() => setForm({...form, teams: form.teams.filter(x => x.id !== t.id)})} className="h-12 w-12 rounded-xl text-white/20 hover:text-red-500 hover:bg-red-500/10 transition-all"><X className="h-5 w-5" /></Button>
+                              </div>
                             </div>
-                          )}
-                          <div className="grid grid-cols-12 gap-3 items-center">
-                            <div className="col-span-1 text-[10px] font-black opacity-20">T{i+1}</div>
-                            <div className="col-span-5">
-                              <Input value={t.name} onChange={e => {const n=[...form.teams]; n[i].name=e.target.value; setForm({...form, teams:n});}} placeholder="Squad Designation" className="h-12 bg-white/10 border-white/20 font-black uppercase rounded-xl text-white shadow-inner" />
-                            </div>
-                            <div className="col-span-4">
-                              <Input value={t.coach} onChange={e => {const n=[...form.teams]; n[i].coach=e.target.value; setForm({...form, teams:n});}} placeholder="Operator / Coach" className="h-12 bg-white/10 border-white/20 font-bold text-sm rounded-xl text-white shadow-inner" />
-                            </div>
-                            <div className="col-span-2 flex justify-end">
-                               <Button variant="ghost" size="icon" onClick={() => setForm({...form, teams: form.teams.filter(x => x.id !== t.id)})} className="h-12 w-12 rounded-xl text-white/20 hover:text-red-500 hover:bg-red-500/10 transition-all"><X className="h-5 w-5" /></Button>
+                            <div className="pl-8 pr-2">
+                              <Input
+                                type="email"
+                                value={t.email || ''}
+                                onChange={e => {const n=[...form.teams]; n[i].email=e.target.value; setForm({...form, teams:n});}}
+                                placeholder="Team email — when they sign up with this email, matches auto-sync to their account (Starter plan)"
+                                className="h-10 bg-white/5 border-white/10 font-medium text-sm rounded-xl text-white shadow-inner placeholder:text-white/20"
+                              />
                             </div>
                           </div>
-                          <div className="pl-8 pr-2">
-                            <Input
-                              type="email"
-                              value={t.email || ''}
-                              onChange={e => {const n=[...form.teams]; n[i].email=e.target.value; setForm({...form, teams:n});}}
-                              placeholder="Team email — when they sign up with this email, matches auto-sync to their account (Starter plan)"
-                              className="h-10 bg-white/5 border-white/10 font-medium text-sm rounded-xl text-white shadow-inner placeholder:text-white/20"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                      {form.teams.length === 0 && (
+                        );
+                      })}
+                      {((form.stagedDivisions.length > 0 && form.teams.filter(t => t.division === activeWizardDivision).length === 0) || (form.stagedDivisions.length === 0 && form.teams.length === 0)) && (
                         <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-[3rem]">
                            <UserPlus className="h-10 w-10 mx-auto text-white/20 mb-4" />
                            <p className="text-white/40 font-black uppercase tracking-widest text-xs">No active squads engaged in the matrix.</p>
@@ -741,7 +865,25 @@ function TournamentEditDialog({ event, isOpen, onOpenChange }: { event: TeamEven
   );
 }
 
-function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () => void }) {
+function parseLocalDate(dateStr: string): Date {
+  if (!dateStr) return new Date();
+  const cleanDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const [year, month, day] = cleanDate.split('-').map(Number);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return new Date();
+  return new Date(year, month - 1, day);
+}
+
+function TournamentDetailView({ 
+  event, 
+  onBack, 
+  allEvents = [], 
+  onSelectEvent 
+}: { 
+  event: TeamEvent, 
+  onBack: () => void, 
+  allEvents?: TeamEvent[], 
+  onSelectEvent?: (id: string) => void 
+}) {
   const { isStaff: isTeamStaff, activeTeam, db, user, isStarter } = useTeam();
   const isStaff = isTeamStaff || !!(event.adminEmails && user?.email && event.adminEmails.includes(user.email));
   const router = useRouter();
@@ -752,6 +894,234 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
   const [celebrationWinner, setCelebrationWinner] = useState<string | null>(null);
   const [logoEditState, setLogoEditState] = useState<{ idx: number; name: string; url: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Queries for logistics editor
+  const facilitiesQuery = useMemoFirebase(() => {
+    if (!db || !user?.id) return null;
+    return query(collection(db, 'facilities'), where('clubId', '==', user.id));
+  }, [db, user?.id]);
+  const { data: facilities } = useCollection<Facility>(facilitiesQuery);
+
+  const siblingEvents = useMemo(() => {
+    if (!allEvents || !event) return [];
+    return allEvents.filter(e => e.title.toLowerCase() === event.title.toLowerCase() && !e.isArchived);
+  }, [allEvents, event]);
+
+  // Local state for division-level logistics editor
+  const [logisticsType, setLogisticsType] = useState<'round_robin' | 'single_elimination' | 'double_elimination' | 'pool_play_knockout'>('round_robin');
+  const [logisticsGameLength, setLogisticsGameLength] = useState('60');
+  const [logisticsBreakLength, setLogisticsBreakLength] = useState('15');
+  const [logisticsGamesPerTeam, setLogisticsGamesPerTeam] = useState('3');
+  const [logisticsDailyWindows, setLogisticsDailyWindows] = useState<DailyWindow[]>([]);
+  const [venueType, setVenueType] = useState<'club' | 'custom'>('club');
+  const [selectedFacilityId, setSelectedFacilityId] = useState('');
+  const [allocatedFields, setAllocatedFields] = useState<string[]>([]);
+  const [customVenueName, setCustomVenueName] = useState('');
+  const [customFieldsText, setCustomFieldsText] = useState('');
+
+  useEffect(() => {
+    if (event) {
+      setLogisticsType((event.tournamentType as any) || 'round_robin');
+      setLogisticsGameLength(event.gameLength?.toString() || '60');
+      setLogisticsBreakLength(event.breakLength?.toString() || '15');
+      setLogisticsGamesPerTeam(event.gamesPerTeam?.toString() || '3');
+      setLogisticsDailyWindows(event.dailyWindows || []);
+      
+      const isCustom = !!event.manualVenue;
+      setVenueType(isCustom ? 'custom' : 'club');
+      setCustomVenueName(event.manualVenue || event.location || '');
+      
+      if (isCustom) {
+        setAllocatedFields([]);
+        setSelectedFacilityId('');
+        setCustomFieldsText((event.selectedFields || []).join(', '));
+      } else {
+        setCustomFieldsText('');
+        const fields = event.selectedFields || [];
+        setAllocatedFields(fields);
+        const firstFieldFacId = fields[0]?.split(':')?.[0] || '';
+        setSelectedFacilityId(firstFieldFacId);
+      }
+    }
+  }, [event]);
+
+  const generateDailyWindowsFromDates = () => {
+    if (!event.date) return;
+    try {
+      const startD = parseLocalDate(event.date);
+      const endD = event.endDate ? parseLocalDate(event.endDate) : startD;
+      const days = eachDayOfInterval({ start: startD, end: endD });
+      setLogisticsDailyWindows(days.map(d => ({
+        date: format(d, 'yyyy-MM-dd'),
+        startTime: '08:00',
+        endTime: '20:00'
+      })));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddTeamDirectly = async (name: string, coach: string, email: string) => {
+    if (!db || !activeTeam) return;
+    if (!name.trim()) {
+      toast({ title: "Name Required", description: "Please enter a team name.", variant: "destructive" });
+      return;
+    }
+    const newTeam: TournamentTeam = {
+      id: `m_${Date.now()}`,
+      name: name.trim(),
+      coach: coach.trim() || 'Head Coach Unassigned',
+      email: email.trim(),
+      source: 'manual' as const,
+      division: event.divisionTitle || ''
+    };
+    const updatedTeams = [...(event.tournamentTeamsData || []), newTeam];
+    try {
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), {
+        tournamentTeamsData: updatedTeams,
+        tournamentTeams: updatedTeams.map(t => t.name)
+      });
+      toast({ title: "Team Added", description: `${name} has been enrolled in this division.` });
+    } catch (err: any) {
+      toast({ title: "Failed to Add Team", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleRemoveTeamDirectly = async (teamId: string, teamName: string) => {
+    if (!db || !activeTeam) return;
+    if (!window.confirm(`Are you sure you want to remove ${teamName} from this tournament division?`)) return;
+    const updatedTeams = (event.tournamentTeamsData || []).filter((t: any) => t.id !== teamId);
+    try {
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), {
+        tournamentTeamsData: updatedTeams,
+        tournamentTeams: updatedTeams.map(t => t.name)
+      });
+      toast({ title: "Team Removed", description: `${teamName} has been removed.` });
+    } catch (err: any) {
+      toast({ title: "Failed to Remove Team", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleSaveLogistics = async (showToast = true) => {
+    if (!db || !activeTeam) return false;
+    
+    let finalLocation = event.location || '';
+    let finalSelectedFields: string[] = [];
+    let finalManualVenue = '';
+
+    if (venueType === 'club') {
+      const facility = facilities?.find(f => f.id === selectedFacilityId);
+      finalLocation = facility ? facility.name : '';
+      finalSelectedFields = allocatedFields;
+    } else {
+      finalLocation = customVenueName.trim();
+      finalManualVenue = customVenueName.trim();
+      finalSelectedFields = customFieldsText
+        .split(',')
+        .map(f => f.trim())
+        .filter(Boolean);
+    }
+
+    const payload = {
+      tournamentType: logisticsType,
+      gameLength: parseInt(logisticsGameLength) || 60,
+      breakLength: parseInt(logisticsBreakLength) || 15,
+      gamesPerTeam: parseInt(logisticsGamesPerTeam) || 3,
+      dailyWindows: logisticsDailyWindows,
+      location: finalLocation,
+      manualVenue: finalManualVenue,
+      selectedFields: finalSelectedFields
+    };
+
+    try {
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), payload);
+      if (showToast) {
+        toast({ title: "Logistics Saved", description: "Division logistics blueprint successfully updated." });
+      }
+      return true;
+    } catch (err: any) {
+      toast({ title: "Save Failed", description: err.message, variant: "destructive" });
+      return false;
+    }
+  };
+
+  const handleGenerateSchedule = async () => {
+    if (!db || !activeTeam) return;
+
+    const saved = await handleSaveLogistics(false);
+    if (!saved) return;
+
+    if (!event.tournamentTeamsData || event.tournamentTeamsData.length < 2) {
+      toast({
+        title: "Schedule Generation Failed",
+        description: "You must have at least 2 teams to generate a schedule.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const latestDoc = await getDoc(doc(db, 'teams', activeTeam.id, 'events', event.id));
+      const latestData = latestDoc.data();
+      if (!latestData) throw new Error("Could not retrieve updated event parameters.");
+
+      const mappedFields = (latestData.selectedFields || []).map((fId: string) => {
+        if (fId.includes(':')) {
+          const [facId, fieldName] = fId.split(':');
+          const facility = facilities?.find(fac => fac.id === facId);
+          return facility ? `${facility.name} - ${fieldName}` : fieldName;
+        }
+        return fId;
+      });
+
+      const config = {
+        teams: latestData.tournamentTeamsData || [],
+        fields: mappedFields,
+        startDate: latestData.date ? new Date(latestData.date).toISOString().split('T')[0] : '',
+        endDate: latestData.endDate ? new Date(latestData.endDate).toISOString().split('T')[0] : '',
+        startTime: '08:00',
+        endTime: '20:00',
+        gameLength: latestData.gameLength || 60,
+        breakLength: latestData.breakLength || 15,
+        gamesPerTeam: latestData.gamesPerTeam || 3,
+        tournamentType: latestData.tournamentType || 'round_robin',
+        dailyWindows: latestData.dailyWindows || []
+      };
+
+      const { games, report } = generateIntelligentTournamentSchedule(config);
+
+      if (games.length === 0) {
+        throw new Error("No games could be generated. Check your date range, daily windows, and fields constraints.");
+      }
+
+      const sanitizedGames = games.map(g => {
+        const cleaned: any = {};
+        Object.entries(g).forEach(([k, v]) => {
+          if (v !== undefined) cleaned[k] = v;
+        });
+        return cleaned as TournamentGame;
+      });
+
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), {
+        tournamentGames: sanitizedGames
+      });
+
+      toast({
+        title: "Schedule Generated",
+        description: `Successfully generated ${sanitizedGames.length} matches for this tournament.`
+      });
+    } catch (e: any) {
+      console.error("[Tournaments] Schedule generation failed:", e);
+      toast({
+        title: "Generation Failed",
+        description: e.message || "An unexpected error occurred during scheduling.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleSyncLogos = async () => {
     if (!db || !activeTeam || !event.tournamentTeamsData) return;
@@ -1070,16 +1440,54 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
   };
 
   return (
-    <div className="space-y-10 pb-20 animate-in fade-in duration-500">
+    <div className="space-y-10 pb-20 animate-in fade-in duration-500 text-black">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 text-left">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-6 w-6" /></Button>
+          <div className="bg-primary/5 px-4 py-2 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest border border-primary/10 flex items-center gap-1.5">
+            <span>Active Context: {event.title}</span>
+            {event.divisionTitle && (
+              <span className="text-muted-foreground/80">• {event.divisionTitle}</span>
+            )}
+          </div>
+        </div>
+
+        {siblingEvents && siblingEvents.length > 1 && (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Division Hub:</span>
+            <Select value={event.id} onValueChange={(val) => onSelectEvent?.(val)}>
+              <SelectTrigger className="w-[220px] h-10 border-2 border-black/10 rounded-xl font-black uppercase text-[9px] tracking-widest bg-white text-black hover:border-black/30 transition-all shadow-sm">
+                <SelectValue placeholder="Select Division" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-2 bg-white text-black shadow-xl">
+                {siblingEvents.map((sib) => (
+                  <SelectItem key={sib.id} value={sib.id} className="font-black uppercase text-[10px] cursor-pointer hover:bg-muted/10 transition-colors">
+                    {sib.divisionTitle || "Main Division"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
       <div className="bg-black rounded-[3.5rem] p-12 text-white relative overflow-hidden shadow-2xl border border-white/5">
         <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none"><Zap className="h-48 w-48 text-primary" /></div>
         <div className="relative z-10 space-y-8">
            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
              <div className="flex items-center gap-6 text-left">
-               <Button variant="ghost" size="icon" onClick={onBack} className="h-14 w-14 rounded-full border-2 border-white/10 text-white hover:bg-white/10 shrink-0"><ChevronLeft className="h-7 w-7" /></Button>
                <div>
                  <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase tracking-widest mb-1">Elite Series Platform</Badge>
-                 <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter max-w-[800px] leading-tight">{event.title}</h1>
+                 <div className="flex flex-wrap items-center gap-3">
+                   <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter max-w-[800px] leading-tight">{event.title}</h1>
+                   {event.divisionTitle && (
+                     <Badge className="bg-primary text-white border-none font-black text-[10px] h-6 px-3.5 uppercase tracking-wider">
+                       {event.divisionTitle}
+                     </Badge>
+                   )}
+                 </div>
+                 <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-2">
+                   {event.sport || 'General'} • {(event.tournamentTeamsData || []).length} Participating Squads
+                 </p>
                </div>
              </div>
              {isStaff && (
@@ -1538,6 +1946,45 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                         </Badge>
                       </div>
                     </div>
+                    {isStaff && (event.tournamentGames || []).length === 0 && (
+                      <div className="p-10 bg-muted/5 border-b space-y-6 text-left">
+                        <h4 className="font-black text-sm uppercase tracking-widest text-primary">Add Team to Division</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Team Name</Label>
+                            <Input id="direct-team-name" placeholder="Enter team name..." className="h-12 rounded-xl border-2 font-bold uppercase bg-white" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Coach Name (Optional)</Label>
+                            <Input id="direct-team-coach" placeholder="Enter coach name..." className="h-12 rounded-xl border-2 font-bold bg-white" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Coach Email (Optional)</Label>
+                            <Input id="direct-team-email" type="email" placeholder="Enter coach email..." className="h-12 rounded-xl border-2 font-bold bg-white" />
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-2">
+                          <Button 
+                            onClick={async () => {
+                              const nameVal = (document.getElementById('direct-team-name') as HTMLInputElement)?.value || '';
+                              const coachVal = (document.getElementById('direct-team-coach') as HTMLInputElement)?.value || '';
+                              const emailVal = (document.getElementById('direct-team-email') as HTMLInputElement)?.value || '';
+                              if (!nameVal.trim()) {
+                                toast({ title: "Name Required", description: "Team name is required.", variant: "destructive" });
+                                return;
+                              }
+                              await handleAddTeamDirectly(nameVal, coachVal, emailVal);
+                              (document.getElementById('direct-team-name') as HTMLInputElement).value = '';
+                              (document.getElementById('direct-team-coach') as HTMLInputElement).value = '';
+                              (document.getElementById('direct-team-email') as HTMLInputElement).value = '';
+                            }}
+                            className="h-12 px-6 rounded-xl bg-black hover:bg-black/90 text-white font-black uppercase text-[10px] tracking-widest shadow-md"
+                          >
+                            <Plus className="h-4 w-4 mr-2" /> Add Team to Division
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <div className="divide-y divide-black/5">
                       {event.tournamentTeamsData?.map((team: any, idx: number) => {
                         const agreement = (event as any).teamAgreements?.[team.name];
@@ -1572,7 +2019,16 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-6 px-4">
+                            <div className="flex items-center gap-2 px-4">
+                              {isStaff && (event.tournamentGames || []).length === 0 && (
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => handleRemoveTeamDirectly(team.id, team.name)}
+                                  className="h-14 px-4 rounded-2xl font-black uppercase text-xs tracking-widest text-red-500 hover:text-red-600 hover:bg-red-50 transition-all border-2 border-transparent hover:border-red-200"
+                                >
+                                  <Trash2 className="h-5 w-5" />
+                                </Button>
+                              )}
                               {isStaff && (
                                 <Button
                                   variant="ghost"
@@ -1633,107 +2089,382 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               </TabsContent>
 
              <TabsContent value="itinerary" className="mt-0 space-y-12">
-               {Object.entries(gamesByDay).map(([date, dayGames]: [string, any]) => (
-                 <div key={date} className="space-y-8">
-                   <div className="flex items-center gap-4">
-                     <div className="h-px flex-1 bg-muted" />
-                     <Badge variant="outline" className="bg-white border-2 border-primary/10 px-6 h-10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-primary shadow-sm">
-                       {format(parseISO(date), 'EEEE, MMMM d, yyyy')}
-                     </Badge>
-                     <div className="h-px flex-1 bg-muted" />
+               {(event.tournamentGames || []).length > 0 ? (
+                 <>
+                   {Object.entries(gamesByDay).map(([date, dayGames]: [string, any]) => (
+                     <div key={date} className="space-y-8">
+                       <div className="flex items-center gap-4">
+                         <div className="h-px flex-1 bg-muted" />
+                         <Badge variant="outline" className="bg-white border-2 border-primary/10 px-6 h-10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-primary shadow-sm">
+                           {format(parseISO(date), 'EEEE, MMMM d, yyyy')}
+                         </Badge>
+                         <div className="h-px flex-1 bg-muted" />
+                       </div>
+                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                         {dayGames.map((game: any) => {
+                           const isTBD = game.team1.toLowerCase().includes('tbd') || game.team2.toLowerCase().includes('tbd');
+                           return (
+                             <Card key={game.id} className={cn(
+                               "rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white p-8 space-y-6 transition-all hover:shadow-2xl hover:ring-primary/20 group relative overflow-hidden",
+                               isTBD && "bg-muted/5 ring-1 ring-dashed ring-black/20",
+                               isStaff && "cursor-pointer"
+                             )} onClick={() => {
+                               if (isStaff) {
+                                 setSelectedGame(game);
+                                 setScoreDialogOpen(true);
+                               }
+                             }}>
+                               {isTBD && (
+                                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none -rotate-12">
+                                   <Clock className="h-16 w-16" />
+                                 </div>
+                               )}
+                               <div className="flex items-center justify-between">
+                                  <Badge className={cn("px-3 h-7 text-[9px] font-black uppercase tracking-widest cursor-default", isTBD ? "bg-muted text-muted-foreground" : "bg-black text-white")}>
+                                    {game.time}
+                                  </Badge>
+                                  {game.round && (
+                                    <Badge variant="outline" className={cn(
+                                      "text-[9px] font-black uppercase cursor-default max-w-[140px] truncate",
+                                      isTBD ? "border-dashed" : "border-2",
+                                      ((game.round || '').toLowerCase().includes('winners bracket') || /^wb\s/i.test(game.round || ''))
+                                        ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
+                                      : ((game.round || '').toLowerCase().includes('losers bracket') || /^lb\s/i.test(game.round || ''))
+                                        ? 'border-orange-300 text-orange-600 bg-orange-50'
+                                      : ((game.round || '').toLowerCase().includes('championship') || (game.round || '').toLowerCase().includes('grand final'))
+                                        ? 'border-primary/40 text-primary bg-primary/5'
+                                      : (game.round || '').toLowerCase().includes('decider')
+                                        ? 'border-dashed border-muted-foreground/30 text-muted-foreground bg-muted/30 italic'
+                                      : ''
+                                    )}>
+                                      {formatRoundBadge(game.round)}
+                                    </Badge>
+                                  )}
+                               </div>
+                               <div className="grid grid-cols-7 items-center text-center relative z-10 cursor-default">
+                                  <div className="col-span-3 min-w-0 flex flex-col items-center gap-2">
+                                    <SquadIdentity
+                                      teamId={(game as any).team1Id}
+                                      teamName={game.team1}
+                                      logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team1Id || t.name === game.team1)?.logoUrl}
+                                      logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
+                                      showNameWithLogo
+                                      horizontal
+                                      textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team1.toLowerCase().includes('tbd') && "italic")}
+                                    />
+                                    <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score1}</p>
+                                  </div>
+                                  <div className="col-span-1 opacity-10 font-black text-xs pt-8 italic">VS</div>
+                                  <div className="col-span-3 min-w-0 flex flex-col items-center gap-2">
+                                    <SquadIdentity
+                                      teamId={(game as any).team2Id}
+                                      teamName={game.team2}
+                                      logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team2Id || t.name === game.team2)?.logoUrl}
+                                      logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
+                                      showNameWithLogo
+                                      horizontal
+                                      textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team2.toLowerCase().includes('tbd') && "italic")}
+                                    />
+                                    <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score2}</p>
+                                  </div>
+                               </div>
+                               {game.location && <div className="pt-4 border-t border-muted/50 flex items-center justify-center gap-2 cursor-default"><MapPin className="h-3 w-3 text-primary opacity-50" /><span className="text-[9px] font-black text-muted-foreground uppercase">{game.location}</span></div>}
+                             </Card>
+                           );
+                         })}
+                       </div>
+                     </div>
+                   ))}
+                 </>
+               ) : (
+                 <div className="space-y-10 animate-in fade-in duration-500">
+                   <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-black/5 pb-8 mb-8 gap-6 text-left">
+                     <div className="flex-1">
+                       <Badge className="bg-primary/20 text-primary border border-primary/30 uppercase font-black tracking-widest text-[8px] mb-4">Logistics Matrix</Badge>
+                       <h3 className="text-4xl font-black uppercase tracking-tighter mb-2 text-black">Division Logistics Blueprint</h3>
+                       <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Calibrate format, dates, timeslots, and venue configurations for this division.</p>
+                     </div>
                    </div>
-                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                     {dayGames.map((game: any) => {
-                       const isTBD = game.team1.toLowerCase().includes('tbd') || game.team2.toLowerCase().includes('tbd');
-                       return (
-                         <Card key={game.id} className={cn(
-                           "rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 bg-white p-8 space-y-6 transition-all hover:shadow-2xl hover:ring-primary/20 group relative overflow-hidden",
-                           isTBD && "bg-muted/5 ring-1 ring-dashed ring-black/20",
-                           isStaff && "cursor-pointer"
-                         )} onClick={() => {
-                           if (isStaff) {
-                             setSelectedGame(game);
-                             setScoreDialogOpen(true);
-                           }
-                         }}>
-                           {isTBD && (
-                             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none -rotate-12">
-                               <Clock className="h-16 w-16" />
+
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
+                       <h4 className="font-black text-sm uppercase tracking-widest text-primary">Format & Chrono Sync</h4>
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                         <div className="space-y-2">
+                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Tournament Format</Label>
+                           {isStarter ? (
+                             <div className="h-12 rounded-xl bg-white/5 border border-white/10 px-4 flex items-center justify-between text-xs font-bold uppercase">
+                               <span>Basic (Round Robin)</span>
+                               <span className="flex items-center gap-1 text-[8px] font-black uppercase text-white/30"><Lock className="h-2.5 w-2.5" /> Pro Locked</span>
+                             </div>
+                           ) : (
+                             <Select value={logisticsType} onValueChange={(val: any) => {
+                               setLogisticsType(val);
+                               let newGames = logisticsGamesPerTeam;
+                               if (val === 'single_elimination') newGames = '1';
+                               if (val === 'double_elimination') newGames = '2';
+                               setLogisticsGamesPerTeam(newGames);
+                             }}>
+                               <SelectTrigger className="bg-white/5 border-white/15 h-12 rounded-xl text-white font-bold uppercase text-[10px] focus:ring-primary">
+                                 <SelectValue />
+                               </SelectTrigger>
+                               <SelectContent className="bg-black border-white/10 text-white font-black uppercase text-[10px]">
+                                 <SelectItem value="round_robin" className="focus:bg-white/10">Round Robin (Total Points)</SelectItem>
+                                 <SelectItem value="pool_play_knockout" className="focus:bg-white/10">Pool Play & Playoffs</SelectItem>
+                                 <SelectItem value="single_elimination" className="focus:bg-white/10">Single Elimination Matrix</SelectItem>
+                                 <SelectItem value="double_elimination" className="focus:bg-white/10">Double Elimination Topology</SelectItem>
+                               </SelectContent>
+                             </Select>
+                           )}
+                         </div>
+
+                         <div className="space-y-2">
+                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Match Duration (Min)</Label>
+                           <Input 
+                             type="number" 
+                             value={logisticsGameLength} 
+                             onChange={e => setLogisticsGameLength(e.target.value)} 
+                             className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                           />
+                         </div>
+
+                         <div className="space-y-2">
+                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Rest / Turnaround (Min)</Label>
+                           <Input 
+                             type="number" 
+                             value={logisticsBreakLength} 
+                             onChange={e => setLogisticsBreakLength(e.target.value)} 
+                             className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                           />
+                         </div>
+
+                         <div className="space-y-2">
+                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Min Games Per Squad</Label>
+                           <Input 
+                             type="number" 
+                             value={logisticsGamesPerTeam} 
+                             onChange={e => setLogisticsGamesPerTeam(e.target.value)} 
+                             disabled={logisticsType === 'single_elimination' || logisticsType === 'double_elimination'} 
+                             className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                           />
+                         </div>
+                       </div>
+                     </div>
+
+                     <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
+                       <div className="flex items-center justify-between">
+                         <h4 className="font-black text-sm uppercase tracking-widest text-primary">Venue & Field Allocation</h4>
+                         <div className="flex border border-white/10 rounded-xl overflow-hidden">
+                           <button
+                             type="button"
+                             onClick={() => setVenueType('club')}
+                             className={cn(
+                               "px-4 py-2 text-[9px] font-black uppercase transition-colors",
+                               venueType === 'club' ? "bg-white text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                             )}
+                           >
+                             Club Facility
+                           </button>
+                           <button
+                             type="button"
+                             onClick={() => setVenueType('custom')}
+                             className={cn(
+                               "px-4 py-2 text-[9px] font-black uppercase transition-colors",
+                               venueType === 'custom' ? "bg-white text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                             )}
+                           >
+                             Custom Venue
+                           </button>
+                         </div>
+                       </div>
+
+                       {venueType === 'club' ? (
+                         <div className="space-y-4">
+                           <div className="space-y-2">
+                             <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Select Account Facility</Label>
+                             <Select value={selectedFacilityId} onValueChange={(val) => {
+                               setSelectedFacilityId(val);
+                               setAllocatedFields([]);
+                             }}>
+                               <SelectTrigger className="bg-white/5 border-white/15 h-12 rounded-xl text-white font-bold uppercase text-[10px] focus:ring-primary">
+                                 <SelectValue placeholder="Choose Facility..." />
+                               </SelectTrigger>
+                               <SelectContent className="bg-black border-white/10 text-white font-black uppercase text-[10px]">
+                                 {facilities?.map(fac => (
+                                   <SelectItem key={fac.id} value={fac.id} className="focus:bg-white/10">
+                                     {fac.name}
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                           </div>
+
+                           {selectedFacilityId && (
+                             <div className="space-y-2 pt-2">
+                               <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Allocate Specific Fields</Label>
+                               <FacilityFieldLoader 
+                                 facilityId={selectedFacilityId} 
+                                 selectedFields={allocatedFields} 
+                                 onToggleField={(fieldIdentifier) => {
+                                   setAllocatedFields(prev => 
+                                     prev.includes(fieldIdentifier)
+                                       ? prev.filter(f => f !== fieldIdentifier)
+                                       : [...prev, fieldIdentifier]
+                                   );
+                                 }} 
+                               />
                              </div>
                            )}
-                           <div className="flex items-center justify-between">
-                              <Badge className={cn("px-3 h-7 text-[9px] font-black uppercase tracking-widest cursor-default", isTBD ? "bg-muted text-muted-foreground" : "bg-black text-white")}>
-                                {game.time}
-                              </Badge>
-                              {game.round && (
-                                <Badge variant="outline" className={cn(
-                                  "text-[9px] font-black uppercase cursor-default max-w-[140px] truncate",
-                                  isTBD ? "border-dashed" : "border-2",
-                                  // WB — emerald (Winners Bracket + WB Round N)
-                                  ((game.round || '').toLowerCase().includes('winners bracket') || /^wb\s/i.test(game.round || ''))
-                                    ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
-                                  // LB — orange (Losers Bracket + LB Round N)
-                                  : ((game.round || '').toLowerCase().includes('losers bracket') || /^lb\s/i.test(game.round || ''))
-                                    ? 'border-orange-300 text-orange-600 bg-orange-50'
-                                  // Championship — primary
-                                  : ((game.round || '').toLowerCase().includes('championship') || (game.round || '').toLowerCase().includes('grand final'))
-                                    ? 'border-primary/40 text-primary bg-primary/5'
-                                  // Conditional If Needed — muted italic
-                                  : (game.round || '').toLowerCase().includes('decider')
-                                    ? 'border-dashed border-muted-foreground/30 text-muted-foreground bg-muted/30 italic'
-                                  : ''
-                                )}>
-                                  {formatRoundBadge(game.round)}
-                                </Badge>
-                              )}
+                         </div>
+                       ) : (
+                         <div className="space-y-4">
+                           <div className="space-y-2">
+                             <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Custom Venue / Stadium Name</Label>
+                             <Input 
+                               value={customVenueName} 
+                               onChange={e => setCustomVenueName(e.target.value)} 
+                               placeholder="e.g. Central Park Sports Complex" 
+                               className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                             />
                            </div>
-                           <div className="grid grid-cols-7 items-center text-center relative z-10 cursor-default">
-                              <div className="col-span-3 min-w-0 flex flex-col items-center gap-2">
-                                <SquadIdentity
-                                  teamId={(game as any).team1Id}
-                                  teamName={game.team1}
-                                  logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team1Id || t.name === game.team1)?.logoUrl}
-                                  logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
-                                  showNameWithLogo
-                                  horizontal
-                                  textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team1.toLowerCase().includes('tbd') && "italic")}
-                                />
-                                <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score1}</p>
-                              </div>
-                              <div className="col-span-1 opacity-10 font-black text-xs pt-8 italic">VS</div>
-                              <div className="col-span-3 min-w-0 flex flex-col items-center gap-2">
-                                <SquadIdentity
-                                  teamId={(game as any).team2Id}
-                                  teamName={game.team2}
-                                  logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team2Id || t.name === game.team2)?.logoUrl}
-                                  logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
-                                  showNameWithLogo
-                                  horizontal
-                                  textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team2.toLowerCase().includes('tbd') && "italic")}
-                                />
-                                <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score2}</p>
-                              </div>
+                           <div className="space-y-2">
+                             <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Field Names (Comma-separated)</Label>
+                             <Input 
+                               value={customFieldsText} 
+                               onChange={e => setCustomFieldsText(e.target.value)} 
+                               placeholder="e.g. Field 1, Field 2, Field 3" 
+                               className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                             />
+                             <p className="text-[8px] font-bold text-white/20 uppercase tracking-wider pl-1">
+                               Separate multiple fields with commas. The scheduler will distribute matches across these fields.
+                             </p>
                            </div>
-                           {game.location && <div className="pt-4 border-t border-muted/50 flex items-center justify-center gap-2 cursor-default"><MapPin className="h-3 w-3 text-primary opacity-50" /><span className="text-[9px] font-black text-muted-foreground uppercase">{game.location}</span></div>}
-                         </Card>
-                       );
-                     })}
+                         </div>
+                       )}
+                     </div>
+                   </div>
+
+                   <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
+                     <div className="flex items-center justify-between">
+                       <h4 className="font-black text-sm uppercase tracking-widest text-primary">Daily Operational Windows</h4>
+                       {logisticsDailyWindows.length === 0 && (
+                         <Button 
+                           type="button" 
+                           onClick={generateDailyWindowsFromDates} 
+                           variant="outline" 
+                           className="h-9 px-4 rounded-xl border-white/20 text-white hover:bg-white/10 font-black uppercase text-[9px] tracking-widest"
+                         >
+                           Auto-Generate Days
+                         </Button>
+                       )}
+                     </div>
+
+                     {logisticsDailyWindows.length > 0 ? (
+                       <div className="grid gap-4">
+                         {logisticsDailyWindows.map((win, i) => (
+                           <div key={win.date} className="bg-white/5 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between border border-white/5 gap-4">
+                             <div className="flex items-center gap-3">
+                               <CalendarIcon className="h-4 w-4 text-white/30" />
+                               <span className="font-black uppercase tracking-widest text-xs">{format(parseLocalDate(win.date), 'EEEE, MMMM d, yyyy')}</span>
+                             </div>
+                             <div className="flex items-center gap-3">
+                               <Input 
+                                 type="time" 
+                                 value={win.startTime} 
+                                 onChange={e => {
+                                   const n = [...logisticsDailyWindows];
+                                   n[i].startTime = e.target.value;
+                                   setLogisticsDailyWindows(n);
+                                 }} 
+                                 style={{ colorScheme: 'dark' }} 
+                                 className="h-10 w-28 bg-white/5 border-white/10 font-bold text-white text-xs bg-black" 
+                               />
+                               <span className="opacity-30">&rarr;</span>
+                               <Input 
+                                 type="time" 
+                                 value={win.endTime} 
+                                 onChange={e => {
+                                   const n = [...logisticsDailyWindows];
+                                   n[i].endTime = e.target.value;
+                                   setLogisticsDailyWindows(n);
+                                 }} 
+                                 style={{ colorScheme: 'dark' }} 
+                                 className="h-10 w-28 bg-white/5 border-white/10 font-bold text-white text-xs bg-black" 
+                               />
+                               <Button 
+                                 type="button" 
+                                 variant="ghost" 
+                                 onClick={() => setLogisticsDailyWindows(prev => prev.filter(w => w.date !== win.date))}
+                                 className="h-10 w-10 p-0 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
+                               >
+                                 <X className="h-4 w-4" />
+                               </Button>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     ) : (
+                       <div className="py-12 border-2 border-dashed border-white/5 rounded-2xl text-center text-white/30 font-black uppercase text-xs tracking-widest">
+                         No operational windows configured. Click "Auto-Generate Days" to populate based on dates.
+                       </div>
+                     )}
+                   </div>
+
+                   <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-black/5 pt-8">
+                     <Button 
+                       onClick={() => handleSaveLogistics(true)} 
+                       disabled={isProcessing} 
+                       className="h-16 px-10 rounded-2xl border-2 border-black/10 bg-white text-black hover:bg-muted font-black uppercase text-xs tracking-widest transition-all"
+                     >
+                       Save Logistics Blueprint
+                     </Button>
+                     <Button 
+                       onClick={handleGenerateSchedule} 
+                       disabled={isProcessing} 
+                       className="h-16 px-12 rounded-2xl bg-black text-white hover:bg-black/90 font-black uppercase text-xs tracking-widest shadow-2xl flex items-center gap-2"
+                     >
+                       {isProcessing ? (
+                         <Loader2 className="h-4 w-4 animate-spin" />
+                       ) : (
+                         <Sparkles className="h-4 w-4 text-primary" />
+                       )}
+                       Generate Tourney Schedule
+                     </Button>
                    </div>
                  </div>
-               ))}
-               {(!event.tournamentGames || event.tournamentGames.length === 0) && (
-                 <div className="py-32 text-center opacity-40 font-black uppercase tracking-widest">No match logistics established.</div>
                )}
              </TabsContent>
              <TabsContent value="bracket" className="mt-0">
-               <TournamentBracket 
-                 games={event.tournamentGames || []} 
-                 onGameClick={handleGameClick} 
-                 tournamentName={event.title}
-               />
+               {(event.tournamentGames || []).length > 0 ? (
+                 <TournamentBracket 
+                   games={event.tournamentGames || []} 
+                   onGameClick={handleGameClick} 
+                   tournamentName={event.title}
+                 />
+               ) : (
+                 <div className="text-center py-20 border-4 border-dashed rounded-[3rem] bg-muted/5 flex flex-col items-center max-w-2xl mx-auto space-y-6">
+                   <div className="bg-primary/10 p-6 rounded-[2rem] text-primary shadow-inner">
+                     <CalendarDays className="h-12 w-12" />
+                   </div>
+                   <h3 className="text-3xl font-black uppercase tracking-tighter text-black">Bracket Not Initialized</h3>
+                   <p className="text-muted-foreground uppercase text-[10px] font-black tracking-widest max-w-md text-center">
+                     Matches must be scheduled before the bracket tree can be rendered. Please initialize the roster and generate the tournament schedule.
+                   </p>
+                 </div>
+               )}
              </TabsContent>
              <TabsContent value="standings" className="mt-0 space-y-8">
-                {poolStandings ? (
+                {(!event.tournamentGames || event.tournamentGames.length === 0) ? (
+                  <div className="text-center py-20 border-4 border-dashed rounded-[3rem] bg-muted/5 flex flex-col items-center max-w-2xl mx-auto space-y-6">
+                    <div className="bg-primary/10 p-6 rounded-[2rem] text-primary shadow-inner">
+                      <Trophy className="h-12 w-12" />
+                    </div>
+                    <h3 className="text-3xl font-black uppercase tracking-tighter text-black">No Standings Available</h3>
+                    <p className="text-muted-foreground uppercase text-[10px] font-black tracking-widest max-w-md text-center">
+                      Standings will compute automatically once matches are generated and scored.
+                    </p>
+                  </div>
+                ) : poolStandings ? (
                   poolStandings.map(pool => (
                     <div key={pool.label}>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 px-1">Pool {pool.label}</p>
@@ -1832,6 +2563,19 @@ export function ManageTournamentsPageContent({ embedded = false }: { embedded?: 
       .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [rawEvents, showArchived]);
 
+  const groupedEvents = useMemo(() => {
+    const groups: { name: string; items: TeamEvent[] }[] = [];
+    events.forEach(e => {
+      let grp = groups.find(g => g.name.toLowerCase() === e.title.toLowerCase());
+      if (!grp) {
+        grp = { name: e.title, items: [] };
+        groups.push(grp);
+      }
+      grp.items.push(e);
+    });
+    return groups;
+  }, [events]);
+
   const hasArchived = useMemo(() => (rawEvents || []).some(e => e.isArchived), [rawEvents]);
 
   const activeEvent = useMemo(() => rawEvents?.find(e => e.id === selectedEventId), [rawEvents, selectedEventId]);
@@ -1894,7 +2638,18 @@ export function ManageTournamentsPageContent({ embedded = false }: { embedded?: 
     }
   };
 
-  if (activeEvent) return <div className="p-8 lg:p-14"><TournamentDetailView event={activeEvent} onBack={() => setSelectedEventId(null)} /></div>;
+  if (activeEvent) {
+    return (
+      <div className="p-8 lg:p-14">
+        <TournamentDetailView 
+          event={activeEvent} 
+          onBack={() => setSelectedEventId(null)} 
+          allEvents={rawEvents || []}
+          onSelectEvent={(id) => setSelectedEventId(id)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={embedded ? "space-y-10" : "p-8 lg:p-14 space-y-12"}>
@@ -1942,52 +2697,155 @@ export function ManageTournamentsPageContent({ embedded = false }: { embedded?: 
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-        {events?.map(event => (
-          <Card key={event.id} className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white p-6 sm:p-10 space-y-6 sm:space-y-8 group hover:shadow-2xl transition-all cursor-pointer relative overflow-hidden" onClick={() => setSelectedEventId(event.id)}>
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700 font-black italic text-8xl flex flex-col items-end pointer-events-none">
-               <Trophy className="h-32 w-32" />
-            </div>
-            <div className="relative z-10 space-y-4">
-              <div className="flex justify-between items-center">
-                <Badge variant="outline" className="border-2 font-black text-[9px] uppercase tracking-widest bg-white">Tournament Series</Badge>
-                {event.isArchived && <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2">Archived</Badge>}
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-tight group-hover:text-primary transition-colors break-words overflow-hidden">{event.title}</h3>
-              <div className="flex flex-col gap-2 pt-4">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                   <CalendarDays className="h-4 w-4" />
-                   <span className="text-[10px] font-black uppercase tracking-widest">
-                     {event.endDate && event.endDate !== event.date 
-                       ? `${format(new Date(event.date), 'MMMM d')} - ${format(new Date(event.endDate), 'd, yyyy')}`
-                       : format(new Date(event.date), 'MMMM d, yyyy')}
-                   </span>
+        {groupedEvents.map((group) => {
+          const hasDivisions = group.items.length > 1 || group.items.some(e => e.divisionTitle);
+          
+          if (!hasDivisions) {
+            const event = group.items[0];
+            return (
+              <Card key={event.id} className="rounded-[2rem] border-none shadow-xl ring-1 ring-black/5 bg-white p-6 sm:p-10 space-y-6 sm:space-y-8 group hover:shadow-2xl transition-all cursor-pointer relative overflow-hidden" onClick={() => setSelectedEventId(event.id)}>
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-700 font-black italic text-8xl flex flex-col items-end pointer-events-none">
+                   <Trophy className="h-32 w-32" />
                 </div>
-                <div className="flex items-center gap-3 text-muted-foreground"><MapPin className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest truncate">{event.location}</span></div>
-              </div>
-            </div>
-            <div className="relative z-10 grid grid-cols-2 gap-4 border-t border-muted/30 pt-8">
-               <div className="space-y-1"><p className="text-[8px] font-black uppercase opacity-40">Squads</p><p className="text-xl font-black">{(event.tournamentTeamsData || []).length}</p></div>
-               <div className="space-y-1"><p className="text-[8px] font-black uppercase opacity-40">Matches</p><p className="text-xl font-black">{(event.tournamentGames || []).length}</p></div>
-            </div>
-            <div className="flex flex-col gap-2 w-full">
-              <Button variant="ghost" className="w-full h-14 rounded-2xl border-2 font-black uppercase text-xs tracking-widest group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">Launch Hub <ChevronRight className="ml-2 h-4 w-4" /></Button>
-            {(isStaff || isPrimaryClubAuthority) && (
-              <Button 
-                variant="outline" 
-                className="w-full h-14 px-6 rounded-2xl border-2 font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all flex items-center justify-center gap-2" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDuplicatingEvent(event);
-                  setDuplicateTitle(`${event.title} (Clone)`);
-                  setIsDuplicateOpen(true);
-                }}
-              >
-                <Copy className="h-4 w-4" /> Clone Series
-              </Button>
-            )}
-            </div>
-          </Card>
-        ))}
+                <div className="relative z-10 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <Badge variant="outline" className="border-2 font-black text-[9px] uppercase tracking-widest bg-white">
+                      {event.sport || 'General'} Tournament
+                    </Badge>
+                    {event.isArchived && <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2">Archived</Badge>}
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-tight group-hover:text-primary transition-colors break-words overflow-hidden text-left">{event.title}</h3>
+                  <div className="flex flex-col gap-2 pt-4 text-left">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                       <CalendarDays className="h-4 w-4" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">
+                         {event.endDate && event.endDate !== event.date 
+                           ? `${format(new Date(event.date), 'MMMM d')} - ${format(new Date(event.endDate), 'd, yyyy')}`
+                           : format(new Date(event.date), 'MMMM d, yyyy')}
+                       </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-muted-foreground"><MapPin className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest truncate">{event.location}</span></div>
+                  </div>
+                </div>
+                <div className="relative z-10 grid grid-cols-2 gap-4 border-t border-muted/30 pt-8 text-left">
+                   <div className="space-y-1"><p className="text-[8px] font-black uppercase opacity-40">Squads</p><p className="text-xl font-black">{(event.tournamentTeamsData || []).length}</p></div>
+                   <div className="space-y-1"><p className="text-[8px] font-black uppercase opacity-40">Matches</p><p className="text-xl font-black">{(event.tournamentGames || []).length}</p></div>
+                </div>
+                <div className="flex flex-col gap-2 w-full">
+                  <Button variant="ghost" className="w-full h-14 rounded-2xl border-2 font-black uppercase text-xs tracking-widest group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">Launch Hub <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                {(isStaff || isPrimaryClubAuthority) && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-14 px-6 rounded-2xl border-2 font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all flex items-center justify-center gap-2" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDuplicatingEvent(event);
+                      setDuplicateTitle(`${event.title} (Clone)`);
+                      setIsDuplicateOpen(true);
+                    }}
+                  >
+                    <Copy className="h-4 w-4" /> Clone Series
+                  </Button>
+                )}
+                </div>
+              </Card>
+            );
+          }
+
+          const primaryEvent = group.items[0];
+          return (
+            <Card 
+              key={group.name} 
+              className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white flex flex-col group transition-all col-span-1 sm:col-span-2 xl:col-span-3 border border-black/5"
+            >
+              <div className="h-2 bg-gradient-to-r from-primary to-orange-500 w-full" />
+              <CardContent className="p-6 sm:p-8 lg:p-10 space-y-8 flex-1">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-3 text-left">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/5 p-4 rounded-[1.25rem] text-primary shadow-inner">
+                        <Trophy className="h-7 w-7" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-black">{group.name}</h3>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                          {group.items.length} divisions active • {group.items.reduce((acc, curr) => acc + (curr.tournamentTeamsData || []).length, 0)} total squads
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="bg-black text-white border-none font-black text-[10px] h-7 px-4 shadow-lg uppercase">
+                    {primaryEvent.sport || 'General'}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {group.items.map((divEvent) => {
+                    const divisionName = divEvent.divisionTitle || "Main Division";
+                    let badgeBg = "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20";
+                    if (divisionName.toLowerCase().includes("gold") || divisionName.toLowerCase().includes("varsity")) {
+                      badgeBg = "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20";
+                    } else if (divisionName.toLowerCase().includes("silver") || divisionName.toLowerCase().includes("jv") || divisionName.toLowerCase().includes("junior")) {
+                      badgeBg = "bg-slate-400/10 text-slate-600 border-slate-400/20 hover:bg-slate-400/20";
+                    } else if (divisionName.toLowerCase().includes("bronze") || divisionName.toLowerCase().includes("freshman")) {
+                      badgeBg = "bg-orange-700/10 text-orange-700 border-orange-700/20 hover:bg-orange-700/20";
+                    }
+                    
+                    return (
+                      <div 
+                        key={divEvent.id}
+                        onClick={() => setSelectedEventId(divEvent.id)}
+                        className="rounded-[1.75rem] border-2 border-black/5 hover:border-primary/20 bg-muted/5 hover:bg-primary/[0.02] p-5 space-y-4 transition-all duration-300 cursor-pointer flex flex-col justify-between group/div text-left"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <Badge className={`border font-black text-[9px] h-6 px-3 uppercase tracking-wider ${badgeBg}`}>
+                              {divisionName}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                              {(divEvent.tournamentTeamsData || []).length} squads enrolled
+                            </p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                              {(divEvent.tournamentGames || []).length} matches
+                            </p>
+                          </div>
+                        </div>
+                        <div className="pt-3 border-t border-black/5 flex items-center justify-between gap-2">
+                          <div className="flex gap-2">
+                            {(isStaff || isPrimaryClubAuthority) && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 px-3 rounded-lg border-2 font-black uppercase text-[8px] tracking-wider hover:bg-black hover:text-white transition-all"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDuplicatingEvent(divEvent);
+                                  setDuplicateTitle(`${divEvent.title} (${divisionName} Clone)`);
+                                  setIsDuplicateOpen(true);
+                                }}
+                              >
+                                <Copy className="h-3 w-3 mr-1" /> Clone
+                              </Button>
+                            )}
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 rounded-lg text-[8px] font-black uppercase border border-primary/20 text-primary group-hover/div:bg-primary group-hover/div:text-white transition-all px-3"
+                          >
+                            Select Hub
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
         {isLoading && [1, 2, 3].map(i => <div key={i} className="h-80 rounded-[3rem] bg-muted/20 animate-pulse border-2 border-dashed" />)}
         {events?.length === 0 && !isLoading && (
           <div className="col-span-full py-40 text-center border-4 border-dashed rounded-[5rem] bg-muted/5 flex flex-col items-center">

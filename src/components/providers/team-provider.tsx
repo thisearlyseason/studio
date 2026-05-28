@@ -420,6 +420,8 @@ export type TeamEvent = {
   drillIds?: string[]; // References to drills in the playbook/library
   isArchived?: boolean;
   division?: string;
+  divisionTitle?: string;
+  sport?: string;
   round?: string | number; // Tournament round identifier
   refereePool?: TournamentReferee[];
   // ── Tournament deployment fields (set by TournamentDeploymentWizard) ──
