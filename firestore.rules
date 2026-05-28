@@ -119,7 +119,12 @@ service cloud.firestore {
         allow read: if isSuperAdmin() || (isSignedIn() && (
           resource == null ||  // Non-existent member doc — safe to read
           resource.data.ownerUserId == request.auth.uid ||
-          isTeamMember(teamId)
+          isTeamOwner(teamId) ||    // Team owner can always list/read their own members
+          isTeamMember(teamId) ||
+          // Demo team escape: demo-seeded users don't own the team but must be able
+          // to read its members. Check parent team doc for isDemo flag.
+          (exists(/databases/$(database)/documents/teams/$(teamId)) &&
+           get(/databases/$(database)/documents/teams/$(teamId)).data.isDemo == true)
         ));
         allow write: if isSuperAdmin() || (isSignedIn() && (
           isTeamOwner(teamId) ||
@@ -293,11 +298,84 @@ service cloud.firestore {
         allow write: if isSuperAdmin() || (isSignedIn() &&
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
+
+      // ── Hub Divisions subcollection (schemaVersion: 2 leagues) ────────────
+      // Path: leagues/{hubId}/divisions/{divisionId}
+      match /divisions/{divisionId} {
+        allow read: if isSignedIn();
+        allow write: if isSuperAdmin() || (isSignedIn() && (
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+          request.resource.data.isDemo == true
+        ));
+
+        // Division sub-collections: teams, games, payments, registration, registrationEntries, archived_waivers
+        match /{subCollection}/{docId} {
+          allow read: if isSignedIn();
+          allow write: if isSuperAdmin() || (isSignedIn() && (
+            get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+            request.resource.data.isDemo == true
+          ));
+
+          // One level deeper (e.g. registrationEntries nested forms)
+          match /{deepCollection}/{deepDocId} {
+            allow read: if isSignedIn();
+            allow write: if isSuperAdmin() || (isSignedIn() && (
+              get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+              request.resource.data.isDemo == true
+            ));
+          }
+        }
+      }
     }
 
     // ─── Leagues global invites ──────────────────────────────────────────────
     match /leagues/global/invites/{inviteId} {
       allow read, write: if isSignedIn();
+    }
+
+    // ─── Tournament Hubs (schemaVersion: 2) ─────────────────────────────────
+    // Path: tournaments/{hubId}
+    // This collection holds TournamentHub documents created by the Hub Wizard.
+    match /tournaments/{hubId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        request.resource.data.creatorId == request.auth.uid ||
+        request.resource.data.isDemo == true
+      );
+      allow update: if isSignedIn() && (
+        resource.data.creatorId == request.auth.uid ||
+        resource.data.isDemo == true
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.creatorId == request.auth.uid ||
+        resource.data.isDemo == true
+      );
+
+      // Tournament hub division subcollection
+      match /divisions/{divisionId} {
+        allow read: if isSignedIn();
+        allow write: if isSuperAdmin() || (isSignedIn() && (
+          get(/databases/$(database)/documents/tournaments/$(hubId)).data.creatorId == request.auth.uid ||
+          request.resource.data.isDemo == true
+        ));
+
+        // Division sub-collections: teams, games, payments, registration, registrationEntries
+        match /{subCollection}/{docId} {
+          allow read: if isSignedIn();
+          allow write: if isSuperAdmin() || (isSignedIn() && (
+            get(/databases/$(database)/documents/tournaments/$(hubId)).data.creatorId == request.auth.uid ||
+            request.resource.data.isDemo == true
+          ));
+
+          match /{deepCollection}/{deepDocId} {
+            allow read: if isSignedIn();
+            allow write: if isSuperAdmin() || (isSignedIn() && (
+              get(/databases/$(database)/documents/tournaments/$(hubId)).data.creatorId == request.auth.uid ||
+              request.resource.data.isDemo == true
+            ));
+          }
+        }
+      }
     }
 
     // ─── Plans (pricing/feature tiers) ──────────────────────────────────────

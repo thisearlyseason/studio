@@ -68,7 +68,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTeam, TeamEvent, TournamentGame, TournamentReferee, Member, Facility, Field, TeamDocument, League, RegistrationEntry } from '@/components/providers/team-provider';
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, where, doc, updateDoc, getDoc, getDocs, collectionGroup, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, updateDoc, getDoc, getDocs, collectionGroup } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format, isPast, isSameDay, eachDayOfInterval, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -80,8 +80,6 @@ import html2canvas from 'html2canvas';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TournamentBracket from '@/components/TournamentBracket';
 import { SquadIdentity } from '@/components/SquadIdentity';
-import { Division, normalizeDivisions, createDivision, divisionMatchesFilter } from '@/lib/division-utils';
-
 
 interface TournamentTeam extends TeamIdentity {
   coach?: string;
@@ -89,7 +87,6 @@ interface TournamentTeam extends TeamIdentity {
   source?: 'manual' | 'league' | 'pipeline';
   rosterLimit?: number;
   logoUrl?: string;
-  divisionId?: string; // Which division this team is assigned to
 }
 
 function calculateTournamentStandings(teams: TournamentTeam[], games: TournamentGame[], poolFilter?: number) {
@@ -199,10 +196,10 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
   );
 }
 
-function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEvent }: { isOpen: boolean, onOpenChange: (o: boolean) => void, onComplete: (eventId: string | null) => void, editEvent?: TeamEvent }) {
+function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEvent }: { isOpen: boolean, onOpenChange: (o: boolean) => void, onComplete: () => void, editEvent?: TeamEvent }) {
   const { activeTeam, user, hasFeature, isStarter } = useTeam();
   const db = useFirestore();
-  const { addEvent, updateEvent } = useTeam();
+  const { addEvent } = useTeam();
 
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -300,10 +297,6 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
   };
 
   const handleNext = () => {
-    if (step === 1 && !form.title.trim()) {
-      toast({ title: "Title Required", description: "Please enter an official designation to proceed.", variant: "destructive" });
-      return;
-    }
     if (step === 1) initDailyWindows();
     setStep(step + 1);
   };
@@ -338,109 +331,64 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
   };
 
   const handleDeploy = async () => {
-    if (!form.title) return;
+    if (!form.title || form.teams.length < 2) return;
     setIsProcessing(true);
-    
-    try {
-      const teamsToDeploy = form.teams.length >= 2
-        ? form.teams
-        : form.teams.length === 1
-        ? [
-            form.teams[0],
-            { id: 'tbd_2', name: 'TBD Team 2', coach: 'TBD Coach', email: '', source: 'manual' as const }
-          ]
-        : [
-            { id: 'tbd_1', name: 'TBD Team 1', coach: 'TBD Coach', email: '', source: 'manual' as const },
-            { id: 'tbd_2', name: 'TBD Team 2', coach: 'TBD Coach', email: '', source: 'manual' as const }
-          ];
+    const { games: schedule, report } = generateIntelligentTournamentSchedule({
+      teams: form.teams,
+      fields: (form.selectedFields && form.selectedFields.length > 0) ? form.selectedFields : [form.manualVenue || form.location],
+      startDate: form.startDate,
+      endDate: form.endDate,
+      startTime: form.dailyWindows[0]?.startTime || '08:00',
+      endTime: form.dailyWindows[0]?.endTime || '20:00',
+      gameLength: parseInt(form.gameLength),
+      breakLength: parseInt(form.breakLength),
+      dailyWindows: form.dailyWindows,
+      gamesPerTeam: parseInt(form.gamesPerTeam),
+      tournamentType: form.tournamentType
+    });
 
-      const { games: schedule, report } = generateIntelligentTournamentSchedule({
-        teams: teamsToDeploy,
-        fields: (form.selectedFields && form.selectedFields.length > 0) ? form.selectedFields : [form.manualVenue || form.location],
-        startDate: form.startDate,
-        endDate: form.endDate,
-        startTime: form.dailyWindows[0]?.startTime || '08:00',
-        endTime: form.dailyWindows[0]?.endTime || '20:00',
-        gameLength: parseInt(form.gameLength),
-        breakLength: parseInt(form.breakLength),
-        dailyWindows: form.dailyWindows,
-        gamesPerTeam: parseInt(form.gamesPerTeam),
-        tournamentType: form.tournamentType
-      });
+    const { addEvent, updateEvent } = useTeam();
 
-      // Sanitize to remove 'undefined' fields which crash Firestore silently via 'Unsupported field value: undefined'
-      const cleanSchedule = JSON.parse(JSON.stringify(schedule));
+    // Sanitize to remove 'undefined' fields which crash Firestore silently via 'Unsupported field value: undefined'
+    const cleanSchedule = JSON.parse(JSON.stringify(schedule));
 
-      const eventPayload = {
-        title: form.title,
-        date: new Date(form.startDate + 'T12:00:00').toISOString(),
-        endDate: new Date((form.endDate || form.startDate) + 'T12:00:00').toISOString(),
-        location: form.location,
-        description: form.description,
-        eventType: 'tournament',
-        isTournament: true,
-        tournamentTeamsData: teamsToDeploy,
-        tournamentTeams: teamsToDeploy.map(t => t.name),
-        tournamentGames: cleanSchedule,
-        waiverIds: form.waiverIds,
-        registrationCost: form.registration_cost,
-        gameLength: parseInt(form.gameLength),
-        breakLength: parseInt(form.breakLength),
-        gamesPerTeam: parseInt(form.gamesPerTeam),
-        dailyWindows: form.dailyWindows,
-        selectedFields: form.selectedFields,
-        manualVenue: form.manualVenue,
-        tournamentType: form.tournamentType,
-        adminEmails: form.adminEmails || []
-      };
+    const eventPayload = {
+      title: form.title,
+      date: new Date(form.startDate + 'T12:00:00').toISOString(),
+      endDate: new Date((form.endDate || form.startDate) + 'T12:00:00').toISOString(),
+      location: form.location,
+      description: form.description,
+      eventType: 'tournament',
+      isTournament: true,
+      tournamentTeamsData: form.teams,
+      tournamentTeams: form.teams.map(t => t.name),
+      tournamentGames: cleanSchedule,
+      waiverIds: form.waiverIds,
+      registrationCost: form.registration_cost,
+      gameLength: parseInt(form.gameLength),
+      breakLength: parseInt(form.breakLength),
+      gamesPerTeam: parseInt(form.gamesPerTeam),
+      dailyWindows: form.dailyWindows,
+      selectedFields: form.selectedFields,
+      manualVenue: form.manualVenue,
+      tournamentType: form.tournamentType,
+      adminEmails: form.adminEmails || []
+    };
 
-      let success = false;
-      let targetEventId = editEvent?.id || null;
-      if (editEvent) {
-         await updateDoc(doc(db, 'teams', activeTeam!.id, 'events', editEvent.id), eventPayload);
-         success = true;
-      } else {
-         const newEventRef = doc(collection(db, 'teams', activeTeam!.id, 'events'));
-         targetEventId = newEventRef.id;
-         const cleanedPayload = JSON.parse(JSON.stringify(eventPayload));
-         await setDoc(newEventRef, {
-           ...cleanedPayload,
-           teamId: activeTeam!.id,
-           ownerUserId: activeTeam!.ownerUserId || ''
-         });
-
-         // Initialize active team_config registration form
-         const configRef = doc(db, 'teams', activeTeam!.id, 'events', targetEventId, 'registration', 'team_config');
-         await setDoc(configRef, {
-           id: 'team_config',
-           type: 'team',
-           title: `${eventPayload.title} Enrollment`,
-           description: eventPayload.description || '',
-           is_active: true,
-           form_schema: [
-             { id: 'f_sys_division', label: 'Division', type: 'dropdown', required: false, step: 'identity', options: ['Unassigned'] },
-             { id: 'f_core_sq', label: 'Team Name', type: 'short_text', required: true },
-             { id: 'f_core_co', label: 'Authorized Contact Name', type: 'short_text', required: true },
-             { id: 'f_core_em', label: 'Email Address', type: 'short_text', required: true },
-             { id: 'f_core_ph', label: 'Phone Number', type: 'short_text', required: true }
-           ],
-           form_version: 1
-         });
-
-         success = true;
-      }
-
-      if (success) { 
-        onOpenChange(false); 
-        onComplete(targetEventId); 
-        toast({ title: editEvent ? "SYS_UPDATE" : "SYS_DEPLOY", description: editEvent ? "Architectural modifications synchronized." : "Elite series architecture successfully calibrated." }); 
-      }
-    } catch (err: any) {
-      console.error("[handleDeploy] Error deploying tournament:", err);
-      toast({ title: "Deployment Failed", description: err.message || "An error occurred during tournament setup.", variant: "destructive" });
-    } finally {
-      setIsProcessing(false);
+    let success = false;
+    if (editEvent) {
+       await updateDoc(doc(db, 'teams', activeTeam!.id, 'events', editEvent.id), eventPayload);
+       success = true;
+    } else {
+       success = await addEvent(eventPayload);
     }
+
+    if (success) { 
+      onOpenChange(false); 
+      onComplete(); 
+      toast({ title: editEvent ? "SYS_UPDATE" : "SYS_DEPLOY", description: editEvent ? "Architectural modifications synchronized." : "Elite series architecture successfully calibrated." }); 
+    }
+    setIsProcessing(false);
   };
 
   return (
@@ -785,7 +733,7 @@ function TournamentEditDialog({ event, isOpen, onOpenChange }: { event: TeamEven
       editEvent={event} 
       isOpen={isOpen} 
       onOpenChange={onOpenChange} 
-      onComplete={(eventId) => {
+      onComplete={() => {
         // Since we are editing an active event, we might need to refresh local state if not auto-synced
         onOpenChange(false);
       }}
@@ -804,40 +752,6 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
   const [celebrationWinner, setCelebrationWinner] = useState<string | null>(null);
   const [logoEditState, setLogoEditState] = useState<{ idx: number; name: string; url: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  // ── Division state ──
-  const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
-  const [newTournamentDivisionName, setNewTournamentDivisionName] = useState('');
-  const [expandedTournamentDivisionId, setExpandedTournamentDivisionId] = useState<string | null>(null);
-
-  const tournamentDivisions = normalizeDivisions(event.divisions);
-
-  const handleAddTournamentDivision = async () => {
-    if (!newTournamentDivisionName.trim() || !db || !activeTeam) return;
-    const existing = normalizeDivisions(event.divisions);
-    if (existing.some(d => d.id === createDivision(newTournamentDivisionName).id)) {
-      toast({ title: 'Duplicate Division', variant: 'destructive' }); return;
-    }
-    const updated = [...existing, createDivision(newTournamentDivisionName)];
-    await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), { divisions: updated });
-    setNewTournamentDivisionName('');
-    toast({ title: 'Division Added', description: `"${newTournamentDivisionName}" division created.` });
-  };
-
-  const handleRemoveTournamentDivision = async (divisionId: string) => {
-    if (!db || !activeTeam) return;
-    const updated = normalizeDivisions(event.divisions).filter(d => d.id !== divisionId);
-    await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), { divisions: updated });
-    if (selectedDivision === divisionId) setSelectedDivision(null);
-    toast({ title: 'Division Removed' });
-  };
-
-  const handleAssignTeamDivision = async (teamIdx: number, divisionId: string) => {
-    if (!db || !activeTeam || !event.tournamentTeamsData) return;
-    const updated = (event.tournamentTeamsData as any[]).map((t, i) =>
-      i === teamIdx ? { ...t, divisionId: divisionId === 'none' ? undefined : divisionId } : t
-    );
-    await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), { tournamentTeamsData: updated });
-  };
 
   const handleSyncLogos = async () => {
     if (!db || !activeTeam || !event.tournamentTeamsData) return;
@@ -975,15 +889,8 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
     if (!event.tournamentGames) return {};
 
     // Exclude conditional "Championship Decider" (If Needed) from the schedule view.
-    // Apply division filter — games with no divisionId show in all division contexts.
-    const scheduledGames = event.tournamentGames.filter((g: TournamentGame) => {
-      if ((g as any).isConditional) return false;
-      if (selectedDivision) {
-        const gameDivId = (g as any).divisionId;
-        if (gameDivId && gameDivId !== selectedDivision) return false;
-      }
-      return true;
-    });
+    // It only appears in the bracket renderer when actually triggered.
+    const scheduledGames = event.tournamentGames.filter((g: TournamentGame) => !(g as any).isConditional);
 
     // Parse "8:00 AM" / "2:30 PM" → total minutes from midnight for reliable sort
     const parseTimeMinutes = (t: string): number => {
@@ -1022,29 +929,24 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
 
     return Object.fromEntries(
       Object.entries(grouped)
-        .sort(([a], [b]) => a.localeCompare(b))
+        .sort(([a], [b]) => a.localeCompare(b))          // days in chronological order
         .map(([day, games]: [string, any]) => [
           day,
           [...games].sort((a: any, b: any) => {
+            // Primary: scheduled time (earliest first)
             const timeDiff = parseTimeMinutes(a.time) - parseTimeMinutes(b.time);
             if (timeDiff !== 0) return timeDiff;
+            // Secondary: bracket stage (WB before LB before Finals)
             const tierDiff = bracketTier(a.round) - bracketTier(b.round);
             if (tierDiff !== 0) return tierDiff;
+            // Tertiary: round name alphabetically
             return (a.round || '').localeCompare(b.round || '');
           })
         ])
     );
-  }, [event.tournamentGames, selectedDivision]);
+  }, [event.tournamentGames]);
   
-  const standings = useMemo(() => {
-    const teams = selectedDivision
-      ? (event.tournamentTeamsData || []).filter((t: any) => divisionMatchesFilter(t.divisionId, selectedDivision))
-      : (event.tournamentTeamsData || []);
-    const games = selectedDivision
-      ? (event.tournamentGames || []).filter((g: any) => !g.divisionId || g.divisionId === selectedDivision)
-      : (event.tournamentGames || []);
-    return calculateTournamentStandings(teams as TournamentTeam[], games as TournamentGame[]);
-  }, [event, selectedDivision]);
+  const standings = useMemo(() => calculateTournamentStandings(event.tournamentTeamsData || [], event.tournamentGames || []), [event]);
 
   // MISS-4: Per-pool standings for pool_play_knockout — computed per pool index
   const poolStandings = useMemo(() => {
@@ -1387,34 +1289,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
               {!isStarter && <TabsTrigger value="architecture" className="rounded-2xl font-black text-xs uppercase px-10 py-4 flex-1 data-[state=active]:bg-orange-600 data-[state=active]:text-white">Architecture</TabsTrigger>}
             </TabsList>
           </div>
-
-          {/* Division Context Bar — shown only when divisions are defined */}
-          {tournamentDivisions.length > 0 && (
-            <div className="px-8 pb-4 flex items-center gap-2 overflow-x-auto no-scrollbar border-b">
-              <Button
-                variant={!selectedDivision ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedDivision(null)}
-                className="h-8 rounded-xl font-black text-[9px] uppercase px-4 shrink-0 transition-all"
-              >
-                All Divisions
-              </Button>
-              {tournamentDivisions.map((div: Division) => (
-                <Button
-                  key={div.id}
-                  variant={selectedDivision === div.id ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setSelectedDivision(div.id)}
-                  className="h-8 rounded-xl font-black text-[9px] uppercase px-4 shrink-0 transition-all"
-                >
-                  {div.name}
-                </Button>
-              ))}
-            </div>
-          )}
-
           <div className="p-8 lg:p-14">
-
              <TabsContent value="architecture" className="mt-0 space-y-6">
                 {/* ── Registration Architect (moved to top) ── */}
                 <div className="bg-[#050505] rounded-[3rem] border border-white/10 overflow-hidden">
@@ -1455,60 +1330,7 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                   </div>
                 </div>
 
-                {/* ── Division Architect ── */}
-                <div className="bg-[#050505] rounded-[3rem] border border-white/10 overflow-hidden">
-                  <div className="h-0.5 bg-gradient-to-r from-primary via-orange-500 to-transparent w-full" />
-                  <div className="p-10 space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="border border-white/20 p-3 rounded-xl text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]"><Users className="h-5 w-5" /></div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-0.5">Competitive Tiers</p>
-                        <h3 className="text-2xl font-black uppercase tracking-tight text-white">Division Architect</h3>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Partition squads into divisions — teams, schedules, and standings filter automatically</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-4">
-                      <Input
-                        placeholder="New Division Name..."
-                        value={newTournamentDivisionName}
-                        onChange={e => setNewTournamentDivisionName(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddTournamentDivision())}
-                        className="h-12 flex-1 rounded-xl bg-white/10 border-white/15 font-bold text-white focus-visible:ring-primary px-5"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleAddTournamentDivision}
-                        variant="outline"
-                        className="h-12 px-8 rounded-xl font-black uppercase text-[10px] border-white/20 text-white hover:bg-white/10 hover:text-white shrink-0"
-                      >
-                        Add Division
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {tournamentDivisions.length === 0 && (
-                        <div className="py-8 border-2 border-dashed border-white/10 rounded-2xl text-center">
-                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest italic">No divisions defined. All teams compete in one tier.</p>
-                        </div>
-                      )}
-                      {tournamentDivisions.map((div: Division) => (
-                        <div key={div.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-5 py-3">
-                          <span className="font-black uppercase tracking-widest text-[11px] text-white">{div.name}</span>
-                          <button
-                            onClick={() => handleRemoveTournamentDivision(div.id)}
-                            className="text-white/30 hover:text-red-500 transition-colors ml-4"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
                 {/* ── DARK SYSTEM: Bracket Telemetry ── */}
-
                 <div className="bg-[#050505] rounded-[3rem] border border-white/10 overflow-hidden">
                   <div className="h-0.5 bg-gradient-to-r from-primary via-orange-500 to-transparent w-full" />
                   <div className="p-10 space-y-8">
@@ -1751,23 +1573,6 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                               </div>
                             </div>
                             <div className="flex items-center gap-6 px-4">
-                              {/* Division assignment — only shown when divisions exist */}
-                              {isStaff && tournamentDivisions.length > 0 && (
-                                <Select
-                                  value={(team as any).divisionId || 'none'}
-                                  onValueChange={v => handleAssignTeamDivision(idx, v)}
-                                >
-                                  <SelectTrigger className="h-10 w-[160px] rounded-xl border-2 font-black uppercase text-[9px] tracking-widest">
-                                    <SelectValue placeholder="No Division" />
-                                  </SelectTrigger>
-                                  <SelectContent className="rounded-xl">
-                                    <SelectItem value="none" className="font-bold uppercase text-[9px]">Unassigned</SelectItem>
-                                    {tournamentDivisions.map((div: Division) => (
-                                      <SelectItem key={div.id} value={div.id} className="font-bold uppercase text-[9px]">{div.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
                               {isStaff && (
                                 <Button
                                   variant="ghost"
@@ -1933,71 +1738,67 @@ function TournamentDetailView({ event, onBack }: { event: TeamEvent, onBack: () 
                     <div key={pool.label}>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 px-1">Pool {pool.label}</p>
                       <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left">
-                            <thead className="bg-muted/30 border-b text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                              <tr><th className="px-10 py-5">Squad Rank</th><th className="text-center">W</th><th className="text-center">L</th><th className="text-center">T</th><th className="text-center">PTS</th></tr>
-                            </thead>
-                            <tbody className="divide-y divide-black/5">
-                              {pool.rows.map((t: any, idx: number) => (
-                                <tr key={t.name} className="hover:bg-muted/10 transition-colors">
-                                  <td className="px-10 py-6">
-                                    <div className="flex items-center gap-4">
-                                      <span className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-black shrink-0">{idx + 1}</span>
-                                      <SquadIdentity
-                                        teamId={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.id}
-                                        teamName={t.name}
-                                        logoUrl={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.logoUrl}
-                                        logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
-                                        showNameWithLogo horizontal
-                                        textClassName="font-black uppercase text-sm"
-                                      />
-                                    </div>
-                                  </td>
-                                  <td className="text-center font-bold text-emerald-600">{t.wins}</td>
-                                  <td className="text-center font-bold text-red-600">{t.losses}</td>
-                                  <td className="text-center font-bold text-muted-foreground">{t.ties}</td>
-                                  <td className="text-center bg-primary/[0.03]"><Badge className="bg-primary text-white font-black px-4">{t.points}</Badge></td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                        <table className="w-full text-left">
+                          <thead className="bg-muted/30 border-b text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                            <tr><th className="px-10 py-5">Squad Rank</th><th className="text-center">W</th><th className="text-center">L</th><th className="text-center">T</th><th className="text-center">PTS</th></tr>
+                          </thead>
+                          <tbody className="divide-y divide-black/5">
+                            {pool.rows.map((t: any, idx: number) => (
+                              <tr key={t.name} className="hover:bg-muted/10 transition-colors">
+                                <td className="px-10 py-6">
+                                  <div className="flex items-center gap-4">
+                                    <span className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-black shrink-0">{idx + 1}</span>
+                                    <SquadIdentity
+                                      teamId={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.id}
+                                      teamName={t.name}
+                                      logoUrl={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.logoUrl}
+                                      logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
+                                      showNameWithLogo horizontal
+                                      textClassName="font-black uppercase text-sm"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="text-center font-bold text-emerald-600">{t.wins}</td>
+                                <td className="text-center font-bold text-red-600">{t.losses}</td>
+                                <td className="text-center font-bold text-muted-foreground">{t.ties}</td>
+                                <td className="text-center bg-primary/[0.03]"><Badge className="bg-primary text-white font-black px-4">{t.points}</Badge></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </Card>
                     </div>
                   ))
                 ) : (
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-black/5 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead className="bg-muted/30 border-b text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                          <tr><th className="px-10 py-5">Squad Rank</th><th className="text-center">W</th><th className="text-center">L</th><th className="text-center">T</th><th className="text-center">PTS</th></tr>
-                        </thead>
-                        <tbody className="divide-y divide-black/5">
-                          {standings.map((t, idx) => (
-                            <tr key={t.name} className="hover:bg-muted/10 transition-colors">
-                              <td className="px-10 py-6">
-                                <div className="flex items-center gap-4">
-                                  <span className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-black shrink-0">{idx + 1}</span>
-                                  <SquadIdentity
-                                    teamId={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.id}
-                                    teamName={t.name}
-                                    logoUrl={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.logoUrl}
-                                    logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
-                                    showNameWithLogo horizontal
-                                    textClassName="font-black uppercase text-sm"
-                                  />
-                                </div>
-                              </td>
-                              <td className="text-center font-bold text-emerald-600">{t.wins}</td>
-                              <td className="text-center font-bold text-red-600">{t.losses}</td>
-                              <td className="text-center font-bold text-muted-foreground">{t.ties}</td>
-                              <td className="text-center bg-primary/[0.03]"><Badge className="bg-primary text-white font-black px-4">{t.points}</Badge></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <table className="w-full text-left">
+                      <thead className="bg-muted/30 border-b text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                        <tr><th className="px-10 py-5">Squad Rank</th><th className="text-center">W</th><th className="text-center">L</th><th className="text-center">T</th><th className="text-center">PTS</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/5">
+                        {standings.map((t, idx) => (
+                          <tr key={t.name} className="hover:bg-muted/10 transition-colors">
+                            <td className="px-10 py-6">
+                              <div className="flex items-center gap-4">
+                                <span className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-black shrink-0">{idx + 1}</span>
+                                <SquadIdentity
+                                  teamId={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.id}
+                                  teamName={t.name}
+                                  logoUrl={event.tournamentTeamsData?.find((td: any) => td.name === t.name)?.logoUrl}
+                                  logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
+                                  showNameWithLogo horizontal
+                                  textClassName="font-black uppercase text-sm"
+                                />
+                              </div>
+                            </td>
+                            <td className="text-center font-bold text-emerald-600">{t.wins}</td>
+                            <td className="text-center font-bold text-red-600">{t.losses}</td>
+                            <td className="text-center font-bold text-muted-foreground">{t.ties}</td>
+                            <td className="text-center bg-primary/[0.03]"><Badge className="bg-primary text-white font-black px-4">{t.points}</Badge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </Card>
                 )}
              </TabsContent>
@@ -2032,86 +1833,6 @@ export function ManageTournamentsPageContent({ embedded = false }: { embedded?: 
   }, [rawEvents, showArchived]);
 
   const hasArchived = useMemo(() => (rawEvents || []).some(e => e.isArchived), [rawEvents]);
-
-  useEffect(() => {
-    if (!isLoading && rawEvents && rawEvents.length === 0 && db && activeTeam?.id && user?.uid) {
-      const seedDefaultTournament = async () => {
-        try {
-          const newEventRef = doc(collection(db, 'teams', activeTeam.id, 'events'), 'default_test_tournament');
-          const defaultEventPayload = {
-            title: "2026 CHAMPIONSHIP INVITATIONAL",
-            date: new Date("2026-07-01T12:00:00").toISOString(),
-            endDate: new Date("2026-07-05T12:00:00").toISOString(),
-            location: "Olympic Arena",
-            description: "Default seeded tournament for testing.",
-            eventType: "tournament",
-            isTournament: true,
-            tournamentTeamsData: [
-              { id: "t_1", name: "TBD Team 1", coach: "Coach 1", email: "team1@example.com", source: "manual" },
-              { id: "t_2", name: "TBD Team 2", coach: "Coach 2", email: "team2@example.com", source: "manual" },
-              { id: "t_3", name: "TBD Team 3", coach: "Coach 3", email: "team3@example.com", source: "manual" }
-            ],
-            tournamentTeams: ["TBD Team 1", "TBD Team 2", "TBD Team 3"],
-            tournamentGames: [
-              {
-                id: "g_1",
-                team1: "TBD Team 1",
-                team2: "TBD Team 2",
-                score1: 0,
-                score2: 0,
-                round: "Round 1",
-                stage: "Main",
-                date: "2026-07-01",
-                time: "10:00 AM",
-                location: "Olympic Arena Field 1",
-                isCompleted: false,
-                updatedAt: new Date().toISOString()
-              }
-            ],
-            waiverIds: [],
-            registrationCost: "0",
-            gameLength: 60,
-            breakLength: 15,
-            gamesPerTeam: 3,
-            dailyWindows: [
-              { date: "2026-07-01", startTime: "08:00", endTime: "20:00" }
-            ],
-            selectedFields: ["Olympic Arena Field 1"],
-            manualVenue: "Olympic Arena",
-            tournamentType: "round_robin",
-            adminEmails: [],
-            teamId: activeTeam.id,
-            ownerUserId: activeTeam.ownerUserId || '',
-            isArchived: false,
-            isCompleted: false
-          };
-          await setDoc(newEventRef, defaultEventPayload);
-
-          const configRef = doc(db, 'teams', activeTeam.id, 'events', 'default_test_tournament', 'registration', 'team_config');
-          await setDoc(configRef, {
-            id: 'team_config',
-            type: 'team',
-            title: '2026 CHAMPIONSHIP INVITATIONAL Enrollment',
-            description: 'Default seeded registration protocol.',
-            is_active: true,
-            form_schema: [
-              { id: 'f_sys_division', label: 'Division', type: 'dropdown', required: false, step: 'identity', options: ['Unassigned'] },
-              { id: 'f_core_sq', label: 'Team Name', type: 'short_text', required: true },
-              { id: 'f_core_co', label: 'Authorized Contact Name', type: 'short_text', required: true },
-              { id: 'f_core_em', label: 'Email Address', type: 'short_text', required: true },
-              { id: 'f_core_ph', label: 'Phone Number', type: 'short_text', required: true }
-            ],
-            form_version: 1
-          });
-
-          console.log("Successfully auto-seeded default test tournament and active registration config!");
-        } catch (e) {
-          console.error("Error auto-seeding default tournament:", e);
-        }
-      };
-      seedDefaultTournament();
-    }
-  }, [isLoading, rawEvents, db, activeTeam?.id, user?.uid]);
 
   const activeEvent = useMemo(() => rawEvents?.find(e => e.id === selectedEventId), [rawEvents, selectedEventId]);
 
@@ -2278,7 +1999,7 @@ export function ManageTournamentsPageContent({ embedded = false }: { embedded?: 
         )}
       </div>
 
-      <TournamentDeploymentWizard isOpen={isWizardOpen} onOpenChange={setIsWizardOpen} onComplete={(eventId) => { if (eventId) setSelectedEventId(eventId); }} />
+      <TournamentDeploymentWizard isOpen={isWizardOpen} onOpenChange={setIsWizardOpen} onComplete={() => setSelectedEventId(null)} />
 
       <Dialog open={isDuplicateOpen} onOpenChange={setIsDuplicateOpen}>
         <DialogContent className="rounded-[4rem] sm:max-w-md p-0 overflow-hidden bg-black text-white border-none shadow-[0_0_100px_rgba(0,0,0,0.5)]">

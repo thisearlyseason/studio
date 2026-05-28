@@ -3,9 +3,8 @@
 import React, { useState, useMemo, useEffect, Suspense, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationFormField } from '@/components/providers/team-provider';
-import { normalizeDivisions } from '@/lib/division-utils';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, collection, getDocs, limit, query } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,20 +85,6 @@ function RegistrationForm() {
   const [teamCode, setTeamCode] = useState('');
   const [validatingCode, setValidatingCode] = useState(false);
   const [validatedTeam, setValidatedTeam] = useState<any>(null);
-
-  // Redirection fallback for placeholder leagueId (winter-varsity-2024)
-  useEffect(() => {
-    if (leagueId === 'winter-varsity-2024' && db) {
-      getDocs(query(collection(db, 'leagues'), limit(1))).then(snap => {
-        if (!snap.empty) {
-          const firstLeague = snap.docs[0].data();
-          const targetLeagueId = firstLeague.id;
-          const url = new URL(window.location.href);
-          router.replace(`/register/league/${targetLeagueId}${url.search}`);
-        }
-      });
-    }
-  }, [leagueId, db, router]);
 
   const configRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string, 'registration', protocolId) : null, [db, leagueId, protocolId]);
   const leagueRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string) : null, [db, leagueId]);
@@ -432,7 +417,7 @@ function RegistrationForm() {
                             <SelectValue placeholder="--- SELECT TARGET DIVISION ---" />
                          </SelectTrigger>
                          <SelectContent className="rounded-2xl border-2">
-                            {normalizeDivisions(league.divisions).map((d) => <SelectItem key={d.id} value={d.id} className="font-black uppercase tracking-widest">{d.name}</SelectItem>)}
+                            {league.divisions.map((d: string) => <SelectItem key={d} value={d} className="font-black uppercase tracking-widest">{d}</SelectItem>)}
                          </SelectContent>
                       </Select>
                       <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest ml-2 italic">Official competitive tier for this enrollment.</p>
