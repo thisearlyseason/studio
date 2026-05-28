@@ -905,6 +905,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
 
 
   const [leagueName, setLeagueName] = useState('');
+  const [sport, setSport] = useState('');
   const [divisionTitle, setDivisionTitle] = useState('');
   const [stagedDivisions, setStagedDivisions] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1036,8 +1037,11 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
       setLeagueName('');
       setDivisionTitle('');
       setStagedDivisions([]);
+      setSport('');
+    } else {
+      setSport(activeTeam?.sport || 'General');
     }
-  }, [isCreateOpen]);
+  }, [isCreateOpen, activeTeam?.sport]);
 
   useEffect(() => {
     if (activeLeague) setLeaguePin(activeLeague.scorekeeperPin || '');
@@ -1383,16 +1387,18 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
     if (!leagueName.trim()) return;
     setIsProcessing(true);
     try {
+      const customSport = sport.trim() || activeTeam?.sport || 'General';
       if (stagedDivisions.length > 0) {
         for (const div of stagedDivisions) {
-          await createLeague(leagueName, div);
+          await createLeague(leagueName, div, customSport);
         }
       } else {
-        await createLeague(leagueName, divisionTitle.trim() || undefined);
+        await createLeague(leagueName, divisionTitle.trim() || undefined, customSport);
       }
       setIsCreateOpen(false); 
       setLeagueName(''); 
       setDivisionTitle('');
+      setSport('');
       setStagedDivisions([]);
       toast({ title: `${leagueLabel} Established` });
     } catch (e: any) {
@@ -2095,6 +2101,10 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase">{leagueLabel} Title</Label>
                 <Input placeholder="e.g. State Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase">Sport Type</Label>
+                <Input placeholder="e.g. Basketball, Soccer" value={sport} onChange={e => setSport(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase">Divisions <span className="text-muted-foreground font-normal">(Optional)</span></Label>

@@ -904,7 +904,7 @@ interface TeamContextType {
   deleteFacility: (id: string) => Promise<void>;
   addField: (facilityId: string, name: string) => Promise<void>;
   deleteField: (facilityId: string, fieldId: string) => Promise<void>;
-  createLeague: (name: string, divisionTitle?: string) => Promise<string>;
+  createLeague: (name: string, divisionTitle?: string, sport?: string) => Promise<string>;
   updateLeague: (leagueId: string, updates: Partial<League>) => Promise<void>;
   addLeagueGame: (leagueId: string, game: any) => Promise<void>;
   updateLeagueSchedule: (leagueId: string, schedule: any[]) => Promise<void>;
@@ -2709,7 +2709,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addField = useCallback(async (fid: string, n: string) => { if(db) await addDoc(collection(db, 'facilities', fid, 'fields'), { name: n, facilityId: fid }); }, [db]);
   const deleteFacilityField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
 
-  const createLeague = useCallback(async (name: string, divisionTitle?: string) => { 
+  const createLeague = useCallback(async (name: string, divisionTitle?: string, sport?: string) => { 
     if (!firebaseUser || !db || !activeTeam) return ''; 
 
     // Enforce Capacity Limits
@@ -2731,7 +2731,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       name, 
       divisionTitle: divisionTitle || '',
       creatorId: firebaseUser.uid, 
-      sport: activeTeam.sport || 'General', 
+      sport: sport || activeTeam.sport || 'General', 
       teams: { 
         [activeTeam.id]: { teamName: activeTeam.name, teamLogoUrl: activeTeam.teamLogoUrl || '', wins: 0, losses: 0, ties: 0, points: 0, status: 'accepted' } 
       }, 
