@@ -906,6 +906,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
 
   const [leagueName, setLeagueName] = useState('');
   const [divisionTitle, setDivisionTitle] = useState('');
+  const [stagedDivisions, setStagedDivisions] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'portals' | 'teams' | 'players' | 'compliance' | 'schedule'>('teams');
   const [mounted, setMounted] = useState(false);
@@ -976,6 +977,19 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
     return allLeagues.filter(l => showArchived ? l.isArchived : !l.isArchived);
   }, [allLeagues, showArchived]);
 
+  const groupedLeagues = useMemo(() => {
+    const groups: { name: string; items: League[] }[] = [];
+    leagues.forEach(l => {
+      let grp = groups.find(g => g.name.toLowerCase() === l.name.toLowerCase());
+      if (!grp) {
+        grp = { name: l.name, items: [] };
+        groups.push(grp);
+      }
+      grp.items.push(l);
+    });
+    return groups;
+  }, [leagues]);
+
   const activeLeague = useMemo(() => leagues.find(l => l.id === selectedLeagueId), [leagues, selectedLeagueId]);
 
   // Logo resolution map: activeTeam is the authoritative source.
@@ -1016,6 +1030,14 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const [leaguePin, setLeaguePin] = useState(activeLeague?.scorekeeperPin || '');
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (!isCreateOpen) {
+      setLeagueName('');
+      setDivisionTitle('');
+      setStagedDivisions([]);
+    }
+  }, [isCreateOpen]);
 
   useEffect(() => {
     if (activeLeague) setLeaguePin(activeLeague.scorekeeperPin || '');
@@ -1216,6 +1238,17 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
     }
   };
 
+  const handleArchiveLeagueId = async (leagueId: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to archive ${name}? It will be removed from active dashboards but remain in the Historical Archives.`)) return;
+    setIsProcessing(true);
+    try {
+      await updateDoc(doc(db, 'leagues', leagueId), { isArchived: true });
+      toast({ title: "Hub Archived", description: "League moved to historical storage." });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleUnarchiveLeague = async (leagueId: string) => {
     setIsProcessing(true);
     try {
@@ -1350,10 +1383,24 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
     if (!leagueName.trim()) return;
     setIsProcessing(true);
     try {
-      await createLeague(leagueName, divisionTitle);
-      setIsCreateOpen(false); setLeagueName(''); setDivisionTitle('');
+      if (stagedDivisions.length > 0) {
+        for (const div of stagedDivisions) {
+          await createLeague(leagueName, div);
+        }
+      } else {
+        await createLeague(leagueName, divisionTitle.trim() || undefined);
+      }
+      setIsCreateOpen(false); 
+      setLeagueName(''); 
+      setDivisionTitle('');
+      setStagedDivisions([]);
       toast({ title: `${leagueLabel} Established` });
-    } finally { setIsProcessing(false); }
+    } catch (e: any) {
+      console.error("[Leagues] Creation failed:", e);
+      toast({ title: "Creation Failed", description: e.message, variant: 'destructive' });
+    } finally { 
+      setIsProcessing(false); 
+    }
   };
 
   const handleEditTeam = (team: any) => {
@@ -1441,69 +1488,176 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
         <div className="flex flex-col gap-8">
           {!selectedLeagueId && (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 animate-in fade-in duration-500">
-              {leagues.map((league) => (
-                <Card 
-                  key={league.id} 
-                  className="rounded-[2rem] border-none shadow-xl overflow-hidden bg-white flex flex-col group transition-all hover:shadow-2xl hover:ring-2 hover:ring-primary/10 cursor-pointer"
-                  onClick={() => setSelectedLeagueId(league.id)}
-                >
-                  <div className="h-2 bg-black w-full" />
-                  <CardContent className="p-5 sm:p-8 lg:p-10 space-y-6 sm:space-y-8 flex-1">
-                    <div className="flex justify-between items-start">
-                      <div className="bg-primary/5 p-5 rounded-[1.5rem] text-primary shadow-inner">
-                        <Trophy className="h-10 w-10" />
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5">
-                        <Badge variant="secondary" className="bg-black text-white border-none font-black text-[10px] h-7 px-4 shadow-lg uppercase">
-                          {league.sport}
-                        </Badge>
-                        {league.divisionTitle && (
-                          <Badge className="bg-primary/10 text-primary border-none font-black text-[8px] h-5 px-2.5 uppercase tracking-widest">
-                            {league.divisionTitle}
+              {groupedLeagues.map((group) => {
+                const hasDivisions = group.items.length > 1 || group.items.some(l => l.divisionTitle);
+                
+                if (!hasDivisions) {
+                  const league = group.items[0];
+                  return (
+                    <Card 
+                      key={league.id} 
+                      className="rounded-[2rem] border-none shadow-xl overflow-hidden bg-white flex flex-col group transition-all hover:shadow-2xl hover:ring-2 hover:ring-primary/10 cursor-pointer"
+                      onClick={() => setSelectedLeagueId(league.id)}
+                    >
+                      <div className="h-2 bg-black w-full" />
+                      <CardContent className="p-5 sm:p-8 lg:p-10 space-y-6 sm:space-y-8 flex-1">
+                        <div className="flex justify-between items-start">
+                          <div className="bg-primary/5 p-5 rounded-[1.5rem] text-primary shadow-inner">
+                            <Trophy className="h-10 w-10" />
+                          </div>
+                          <Badge variant="secondary" className="bg-black text-white border-none font-black text-[10px] h-7 px-4 shadow-lg uppercase">
+                            {league.sport}
                           </Badge>
-                        )}
+                        </div>
+                        <div className="space-y-1 min-w-0">
+                          <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight group-hover:text-primary transition-colors leading-tight break-words overflow-hidden">{league.name}</h3>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                            {Object.keys(league.teams || {}).length} squads • ID: {(league.slug || league.id).toUpperCase()}
+                          </p>
+                        </div>
+                        <div className="pt-4 border-t flex flex-col sm:flex-row justify-between items-center gap-3">
+                           <div className="flex gap-1.5 overflow-hidden w-full sm:w-auto justify-center sm:justify-start">
+                             <div className="h-8 w-8 rounded-lg bg-muted/20 flex items-center justify-center shrink-0"><Users className="h-4 w-4 opacity-40" /></div>
+                             <div className="h-8 w-8 rounded-lg bg-muted/20 flex items-center justify-center shrink-0"><Zap className="h-4 w-4 opacity-40" /></div>
+                           </div>
+                           <div className="flex gap-2 w-full sm:w-auto">
+                             {isStaff && league.creatorId === authUser?.uid && (
+                               <Button 
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="h-9 px-4 rounded-xl border-2 font-black uppercase text-[9px] tracking-widest hover:bg-black hover:text-white transition-all flex-1 sm:flex-none"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setDuplicatingLeague(league);
+                                   setDuplicateTitle(`${league.name} (Clone)`);
+                                   setIsDuplicateOpen(true);
+                                 }}
+                               >
+                                 <Copy className="h-3.5 w-3.5 mr-2" /> Clone
+                               </Button>
+                             )}
+                             {league.isArchived ? (
+                               <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleUnarchiveLeague(league.id); }} className="h-9 rounded-xl text-[9px] font-black uppercase hover:bg-green-600 hover:text-white transition-all text-green-600 border border-green-600/20 px-4 flex-1 sm:flex-none">Restore Hub</Button>
+                             ) : (
+                               <Button variant="ghost" size="sm" className="h-9 rounded-xl text-[9px] font-black uppercase group-hover:bg-primary group-hover:text-white transition-all px-4 flex-1 sm:flex-none border-2 border-transparent group-hover:border-primary">Select Hub</Button>
+                             )}
+                           </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                const primaryLeague = group.items[0];
+                return (
+                  <Card 
+                    key={group.name} 
+                    className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white flex flex-col group transition-all col-span-1 sm:col-span-2 xl:col-span-3 border border-black/5"
+                  >
+                    <div className="h-2 bg-gradient-to-r from-primary to-orange-500 w-full" />
+                    <CardContent className="p-6 sm:p-8 lg:p-10 space-y-8 flex-1">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-primary/5 p-4 rounded-[1.25rem] text-primary shadow-inner">
+                              <Trophy className="h-7 w-7" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-black">{group.name}</h3>
+                              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                                {group.items.length} divisions active • {group.items.reduce((acc, curr) => acc + Object.keys(curr.teams || {}).length, 0)} total squads
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="bg-black text-white border-none font-black text-[10px] h-7 px-4 shadow-lg uppercase">
+                          {primaryLeague.sport}
+                        </Badge>
                       </div>
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight group-hover:text-primary transition-colors leading-tight break-words overflow-hidden">{league.name}</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
-                        {Object.keys(league.teams || {}).length} squads • ID: {(league.slug || league.id).toUpperCase()}
-                      </p>
-                    </div>
-                    <div className="pt-4 border-t flex flex-col sm:flex-row justify-between items-center gap-3">
-                       <div className="flex gap-1.5 overflow-hidden w-full sm:w-auto justify-center sm:justify-start">
-                         <div className="h-8 w-8 rounded-lg bg-muted/20 flex items-center justify-center shrink-0"><Users className="h-4 w-4 opacity-40" /></div>
-                         <div className="h-8 w-8 rounded-lg bg-muted/20 flex items-center justify-center shrink-0"><Zap className="h-4 w-4 opacity-40" /></div>
-                       </div>
-                       <div className="flex gap-2 w-full sm:w-auto">
-                         {isStaff && league.creatorId === authUser?.uid && (
-                           <Button 
-                             variant="outline" 
-                             size="sm" 
-                             className="h-9 px-4 rounded-xl border-2 font-black uppercase text-[9px] tracking-widest hover:bg-black hover:text-white transition-all flex-1 sm:flex-none"
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               setDuplicatingLeague(league);
-                               setDuplicateTitle(`${league.name} (Clone)`);
-                               setIsDuplicateOpen(true);
-                             }}
-                           >
-                             <Copy className="h-3.5 w-3.5 mr-2" /> Clone
-                           </Button>
-                         )}
-                         {league.isArchived ? (
-                           <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleUnarchiveLeague(league.id); }} className="h-9 rounded-xl text-[9px] font-black uppercase hover:bg-green-600 hover:text-white transition-all text-green-600 border border-green-600/20 px-4 flex-1 sm:flex-none">Restore Hub</Button>
-                         ) : (
-                           <Button variant="ghost" size="sm" className="h-9 rounded-xl text-[9px] font-black uppercase group-hover:bg-primary group-hover:text-white transition-all px-4 flex-1 sm:flex-none border-2 border-transparent group-hover:border-primary">Select Hub</Button>
-                         )}
-                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {group.items.map((divLeague) => {
+                          const divisionName = divLeague.divisionTitle || "Main Division";
+                          let badgeBg = "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20";
+                          if (divisionName.toLowerCase().includes("gold") || divisionName.toLowerCase().includes("varsity")) {
+                            badgeBg = "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20";
+                          } else if (divisionName.toLowerCase().includes("silver") || divisionName.toLowerCase().includes("jv") || divisionName.toLowerCase().includes("junior")) {
+                            badgeBg = "bg-slate-400/10 text-slate-600 border-slate-400/20 hover:bg-slate-400/20";
+                          } else if (divisionName.toLowerCase().includes("bronze") || divisionName.toLowerCase().includes("freshman")) {
+                            badgeBg = "bg-orange-700/10 text-orange-700 border-orange-700/20 hover:bg-orange-700/20";
+                          }
+                          
+                          return (
+                            <div 
+                              key={divLeague.id}
+                              onClick={() => setSelectedLeagueId(divLeague.id)}
+                              className="rounded-[1.75rem] border-2 border-black/5 hover:border-primary/20 bg-muted/5 hover:bg-primary/[0.02] p-5 space-y-4 transition-all duration-300 cursor-pointer flex flex-col justify-between group/div"
+                            >
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-start gap-2">
+                                  <Badge className={`border font-black text-[9px] h-6 px-3 uppercase tracking-wider ${badgeBg}`}>
+                                    {divisionName}
+                                  </Badge>
+                                  {isStaff && divLeague.creatorId === authUser?.uid && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-7 w-7 p-0 rounded-lg hover:bg-red-500 hover:text-white text-muted-foreground/60 transition-all opacity-0 group-hover/div:opacity-100"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleArchiveLeagueId(divLeague.id, `${divLeague.name} (${divisionName})`);
+                                      }}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    {Object.keys(divLeague.teams || {}).length} squads enrolled
+                                  </p>
+                                  <p className="text-[9px] text-muted-foreground/60 font-mono">
+                                    ID: {(divLeague.slug || divLeague.id).toUpperCase()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="pt-3 border-t border-black/5 flex items-center justify-between gap-2">
+                                <div className="flex gap-2">
+                                  {isStaff && divLeague.creatorId === authUser?.uid && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-8 px-3 rounded-lg border-2 font-black uppercase text-[8px] tracking-wider hover:bg-black hover:text-white transition-all"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDuplicatingLeague(divLeague);
+                                        setDuplicateTitle(`${divLeague.name} (${divisionName} Clone)`);
+                                        setIsDuplicateOpen(true);
+                                      }}
+                                    >
+                                      <Copy className="h-3 w-3 mr-1" /> Clone
+                                    </Button>
+                                  )}
+                                </div>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 rounded-lg text-[8px] font-black uppercase border border-primary/20 text-primary group-hover/div:bg-primary group-hover/div:text-white transition-all px-3"
+                                >
+                                  Select Hub
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
               {isStaff && (
               <Card 
-                className="rounded-[3rem] border-2 border-dashed border-muted bg-transparent flex flex-col items-center justify-center p-12 group hover:border-primary/40 transition-all cursor-pointer"
+                className="rounded-[3rem] border-2 border-dashed border-muted bg-transparent flex flex-col items-center justify-center p-12 group hover:border-primary/40 transition-all cursor-pointer min-h-[250px]"
                 onClick={() => setIsCreateOpen(true)}
               >
                 <Plus className="h-12 w-12 text-muted-foreground group-hover:text-primary transition-all mb-4" />
@@ -1933,9 +2087,60 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                 <Input placeholder="e.g. State Varsity Premier" value={leagueName} onChange={e => setLeagueName(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase">Division Title <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-                <Input placeholder="e.g. Gold Division or Varsity" value={divisionTitle} onChange={e => setDivisionTitle(e.target.value)} className="h-14 rounded-2xl border-2 font-black" />
+                <Label className="text-[10px] font-black uppercase">Divisions <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Press enter or click Add to stage multiple" 
+                    value={divisionTitle} 
+                    onChange={e => setDivisionTitle(e.target.value)} 
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (divisionTitle.trim()) {
+                          if (!stagedDivisions.includes(divisionTitle.trim())) {
+                            setStagedDivisions([...stagedDivisions, divisionTitle.trim()]);
+                          }
+                          setDivisionTitle('');
+                        }
+                      }
+                    }}
+                    className="h-14 rounded-2xl border-2 font-black flex-1" 
+                  />
+                  <Button 
+                    type="button"
+                    onClick={() => {
+                      if (divisionTitle.trim()) {
+                        if (!stagedDivisions.includes(divisionTitle.trim())) {
+                          setStagedDivisions([...stagedDivisions, divisionTitle.trim()]);
+                        }
+                        setDivisionTitle('');
+                      }
+                    }}
+                    className="h-14 rounded-2xl px-6 font-black uppercase text-xs"
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
+              {stagedDivisions.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {stagedDivisions.map((div, idx) => (
+                    <Badge 
+                      key={idx} 
+                      className="bg-primary/10 text-primary border-none font-black text-[10px] h-8 px-3.5 rounded-full flex items-center gap-1.5 uppercase tracking-wider"
+                    >
+                      {div}
+                      <button 
+                        type="button" 
+                        onClick={() => setStagedDivisions(stagedDivisions.filter(d => d !== div))}
+                        className="hover:text-red-500 transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
             <DialogFooter><Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleCreateLeague} disabled={isProcessing}>{isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Deploy Hub"}</Button></DialogFooter>
           </div>
