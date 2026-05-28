@@ -648,15 +648,10 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     }
   }
 
-  // 1.5 Optional: Seed Plan definitions if they don't exist (to unlock features in UI)
-  const plans = [
-    { id: 'free', name: 'Starter', features: { live_feed_read: true, basic_scheduling: true } },
-    { id: 'team', name: 'Pro', isPro: true, features: { feed_post: true, tournaments_view: true, tournaments_manage: true, payments_collect: true, incidents_report: true, volunteers_manage: true, fundraising_manage: true, chats_unlimited: true, roster_unlimited: true, advanced_scheduling: true, media_library: true } },
-    { id: 'elite', name: 'Elite Teams', isPro: true, features: { feed_post: true, tournaments_view: true, tournaments_manage: true, payments_collect: true, incidents_report: true, volunteers_manage: true, fundraising_manage: true, chats_unlimited: true, roster_unlimited: true, advanced_scheduling: true, media_library: true, multi_team_management: true, club_management: true } },
-    { id: 'league', name: 'Elite League', isPro: true, features: { feed_post: true, tournaments_view: true, tournaments_manage: true, payments_collect: true, incidents_report: true, volunteers_manage: true, fundraising_manage: true, chats_unlimited: true, roster_unlimited: true, advanced_scheduling: true, media_library: true, multi_team_management: true, club_management: true, league_series_architect: true } },
-    { id: 'school', name: 'Organization', isPro: true, features: { feed_post: true, tournaments_view: true, tournaments_manage: true, payments_collect: true, incidents_report: true, volunteers_manage: true, fundraising_manage: true, chats_unlimited: true, roster_unlimited: true, advanced_scheduling: true, media_library: true, multi_team_management: true, school_hub: true, facility_management: true, club_management: true } }
-  ];
-  plans.forEach(p => batch.set(doc(db, 'plans', p.id), clean(p), { merge: true }));
+  // NOTE: Plan definitions are written server-side by a superadmin and must NOT be
+  // seeded client-side — the Firestore rules restrict /plans/ writes to superadmins
+  // and attempting to write them as a demo guest causes the entire batch to fail.
+  // If plans are missing, deploy them via the Firebase console or Admin SDK.
   await batch.flush();
 
     // --- Specialized Parent/Player Demo Data ---

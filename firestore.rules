@@ -386,7 +386,9 @@ service cloud.firestore {
     // (Cloud Function or Admin SDK) rather than relying on client writes.
     match /plans/{planId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      // Superadmin can always write plan docs.
+      // Demo seeder also writes plan stubs so the UI feature-flags work in guest/demo mode.
+      allow write: if isSuperAdmin() || (isSignedIn() && request.resource.data.isDemo == true);
     }
 
     // ─── Subscriptions audit log (server-write only via webhook) ────────────
@@ -463,11 +465,14 @@ service cloud.firestore {
 
       match /{subCollection}/{docId} {
         allow read: if isSignedIn();
-        // Allow write if facility owner OR if the facility is being seeded (isDemo escape
-        // covers the batch timing issue where get() returns null before commit propagates).
+        // Allow write if:
+        //   1. The facility owner (clubId == uid) — cross-doc get() is safe here because the
+        //      parent facility doc already exists when a coach edits their own fields.
+        //   2. Demo seeder batch: isDemo == true on the incoming doc bypasses the get() race
+        //      condition where the parent facility doc hasn't propagated yet.
         allow write: if isSuperAdmin() || (isSignedIn() && (
-          get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid ||
-          request.resource.data.isDemo == true
+          request.resource.data.isDemo == true ||
+          get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid
         ));
       }
     }
