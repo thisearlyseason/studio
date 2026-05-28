@@ -1673,7 +1673,12 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
         <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
           <div className="flex items-center gap-4 mb-4">
             <Button variant="ghost" size="icon" onClick={() => setSelectedLeagueId(null)} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-6 w-6" /></Button>
-            <div className="bg-primary/5 px-4 py-2 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest border border-primary/10">Active Context: {activeLeague.name}</div>
+            <div className="bg-primary/5 px-4 py-2 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest border border-primary/10 flex items-center gap-1.5">
+              <span>Active Context: {activeLeague.name}</span>
+              {activeLeague.divisionTitle && (
+                <span className="text-muted-foreground/80">• {activeLeague.divisionTitle}</span>
+              )}
+            </div>
           </div>
           <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-black text-white p-10 relative group">
             <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700"><ShieldCheck className="h-48 w-48" /></div>
@@ -1681,8 +1686,13 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
               <div className="flex items-center gap-6">
                 <div className="bg-primary p-5 rounded-[1.5rem] shadow-xl"><Trophy className="h-10 w-10 text-white" /></div>
               <div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-4xl font-black uppercase tracking-tight leading-none">{activeLeague.name}</h2>
+                    {activeLeague.divisionTitle && (
+                      <Badge className="bg-primary text-white border-none font-black text-[10px] h-6 px-3.5 uppercase tracking-wider">
+                        {activeLeague.divisionTitle}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="border-white/20 text-white font-black text-[8px] h-5 px-2">ACTIVE HUB</Badge>
                   </div>
                   <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-2">{activeLeague.sport} • {Object.keys(activeLeague.teams || {}).length} Participating Squads</p>
