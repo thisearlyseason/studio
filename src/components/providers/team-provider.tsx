@@ -925,7 +925,7 @@ interface TeamContextType {
   deleteFacility: (id: string) => Promise<void>;
   addField: (facilityId: string, name: string) => Promise<void>;
   deleteField: (facilityId: string, fieldId: string) => Promise<void>;
-  createLeague: (name: string, divisions?: Array<{ id: string; name: string; fees?: string; rosterLimit?: number; createdAt?: string }>) => Promise<string>;
+  createLeague: (name: string) => Promise<string>;
   updateLeague: (leagueId: string, updates: Partial<League>) => Promise<void>;
   addLeagueGame: (leagueId: string, game: any) => Promise<void>;
   updateLeagueSchedule: (leagueId: string, schedule: any[]) => Promise<void>;
@@ -2730,7 +2730,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addField = useCallback(async (fid: string, n: string) => { if(db) await addDoc(collection(db, 'facilities', fid, 'fields'), { name: n, facilityId: fid }); }, [db]);
   const deleteFacilityField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
 
-  const createLeague = useCallback(async (name: string, divisions?: Array<{ id: string; name: string; fees?: string; rosterLimit?: number; createdAt?: string }>) => { 
+  const createLeague = useCallback(async (name: string) => { 
     if (!firebaseUser || !db || !activeTeam) return ''; 
 
     // Enforce Capacity Limits
@@ -2770,9 +2770,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       memberTeamIds: [activeTeam.id], 
       finances: {}, 
       inviteCode: lid.slice(-6).toUpperCase(), 
-      // Write divisions array immediately so filter tabs appear without requiring an edit step
-      divisions: divisions && divisions.length > 0 ? divisions : [],
-      schedule: [],
       createdAt: new Date().toISOString() 
     })); 
     
