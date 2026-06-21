@@ -328,7 +328,7 @@ export default function EquipmentPage() {
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Name</Label>
                 <Input placeholder="e.g. Away Jerseys" value={formEq.name} onChange={e => setFormEq({...formEq, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2 focus:border-primary/20 transition-all" />
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Category</Label>
                   <Select value={formEq.category} onValueChange={v => setFormEq({...formEq, category: v})}>
@@ -381,7 +381,7 @@ export default function EquipmentPage() {
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Name</Label>
                 <Input value={formEq.name} onChange={e => setFormEq({...formEq, name: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Category</Label>
                   <Select value={formEq.category} onValueChange={v => setFormEq({...formEq, category: v})}>

@@ -856,6 +856,12 @@ export default function MasterCalendarPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeDetailedEventId, setActiveDetailedEventId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setViewMode('list');
+    }
+  }, []);
+
   // TACTICAL SYNC: Merge household events with the high-reliability active team stream
   const allEvents = useMemo(() => {
     const map = new Map<string, TeamEvent>();
