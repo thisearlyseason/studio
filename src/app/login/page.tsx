@@ -157,7 +157,7 @@ export default function LoginPage() {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black p-6 relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black p-6 relative overflow-y-auto overflow-x-hidden">
       <div className="absolute inset-0 w-full h-full">
         <Image 
           src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1600" 

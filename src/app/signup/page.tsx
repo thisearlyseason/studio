@@ -149,7 +149,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 relative overflow-y-auto overflow-x-hidden">
       {/* Ambient gradient orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-primary/10 blur-[120px]" />
