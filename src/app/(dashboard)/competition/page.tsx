@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTeam } from '@/components/providers/team-provider';
 
-// Dynamically import each hub's content component — keeps their internal state isolated and avoids SSR issues
 const LeaguesHub = dynamic(
   () => import('../leagues/leagues-page-content').then(m => ({ default: m.LeaguesPageContent })),
   {

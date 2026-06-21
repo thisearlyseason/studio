@@ -468,6 +468,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   const filteredCoordTabs = coordinationTabs
     .filter(tab => {
+      // League creators without a team: only show Competition Hub so they can manage leagues
+      if (user?.role === 'league_creator' && !activeTeam) {
+        return tab.name === 'Competition Hub';
+      }
       // Feed is filtered by plan/feature
       if (tab.name === 'Feed') return hasFeature?.('live_feed_read');
       // Roster: hide for school admins in institution mode (they use the School Hub instead)
@@ -483,6 +487,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       return tab;
     });
 
+  const filteredAdminTabs = adminTabs.filter(tab => {
+    // League creators without a team: show Facilities (free) + Equipment (locked if free)
+    if (user?.role === 'league_creator' && !activeTeam) {
+      return tab.name === 'Facilities' || tab.name === 'Equipment';
+    }
+    return true;
+  });
+
   // School admin in institution mode: only the squad-selector is shown.
   // This covers: (a) when the explicit school hub record is active, or (b) when no squad has been chosen yet.
   const isSchoolInstitutionMode = isSchoolMode && isPrimaryClubAuthority && (!activeTeam || activeTeam?.type === 'school');
@@ -492,7 +504,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const isEliteHubMode = isEliteClubMode && !activeTeam;
 
   const bottomNavItems = (
-    isSchoolInstitutionMode || isEliteHubMode
+    // League creator without a team: only league-related shortcuts
+    user?.role === 'league_creator' && !activeTeam
+      ? [
+          { name: 'Leagues', href: '/competition', icon: Medal },
+          { name: 'Facilities', href: '/facilities', icon: MapPin },
+        ]
+      : isSchoolInstitutionMode || isEliteHubMode
       ? [] // hide all operational shortcuts until a squad is selected
       : [
           // Show Home/dashboard only when a squad is active (ADs in hub mode use /club instead)
@@ -597,88 +615,128 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 )}
               </SidebarMenu>
 
-              <DropdownMenu open={sidebarSwitcherOpen} onOpenChange={setSidebarSwitcherOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between h-14 px-3 border-2 border-muted-foreground/10 bg-background rounded-2xl shadow-sm hover:bg-muted/50 transition-all">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-9 w-9 rounded-xl border-2 border-background shadow-md">
-                        {isSchoolMode && isPrimaryClubAuthority && activeTeam?.type === 'school' ? (
-                          /* School institution mode — gradient shield */
-                          <AvatarFallback className="hero-gradient text-white font-black text-xs">
-                            {(user?.schoolName || user?.clubName || 'S')[0]}
-                          </AvatarFallback>
-                        ) : isEliteHubMode ? (
-                          /* Elite Club hub mode — amber/primary gradient shield */
-                          <AvatarFallback className="bg-gradient-to-br from-amber-500 to-primary text-white font-black text-xs">
-                            {(user?.clubName || user?.schoolName || 'E')[0]}
-                          </AvatarFallback>
-                        ) : isSchoolMode && isPrimaryClubAuthority ? (
-                          /* School squad mode — show the squad's logo */
-                          <>
-                            <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
-                            <AvatarFallback className="bg-primary/15 text-primary font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
-                          </>
-                        ) : isEliteClubMode ? (
-                          /* Elite Club squad mode — squad logo */
-                          <>
-                            <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
-                            <AvatarFallback className="bg-amber-100 text-amber-700 font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
-                          </>
-                        ) : (
-                          <>
-                            <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
-                            <AvatarFallback className="hero-gradient text-white font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
-                          </>
-                        )}
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        {isSchoolMode && isPrimaryClubAuthority ? (
-                          <>
-                            {/* Always show school name as the top line */}
-                            <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
-                              {user?.schoolName || user?.clubName || 'School Hub'}
-                            </span>
-                            {activeTeam?.type === 'school' ? (
-                              /* Institution is active — prompt to pick a squad */
-                              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate flex items-center gap-1">
-                                Select a Squad
-                              </span>
-                            ) : (
-                              /* A specific squad is active */
-                              <span className="text-[9px] font-bold text-primary uppercase tracking-widest truncate">
-                                ↳ {activeTeam?.name || 'Squad'}
-                              </span>
-                            )}
-                          </>
-                        ) : isEliteClubMode ? (
-                          <>
-                            {/* Elite Club Organizer identity */}
-                            <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
-                              {user?.clubName || user?.schoolName || 'Elite Club'}
-                            </span>
-                            {isEliteHubMode ? (
-                              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate">
-                                Select a Squad
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-bold text-primary uppercase tracking-widest truncate">
-                                ↳ {activeTeam?.name || 'Squad'}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
-                            {activeTeam?.name || 'Select Squad'}
-                          </span>
-                        )}
+              {user?.role === 'league_creator' && !activeTeam ? (
+                /* League Creator — no team yet: offer Start / Join a Team */
+                <div className="w-full space-y-2">
+                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/60 px-1">Optional — Add a Team</p>
+                  <div className="flex gap-2">
+                    <Link href="/teams/new" className="flex-1">
+                      <div className="flex items-center gap-2 h-10 px-3 rounded-xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all cursor-pointer group">
+                        <PlusCircle className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary truncate">Start Team</span>
                       </div>
-                    </div>
-                    <ChevronDown className="h-4 w-4 opacity-40 text-foreground shrink-0" />
-                  </Button>
-
-                </DropdownMenuTrigger>
-                   <SquadSwitcherMenu activeTeam={activeTeam} teams={teams} setActiveTeam={setActiveTeam} router={router} user={user} isSchoolMode={isSchoolMode} isPrimaryClubAuthority={isPrimaryClubAuthority} isEliteAccount={isEliteAccount} isEliteClubMode={isEliteClubMode} onClose={() => setSidebarSwitcherOpen(false)} />
-              </DropdownMenu>
+                    </Link>
+                    <Link href="/teams/join" className="flex-1">
+                      <div className="flex items-center gap-2 h-10 px-3 rounded-xl border-2 border-muted-foreground/15 bg-muted/30 hover:bg-muted/60 hover:border-muted-foreground/30 transition-all cursor-pointer group">
+                        <UserPlus className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">Join Team</span>
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+              ) : user?.role === 'league_creator' && activeTeam ? (
+                /* League Creator — has a team: show normal squad switcher */
+                <DropdownMenu open={sidebarSwitcherOpen} onOpenChange={setSidebarSwitcherOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-14 px-3 border-2 border-muted-foreground/10 bg-background rounded-2xl shadow-sm hover:bg-muted/50 transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-9 w-9 rounded-xl border-2 border-background shadow-md">
+                          <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
+                          <AvatarFallback className="hero-gradient text-white font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">{activeTeam?.name || 'Select Squad'}</span>
+                          <span className="text-[9px] font-bold text-primary uppercase tracking-widest truncate">League Organizer</span>
+                        </div>
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-40 text-foreground shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <SquadSwitcherMenu activeTeam={activeTeam} teams={teams} setActiveTeam={setActiveTeam} router={router} user={user} isSchoolMode={isSchoolMode} isPrimaryClubAuthority={isPrimaryClubAuthority} isEliteAccount={isEliteAccount} isEliteClubMode={isEliteClubMode} onClose={() => setSidebarSwitcherOpen(false)} />
+                </DropdownMenu>
+              ) : (
+                <DropdownMenu open={sidebarSwitcherOpen} onOpenChange={setSidebarSwitcherOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between h-14 px-3 border-2 border-muted-foreground/10 bg-background rounded-2xl shadow-sm hover:bg-muted/50 transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-9 w-9 rounded-xl border-2 border-background shadow-md">
+                          {isSchoolMode && isPrimaryClubAuthority && activeTeam?.type === 'school' ? (
+                            /* School institution mode — gradient shield */
+                            <AvatarFallback className="hero-gradient text-white font-black text-xs">
+                              {(user?.schoolName || user?.clubName || 'S')[0]}
+                            </AvatarFallback>
+                          ) : isEliteHubMode ? (
+                            /* Elite Club hub mode — amber/primary gradient shield */
+                            <AvatarFallback className="bg-gradient-to-br from-amber-500 to-primary text-white font-black text-xs">
+                              {(user?.clubName || user?.schoolName || 'E')[0]}
+                            </AvatarFallback>
+                          ) : isSchoolMode && isPrimaryClubAuthority ? (
+                            /* School squad mode — show the squad's logo */
+                            <>
+                              <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
+                              <AvatarFallback className="bg-primary/15 text-primary font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
+                            </>
+                          ) : isEliteClubMode ? (
+                            /* Elite Club squad mode — squad logo */
+                            <>
+                              <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
+                              <AvatarFallback className="bg-amber-100 text-amber-700 font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
+                            </>
+                          ) : (
+                            <>
+                              <AvatarImage src={activeTeam?.teamLogoUrl} className="object-cover" />
+                              <AvatarFallback className="hero-gradient text-white font-black text-xs">{activeTeam?.name?.[0] || 'T'}</AvatarFallback>
+                            </>
+                          )}
+                        </Avatar>
+                        <div className="flex flex-col min-w-0">
+                          {isSchoolMode && isPrimaryClubAuthority ? (
+                            <>
+                              {/* Always show school name as the top line */}
+                              <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
+                                {user?.schoolName || user?.clubName || 'School Hub'}
+                              </span>
+                              {activeTeam?.type === 'school' ? (
+                                /* Institution is active — prompt to pick a squad */
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate flex items-center gap-1">
+                                  Select a Squad
+                                </span>
+                              ) : (
+                                /* A specific squad is active */
+                                <span className="text-[9px] font-bold text-primary uppercase tracking-widest truncate">
+                                  ↳ {activeTeam?.name || 'Squad'}
+                                </span>
+                              )}
+                            </>
+                          ) : isEliteClubMode ? (
+                            <>
+                              {/* Elite Club Organizer identity */}
+                              <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
+                                {user?.clubName || user?.schoolName || 'Elite Club'}
+                              </span>
+                              {isEliteHubMode ? (
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate">
+                                  Select a Squad
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold text-primary uppercase tracking-widest truncate">
+                                  ↳ {activeTeam?.name || 'Squad'}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
+                              {activeTeam?.name || 'Select Squad'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-40 text-foreground shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <SquadSwitcherMenu activeTeam={activeTeam} teams={teams} setActiveTeam={setActiveTeam} router={router} user={user} isSchoolMode={isSchoolMode} isPrimaryClubAuthority={isPrimaryClubAuthority} isEliteAccount={isEliteAccount} isEliteClubMode={isEliteClubMode} onClose={() => setSidebarSwitcherOpen(false)} />
+                </DropdownMenu>
+              )}
             </SidebarHeader>
 
             <SidebarContent className="flex-1 overflow-y-auto px-4 py-2 bg-white">
@@ -688,7 +746,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   {isStaff && (
                     <div className="space-y-1.5">
                       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-primary px-2 mb-2">Command</p>
-                      {adminTabs.map(tab => <SidebarItem key={tab.name} tab={tab} isActive={pathname === tab.href} isLocked={tab.pro && !isPro} />)}
+                      {filteredAdminTabs.map(tab => <SidebarItem key={tab.name} tab={tab} isActive={pathname === tab.href} isLocked={tab.pro && !isPro} />)}
                     </div>
                   )}
                   <div className="space-y-1.5">
@@ -706,9 +764,28 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               )}
             </SidebarContent>
 
-            <SidebarFooter className="p-4 border-t bg-white space-y-4">
+            <SidebarFooter className="p-4 border-t bg-white space-y-3">
+
+              {/* ── Pro Upgrade Banner ── show for all non-Pro users */}
+              {!isPro && (
+                <button
+                  onClick={purchasePro}
+                  className="w-full text-left group relative overflow-hidden rounded-xl border border-black/10 bg-black hover:bg-black/90 transition-all active:scale-[0.98] shadow-md"
+                >
+                  <div className="p-3 flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Trophy className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white leading-none mb-0.5">Upgrade to Pro</p>
+                      <p className="text-[9px] font-semibold text-white/50 truncate leading-none">Unlock all features</p>
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </button>
+              )}
               {/* Hide invite code for Athletic Director / primary school — they don't share a join code */}
-              {activeTeam?.type !== 'school' && (
+              {activeTeam?.type !== 'school' && user?.role !== 'league_creator' && (
                 <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1">Squad Identity Code</p>
                   <div className="flex items-center gap-2">
@@ -750,23 +827,27 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b h-16 md:h-20 flex items-center px-4 md:px-10 justify-between text-foreground">
               <div className="flex items-center gap-4">
                 <div className="md:hidden">
-                  <DropdownMenu open={mobileSwitcherOpen} onOpenChange={setMobileSwitcherOpen}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl hover:bg-primary/5 text-primary relative transition-all active:scale-95 border-2 border-primary/10">
-                            <Zap className="h-5 w-5 fill-current" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">Switch Squad</TooltipContent>
-                    </Tooltip>
-                    <SquadSwitcherMenu activeTeam={activeTeam} teams={teams} setActiveTeam={setActiveTeam} router={router} user={user} isSchoolMode={isSchoolMode} isPrimaryClubAuthority={isPrimaryClubAuthority} isEliteAccount={isEliteAccount} isEliteClubMode={isEliteClubMode} onClose={() => setMobileSwitcherOpen(false)} />
-                  </DropdownMenu>
+                  {/* Show squad switcher on mobile for all roles except league creator with no team */}
+                  {!(user?.role === 'league_creator' && !activeTeam) && (
+                    <DropdownMenu open={mobileSwitcherOpen} onOpenChange={setMobileSwitcherOpen}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl hover:bg-primary/5 text-primary relative transition-all active:scale-95 border-2 border-primary/10">
+                              <Zap className="h-5 w-5 fill-current" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">Switch Squad</TooltipContent>
+                      </Tooltip>
+                      <SquadSwitcherMenu activeTeam={activeTeam} teams={teams} setActiveTeam={setActiveTeam} router={router} user={user} isSchoolMode={isSchoolMode} isPrimaryClubAuthority={isPrimaryClubAuthority} isEliteAccount={isEliteAccount} isEliteClubMode={isEliteClubMode} onClose={() => setMobileSwitcherOpen(false)} />
+                    </DropdownMenu>
+                  )}
                 </div>
                 <div className="hidden md:block">
                   <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tighter text-foreground">
-                    {pathname === '/dashboard' ? 'Strategic Command' : 
+                    {user?.role === 'league_creator' && pathname === '/competition' ? 'Competition Hub' :
+                     pathname === '/dashboard' ? 'Strategic Command' : 
                      (pathname === '/leagues' && isSchoolMode ? 'Programs' : 
                       pathname === '/club' ? (isSchoolMode ? 'School Hub' : 'Club Hub') :
                       filteredCoordTabs.find(t => t.href === pathname)?.name || adminTabs.find(t => t.href === pathname)?.name || 'Dashboard')}

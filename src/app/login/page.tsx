@@ -149,10 +149,11 @@ export default function LoginPage() {
   const DEMO_LIST = [
     { id: 'starter_squad', name: 'Starter Plan Demo', icon: Users, desc: 'Grassroots essentials' },
     { id: 'squad_pro', name: 'Squad Pro Demo', icon: Zap, desc: 'Professional elite coordination' },
-    { id: 'elite_teams', name: 'Elite Team/League Demo', icon: Trophy, desc: 'Institutional multi-team hub' },
+    { id: 'elite_teams', name: 'Elite Org Demo', icon: Trophy, desc: 'Institutional multi-team hub' },
     { id: 'school_demo', name: 'School Demo', icon: GraduationCap, desc: 'Full K-12 Program Hub' },
     { id: 'player_demo', name: 'Player Demo', icon: User, desc: 'Teammate recruiting view' },
-    { id: 'parent_demo', name: 'Parent Demo', icon: Baby, desc: 'Guardian safety view' }
+    { id: 'parent_demo', name: 'Parent Demo', icon: Baby, desc: 'Guardian safety view' },
+    { id: 'league_demo', name: 'FREE League Creator Demo', icon: ShieldAlert, desc: 'Free plan · manage leagues without Pro' },
   ];
 
   return (

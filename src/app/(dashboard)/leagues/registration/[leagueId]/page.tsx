@@ -88,7 +88,16 @@ export default function LeagueRegistrationAdminPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'assigned' | 'accepted'>('all');
   const [editingField, setEditingField] = useState<Partial<RegistrationFormField> | null>(null);
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
-  const [manualForm, setManualForm] = useState({ teamName: '', coachName: '', email: '', inviteCode: '' });
+  const [manualFormType, setManualFormType] = useState<'team' | 'player'>('team');
+  const [manualForm, setManualForm] = useState({ 
+    teamName: '', 
+    coachName: '', 
+    email: '', 
+    inviteCode: '',
+    playerName: '',
+    playerPhone: '',
+    division: ''
+  });
   const [isManualProcessing, setIsManualProcessing] = useState(false);
 
   // --- SYNC ---
@@ -289,9 +298,32 @@ export default function LeagueRegistrationAdminPage() {
       updated.team_waivers_content = contents;
     }
 
+    const waiverKeys: (keyof LeagueRegistrationConfig)[] = [
+      'require_default_waiver',
+      'default_waiver_text',
+      'custom_waiver_text',
+      'selected_team_waivers',
+      'team_waivers_content'
+    ];
+    const hasWaiverUpdates = Object.keys(updates).some(key => waiverKeys.includes(key as keyof LeagueRegistrationConfig));
+
     setLocalConfig(updated);
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-    const performSync = async () => { await saveLeagueRegistrationConfig(leagueId as string, configId, updated); };
+    const performSync = async () => {
+      await saveLeagueRegistrationConfig(leagueId as string, configId, updated);
+      if (hasWaiverUpdates) {
+        const waiverUpdates: Partial<LeagueRegistrationConfig> = {};
+        for (const key of waiverKeys) {
+          if (updated[key] !== undefined) {
+            (waiverUpdates as any)[key] = updated[key];
+          }
+        }
+        const otherConfigs = ['player_config', 'team_config', 'waiver_config'].filter(id => id !== configId);
+        for (const otherId of otherConfigs) {
+          await saveLeagueRegistrationConfig(leagueId as string, otherId, waiverUpdates);
+        }
+      }
+    };
     if (immediate) performSync(); else syncTimeoutRef.current = setTimeout(performSync, 1500);
   };
 
@@ -304,14 +336,57 @@ export default function LeagueRegistrationAdminPage() {
   };
 
   const handleManualAdd = async () => {
-    if (!manualForm.teamName || !manualForm.coachName || !manualForm.email || !leagueId) return;
-    setIsManualProcessing(true);
-    try {
-      await submitRegistrationEntry(leagueId as string, 'team_config', { ...manualForm, manual_enrollment: true, name: manualForm.coachName }, 0, 'Manual Enrollment', 'leagues');
-      setIsManualAddOpen(false);
-      setManualForm({ teamName: '', coachName: '', email: '', inviteCode: '' });
-      toast({ title: "Squad Enrolled" });
-    } finally { setIsManualProcessing(false); }
+    if (manualFormType === 'team') {
+      if (!manualForm.teamName || !manualForm.coachName || !manualForm.email || !leagueId) {
+        toast({ title: "Details Required", description: "Team name, coach name, and email are required.", variant: "destructive" });
+        return;
+      }
+      setIsManualProcessing(true);
+      try {
+        await submitRegistrationEntry(
+          leagueId as string, 
+          'team_config', 
+          { 
+            teamName: manualForm.teamName.trim(), 
+            name: manualForm.coachName.trim(), 
+            email: manualForm.email.trim(), 
+            inviteCode: manualForm.inviteCode.trim(), 
+            manual_enrollment: true 
+          }, 
+          0, 
+          'Manual Enrollment', 
+          'leagues'
+        );
+        setIsManualAddOpen(false);
+        setManualForm({ teamName: '', coachName: '', email: '', inviteCode: '', playerName: '', playerPhone: '', division: '' });
+        toast({ title: "Squad Enrolled" });
+      } finally { setIsManualProcessing(false); }
+    } else {
+      if (!manualForm.playerName || !manualForm.email || !leagueId) {
+        toast({ title: "Details Required", description: "Athlete name and email are required.", variant: "destructive" });
+        return;
+      }
+      setIsManualProcessing(true);
+      try {
+        await submitRegistrationEntry(
+          leagueId as string, 
+          'player_config', 
+          { 
+            name: manualForm.playerName.trim(), 
+            email: manualForm.email.trim(), 
+            phone: manualForm.playerPhone.trim(), 
+            division: manualForm.division || null, 
+            manual_enrollment: true 
+          }, 
+          0, 
+          'Manual Enrollment', 
+          'leagues'
+        );
+        setIsManualAddOpen(false);
+        setManualForm({ teamName: '', coachName: '', email: '', inviteCode: '', playerName: '', playerPhone: '', division: '' });
+        toast({ title: "Player Enrolled" });
+      } finally { setIsManualProcessing(false); }
+    }
   };
 
   if (isConfigLoading) return (
@@ -349,7 +424,16 @@ export default function LeagueRegistrationAdminPage() {
                 <Button key={s} variant={filterStatus === s ? 'secondary' : 'ghost'} size="sm" className="h-8 rounded-xl font-black text-[9px] uppercase px-4" onClick={() => setFilterStatus(s)}>{s}</Button>
               ))}
             </div>
-            {pipelineType === 'team' && <Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] shadow-xl" onClick={() => setIsManualAddOpen(true)}><Plus className="h-4 w-4 mr-2" /> Enroll Squad</Button>}
+            {pipelineType === 'team' && (
+              <Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] shadow-xl" onClick={() => { setManualFormType('team'); setIsManualAddOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" /> Enroll Squad
+              </Button>
+            )}
+            {pipelineType === 'player' && (
+              <Button className="rounded-xl h-11 px-6 font-black uppercase text-[10px] shadow-xl bg-primary text-white" onClick={() => { setManualFormType('player'); setIsManualAddOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" /> Enroll Player
+              </Button>
+            )}
           </div>
 
           <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
@@ -1156,20 +1240,53 @@ export default function LeagueRegistrationAdminPage() {
         <DialogContent className="rounded-[2.5rem] sm:max-w-md bg-white">
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 lg:p-10 space-y-8">
-            <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Manual Enrollment</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black uppercase">
+                {manualFormType === 'team' ? "Manual Squad Enrollment" : "Manual Player Enrollment"}
+              </DialogTitle>
+            </DialogHeader>
             <div className="space-y-5">
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label><Input placeholder="e.g. Metro Tigers" value={manualForm.teamName} onChange={e => setManualForm({...manualForm, teamName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Name</Label><Input placeholder="Full Name" value={manualForm.coachName} onChange={e => setManualForm({...manualForm, coachName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label><Input type="email" placeholder="coach@org.com" value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center px-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest">Override Invite Code</Label>
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase opacity-40 italic">Opt-Out for auto-gen</span>
-                </div>
-                <Input placeholder="AUTO" maxLength={6} value={manualForm.inviteCode} onChange={e => setManualForm({...manualForm, inviteCode: e.target.value.toUpperCase()})} className="h-12 rounded-xl border-2 font-black text-center tracking-widest placeholder:font-bold placeholder:tracking-normal" />
-              </div>
+              {manualFormType === 'team' ? (
+                <>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label><Input placeholder="e.g. Metro Tigers" value={manualForm.teamName} onChange={e => setManualForm({...manualForm, teamName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Coach Name</Label><Input placeholder="Full Name" value={manualForm.coachName} onChange={e => setManualForm({...manualForm, coachName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label><Input type="email" placeholder="coach@org.com" value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center px-1">
+                      <Label className="text-[10px] font-black uppercase tracking-widest">Override Invite Code</Label>
+                      <span className="text-[8px] font-bold text-muted-foreground uppercase opacity-40 italic">Opt-Out for auto-gen</span>
+                    </div>
+                    <Input placeholder="AUTO" maxLength={6} value={manualForm.inviteCode} onChange={e => setManualForm({...manualForm, inviteCode: e.target.value.toUpperCase()})} className="h-12 rounded-xl border-2 font-black text-center tracking-widest placeholder:font-bold placeholder:tracking-normal" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Athlete Name</Label><Input placeholder="e.g. John Doe" value={manualForm.playerName} onChange={e => setManualForm({...manualForm, playerName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Athlete Email</Label><Input type="email" placeholder="e.g. john@example.com" value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest ml-1">Phone Number (Optional)</Label><Input placeholder="e.g. (555) 123-4567" value={manualForm.playerPhone} onChange={e => setManualForm({...manualForm, playerPhone: e.target.value})} className="h-12 rounded-xl border-2 font-bold" /></div>
+                  {activeLeague?.divisions && activeLeague.divisions.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Selected Division (Optional)</Label>
+                      <Select value={manualForm.division} onValueChange={v => setManualForm({...manualForm, division: v})}>
+                        <SelectTrigger className="h-12 rounded-xl border-2 font-bold">
+                          <SelectValue placeholder="Select Division..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeLeague.divisions.map((d: string) => (
+                            <SelectItem key={d} value={d} className="font-bold">{d}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-            <DialogFooter><Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleManualAdd} disabled={isManualProcessing}>{isManualProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : "Inject Squad"}</Button></DialogFooter>
+            <DialogFooter>
+              <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleManualAdd} disabled={isManualProcessing}>
+                {isManualProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : manualFormType === 'team' ? "Inject Squad" : "Inject Player"}
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>

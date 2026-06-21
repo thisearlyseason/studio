@@ -87,7 +87,8 @@ const DEMO_OPTIONS = [
   { id: 'elite_teams', name: 'Elite Org Demo', icon: Trophy, desc: 'Institutional multi-team hub' },
   { id: 'school_demo', name: 'School Demo', icon: GraduationCap, desc: 'Full K-12 Program Hub' },
   { id: 'player_demo', name: 'Player Demo', icon: User, desc: 'Teammate recruiting view' },
-  { id: 'parent_demo', name: 'Parent Demo', icon: Baby, desc: 'Guardian safety view' }
+  { id: 'parent_demo', name: 'Parent Demo', icon: Baby, desc: 'Guardian safety view' },
+  { id: 'league_demo', name: 'FREE League Creator Demo', icon: ShieldCheck, desc: 'Free plan · manage leagues without Pro' }
 ];
 
 // ── Shared animation helpers ──────────────────────────────────────────────

@@ -108,7 +108,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 // --- TYPE DEFINITIONS ---
-export type UserRole = "parent" | "adult_player" | "youth_player" | "coach" | "admin" | "superadmin";
+export type UserRole = "parent" | "adult_player" | "youth_player" | "coach" | "admin" | "superadmin" | "league_creator";
 
 export type UserProfile = {
   id: string;
@@ -612,6 +612,7 @@ export type League = {
   isArchived?: boolean;
   divisions?: string[]; // List of available divisions (e.g. 'Gold', 'Silver', 'U12')
   divisionTitle?: string;
+  schedulerConfig?: any;
 };
 
 export type Facility = {
@@ -1356,8 +1357,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!firebaseUser) return false;
     if (isSuperAdmin) return true;
     
-    // 1. Global Role Override: Users with global 'coach' or 'admin' role have staff access to all teams
-    if (userProfile?.role === 'coach' || userProfile?.role === 'admin') return true; 
+    // 1. Global Role Override: Users with global 'coach', 'admin', or 'league_creator' role have staff access to all teams
+    if (userProfile?.role === 'coach' || userProfile?.role === 'admin' || userProfile?.role === 'league_creator') return true; 
 
     // 2. Team-Level Admin: Check if user is an Admin for the active team
     if (activeTeam?.role === 'Admin') return true;
@@ -1413,7 +1414,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const isCurrentTeamAdmin = activeTeam?.role === 'Admin' || 
                               activeTeam?.ownerUserId === userProfile?.id || 
                               activeTeam?.ownerUserId === firebaseUser?.uid;
-    const isGlobalManagementRole = userProfile?.role === 'admin' || userProfile?.role === 'coach';
+    const isGlobalManagementRole = userProfile?.role === 'admin' || userProfile?.role === 'coach' || userProfile?.role === 'league_creator';
 
     // 4. Authority by Plan + Role/Ownership
     if (hasUserAuthorityPlan || isActiveTeamAuthority) {
@@ -2712,41 +2713,56 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const deleteFacilityField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
 
   const createLeague = useCallback(async (name: string, divisionTitle?: string, sport?: string) => { 
-    if (!firebaseUser || !db || !activeTeam) return ''; 
+    if (!firebaseUser || !db) return ''; 
+    if (!activeTeam && userProfile?.role !== 'league_creator') return '';
 
     // Enforce Capacity Limits
-    const leagueCount = activeTeam.leagueIds ? Object.keys(activeTeam.leagueIds).length : 0;
-    
+    let leagueCount = 0;
     // School / Squad Organization accounts have higher capacity
-    const isHighCapacity = isSchoolMode || activeTeam?.planId === 'school' || userProfile?.plan_type === 'school';
+    let isHighCapacity = isSchoolMode || userProfile?.plan_type === 'school';
+
+    if (activeTeam) {
+      leagueCount = activeTeam.leagueIds ? Object.keys(activeTeam.leagueIds).length : 0;
+      isHighCapacity = isHighCapacity || activeTeam?.planId === 'school';
+    } else {
+      const leaguesSnap = await getDocs(query(collection(db, 'leagues'), where('creatorId', '==', firebaseUser.uid)));
+      leagueCount = leaguesSnap.size;
+    }
+    
     const limit = isHighCapacity ? 20 : 1;
     
     if (leagueCount >= limit) {
-      throw new Error(`League limit (${limit}) reached for this squad. Upgrade to an Elite or School plan for more.`);
+      throw new Error(`League limit (${limit}) reached. Upgrade to an Elite or School plan for more.`);
     }
 
     const lid = `league_${Date.now()}`; 
     const batch = writeBatch(db); 
     
+    const initialTeams = activeTeam ? { 
+      [activeTeam.id]: { teamName: activeTeam.name, teamLogoUrl: activeTeam.teamLogoUrl || '', wins: 0, losses: 0, ties: 0, points: 0, status: 'accepted' } 
+    } : {};
+    
+    const initialMemberTeamIds = activeTeam ? [activeTeam.id] : [];
+
     batch.set(doc(db, 'leagues', lid), clean({ 
       id: lid, 
       name, 
       divisionTitle: divisionTitle || '',
       creatorId: firebaseUser.uid, 
-      sport: sport || activeTeam.sport || 'General', 
-      teams: { 
-        [activeTeam.id]: { teamName: activeTeam.name, teamLogoUrl: activeTeam.teamLogoUrl || '', wins: 0, losses: 0, ties: 0, points: 0, status: 'accepted' } 
-      }, 
-      memberTeamIds: [activeTeam.id], 
+      sport: sport || activeTeam?.sport || 'General', 
+      teams: initialTeams, 
+      memberTeamIds: initialMemberTeamIds, 
       finances: {}, 
       inviteCode: lid.slice(-6).toUpperCase(), 
       createdAt: new Date().toISOString() 
     })); 
     
-    batch.update(doc(db, 'teams', activeTeam.id), { [`leagueIds.${lid}`]: true }); 
+    if (activeTeam) {
+      batch.update(doc(db, 'teams', activeTeam.id), { [`leagueIds.${lid}`]: true }); 
+    }
     await batch.commit(); 
     return lid; 
-  }, [firebaseUser, db, activeTeam]);
+  }, [firebaseUser, db, activeTeam, userProfile, isSchoolMode]);
   
   const updateLeague = useCallback(async (leagueId: string, updates: Partial<League>) => { 
     if (!db) return; 
@@ -2950,7 +2966,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       created_at: new Date().toISOString(),
       createdAt: new Date().toISOString()            // ← both field names for compatibility
     };
-    if (pId === 'team_config' && a.manual_enrollment) {
+    if ((pId === 'team_config' || pId === 'player_config') && a.manual_enrollment) {
       entryData.status = 'accepted';
     }
     const collectionPath = targetType || 'leagues';
@@ -3042,8 +3058,58 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!db) return; 
-    await updateDoc(doc(db, 'leagues', leagueId, 'registrationEntries', entryId), { assigned_team_id: teamId, status: teamId ? 'assigned' : 'pending' }); 
-  }, [db, isStaff, isPrimaryClubAuthority]);
+
+    // Retrieve registration entry first to inspect its protocol
+    const entryRef = doc(db, 'leagues', leagueId, 'registrationEntries', entryId);
+    const entrySnap = await getDoc(entryRef);
+    if (!entrySnap.exists()) return;
+    const entryData = entrySnap.data();
+    const pId = entryData.protocol_id;
+
+    let teamName = null;
+    let inviteCode = null;
+    if (teamId) {
+      const leagueSnap = await getDoc(doc(db, 'leagues', leagueId));
+      if (leagueSnap.exists()) {
+        const lData = leagueSnap.data();
+        const teamObj = lData.teams?.[teamId];
+        if (teamObj) {
+          teamName = teamObj.teamName;
+          inviteCode = teamObj.inviteCode || teamObj.teamCode || teamObj.code || '';
+        }
+      }
+    }
+
+    const batch = writeBatch(db);
+    batch.update(entryRef, { assigned_team_id: teamId, status: teamId ? 'assigned' : 'pending' });
+
+    if (pId === 'player_config' || pId === 'individual_config') {
+      batch.update(doc(db, 'leagues', leagueId), {
+        [`individualRecruits.recruit_${entryId}.status`]: teamId ? 'assigned' : 'pending',
+        [`individualRecruits.recruit_${entryId}.teamId`]: teamId,
+        [`individualRecruits.recruit_${entryId}.teamName`]: teamName,
+        [`individualRecruits.recruit_${entryId}.teamCode`]: inviteCode
+      });
+
+      if (teamId) {
+        const playerAnswers = entryData.answers || {};
+        const pName = playerAnswers.name || playerAnswers.fullName || 'Recruit Athlete';
+        const pEmail = playerAnswers.email || '';
+        const alertRef = doc(collection(db, 'teams', teamId, 'alerts'));
+        batch.set(alertRef, {
+          id: alertRef.id,
+          title: "New Player Assigned",
+          message: `Athlete ${pName} (${pEmail}) has been manually assigned to your squad by the league organizer.`,
+          audience: 'coaches',
+          targetUserId: null,
+          createdAt: new Date().toISOString(),
+          createdBy: firebaseUser?.uid || 'league_architect'
+        });
+      }
+    }
+
+    await batch.commit();
+  }, [db, isStaff, isPrimaryClubAuthority, firebaseUser]);
   const toggleRegistrationPaymentStatus = useCallback(async (leagueId: string, entryId: string, paid: boolean) => { if (!db) return; await updateDoc(doc(db, 'leagues', leagueId, 'registrationEntries', entryId), { payment_received: paid }); }, [db]);
   
   const respondToAssignment = useCallback(async (contextId: string, entryId: string, status: 'accepted' | 'declined') => { 

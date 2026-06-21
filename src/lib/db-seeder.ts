@@ -9,7 +9,9 @@ import {
   serverTimestamp,
   setDoc,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  query,
+  where
 } from 'firebase/firestore';
 import { generateTournamentSchedule } from '@/lib/scheduler-utils';
 import { format, parseISO } from 'date-fns';
@@ -487,8 +489,10 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
   const isParentDemo = planId === 'parent_demo';
   const isPlayerDemo = planId === 'player_demo';
+  const isLeagueDemo = planId === 'league_demo';
   const isEliteDemo = ['elite_teams', 'elite_league', 'league', 'elite'].includes(planId);
   const isSchoolDemo = planId === 'school_demo' || planId === 'school';
+  // league_demo gets facilities/equipment seeded (like a Pro demo) but NO paid Pro team quota
   const isProTier = planId !== 'starter_squad' && planId !== 'free';
 
   // --- PRE-FLIGHT CLEANUP ROUTINE ---
@@ -515,6 +519,12 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       // Always sever the membership record regardless of events cleanup success
       await deleteDoc(doc(db, 'users', userId, 'teamMemberships', existingTeamId));
     }
+
+    // Cleanup prior leagues created by the user
+    const leaguesSnap = await getDocs(query(collection(db, 'leagues'), where('creatorId', '==', userId)));
+    for (const lDoc of leaguesSnap.docs) {
+      await deleteDoc(doc(db, 'leagues', lDoc.id));
+    }
   } catch (err) {
     console.warn("Cleanup routine skipped or failed (safe to ignore if first run): ", err);
   }
@@ -533,7 +543,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     'league': 'league',
     'school': 'school',
     'parent_demo': 'team',
-    'player_demo': 'team'
+    'player_demo': 'team',
+    // League demo users start on free — they must pay to add Pro teams
+    'league_demo': 'free'
   };
 
   const plan_type = planTypeMap[planId] || 'free';
@@ -546,8 +558,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
   };
   const team_limit = teamLimitMap[plan_type] || 1;
 
-  const userRole = isSchoolDemo ? 'admin' : (isParentDemo ? 'parent' : (isPlayerDemo ? 'adult_player' : 'coach'));
-  const pos = isParentDemo ? 'Parent' : (isPlayerDemo ? 'Player' : (isSchoolDemo ? 'Athletic Director' : 'Coach'));
+  const userRole = isSchoolDemo ? 'admin' : (isParentDemo ? 'parent' : (isPlayerDemo ? 'adult_player' : (isLeagueDemo ? 'league_creator' : 'coach')));
+  const pos = isParentDemo ? 'Parent' : (isPlayerDemo ? 'Player' : (isSchoolDemo ? 'Athletic Director' : (isLeagueDemo ? 'League Creator' : 'Coach')));
   const role = (isParentDemo || isPlayerDemo) ? 'Member' : 'Admin';
 
   const batch = new BatchHelper(db);
@@ -968,8 +980,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         return strikerId;
     }
 
-    // School demo: 4 real squads get full data; the institution is a separate lightweight record
-    const teamVariants = isEliteDemo ? ['North', 'South', 'Academy'] : (isSchoolDemo ? ['Varsity', 'Junior Varsity', 'Freshman', 'Springfield High School'] : ['']);
+    // School/League creator demo: 4 real squads (school/elite) get full data; the institution is separate.
+    // For league_creator, they have no teams.
+    const teamVariants = isLeagueDemo ? [] : (isEliteDemo ? ['North', 'South', 'Academy'] : (isSchoolDemo ? ['Varsity', 'Junior Varsity', 'Freshman', 'Springfield High School'] : ['']));
     const leagueId = `demo_league_${userId.slice(-4)}`;
 
     // Create a league for non-parent demos to tie everything together
@@ -986,19 +999,20 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             memberTeamIds.push(tId);
         }
         
-        // Pad the league with mock opponents so it always has at least 4 teams
-        const mockOpponents = ['City Wildcats', 'Metro Stars', 'Valley Vipers', 'Coastal Elite'];
-        const mockTeamIds = ['wildcats_id', 'stars_id', 'vipers_id', 'elite_id'];
+        // Pad the league with mock opponents so it always has at least 4 teams (or 6 for league demo)
+        const mockOpponents = ['City Wildcats', 'Metro Stars', 'Valley Vipers', 'Coastal Elite', 'Summit United', 'Apex United'];
+        const mockTeamIds = ['wildcats_id', 'stars_id', 'vipers_id', 'elite_id', 'summit_id', 'apex_id'];
         let mockIndex = 0;
-        while (Object.keys(leagueTeams).length < 4) {
+        const targetTeamCount = isLeagueDemo ? 6 : 4;
+        while (Object.keys(leagueTeams).length < targetTeamCount) {
             const mockId = mockTeamIds[mockIndex] || `mock_${mockIndex}_${userId.slice(-4)}`;
             leagueTeams[mockId] = { teamName: mockOpponents[mockIndex], coachName: `Coach ${mockOpponents[mockIndex]}`, coachEmail: `coach@${mockOpponents[mockIndex].toLowerCase().replace(/\s+/g, '')}.com`, wins: Math.floor(Math.random() * 3), losses: Math.floor(Math.random() * 3), points: Math.floor(Math.random() * 9), teamLogoUrl: `https://picsum.photos/seed/${mockOpponents[mockIndex].replace(/\s+/g, '')}/200/200` };
             memberTeamIds.push(mockId);
             mockIndex++;
         }
 
-        const primaryTid = `demo_${planId}_${userId.slice(-4)}${teamVariants[0] ? '_' + teamVariants[0].toLowerCase().replace(/\s+/g, '') : ''}`;
-        const secondTid = Object.keys(leagueTeams)[1] || primaryTid;
+        const primaryTid = isLeagueDemo ? 'wildcats_id' : `demo_${planId}_${userId.slice(-4)}${teamVariants[0] ? '_' + teamVariants[0].toLowerCase().replace(/\s+/g, '') : ''}`;
+        const secondTid = isLeagueDemo ? 'stars_id' : (Object.keys(leagueTeams)[1] || primaryTid);
         
         batch.set(doc(db, 'leagues', leagueId), clean({
             id: leagueId,
@@ -1011,7 +1025,14 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             status: 'active',
             createdAt: now,
             teams: leagueTeams,
-            schedule: [
+            schedule: isLeagueDemo ? [
+              { id: 'sched1', team1: 'City Wildcats', team1Id: 'wildcats_id', team2: 'Metro Stars', team2Id: 'stars_id', date: tomorrow, time: '10:00 AM', location: 'Main Arena', status: 'scheduled' },
+              { id: 'sched2', team1: 'Valley Vipers', team1Id: 'vipers_id', team2: 'Coastal Elite', team2Id: 'elite_id', date: tomorrow, time: '12:00 PM', location: 'Court B', status: 'scheduled' },
+              { id: 'sched3', team1: 'Summit United', team1Id: 'summit_id', team2: 'Apex United', team2Id: 'apex_id', date: tomorrow, time: '02:00 PM', location: 'Court C', status: 'scheduled' },
+              { id: 'sched4', team1: 'City Wildcats', team1Id: 'wildcats_id', team2: 'Valley Vipers', team2Id: 'vipers_id', date: later, time: '09:00 AM', location: 'Main Arena', status: 'scheduled' },
+              { id: 'sched5', team1: 'Metro Stars', team1Id: 'stars_id', team2: 'Apex United', team2Id: 'apex_id', date: later, time: '11:00 AM', location: 'Court B', status: 'scheduled' },
+              { id: 'sched6', team1: 'Coastal Elite', team1Id: 'elite_id', team2: 'Summit United', team2Id: 'summit_id', date: later, time: '01:00 PM', location: 'Court C', status: 'scheduled' }
+            ] : [
               { id: 'sched1', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid, date: tomorrow, time: '10:00 AM', location: 'Main Arena', status: 'scheduled' },
               { id: 'sched2', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid, date: later, time: '02:00 PM', location: 'Court B', status: 'scheduled' },
               { id: 'sched3', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid, team2: Object.values(leagueTeams)[0]?.teamName || 'Team A', team2Id: primaryTid, date: new Date(nowObj.getTime() + 432000000).toISOString(), time: '11:00 AM', location: 'State Complex', status: 'scheduled' },

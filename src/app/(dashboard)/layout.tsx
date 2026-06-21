@@ -48,6 +48,8 @@ function DemoSeedWrapper({
     const ALLOWED_DEMO_PLANS = new Set([
       // Homepage DEMO_OPTIONS
       'starter_squad', 'squad_pro', 'elite_teams', 'school_demo', 'player_demo', 'parent_demo',
+      // League Creator
+      'league_demo',
       // Settings page
       'elite',
       // Legacy / generic
@@ -98,8 +100,9 @@ function DemoSeedWrapper({
 
         // Give Firestore an extra 2 s to propagate all writes before redirecting.
         // The previous 1 s was too short on cold starts.
+        const redirectPath = demoPlanId === 'league_demo' ? '/competition' : '/dashboard';
         setTimeout(() => {
-          window.location.replace('/dashboard');
+          window.location.replace(redirectPath);
         }, 2000);
 
       } catch (e: any) {
@@ -285,6 +288,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         router.replace('/club');
       } else if (isParent) {
         router.push('/family');
+      } else if (userProfile?.role === 'league_creator') {
+        router.push('/competition');
       }
     }
   }, [user, isAuthResolved, router, mounted, isDemoInitializing, pathname, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent, activeTeam]);
@@ -300,6 +305,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                         pathname === '/pricing' ||
                         pathname === '/how-to' ||
                         pathname === '/leagues' ||
+                        pathname === '/competition' ||
                         pathname === '/manage-tournaments' ||
                         pathname === '/facilities' ||
                         pathname === '/coaches-corner' ||
@@ -319,7 +325,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                         pathname.startsWith('/leagues/') ||
                         pathname.startsWith('/register/league/');
     
-    const isStaffLocal = userProfile?.role === 'admin' || userProfile?.role === 'superadmin';
+    const isStaffLocal = userProfile?.role === 'admin' || userProfile?.role === 'superadmin' || userProfile?.role === 'league_creator';
     
     if (teams.length === 0 && !isSetupPage && !isStaffLocal) {
       if (userProfile?.role === 'coach') router.push('/teams/new');

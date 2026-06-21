@@ -113,11 +113,13 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
 
 function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: League, isOpen: boolean, onOpenChange: (o: boolean) => void }) {
   const { user: authUser } = useUser();
-  const { db, updateLeagueSchedule, hasFeature, isSchoolMode } = useTeam();
+  const { db, updateLeagueSchedule, hasFeature, isSchoolMode, submitRegistrationEntry } = useTeam();
   const leagueLabel = isSchoolMode ? 'Program' : 'League';
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState(1);
-  const STEPS = ['Timeline', 'Parameters', 'Deploy'];
+  const STEPS = ['Timeline', 'Parameters', 'Squads', 'Deploy'];
+  
+  const [newSquad, setNewSquad] = useState({ teamName: '', coachName: '', coachEmail: '' });
   const [config, setConfig] = useState({
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(new Date(Date.now() + 90 * 86400000), 'yyyy-MM-dd'),
@@ -133,6 +135,26 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     blackoutDaysOfWeek: league.blackoutDaysOfWeek || [] as number[]
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      const sc = (league as any).schedulerConfig;
+      setConfig({
+        startDate: sc?.startDate || league.startDate || format(new Date(), 'yyyy-MM-dd'),
+        endDate: sc?.endDate || league.endDate || format(new Date(Date.now() + 90 * 86400000), 'yyyy-MM-dd'),
+        startTime: sc?.startTime || '18:00',
+        endTime: sc?.endTime || '22:00',
+        gameLength: sc?.gameLength || '60',
+        breakLength: sc?.breakLength || '15',
+        playDays: sc?.playDays || [1, 3] as number[],
+        gamesPerTeam: sc?.gamesPerTeam || '10',
+        doubleHeaderOption: (sc?.doubleHeaderOption || 'none') as 'none' | 'sameTeam' | 'differentTeams',
+        selectedFields: sc?.selectedFields || [] as string[],
+        blackoutDates: sc?.blackoutDates ? sc.blackoutDates.map((d: string) => new Date(d)) : [] as Date[],
+        blackoutDaysOfWeek: sc?.blackoutDaysOfWeek || league.blackoutDaysOfWeek || [] as number[]
+      });
+    }
+  }, [isOpen, league]);
+
   const facilitiesQuery = useMemoFirebase(() => {
     if (!db || !authUser?.uid) return null;
     return query(collection(db, 'facilities'), where('clubId', '==', authUser.uid));
@@ -144,7 +166,13 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     if (!league?.teams) return [];
     return Object.entries(league.teams)
       .filter(([_, t]) => t.status === 'accepted' || t.status === 'assigned')
-      .map(([id, t]) => ({ id, name: t.teamName, logoUrl: t.teamLogoUrl }));
+      .map(([id, t]) => ({ 
+        id, 
+        name: t.teamName, 
+        logoUrl: t.teamLogoUrl, 
+        coachName: (t as any).coachName || '', 
+        coachEmail: (t as any).coachEmail || '' 
+      }));
   }, [league?.teams]);
 
   const totalRegisteredTeams = useMemo(() => {
@@ -157,49 +185,79 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     return Object.values(league.teams).filter(t => t.status === 'pending').length;
   }, [league?.teams]);
 
+  const handleAddSquad = async () => {
+    if (!newSquad.teamName.trim() || !newSquad.coachName.trim() || !newSquad.coachEmail.trim()) {
+      toast({ title: "Fields Required", description: "Team name, coach name, and coach email are all required.", variant: "destructive" });
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      if (!submitRegistrationEntry) return;
+      await submitRegistrationEntry(
+        league.id,
+        'team_config',
+        {
+          teamName: newSquad.teamName.trim(),
+          name: newSquad.coachName.trim(),
+          email: newSquad.coachEmail.trim(),
+          manual_enrollment: true
+        },
+        0,
+        'Manual Staging',
+        'leagues'
+      );
+      setNewSquad({ teamName: '', coachName: '', coachEmail: '' });
+      toast({ title: "Squad Staged Successfully" });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Failed to Stage Squad", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleGenerate = async () => {
-    if (!config.startDate || !config.selectedFields.length || leagueTeams.length < 2) {
+    if (!config.startDate || !config.selectedFields.length) {
       toast({ 
         title: "Config Required", 
-        description: leagueTeams.length < 2 ? "Minimum 2 enrolled squads required." : "Define timeline and select fields.", 
+        description: "Define timeline and select fields to lock in parameters.", 
         variant: "destructive" 
       });
       return;
     }
 
-    if (league.requiredSquads && leagueTeams.length < league.requiredSquads) {
-      const confirmProceed = window.confirm(`${leagueLabel} requires ${league.requiredSquads} squads, but only ${leagueTeams.length} are enrolled. The generated schedule will be incomplete. Proceed anyway?`);
-      if (!confirmProceed) return;
-    }
     setIsProcessing(true);
     try {
-      const { games: schedule, report } = generateIntelligentLeagueSchedule({
-        teams: leagueTeams,
-        fields: config.selectedFields,
+      const serializableConfig = {
         startDate: config.startDate,
-        endDate: config.endDate || undefined,
+        endDate: config.endDate,
         startTime: config.startTime,
         endTime: config.endTime,
-        gameLength: parseInt(config.gameLength),
-        breakLength: parseInt(config.breakLength),
+        gameLength: config.gameLength,
+        breakLength: config.breakLength,
         playDays: config.playDays,
-        gamesPerTeam: parseInt(config.gamesPerTeam),
+        gamesPerTeam: config.gamesPerTeam,
         doubleHeaderOption: config.doubleHeaderOption,
+        selectedFields: config.selectedFields,
         blackoutDates: config.blackoutDates.map(d => d.toISOString()),
         blackoutDaysOfWeek: config.blackoutDaysOfWeek
-      });
-      
-      if (report.warnings.length > 0) {
-        toast({ title: 'Schedule Warnings', description: report.warnings[0] });
-      }
-      
-      if (schedule.length === 0) {
-        toast({ title: "Distribution Failure", description: "Could not satisfy scheduling constraints.", variant: "destructive" });
-        return;
-      }
+      };
 
-      await updateLeagueSchedule(league.id, schedule);
+      if (!db) return;
+      await updateDoc(doc(db, 'leagues', league.id), {
+        schedulerConfig: serializableConfig,
+        startDate: config.startDate,
+        endDate: config.endDate
+      });
+
+      toast({ 
+        title: "Season Parameters Locked", 
+        description: `Parameters for ${leagueLabel} saved successfully. You can now generate and deploy the schedule from the Schedule tab.` 
+      });
       onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Failed to Save", description: "Could not persist season configuration.", variant: "destructive" });
     } finally {
       setIsProcessing(false);
     }
@@ -230,7 +288,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { onOpenChange(o); if (!o) setStep(1); }}>
-      <DialogContent hideClose className="max-w-[98vw] lg:max-w-[900px] rounded-[3rem] p-0 border border-white/10 shadow-2xl overflow-hidden bg-[#050505] text-white h-[90vh] flex flex-col">
+      <DialogContent hideClose className="max-w-[98vw] lg:max-w-[900px] rounded-[3rem] p-0 border border-white/10 shadow-2xl bg-[#050505] text-white max-h-[90vh] md:h-[90vh] flex flex-col overflow-y-auto md:overflow-hidden">
         <DialogTitle className="sr-only">Season Architect</DialogTitle>
         <DialogClose className="absolute right-6 top-6 z-50 h-10 w-10 rounded-full border border-white/20 bg-white/5 hover:bg-white/15 transition-all flex items-center justify-center backdrop-blur-sm">
           <X className="h-5 w-5 text-white" />
@@ -257,7 +315,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
         </div>
 
         {/* Step Content */}
-        <ScrollArea className="flex-1 px-10 pb-8">
+        <ScrollArea className="flex-1 px-10 pb-8 min-h-[300px] md:min-h-0">
           {step === 1 && (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-400">
               <section className="space-y-6">
@@ -325,6 +383,74 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
           {step === 3 && (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-400">
               <section className="space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Staged Squads Ledger</h3>
+                <p className="text-[10px] font-medium text-white/40 leading-relaxed">
+                  Below are the squads currently enrolled in this {leagueLabel.toLowerCase()}. You can stage additional squads manually here before finalizing the season details.
+                </p>
+                <div className="border border-white/10 rounded-[2rem] bg-white/5 p-6 max-h-60 overflow-y-auto space-y-3">
+                  {leagueTeams.length > 0 ? (
+                    leagueTeams.map((team: any) => (
+                      <div key={team.id} className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10">
+                        <div>
+                          <p className="text-sm font-black uppercase text-white">{team.name}</p>
+                          <p className="text-[9px] font-bold text-white/40 uppercase mt-0.5">Coach: {team.coachName || 'N/A'} • {team.coachEmail || 'N/A'}</p>
+                        </div>
+                        <Badge className="bg-primary/20 text-primary border border-primary/30 text-[8px] font-black uppercase">Enrolled</Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-12 text-center opacity-30 italic text-xs uppercase font-black text-white">No squads enrolled yet.</div>
+                  )}
+                </div>
+              </section>
+
+              <section className="space-y-6 pt-6 border-t border-white/10">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Stage New Squad Manually</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase text-white/60 ml-1">Team Name</Label>
+                    <Input 
+                      placeholder="e.g. Thunder" 
+                      value={newSquad.teamName} 
+                      onChange={e => setNewSquad({...newSquad, teamName: e.target.value})} 
+                      className="h-12 rounded-xl bg-white/10 border-white/20 font-bold text-white px-4 text-xs" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase text-white/60 ml-1">Coach Name</Label>
+                    <Input 
+                      placeholder="e.g. John Doe" 
+                      value={newSquad.coachName} 
+                      onChange={e => setNewSquad({...newSquad, coachName: e.target.value})} 
+                      className="h-12 rounded-xl bg-white/10 border-white/20 font-bold text-white px-4 text-xs" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase text-white/60 ml-1">Coach Email</Label>
+                    <Input 
+                      placeholder="e.g. coach@domain.com" 
+                      type="email"
+                      value={newSquad.coachEmail} 
+                      onChange={e => setNewSquad({...newSquad, coachEmail: e.target.value})} 
+                      className="h-12 rounded-xl bg-white/10 border-white/20 font-bold text-white px-4 text-xs" 
+                    />
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleAddSquad} 
+                  disabled={isProcessing} 
+                  className="w-full h-12 rounded-xl bg-primary text-white hover:bg-primary/90 font-black uppercase text-xs tracking-wider mt-2"
+                >
+                  {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                  Stage Squad
+                </Button>
+              </section>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-10 animate-in slide-in-from-right-4 duration-400">
+              <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Blackout Calendar</h3>
                 <p className="text-[10px] font-medium text-white/40 leading-relaxed">Select specific dates where no {leagueLabel.toLowerCase()} matches should be scheduled.</p>
                 <div className="bg-white rounded-2xl p-3 text-black flex justify-center shadow-2xl">
@@ -361,7 +487,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
           ) : (
             <Button className="h-16 px-14 rounded-2xl bg-white text-black hover:bg-white/90 font-black uppercase text-sm tracking-widest shadow-[0_0_30px_rgba(255,255,255,0.1)] flex items-center" onClick={handleGenerate} disabled={isProcessing || !hasFeature?.('league_generation')}>
               {isProcessing ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : <Sparkles className="h-6 w-6 mr-3" />}
-              {!hasFeature?.('league_generation') ? 'Upgrade to Generate' : 'Deploy Season'}
+              {!hasFeature?.('league_generation') ? 'Upgrade to Generate' : 'Prepare Season'}
             </Button>
           )}
         </div>
@@ -373,7 +499,21 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
 
 
 
-function LeagueOverview({ league, schedule, onOpenManualGame }: { league: League, schedule: TournamentGame[], onOpenManualGame?: () => void }) {
+function LeagueOverview({ 
+  league, 
+  schedule, 
+  onOpenManualGame, 
+  onOpenScheduler, 
+  onDeploySchedule, 
+  isDeployingSchedule = false 
+}: { 
+  league: League, 
+  schedule: TournamentGame[], 
+  onOpenManualGame?: () => void, 
+  onOpenScheduler?: () => void, 
+  onDeploySchedule?: () => Promise<void>, 
+  isDeployingSchedule?: boolean 
+}) {
   const { isStaff, submitLeagueMatchScore, activeTeam, teams } = useTeam();
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -499,6 +639,170 @@ function LeagueOverview({ league, schedule, onOpenManualGame }: { league: League
     doc.save(`SCHEDULE_${league.name.replace(/\s+/g, '_')}.pdf`);
     toast({ title: "Fixtures Ledger Exported" });
   }, [league, schedule]);
+
+  if (!schedule || schedule.length === 0) {
+    const hasConfig = !!(league as any).schedulerConfig;
+    const config = (league as any).schedulerConfig;
+    const enrolledTeams = Object.values(league.teams || {}).filter(t => t.status === 'accepted' || t.status === 'assigned');
+
+    return (
+      <div className="max-w-4xl mx-auto py-10 px-4 animate-in fade-in duration-500 text-foreground">
+        <Card className="rounded-[3rem] border border-black/5 shadow-2xl overflow-hidden bg-white/80 backdrop-blur-md relative">
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-primary via-orange-500 to-red-600 w-full" />
+          <CardContent className="p-10 lg:p-14 space-y-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-muted/50">
+              <div className="space-y-2">
+                <Badge className="bg-primary/10 text-primary border-none font-black text-[9px] uppercase px-3.5 py-1 rounded-full tracking-wider">
+                  Scheduling Hub
+                </Badge>
+                <h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tight">
+                  Season Schedule Deployment
+                </h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
+                  Prepare, review, and lock your competitive fixtures
+                </p>
+              </div>
+              <div className="bg-primary/5 p-4 rounded-3xl text-primary shrink-0 self-start md:self-center">
+                <CalendarDays className="h-10 w-10" />
+              </div>
+            </div>
+
+            {hasConfig ? (
+              <div className="space-y-8">
+                {/* Parameter Overview */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Logistics Configuration</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="p-5 rounded-2xl bg-muted/20 border border-muted/50 space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Season Duration</p>
+                      <p className="text-sm font-black uppercase text-foreground">
+                        {format(new Date(config.startDate), 'MMM d, yyyy')}
+                      </p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">
+                        to {format(new Date(config.endDate), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-muted/20 border border-muted/50 space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Format Parameters</p>
+                      <p className="text-sm font-black uppercase text-foreground">
+                        {config.gamesPerTeam} Games / Squad
+                      </p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">
+                        {config.gameLength}m Match • {config.breakLength}m Break
+                      </p>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-muted/20 border border-muted/50 space-y-1">
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Weekly Play Window</p>
+                      <p className="text-sm font-black uppercase text-foreground">
+                        {config.startTime} – {config.endTime}
+                      </p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase truncate">
+                        {(config.playDays || []).map((d: number) => DAYS_OF_WEEK.find(day => day.id === d)?.label).filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Allocated Fields */}
+                  <div className="p-6 rounded-2xl bg-muted/10 border border-muted/30 space-y-3">
+                    <div className="flex items-center gap-2 text-primary">
+                      <Building className="h-4 w-4" />
+                      <h5 className="text-[10px] font-black uppercase tracking-widest">Field Allocations</h5>
+                    </div>
+                    {config.selectedFields && config.selectedFields.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {config.selectedFields.map((field: string) => (
+                          <Badge key={field} variant="outline" className="bg-white border-muted font-bold text-[9px] uppercase px-2.5 h-6">
+                            {field}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-red-500 uppercase">No fields allocated. Adjust configuration.</p>
+                    )}
+                  </div>
+
+                  {/* Registered Teams */}
+                  <div className="p-6 rounded-2xl bg-muted/10 border border-muted/30 space-y-3">
+                    <div className="flex items-center gap-2 text-primary">
+                      <Users className="h-4 w-4" />
+                      <h5 className="text-[10px] font-black uppercase tracking-widest">Roster Readiness</h5>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-black uppercase text-foreground">
+                        {enrolledTeams.length} Enrolled Squads
+                      </p>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                        {Object.keys(league.teams || {}).length} Registered
+                      </span>
+                    </div>
+                    {enrolledTeams.length < 2 && (
+                      <div className="flex items-center gap-2 text-red-500 font-bold text-[9px] uppercase bg-red-50 p-2.5 rounded-lg border border-red-100 animate-pulse">
+                        <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                        Minimum 2 accepted squads required.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {isStaff && (
+                  <div className="pt-6 flex flex-col sm:flex-row items-center gap-4">
+                    <Button 
+                      variant="outline"
+                      className="w-full sm:w-auto h-16 px-10 rounded-2xl font-black uppercase text-xs border-2 text-foreground hover:bg-muted/10"
+                      onClick={onOpenScheduler}
+                    >
+                      <Settings className="h-4 w-4 mr-2" /> Modify Setup
+                    </Button>
+                    <Button 
+                      disabled={isDeployingSchedule || enrolledTeams.length < 2}
+                      className="w-full sm:flex-1 h-16 rounded-2xl bg-black text-white hover:bg-black/90 font-black uppercase text-sm tracking-widest shadow-xl flex items-center justify-center gap-3 transition-all"
+                      onClick={onDeploySchedule}
+                    >
+                      {isDeployingSchedule ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-5 w-5" />
+                      )}
+                      Deploy Season Schedule
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-6 py-4 text-foreground">
+                <div className="bg-amber-50 border-2 border-amber-100 p-6 rounded-2xl flex items-start gap-4">
+                  <ShieldAlert className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-black uppercase text-amber-800">Season Architect Settings Pending</h4>
+                    <p className="text-xs font-medium text-amber-700/80 leading-relaxed">
+                      The schedule cannot be generated because scheduling parameters, play days, timelines, and venues have not been initialized.
+                    </p>
+                  </div>
+                </div>
+                {isStaff && (
+                  <Button 
+                    className="w-full h-16 rounded-2xl bg-black text-white hover:bg-black/90 font-black uppercase text-sm tracking-widest shadow-lg flex items-center justify-center gap-2"
+                    onClick={onOpenScheduler}
+                  >
+                    <Settings className="h-5 w-5" /> Configure Season Architect
+                  </Button>
+                )}
+                {!isStaff && (
+                  <p className="text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    The schedule for this season has not been published yet.
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -702,7 +1006,7 @@ function LeagueOverview({ league, schedule, onOpenManualGame }: { league: League
       )}
       
       <Dialog open={!!editingGame} onOpenChange={(o) => !o && setEditingGame(null)}>
-        <DialogContent hideClose className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white text-foreground">
+        <DialogContent hideClose className="sm:max-w-md rounded-[2.5rem] p-0 overflow-y-auto max-h-[90vh] border-none shadow-2xl bg-white text-foreground">
           <div className="h-2 bg-primary w-full" />
           <div className="p-8 space-y-8">
             <DialogHeader>
@@ -788,7 +1092,7 @@ function ManualGameDialog({ league, isOpen, onOpenChange }: { league: League, is
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent hideClose className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden bg-white text-foreground shadow-2xl border-none">
+      <DialogContent hideClose className="sm:max-w-md rounded-[2.5rem] p-0 overflow-y-auto max-h-[90vh] bg-white text-foreground shadow-2xl border-none">
         <div className="h-2 bg-primary w-full" />
         <div className="p-8 space-y-8">
           <DialogHeader>
@@ -886,11 +1190,94 @@ function ManualGameDialog({ league, isOpen, onOpenChange }: { league: League, is
   );
 }
 
+function ManualPlayerDialog({ league, isOpen, onOpenChange }: { league: League, isOpen: boolean, onOpenChange: (o: boolean) => void }) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const db = useFirestore();
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
+
+  const handleSubmit = async () => {
+    if (!form.name.trim() || !form.email.trim()) {
+      toast({ title: "Details Required", description: "Name and email are required.", variant: "destructive" });
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const playerId = `manual_${Date.now()}`;
+      const newRecruit = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        status: 'accepted',
+        signedAt: new Date().toISOString(),
+        manual: true
+      };
+
+      if (!db) return;
+      await updateDoc(doc(db, 'leagues', league.id), {
+        [`individualRecruits.${playerId}`]: newRecruit
+      });
+
+      onOpenChange(false);
+      setForm({ name: '', email: '', phone: '' });
+      toast({ title: "Player Appended", description: "Athlete added to the competitive player pool." });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Failed to Add", description: "Could not add player to the pool.", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent hideClose className="sm:max-w-md rounded-[2.5rem] p-0 overflow-y-auto max-h-[90vh] bg-white text-foreground shadow-2xl border-none">
+        <div className="h-2 bg-primary w-full" />
+        <div className="p-8 space-y-8">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/5 p-3 rounded-xl text-primary"><UserPlus className="h-5 w-5" /></div>
+              <DialogTitle className="text-2xl font-black uppercase">Manual Player Entry</DialogTitle>
+            </div>
+            <DialogDescription className="font-bold text-[10px] uppercase tracking-widest mt-1">Append custom athlete to the player pool</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Athlete Name</Label>
+              <Input placeholder="e.g. John Doe" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="h-12 border-2 rounded-xl font-bold bg-white" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Athlete Email</Label>
+              <Input type="email" placeholder="e.g. john@example.com" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="h-12 border-2 rounded-xl font-bold bg-white" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase">Phone Number (Optional)</Label>
+              <Input placeholder="e.g. (555) 123-4567" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="h-12 border-2 rounded-xl font-bold bg-white" />
+            </div>
+          </div>
+
+          <div className="flex gap-4 pt-4">
+            <Button variant="outline" className="flex-1 h-14 rounded-2xl font-black uppercase text-xs" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button className="flex-[2] h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20" onClick={handleSubmit} disabled={isProcessing}>
+              {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Append Athlete"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LeaguesPageContent({ embedded = false }: { embedded?: boolean }) {
   const { 
     activeTeam, createLeague, isStaff, isPro, purchasePro, isStarter,
     teams, removeTeamFromLeague, updateLeagueTeamDetails,
-    isPrimaryClubAuthority, updateLeaguePin, isSchoolMode, updateLeague
+    isPrimaryClubAuthority, updateLeaguePin, isSchoolMode, updateLeague,
+    updateLeagueSchedule
   } = useTeam();
   const db = useFirestore();
   const { user: authUser, isAuthResolved } = useUser();
@@ -902,6 +1289,114 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSeasonOpen, setIsSeasonOpen] = useState(false);
   const [isManualGameOpen, setIsManualGameOpen] = useState(false);
+  const [isManualPlayerOpen, setIsManualPlayerOpen] = useState(false);
+  const [isDeployingSchedule, setIsDeployingSchedule] = useState(false);
+
+  const handleDeployLeagueSchedule = async () => {
+    if (!activeLeague || !(activeLeague as any).schedulerConfig) return;
+    const config = (activeLeague as any).schedulerConfig;
+
+    const leagueTeams = Object.entries(activeLeague.teams || {})
+      .filter(([_, t]) => t.status === 'accepted' || t.status === 'assigned')
+      .map(([id, t]) => ({ id, name: t.teamName, logoUrl: t.teamLogoUrl }));
+
+    if (leagueTeams.length < 2) {
+      toast({ 
+        title: "Deployment Locked", 
+        description: "At least 2 enrolled squads are required to generate the season schedule.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    if (activeLeague.requiredSquads && leagueTeams.length < leagueTeams.length) {
+      const confirmProceed = window.confirm(`League requires ${activeLeague.requiredSquads} squads, but only ${leagueTeams.length} are enrolled. The generated schedule will be incomplete. Proceed anyway?`);
+      if (!confirmProceed) return;
+    }
+
+    if (activeLeague.schedule && activeLeague.schedule.length > 0) {
+      const confirmRedeploy = window.confirm("WARNING: A schedule has already been deployed for this season. Deploying a new schedule will completely erase all current matches, scores, and standings. This action CANNOT be undone. Are you sure you want to proceed?");
+      if (!confirmRedeploy) return;
+    }
+
+    setIsDeployingSchedule(true);
+    try {
+      const { games: scheduleGames, report } = generateIntelligentLeagueSchedule({
+        teams: leagueTeams,
+        fields: config.selectedFields,
+        startDate: config.startDate,
+        endDate: config.endDate || undefined,
+        startTime: config.startTime,
+        endTime: config.endTime,
+        gameLength: parseInt(config.gameLength),
+        breakLength: parseInt(config.breakLength),
+        playDays: config.playDays,
+        gamesPerTeam: parseInt(config.gamesPerTeam),
+        doubleHeaderOption: config.doubleHeaderOption,
+        blackoutDates: (config.blackoutDates || []).map((d: string) => d),
+        blackoutDaysOfWeek: config.blackoutDaysOfWeek || []
+      });
+
+      if (report.warnings.length > 0) {
+        toast({ title: 'Schedule Warnings', description: report.warnings[0] });
+      }
+
+      if (scheduleGames.length === 0) {
+        toast({ 
+          title: "Distribution Failure", 
+          description: "Could not satisfy scheduling constraints. Check play days or field availability.", 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      if (!updateLeagueSchedule) return;
+      await updateLeagueSchedule(activeLeague.id, scheduleGames);
+      toast({ title: "Schedule Deployed", description: "Season schedule successfully generated and synced." });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Failed to Deploy", description: "An error occurred during schedule generation.", variant: "destructive" });
+    } finally {
+      setIsDeployingSchedule(false);
+    }
+  };
+
+  const handleAssignPlayerToTeam = async (playerId: string, teamId: string) => {
+    if (!activeLeague || !db) return;
+    const team = activeLeague.teams?.[teamId];
+    const player = activeLeague.individualRecruits?.[playerId];
+    if (!team || !player) return;
+
+    setIsProcessing(true);
+    try {
+      const { addDoc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'leagues', activeLeague.id), {
+        [`individualRecruits.${playerId}.teamName`]: team.teamName,
+        [`individualRecruits.${playerId}.teamCode`]: team.inviteCode || team.teamCode || team.code || '',
+        [`individualRecruits.${playerId}.status`]: 'assigned'
+      });
+
+      const alertRef = collection(db, 'teams', teamId, 'alerts');
+      await addDoc(alertRef, {
+        title: "New Player Assigned",
+        message: `Athlete ${player.name} (${player.email}) has been manually assigned to your squad by the league organizer.`,
+        audience: 'coaches',
+        targetUserId: null,
+        createdAt: new Date().toISOString(),
+        createdBy: authUser?.uid || 'league_architect'
+      });
+
+      toast({ 
+        title: "Player Assigned", 
+        description: `Successfully assigned ${player.name} to ${team.teamName} and dispatched alert to coaches.` 
+      });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Assignment Failed", description: "Could not allocate player to squad.", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
 
   const [leagueName, setLeagueName] = useState('');
@@ -1754,6 +2249,16 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   <Button onClick={() => setIsSeasonOpen(true)} variant="outline" className="rounded-xl h-12 px-6 border-white/20 bg-white/5 text-white hover:bg-white hover:text-black transition-all flex items-center gap-2">
                     Season Architect
                   </Button>
+                  {activeLeague.schedulerConfig && (
+                    <Button 
+                      onClick={handleDeployLeagueSchedule} 
+                      disabled={isDeployingSchedule}
+                      className="rounded-xl h-12 px-6 bg-primary text-white hover:bg-primary/90 hover:text-white transition-all flex items-center gap-2 font-black uppercase text-xs shadow-xl"
+                    >
+                      {isDeployingSchedule ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      Deploy Season Schedule
+                    </Button>
+                  )}
                   {!isStarter && (
                   <Button 
                     variant="default" 
@@ -1773,7 +2278,24 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
             <div className="flex flex-col sm:flex-row items-baseline justify-between gap-4">
               <div className="flex flex-col gap-4 w-full">
                 <div className="bg-muted/50 p-1.5 rounded-2xl border-2 inline-flex shadow-inner overflow-x-auto max-w-full no-scrollbar">
-                  <Button variant={activeTab === 'teams' ? 'default' : 'ghost'} className="rounded-xl font-black text-[10px] uppercase px-8 transition-all shrink-0" onClick={() => setActiveTab('teams')}>Teams</Button>
+                  <Button 
+                    variant={activeTab === 'teams' ? 'default' : 'ghost'} 
+                    className="rounded-xl font-black text-[10px] uppercase px-8 transition-all shrink-0 flex items-center gap-2" 
+                    onClick={() => setActiveTab('teams')}
+                  >
+                    Teams
+                    {activeTab === 'teams' && isStaff && activeLeague.creatorId === authUser?.uid && (
+                      <span 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          router.push(`/leagues/registration/${activeLeague.id}?protocol=team_config`); 
+                        }} 
+                        className="bg-white text-primary text-[8px] font-black uppercase px-2 py-0.5 rounded-full hover:scale-105 transition-all shadow-sm shrink-0"
+                      >
+                        + Add Teams
+                      </span>
+                    )}
+                  </Button>
                   <Button variant={activeTab === 'schedule' ? 'default' : 'ghost'} className="rounded-xl font-black text-[10px] uppercase px-8 transition-all shrink-0" onClick={() => setActiveTab('schedule')}>Schedule</Button>
                   {isStaff && <Button variant={activeTab === 'players' ? 'default' : 'ghost'} className="rounded-xl font-black text-[10px] uppercase px-8 transition-all shrink-0" onClick={() => setActiveTab('players')}>Players</Button>}
                   {isStaff && !isStarter && <Button variant={activeTab === 'portals' ? 'default' : 'ghost'} className="rounded-xl font-black text-[10px] uppercase px-8 transition-all shrink-0" onClick={() => setActiveTab('portals')}>Portals</Button>}
@@ -1896,14 +2418,34 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                 </div>
               </Card>
             </TabsContent>
-            <TabsContent value="schedule" className="mt-0 animate-in fade-in duration-500"><LeagueOverview league={activeLeague} schedule={activeLeague.schedule || []} onOpenManualGame={() => setIsManualGameOpen(true)} /></TabsContent>
+            <TabsContent value="schedule" className="mt-0 animate-in fade-in duration-500">
+              <LeagueOverview 
+                league={activeLeague} 
+                schedule={activeLeague.schedule || []} 
+                onOpenManualGame={() => setIsManualGameOpen(true)} 
+                onOpenScheduler={() => setIsSeasonOpen(true)} 
+                onDeploySchedule={handleDeployLeagueSchedule}
+                isDeployingSchedule={isDeployingSchedule}
+              />
+            </TabsContent>
             <TabsContent value="players" className="mt-0 animate-in fade-in duration-500">
               <div className="space-y-6">
                 <div className="flex items-center justify-between px-2">
                   <div className="flex items-center gap-3"><Users className="h-5 w-5 text-primary" /><h3 className="text-xl font-black uppercase text-foreground">Personnel Hub</h3></div>
-                  <Link href={`/leagues/registration/${activeLeague.id}?protocol=player_config`}>
-                    <Button variant="outline" className="rounded-xl h-10 px-6 font-black uppercase text-[10px]">Open Athlete Pipeline</Button>
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    {isStaff && activeLeague.creatorId === authUser?.uid && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setIsManualPlayerOpen(true)}
+                        className="rounded-xl h-10 px-6 font-black uppercase text-[10px] flex items-center gap-1.5"
+                      >
+                        <Plus className="h-4 w-4" /> Add Player
+                      </Button>
+                    )}
+                    <Link href={`/leagues/registration/${activeLeague.id}?protocol=player_config`}>
+                      <Button variant="outline" className="rounded-xl h-10 px-6 font-black uppercase text-[10px]">Open Athlete Pipeline</Button>
+                    </Link>
+                  </div>
                 </div>
                 <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
                   <div className="overflow-x-auto">
@@ -1915,9 +2457,38 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                             <td className="px-10 py-6">
                               <div className="flex items-center gap-4">
                                 <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><UserPlus className="h-5 w-5" /></div>
-                                <div>
-                                  <span className="font-black text-sm uppercase truncate text-foreground">{p.name}</span>
-                                  {p.teamName && <p className="text-[7px] font-bold text-muted-foreground uppercase">Affiliation: {p.teamName}</p>}
+                                <div className="space-y-1">
+                                  <span className="font-black text-sm uppercase truncate text-foreground block">{p.name}</span>
+                                  {p.teamName ? (
+                                    <p className="text-[7px] font-black text-emerald-600 uppercase flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Affiliation: {p.teamName}
+                                    </p>
+                                  ) : (
+                                    isStaff && activeLeague.creatorId === authUser?.uid && (
+                                      <div onClick={(e) => e.stopPropagation()}>
+                                        <Select
+                                          onValueChange={(tId) => handleAssignPlayerToTeam(id, tId)}
+                                          disabled={isProcessing}
+                                        >
+                                          <SelectTrigger className="h-8 rounded-lg border font-black text-[8px] uppercase w-40 bg-white text-foreground">
+                                            <SelectValue placeholder="Assign to Team..." />
+                                          </SelectTrigger>
+                                          <SelectContent className="rounded-xl bg-white border shadow-2xl z-[100]">
+                                            {Object.entries(activeLeague.teams || {})
+                                              .filter(([_, t]) => t.status === 'accepted' || t.status === 'assigned')
+                                              .map(([tId, t]) => (
+                                                <SelectItem key={tId} value={tId} className="font-bold uppercase text-[9px]">
+                                                  {t.teamName}
+                                                </SelectItem>
+                                              ))}
+                                            {Object.entries(activeLeague.teams || {}).filter(([_, t]) => t.status === 'accepted' || t.status === 'assigned').length === 0 && (
+                                              <div className="p-3 text-[8px] font-bold uppercase text-muted-foreground text-center">No enrolled teams</div>
+                                            )}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    )
+                                  )}
                                 </div>
                               </div>
                             </td>
@@ -2093,7 +2664,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
       )}
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-md p-0 overflow-hidden bg-white text-foreground">
+        <DialogContent className="rounded-[2.5rem] sm:max-w-md p-0 overflow-y-auto max-h-[90vh] bg-white text-foreground">
           <div className="h-2 bg-primary w-full" />
           <div className="p-10 space-y-8">
             <DialogHeader><DialogTitle className="text-3xl font-black uppercase">{leagueLabel} Architect</DialogTitle></DialogHeader>
@@ -2168,7 +2739,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
       </Dialog>
 
       <Dialog open={!!editingTeam} onOpenChange={(o) => !o && setEditingTeam(null)}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-md p-0 overflow-hidden bg-white text-foreground">
+        <DialogContent className="rounded-[2.5rem] sm:max-w-md p-0 overflow-y-auto max-h-[90vh] bg-white text-foreground">
           <div className="h-2 bg-black w-full" />
           <div className="p-8 lg:p-10 space-y-8">
             <DialogHeader>
@@ -2260,7 +2831,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
       </Dialog>
 
       <Dialog open={isEditLeagueOpen} onOpenChange={setIsEditLeagueOpen}>
-        <DialogContent hideClose className="max-w-[98vw] lg:max-w-[1600px] rounded-[3rem] p-0 border border-white/10 shadow-2xl overflow-hidden bg-[#050505] text-white h-[95vh] flex flex-col">
+        <DialogContent hideClose className="max-w-[98vw] lg:max-w-[1600px] rounded-[3rem] p-0 border border-white/10 shadow-2xl bg-[#050505] text-white max-h-[95vh] lg:h-[95vh] flex flex-col overflow-y-auto lg:overflow-hidden">
           <DialogTitle className="sr-only">{leagueLabel} Profile</DialogTitle>
           <DialogClose className="absolute right-6 top-6 z-50 h-10 w-10 rounded-full border border-white/20 bg-white/5 hover:bg-white/15 transition-all flex items-center justify-center backdrop-blur-sm">
             <X className="h-5 w-5 text-white" />
@@ -2268,7 +2839,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
           </DialogClose>
           <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-600 via-orange-500 to-primary w-full shrink-0" />
           
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 overflow-y-auto lg:overflow-hidden">
             {/* Left Navigation Matrix */}
             <div className="w-[320px] bg-[#0a0a0a] border-r border-white/5 p-10 flex flex-col hidden lg:flex relative">
               <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
@@ -2294,10 +2865,10 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
             </div>
 
             {/* Right Content Execution Area */}
-            <div className="flex-1 flex flex-col overflow-hidden relative">
+            <div className="flex-1 flex flex-col overflow-y-auto lg:overflow-hidden relative">
               <div className="absolute top-10 right-10 opacity-5 pointer-events-none w-64 h-64"><Trophy className="w-full h-full" /></div>
               
-              <ScrollArea className="flex-1 px-8 lg:px-16 pt-16 pb-32">
+              <ScrollArea className="flex-1 px-8 lg:px-16 pt-16 pb-32 min-h-[300px] lg:min-h-0">
                 <div className="max-w-3xl mx-auto space-y-12">
                   <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
                     <div>
@@ -2478,7 +3049,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
       </Dialog>
 
       <Dialog open={isDuplicateOpen} onOpenChange={setIsDuplicateOpen}>
-        <DialogContent className="rounded-[2.5rem] sm:max-w-md p-0 overflow-hidden bg-white text-foreground">
+        <DialogContent className="rounded-[2.5rem] sm:max-w-md p-0 overflow-y-auto max-h-[90vh] bg-white text-foreground">
           <div className="h-2 bg-primary w-full" />
           <div className="p-10 space-y-8">
             <DialogHeader>
@@ -2513,6 +3084,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
 
       {activeLeague && <SeasonSchedulerDialog league={activeLeague} isOpen={isSeasonOpen} onOpenChange={setIsSeasonOpen} />}
       {activeLeague && <ManualGameDialog league={activeLeague} isOpen={isManualGameOpen} onOpenChange={setIsManualGameOpen} />}
+      {activeLeague && <ManualPlayerDialog league={activeLeague} isOpen={isManualPlayerOpen} onOpenChange={setIsManualPlayerOpen} />}
     </div>
   );
 }

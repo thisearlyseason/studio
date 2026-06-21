@@ -61,8 +61,10 @@ export default function UniversalAccountDashboard() {
     const isEliteHubMode = isEliteClubMode && !activeTeam;
     if (isSchoolInstitutionMode || isEliteHubMode) {
       router.replace('/club');
+    } else if (user?.role === 'league_creator') {
+      router.replace('/competition');
     }
-  }, [isSchoolMode, isPrimaryClubAuthority, isEliteClubMode, activeTeam, router]);
+  }, [isSchoolMode, isPrimaryClubAuthority, isEliteClubMode, activeTeam, user?.role, router]);
 
   const gamesQuery = useMemoFirebase(() => {
     if (!db || !activeTeam?.id) return null;

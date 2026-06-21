@@ -197,6 +197,51 @@ function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { fa
   );
 }
 
+interface DivisionConfig {
+  tournamentType: 'round_robin' | 'single_elimination' | 'double_elimination' | 'pool_play_knockout';
+  gameLength: string;
+  breakLength: string;
+  gamesPerTeam: string;
+  venueType: 'club' | 'custom';
+  selectedFacilityId: string;
+  allocatedFields: string[];
+  customVenueName: string;
+  customFieldsText: string;
+  dailyWindows: DailyWindow[];
+}
+
+const getDefaultDivisionConfig = (startDate = '', endDate = ''): DivisionConfig => {
+  let dailyWindows: DailyWindow[] = [];
+  if (startDate && endDate) {
+    try {
+      const [sy, sm, sd] = startDate.split('-').map(Number);
+      const [ey, em, ed] = endDate.split('-').map(Number);
+      const startD = new Date(sy, sm - 1, sd, 12, 0, 0);
+      const endD = new Date(ey, em - 1, ed, 12, 0, 0);
+      if (!isNaN(startD.getTime()) && !isNaN(endD.getTime())) {
+        const days = eachDayOfInterval({ start: startD, end: endD });
+        dailyWindows = days.map(d => ({
+          date: format(d, 'yyyy-MM-dd'),
+          startTime: '08:00',
+          endTime: '20:00'
+        }));
+      }
+    } catch (e) { console.error(e); }
+  }
+  return {
+    tournamentType: 'round_robin',
+    gameLength: '60',
+    breakLength: '15',
+    gamesPerTeam: '3',
+    venueType: 'club',
+    selectedFacilityId: '',
+    allocatedFields: [],
+    customVenueName: '',
+    customFieldsText: '',
+    dailyWindows
+  };
+};
+
 function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEvent }: { isOpen: boolean, onOpenChange: (o: boolean) => void, onComplete: () => void, editEvent?: TeamEvent }) {
   const { activeTeam, user, hasFeature, isStarter, addEvent } = useTeam();
   const db = useFirestore();
@@ -204,6 +249,7 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeWizardDivision, setActiveWizardDivision] = useState<string>('');
+  const [activeLogisticsDivision, setActiveLogisticsDivision] = useState<string>('');
 
   const [form, setForm] = useState({
     title: '',
@@ -224,7 +270,8 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
     adminEmails: [] as string[],
     sport: activeTeam?.sport || 'General',
     divisionTitle: '',
-    stagedDivisions: [] as string[]
+    stagedDivisions: [] as string[],
+    divisionConfigs: {} as Record<string, DivisionConfig>
   });
 
   const [typeChangeWarning, setTypeChangeWarning] = useState(false);
@@ -236,8 +283,32 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
     }
   }, [step, form.stagedDivisions, activeWizardDivision]);
 
+  // When step 3 (Logistics) is entered, auto-select first staged division if empty
+  useEffect(() => {
+    if (step === 3 && form.stagedDivisions.length > 0 && !activeLogisticsDivision) {
+      setActiveLogisticsDivision(form.stagedDivisions[0]);
+    } else if (step === 3 && form.stagedDivisions.length === 0) {
+      setActiveLogisticsDivision('Default');
+    }
+  }, [step, form.stagedDivisions, activeLogisticsDivision]);
+
   useEffect(() => {
     if (isOpen && editEvent) {
+      const divTitle = editEvent.divisionTitle || '';
+      const divKey = divTitle || 'Default';
+      const initialConfig: DivisionConfig = {
+        tournamentType: (editEvent.tournamentType as any) || 'round_robin',
+        gameLength: editEvent.gameLength?.toString() || '60',
+        breakLength: editEvent.breakLength?.toString() || '15',
+        gamesPerTeam: editEvent.gamesPerTeam?.toString() || '3',
+        venueType: editEvent.manualVenue ? 'custom' : 'club',
+        selectedFacilityId: '',
+        allocatedFields: editEvent.selectedFields || [],
+        customVenueName: editEvent.manualVenue || '',
+        customFieldsText: editEvent.manualVenue ? (editEvent.selectedFields || []).join(', ') : '',
+        dailyWindows: editEvent.dailyWindows || []
+      };
+
       setForm({
         title: editEvent.title || '',
         startDate: editEvent.date ? new Date(editEvent.date).toISOString().split('T')[0] : '',
@@ -257,9 +328,11 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
         adminEmails: editEvent.adminEmails || [],
         sport: editEvent.sport || activeTeam?.sport || 'General',
         divisionTitle: editEvent.divisionTitle || '',
-        stagedDivisions: []
+        stagedDivisions: [],
+        divisionConfigs: { [divKey]: initialConfig }
       });
       setActiveWizardDivision('');
+      setActiveLogisticsDivision('');
       setStep(1);
     } else if (isOpen && !editEvent) {
       // Reset for new creation
@@ -282,9 +355,11 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
         adminEmails: [],
         sport: activeTeam?.sport || 'General',
         divisionTitle: '',
-        stagedDivisions: []
+        stagedDivisions: [],
+        divisionConfigs: {}
       });
       setActiveWizardDivision('');
+      setActiveLogisticsDivision('');
       setStep(1);
     }
   }, [isOpen, editEvent, activeTeam?.sport]);
@@ -309,22 +384,22 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
 
   const initDailyWindows = () => {
     if (!form.startDate || !form.endDate) return;
-    try {
-      const [sy, sm, sd] = form.startDate.split('-').map(Number);
-      const [ey, em, ed] = form.endDate.split('-').map(Number);
-      const startD = new Date(sy, sm - 1, sd, 12, 0, 0);
-      const endD = new Date(ey, em - 1, ed, 12, 0, 0);
-      if (isNaN(startD.getTime()) || isNaN(endD.getTime())) return;
-      const days = eachDayOfInterval({ start: startD, end: endD });
-      setForm(p => ({
-        ...p,
-        dailyWindows: days.map(d => ({
-          date: format(d, 'yyyy-MM-dd'),
-          startTime: '08:00',
-          endTime: '20:00'
-        }))
-      }));
-    } catch (e) { console.error(e); }
+    const divs = form.stagedDivisions.length > 0 ? form.stagedDivisions : [form.divisionTitle.trim() || 'Default'];
+    const newConfigs: Record<string, DivisionConfig> = { ...form.divisionConfigs };
+    
+    for (const div of divs) {
+      if (!newConfigs[div]) {
+        newConfigs[div] = getDefaultDivisionConfig(form.startDate, form.endDate);
+      } else if (!newConfigs[div].dailyWindows || newConfigs[div].dailyWindows.length === 0) {
+        const defaultCfg = getDefaultDivisionConfig(form.startDate, form.endDate);
+        newConfigs[div].dailyWindows = defaultCfg.dailyWindows;
+      }
+    }
+    
+    setForm(p => ({
+      ...p,
+      divisionConfigs: newConfigs
+    }));
   };
 
   const handleNext = () => {
@@ -357,11 +432,25 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
         ? form.teams.filter(t => t.division === divTitle)
         : form.teams;
 
+      const divKey = divTitle || 'Default';
+      const divConfig = form.divisionConfigs[divKey] || getDefaultDivisionConfig(form.startDate, form.endDate);
+
+      // Determine fields and manual venue based on venueType
+      const selectedFields = divConfig.venueType === 'club' ? divConfig.allocatedFields : (divConfig.customFieldsText.split(',').map(f => f.trim()).filter(Boolean));
+      const manualVenue = divConfig.venueType === 'club' ? '' : divConfig.customVenueName;
+      let finalLocation = form.location;
+      if (divConfig.venueType === 'club' && divConfig.selectedFacilityId) {
+        const fac = facilities?.find(f => f.id === divConfig.selectedFacilityId);
+        if (fac) finalLocation = fac.name;
+      } else if (divConfig.venueType === 'custom' && divConfig.customVenueName) {
+        finalLocation = divConfig.customVenueName;
+      }
+
       const eventPayload = {
         title: form.title,
         date: new Date(form.startDate + 'T12:00:00').toISOString(),
         endDate: new Date((form.endDate || form.startDate) + 'T12:00:00').toISOString(),
-        location: form.location,
+        location: finalLocation,
         description: form.description,
         eventType: 'tournament',
         isTournament: true,
@@ -370,13 +459,13 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
         tournamentGames: editEvent ? editEvent.tournamentGames || [] : [],
         waiverIds: form.waiverIds,
         registrationCost: form.registration_cost,
-        gameLength: parseInt(form.gameLength),
-        breakLength: parseInt(form.breakLength),
-        gamesPerTeam: parseInt(form.gamesPerTeam),
-        dailyWindows: form.dailyWindows,
-        selectedFields: form.selectedFields,
-        manualVenue: form.manualVenue,
-        tournamentType: form.tournamentType,
+        gameLength: parseInt(divConfig.gameLength) || 60,
+        breakLength: parseInt(divConfig.breakLength) || 15,
+        gamesPerTeam: parseInt(divConfig.gamesPerTeam) || 3,
+        dailyWindows: divConfig.dailyWindows || [],
+        selectedFields: selectedFields,
+        manualVenue: manualVenue,
+        tournamentType: divConfig.tournamentType || 'round_robin',
         adminEmails: form.adminEmails || [],
         sport: form.sport.trim() || activeTeam?.sport || 'General',
         divisionTitle: divTitle || ''
@@ -699,86 +788,315 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                   <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
                     <div>
                       <Badge className="bg-primary/20 text-primary border border-primary/30 uppercase font-black tracking-widest text-[8px] mb-4">Phase 3: Logistics Engine</Badge>
-                      <h3 className="text-4xl font-black uppercase tracking-tighter mb-2 text-white">Format & Chrono Sync</h3>
-                      <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Define the algorithmic constraints for generating match structures.</p>
+                      <h3 className="text-4xl font-black uppercase tracking-tighter mb-2 text-white">Division Logistics Configuration</h3>
+                      <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Calibrate format, dates, timeslots, and venue configurations for each division.</p>
                     </div>
 
-                    <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5 grid grid-cols-1 md:grid-cols-2 gap-8">
-                       <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Tournament Architecture</Label>
-                          {isStarter ? (
-                            <div className="h-16 rounded-2xl bg-white/5 border border-white/10 px-6 flex items-center justify-between">
-                              <span className="font-black uppercase tracking-tight text-white text-sm">Basic (Round Robin)</span>
-                              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40"><Lock className="h-3 w-3" /> Pro Formats Locked</span>
-                            </div>
-                          ) : (
-                          <Select value={form.tournamentType} onValueChange={(v: any) => {
-                            if (editEvent && v !== editEvent.tournamentType) {
-                              setTypeChangeWarning(true);
-                            }
-                            let newGamesPerTeam = form.gamesPerTeam;
-                            if (v === 'single_elimination') newGamesPerTeam = '1';
-                            if (v === 'double_elimination') newGamesPerTeam = '2';
-                            if (v === 'round_robin' || v === 'pool_play_knockout') newGamesPerTeam = Math.max(1, form.teams.length).toString();
-                            setForm({...form, tournamentType: v, gamesPerTeam: newGamesPerTeam});
-                          }}>
-                            <SelectTrigger className="h-16 rounded-2xl bg-[#0a0a0a] border-white/10 font-black uppercase tracking-tight text-white px-6 focus:ring-primary focus:border-primary">
-                              <SelectValue placeholder="Select Format" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-[#0a0a0a] border border-white/10 text-white font-black uppercase tracking-tight">
-                              <SelectItem value="round_robin" className="focus:bg-primary focus:text-white">Round Robin (Total Points)</SelectItem>
-                              <SelectItem value="pool_play_knockout" className="focus:bg-primary focus:text-white">Pool Play & Playoffs</SelectItem>
-                              <SelectItem value="single_elimination" className="focus:bg-primary focus:text-white">Single Elimination Matrix</SelectItem>
-                              <SelectItem value="double_elimination" className="focus:bg-primary focus:text-white">Double Elimination Topology</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          )}
-                       </div>
-                       
-                       <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Match Duration (Min)</Label>
-                          <Input type="number" value={form.gameLength} onChange={e => setForm({...form, gameLength: e.target.value})} className="h-16 rounded-2xl bg-white/10 border-white/15 font-black text-2xl text-white px-6 focus-visible:ring-primary shadow-inner" />
-                       </div>
-                       
-                       <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Rest / Turnaround Matrix (Min)</Label>
-                          <Input type="number" value={form.breakLength} onChange={e => setForm({...form, breakLength: e.target.value})} className="h-16 rounded-2xl bg-white/10 border-white/15 font-black text-2xl text-white px-6 focus-visible:ring-primary shadow-inner" />
-                       </div>
-
-                       <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-2 flex items-center gap-2"><Lock className="h-3 w-3" /> Min Games Per Squad</Label>
-                          <Input type="number" value={form.gamesPerTeam} onChange={e => setForm({...form, gamesPerTeam: e.target.value})} className="h-16 rounded-2xl bg-white/10 border-primary/30 font-black text-2xl text-primary px-6 focus-visible:ring-primary shadow-inner" />
-                       </div>
-                    </div>
-
-                    <div className="pt-8 border-t border-white/10 space-y-6">
-                       <h3 className="text-xl font-black uppercase tracking-tighter text-white">Daily Operational Windows</h3>
-                       <div className="grid gap-4">
-                         {form.dailyWindows.map((win, i) => (
-                           <div key={win.date} className="bg-[#0a0a0a] p-6 rounded-3xl flex items-center justify-between border border-white/5">
-                             <div className="flex items-center gap-4">
-                               <CalendarIcon className="h-5 w-5 text-white/30" />
-                               <span className="font-black uppercase tracking-widest text-sm text-white">{format(new Date(win.date), 'EEEE, MMMM d, yyyy')}</span>
-                             </div>
-                             <div className="flex items-center gap-4">
-                               <Input type="time" value={win.startTime} onChange={e => {const n=[...form.dailyWindows]; n[i].startTime=e.target.value; setForm({...form, dailyWindows:n});}} style={{ colorScheme: 'dark' }} className="h-12 w-32 bg-white/5 border-white/10 font-bold text-white" />
-                               <ArrowRight className="h-4 w-4 text-white/20" />
-                               <Input type="time" value={win.endTime} onChange={e => {const n=[...form.dailyWindows]; n[i].endTime=e.target.value; setForm({...form, dailyWindows:n});}} style={{ colorScheme: 'dark' }} className="h-12 w-32 bg-white/5 border-white/10 font-bold text-white" />
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                    </div>
-                    {typeChangeWarning && (
-                       <div className="bg-red-500/10 border-2 border-red-500/30 p-8 rounded-[2.5rem] flex items-center gap-6 animate-in shake duration-500 mt-8">
-                          <div className="bg-red-500 p-4 rounded-2xl text-white"><ShieldAlert className="h-8 w-8" /></div>
-                          <div className="flex-1">
-                             <h4 className="text-xl font-black uppercase text-red-500">Critical Format Collision</h4>
-                             <p className="text-xs font-bold text-red-500/60 uppercase tracking-widest leading-relaxed">Transitioning the topological format will result in the immediate destruction of all current match results and bracket progression. Proceed with extreme caution.</p>
-                          </div>
-                          <Button variant="ghost" onClick={() => setTypeChangeWarning(false)} className="h-10 text-red-500 font-black uppercase text-[10px]">Acknowledge Risk</Button>
-                       </div>
+                    {form.stagedDivisions.length > 0 && (
+                      <div className="flex items-center gap-2 border-b border-white/5 pb-4 mb-4 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40 mr-2">Configuring Division:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {form.stagedDivisions.map(div => (
+                            <button
+                              key={div}
+                              type="button"
+                              onClick={() => setActiveLogisticsDivision(div)}
+                              className={cn(
+                                "h-9 px-4 rounded-xl font-black text-[10px] uppercase border transition-all",
+                                activeLogisticsDivision === div 
+                                  ? "bg-primary text-white border-primary" 
+                                  : "bg-white/5 text-white/60 border-white/10 hover:border-white/30"
+                              )}
+                            >
+                              {div}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
+
+                    {(() => {
+                      const activeDivName = form.stagedDivisions.length > 0 ? activeLogisticsDivision : (form.divisionTitle.trim() || 'Default');
+                      const activeConfig = form.divisionConfigs[activeDivName] || getDefaultDivisionConfig(form.startDate, form.endDate);
+                      const updateActiveConfig = (updates: Partial<DivisionConfig>) => {
+                        setForm(p => ({
+                          ...p,
+                          divisionConfigs: {
+                            ...p.divisionConfigs,
+                            [activeDivName]: {
+                              ...activeConfig,
+                              ...updates
+                            }
+                          }
+                        }));
+                      };
+
+                      const generateDailyWindowsForActive = () => {
+                        if (!form.startDate || !form.endDate) return;
+                        try {
+                          const [sy, sm, sd] = form.startDate.split('-').map(Number);
+                          const [ey, em, ed] = form.endDate.split('-').map(Number);
+                          const startD = new Date(sy, sm - 1, sd, 12, 0, 0);
+                          const endD = new Date(ey, em - 1, ed, 12, 0, 0);
+                          if (isNaN(startD.getTime()) || isNaN(endD.getTime())) return;
+                          const days = eachDayOfInterval({ start: startD, end: endD });
+                          updateActiveConfig({
+                            dailyWindows: days.map(d => ({
+                              date: format(d, 'yyyy-MM-dd'),
+                              startTime: '08:00',
+                              endTime: '20:00'
+                            }))
+                          });
+                        } catch (e) { console.error(e); }
+                      };
+
+                      return (
+                        <div className="space-y-8">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Card 1: Format & Chrono Sync */}
+                            <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
+                              <h4 className="font-black text-sm uppercase tracking-widest text-primary">Format & Chrono Sync</h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Tournament Format</Label>
+                                  {isStarter ? (
+                                    <div className="h-12 rounded-xl bg-white/5 border border-white/10 px-4 flex items-center justify-between text-xs font-bold uppercase">
+                                      <span>Basic (Round Robin)</span>
+                                      <span className="flex items-center gap-1 text-[8px] font-black uppercase text-white/30"><Lock className="h-2.5 w-2.5" /> Pro Locked</span>
+                                    </div>
+                                  ) : (
+                                    <Select 
+                                      value={activeConfig.tournamentType} 
+                                      onValueChange={(val: any) => {
+                                        let newGames = activeConfig.gamesPerTeam;
+                                        if (val === 'single_elimination') newGames = '1';
+                                        if (val === 'double_elimination') newGames = '2';
+                                        updateActiveConfig({ tournamentType: val, gamesPerTeam: newGames });
+                                      }}
+                                    >
+                                      <SelectTrigger className="bg-white/5 border-white/15 h-12 rounded-xl text-white font-bold uppercase text-[10px] focus:ring-primary">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-black border-white/10 text-white font-black uppercase text-[10px]">
+                                        <SelectItem value="round_robin" className="focus:bg-white/10">Round Robin (Total Points)</SelectItem>
+                                        <SelectItem value="pool_play_knockout" className="focus:bg-white/10">Pool Play & Playoffs</SelectItem>
+                                        <SelectItem value="single_elimination" className="focus:bg-white/10">Single Elimination Matrix</SelectItem>
+                                        <SelectItem value="double_elimination" className="focus:bg-white/10">Double Elimination Topology</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Match Duration (Min)</Label>
+                                  <Input 
+                                    type="number" 
+                                    value={activeConfig.gameLength} 
+                                    onChange={e => updateActiveConfig({ gameLength: e.target.value })} 
+                                    className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Rest / Turnaround (Min)</Label>
+                                  <Input 
+                                    type="number" 
+                                    value={activeConfig.breakLength} 
+                                    onChange={e => updateActiveConfig({ breakLength: e.target.value })} 
+                                    className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Min Games Per Squad</Label>
+                                  <Input 
+                                    type="number" 
+                                    value={activeConfig.gamesPerTeam} 
+                                    onChange={e => updateActiveConfig({ gamesPerTeam: e.target.value })} 
+                                    disabled={activeConfig.tournamentType === 'single_elimination' || activeConfig.tournamentType === 'double_elimination'} 
+                                    className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Card 2: Venue & Field Allocation */}
+                            <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-black text-sm uppercase tracking-widest text-primary">Venue & Field Allocation</h4>
+                                <div className="flex border border-white/10 rounded-xl overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActiveConfig({ venueType: 'club' })}
+                                    className={cn(
+                                      "px-4 py-2 text-[9px] font-black uppercase transition-colors",
+                                      activeConfig.venueType === 'club' ? "bg-white text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                                    )}
+                                  >
+                                    Club Facility
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActiveConfig({ venueType: 'custom' })}
+                                    className={cn(
+                                      "px-4 py-2 text-[9px] font-black uppercase transition-colors",
+                                      activeConfig.venueType === 'custom' ? "bg-white text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                                    )}
+                                  >
+                                    Custom Venue
+                                  </button>
+                                </div>
+                              </div>
+
+                              {activeConfig.venueType === 'club' ? (
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Select Account Facility</Label>
+                                    <Select 
+                                      value={activeConfig.selectedFacilityId} 
+                                      onValueChange={(val) => {
+                                        updateActiveConfig({ selectedFacilityId: val, allocatedFields: [] });
+                                      }}
+                                    >
+                                      <SelectTrigger className="bg-white/5 border-white/15 h-12 rounded-xl text-white font-bold uppercase text-[10px] focus:ring-primary">
+                                        <SelectValue placeholder="Choose Facility..." />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-black border-white/10 text-white font-black uppercase text-[10px]">
+                                        {facilities?.map(fac => (
+                                          <SelectItem key={fac.id} value={fac.id} className="focus:bg-white/10">
+                                            {fac.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  {activeConfig.selectedFacilityId && (
+                                    <div className="space-y-2 pt-2">
+                                      <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Allocate Specific Fields</Label>
+                                      <FacilityFieldLoader 
+                                        facilityId={activeConfig.selectedFacilityId} 
+                                        selectedFields={activeConfig.allocatedFields} 
+                                        onToggleField={(fieldIdentifier) => {
+                                          const prev = activeConfig.allocatedFields || [];
+                                          const nextFields = prev.includes(fieldIdentifier)
+                                            ? prev.filter(f => f !== fieldIdentifier)
+                                            : [...prev, fieldIdentifier];
+                                          updateActiveConfig({ allocatedFields: nextFields });
+                                        }} 
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Custom Venue / Stadium Name</Label>
+                                    <Input 
+                                      value={activeConfig.customVenueName} 
+                                      onChange={e => updateActiveConfig({ customVenueName: e.target.value })} 
+                                      placeholder="e.g. Central Park Sports Complex" 
+                                      className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Field Names (Comma-separated)</Label>
+                                    <Input 
+                                      value={activeConfig.customFieldsText} 
+                                      onChange={e => updateActiveConfig({ customFieldsText: e.target.value })} 
+                                      placeholder="e.g. Field 1, Field 2, Field 3" 
+                                      className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
+                                    />
+                                    <p className="text-[8px] font-bold text-white/20 uppercase tracking-wider pl-1">
+                                      Separate multiple fields with commas. The scheduler will distribute matches across these fields.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 3: Daily Operational Windows */}
+                          <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-black text-sm uppercase tracking-widest text-primary">Daily Operational Windows</h4>
+                              {(!activeConfig.dailyWindows || activeConfig.dailyWindows.length === 0) && (
+                                <Button 
+                                  type="button" 
+                                  onClick={generateDailyWindowsForActive} 
+                                  variant="outline" 
+                                  className="h-9 px-4 rounded-xl border-white/20 text-white hover:bg-white/10 font-black uppercase text-[9px] tracking-widest"
+                                >
+                                  Auto-Generate Days
+                                </Button>
+                              )}
+                            </div>
+
+                            {activeConfig.dailyWindows && activeConfig.dailyWindows.length > 0 ? (
+                              <div className="grid gap-4">
+                                {activeConfig.dailyWindows.map((win, idx) => (
+                                  <div key={win.date} className="bg-white/5 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between border border-white/5 gap-4">
+                                    <div className="flex items-center gap-3">
+                                      <CalendarIcon className="h-4 w-4 text-white/30" />
+                                      <span className="font-black uppercase tracking-widest text-xs">
+                                        {(() => {
+                                          try {
+                                            const [y, m, d] = win.date.split('-').map(Number);
+                                            return format(new Date(y, m - 1, d, 12, 0, 0), 'EEEE, MMMM d, yyyy');
+                                          } catch {
+                                            return win.date;
+                                          }
+                                        })()}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <Input 
+                                        type="time" 
+                                        value={win.startTime} 
+                                        onChange={e => {
+                                          const n = [...activeConfig.dailyWindows];
+                                          n[idx].startTime = e.target.value;
+                                          updateActiveConfig({ dailyWindows: n });
+                                        }} 
+                                        style={{ colorScheme: 'dark' }} 
+                                        className="h-10 w-28 bg-white/5 border-white/10 font-bold text-white text-xs bg-black" 
+                                      />
+                                      <span className="opacity-30">&rarr;</span>
+                                      <Input 
+                                        type="time" 
+                                        value={win.endTime} 
+                                        onChange={e => {
+                                          const n = [...activeConfig.dailyWindows];
+                                          n[idx].endTime = e.target.value;
+                                          updateActiveConfig({ dailyWindows: n });
+                                        }} 
+                                        style={{ colorScheme: 'dark' }} 
+                                        className="h-10 w-28 bg-white/5 border-white/10 font-bold text-white text-xs bg-black" 
+                                      />
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        onClick={() => {
+                                          const n = activeConfig.dailyWindows.filter(w => w.date !== win.date);
+                                          updateActiveConfig({ dailyWindows: n });
+                                        }}
+                                        className="h-10 w-10 p-0 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="py-12 border-2 border-dashed border-white/5 rounded-2xl text-center text-white/30 font-black uppercase text-xs tracking-widest">
+                                No operational windows configured. Click "Auto-Generate Days" to populate based on dates.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1002,54 +1320,8 @@ function TournamentDetailView({
     }
   };
 
-  const handleSaveLogistics = async (showToast = true) => {
-    if (!db || !activeTeam) return false;
-    
-    let finalLocation = event.location || '';
-    let finalSelectedFields: string[] = [];
-    let finalManualVenue = '';
-
-    if (venueType === 'club') {
-      const facility = facilities?.find(f => f.id === selectedFacilityId);
-      finalLocation = facility ? facility.name : '';
-      finalSelectedFields = allocatedFields;
-    } else {
-      finalLocation = customVenueName.trim();
-      finalManualVenue = customVenueName.trim();
-      finalSelectedFields = customFieldsText
-        .split(',')
-        .map(f => f.trim())
-        .filter(Boolean);
-    }
-
-    const payload = {
-      tournamentType: logisticsType,
-      gameLength: parseInt(logisticsGameLength) || 60,
-      breakLength: parseInt(logisticsBreakLength) || 15,
-      gamesPerTeam: parseInt(logisticsGamesPerTeam) || 3,
-      dailyWindows: logisticsDailyWindows,
-      location: finalLocation,
-      manualVenue: finalManualVenue,
-      selectedFields: finalSelectedFields
-    };
-
-    try {
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), payload);
-      if (showToast) {
-        toast({ title: "Logistics Saved", description: "Division logistics blueprint successfully updated." });
-      }
-      return true;
-    } catch (err: any) {
-      toast({ title: "Save Failed", description: err.message, variant: "destructive" });
-      return false;
-    }
-  };
-
   const handleGenerateSchedule = async () => {
     if (!db || !activeTeam) return;
-
-    const saved = await handleSaveLogistics(false);
-    if (!saved) return;
 
     if (!event.tournamentTeamsData || event.tournamentTeamsData.length < 2) {
       toast({
@@ -1062,11 +1334,7 @@ function TournamentDetailView({
 
     setIsProcessing(true);
     try {
-      const latestDoc = await getDoc(doc(db, 'teams', activeTeam.id, 'events', event.id));
-      const latestData = latestDoc.data();
-      if (!latestData) throw new Error("Could not retrieve updated event parameters.");
-
-      const mappedFields = (latestData.selectedFields || []).map((fId: string) => {
+      const mappedFields = (event.selectedFields || []).map((fId: string) => {
         if (fId.includes(':')) {
           const [facId, fieldName] = fId.split(':');
           const facility = facilities?.find(fac => fac.id === facId);
@@ -1076,17 +1344,17 @@ function TournamentDetailView({
       });
 
       const config = {
-        teams: latestData.tournamentTeamsData || [],
+        teams: event.tournamentTeamsData || [],
         fields: mappedFields,
-        startDate: latestData.date ? new Date(latestData.date).toISOString().split('T')[0] : '',
-        endDate: latestData.endDate ? new Date(latestData.endDate).toISOString().split('T')[0] : '',
+        startDate: event.date ? new Date(event.date).toISOString().split('T')[0] : '',
+        endDate: event.endDate ? new Date(event.endDate).toISOString().split('T')[0] : '',
         startTime: '08:00',
         endTime: '20:00',
-        gameLength: latestData.gameLength || 60,
-        breakLength: latestData.breakLength || 15,
-        gamesPerTeam: latestData.gamesPerTeam || 3,
-        tournamentType: latestData.tournamentType || 'round_robin',
-        dailyWindows: latestData.dailyWindows || []
+        gameLength: event.gameLength || 60,
+        breakLength: event.breakLength || 15,
+        gamesPerTeam: event.gamesPerTeam || 3,
+        tournamentType: event.tournamentType || 'round_robin',
+        dailyWindows: event.dailyWindows || []
       };
 
       const { games, report } = generateIntelligentTournamentSchedule(config);
@@ -1115,7 +1383,7 @@ function TournamentDetailView({
       console.error("[Tournaments] Schedule generation failed:", e);
       toast({
         title: "Generation Failed",
-        description: e.message || "An unexpected error occurred during scheduling.",
+        description: e.message || "An error occurred during schedule generation.",
         variant: "destructive"
       });
     } finally {
@@ -1693,7 +1961,20 @@ function TournamentDetailView({
               {!isStarter && <TabsTrigger value="officials" className="rounded-2xl font-black text-xs uppercase px-10 py-4 flex-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Officials</TabsTrigger>}
               <TabsTrigger value="bracket" className="rounded-2xl font-black text-xs uppercase px-10 py-4 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Brackets</TabsTrigger>
               <TabsTrigger value="standings" className="rounded-2xl font-black text-xs uppercase px-10 py-4 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Standings</TabsTrigger>
-              <TabsTrigger value="roster" className="rounded-2xl font-black text-xs uppercase px-10 py-4 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white">Roster</TabsTrigger>
+              <TabsTrigger value="roster" className="rounded-2xl font-black text-xs uppercase px-10 py-4 flex-1 data-[state=active]:bg-primary data-[state=active]:text-white flex items-center justify-center gap-2">
+                Roster
+                {activeTab === 'roster' && isStaff && (
+                  <span 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      router.push(`/manage-tournaments/registration/${activeTeam?.id}/${event.id}`); 
+                    }} 
+                    className="bg-white text-primary text-[8px] font-black uppercase px-2 py-0.5 rounded-full hover:scale-105 transition-all shadow-sm shrink-0"
+                  >
+                    + Add Teams
+                  </span>
+                )}
+              </TabsTrigger>
               {!isStarter && <TabsTrigger value="architecture" className="rounded-2xl font-black text-xs uppercase px-10 py-4 flex-1 data-[state=active]:bg-orange-600 data-[state=active]:text-white">Architecture</TabsTrigger>}
             </TabsList>
           </div>
@@ -2176,263 +2457,31 @@ function TournamentDetailView({
                      </div>
                    ))}
                  </>
-               ) : (
-                 <div className="space-y-10 animate-in fade-in duration-500">
-                   <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-black/5 pb-8 mb-8 gap-6 text-left">
-                     <div className="flex-1">
-                       <Badge className="bg-primary/20 text-primary border border-primary/30 uppercase font-black tracking-widest text-[8px] mb-4">Logistics Matrix</Badge>
-                       <h3 className="text-4xl font-black uppercase tracking-tighter mb-2 text-black">Division Logistics Blueprint</h3>
-                       <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Calibrate format, dates, timeslots, and venue configurations for this division.</p>
-                     </div>
-                   </div>
-
-                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                     <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
-                       <h4 className="font-black text-sm uppercase tracking-widest text-primary">Format & Chrono Sync</h4>
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                         <div className="space-y-2">
-                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Tournament Format</Label>
-                           {isStarter ? (
-                             <div className="h-12 rounded-xl bg-white/5 border border-white/10 px-4 flex items-center justify-between text-xs font-bold uppercase">
-                               <span>Basic (Round Robin)</span>
-                               <span className="flex items-center gap-1 text-[8px] font-black uppercase text-white/30"><Lock className="h-2.5 w-2.5" /> Pro Locked</span>
-                             </div>
-                           ) : (
-                             <Select value={logisticsType} onValueChange={(val: any) => {
-                               setLogisticsType(val);
-                               let newGames = logisticsGamesPerTeam;
-                               if (val === 'single_elimination') newGames = '1';
-                               if (val === 'double_elimination') newGames = '2';
-                               setLogisticsGamesPerTeam(newGames);
-                             }}>
-                               <SelectTrigger className="bg-white/5 border-white/15 h-12 rounded-xl text-white font-bold uppercase text-[10px] focus:ring-primary">
-                                 <SelectValue />
-                               </SelectTrigger>
-                               <SelectContent className="bg-black border-white/10 text-white font-black uppercase text-[10px]">
-                                 <SelectItem value="round_robin" className="focus:bg-white/10">Round Robin (Total Points)</SelectItem>
-                                 <SelectItem value="pool_play_knockout" className="focus:bg-white/10">Pool Play & Playoffs</SelectItem>
-                                 <SelectItem value="single_elimination" className="focus:bg-white/10">Single Elimination Matrix</SelectItem>
-                                 <SelectItem value="double_elimination" className="focus:bg-white/10">Double Elimination Topology</SelectItem>
-                               </SelectContent>
-                             </Select>
-                           )}
-                         </div>
-
-                         <div className="space-y-2">
-                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Match Duration (Min)</Label>
-                           <Input 
-                             type="number" 
-                             value={logisticsGameLength} 
-                             onChange={e => setLogisticsGameLength(e.target.value)} 
-                             className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
-                           />
-                         </div>
-
-                         <div className="space-y-2">
-                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Rest / Turnaround (Min)</Label>
-                           <Input 
-                             type="number" 
-                             value={logisticsBreakLength} 
-                             onChange={e => setLogisticsBreakLength(e.target.value)} 
-                             className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
-                           />
-                         </div>
-
-                         <div className="space-y-2">
-                           <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Min Games Per Squad</Label>
-                           <Input 
-                             type="number" 
-                             value={logisticsGamesPerTeam} 
-                             onChange={e => setLogisticsGamesPerTeam(e.target.value)} 
-                             disabled={logisticsType === 'single_elimination' || logisticsType === 'double_elimination'} 
-                             className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
-                           />
-                         </div>
-                       </div>
-                     </div>
-
-                     <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
-                       <div className="flex items-center justify-between">
-                         <h4 className="font-black text-sm uppercase tracking-widest text-primary">Venue & Field Allocation</h4>
-                         <div className="flex border border-white/10 rounded-xl overflow-hidden">
-                           <button
-                             type="button"
-                             onClick={() => setVenueType('club')}
-                             className={cn(
-                               "px-4 py-2 text-[9px] font-black uppercase transition-colors",
-                               venueType === 'club' ? "bg-white text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
-                             )}
-                           >
-                             Club Facility
-                           </button>
-                           <button
-                             type="button"
-                             onClick={() => setVenueType('custom')}
-                             className={cn(
-                               "px-4 py-2 text-[9px] font-black uppercase transition-colors",
-                               venueType === 'custom' ? "bg-white text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
-                             )}
-                           >
-                             Custom Venue
-                           </button>
-                         </div>
-                       </div>
-
-                       {venueType === 'club' ? (
-                         <div className="space-y-4">
-                           <div className="space-y-2">
-                             <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Select Account Facility</Label>
-                             <Select value={selectedFacilityId} onValueChange={(val) => {
-                               setSelectedFacilityId(val);
-                               setAllocatedFields([]);
-                             }}>
-                               <SelectTrigger className="bg-white/5 border-white/15 h-12 rounded-xl text-white font-bold uppercase text-[10px] focus:ring-primary">
-                                 <SelectValue placeholder="Choose Facility..." />
-                               </SelectTrigger>
-                               <SelectContent className="bg-black border-white/10 text-white font-black uppercase text-[10px]">
-                                 {facilities?.map(fac => (
-                                   <SelectItem key={fac.id} value={fac.id} className="focus:bg-white/10">
-                                     {fac.name}
-                                   </SelectItem>
-                                 ))}
-                               </SelectContent>
-                             </Select>
-                           </div>
-
-                           {selectedFacilityId && (
-                             <div className="space-y-2 pt-2">
-                               <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Allocate Specific Fields</Label>
-                               <FacilityFieldLoader 
-                                 facilityId={selectedFacilityId} 
-                                 selectedFields={allocatedFields} 
-                                 onToggleField={(fieldIdentifier) => {
-                                   setAllocatedFields(prev => 
-                                     prev.includes(fieldIdentifier)
-                                       ? prev.filter(f => f !== fieldIdentifier)
-                                       : [...prev, fieldIdentifier]
-                                   );
-                                 }} 
-                               />
-                             </div>
-                           )}
-                         </div>
-                       ) : (
-                         <div className="space-y-4">
-                           <div className="space-y-2">
-                             <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Custom Venue / Stadium Name</Label>
-                             <Input 
-                               value={customVenueName} 
-                               onChange={e => setCustomVenueName(e.target.value)} 
-                               placeholder="e.g. Central Park Sports Complex" 
-                               className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
-                             />
-                           </div>
-                           <div className="space-y-2">
-                             <Label className="text-[9px] font-black uppercase text-white/40 ml-1">Field Names (Comma-separated)</Label>
-                             <Input 
-                               value={customFieldsText} 
-                               onChange={e => setCustomFieldsText(e.target.value)} 
-                               placeholder="e.g. Field 1, Field 2, Field 3" 
-                               className="h-12 bg-white/5 border-white/15 rounded-xl text-white font-bold" 
-                             />
-                             <p className="text-[8px] font-bold text-white/20 uppercase tracking-wider pl-1">
-                               Separate multiple fields with commas. The scheduler will distribute matches across these fields.
-                             </p>
-                           </div>
-                         </div>
-                       )}
-                     </div>
-                   </div>
-
-                   <div className="bg-[#0a0a0a] p-8 rounded-[2rem] border border-white/5 space-y-6 text-left text-white">
-                     <div className="flex items-center justify-between">
-                       <h4 className="font-black text-sm uppercase tracking-widest text-primary">Daily Operational Windows</h4>
-                       {logisticsDailyWindows.length === 0 && (
-                         <Button 
-                           type="button" 
-                           onClick={generateDailyWindowsFromDates} 
-                           variant="outline" 
-                           className="h-9 px-4 rounded-xl border-white/20 text-white hover:bg-white/10 font-black uppercase text-[9px] tracking-widest"
-                         >
-                           Auto-Generate Days
-                         </Button>
-                       )}
-                     </div>
-
-                     {logisticsDailyWindows.length > 0 ? (
-                       <div className="grid gap-4">
-                         {logisticsDailyWindows.map((win, i) => (
-                           <div key={win.date} className="bg-white/5 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between border border-white/5 gap-4">
-                             <div className="flex items-center gap-3">
-                               <CalendarIcon className="h-4 w-4 text-white/30" />
-                               <span className="font-black uppercase tracking-widest text-xs">{format(parseLocalDate(win.date), 'EEEE, MMMM d, yyyy')}</span>
-                             </div>
-                             <div className="flex items-center gap-3">
-                               <Input 
-                                 type="time" 
-                                 value={win.startTime} 
-                                 onChange={e => {
-                                   const n = [...logisticsDailyWindows];
-                                   n[i].startTime = e.target.value;
-                                   setLogisticsDailyWindows(n);
-                                 }} 
-                                 style={{ colorScheme: 'dark' }} 
-                                 className="h-10 w-28 bg-white/5 border-white/10 font-bold text-white text-xs bg-black" 
-                               />
-                               <span className="opacity-30">&rarr;</span>
-                               <Input 
-                                 type="time" 
-                                 value={win.endTime} 
-                                 onChange={e => {
-                                   const n = [...logisticsDailyWindows];
-                                   n[i].endTime = e.target.value;
-                                   setLogisticsDailyWindows(n);
-                                 }} 
-                                 style={{ colorScheme: 'dark' }} 
-                                 className="h-10 w-28 bg-white/5 border-white/10 font-bold text-white text-xs bg-black" 
-                               />
-                               <Button 
-                                 type="button" 
-                                 variant="ghost" 
-                                 onClick={() => setLogisticsDailyWindows(prev => prev.filter(w => w.date !== win.date))}
-                                 className="h-10 w-10 p-0 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
-                               >
-                                 <X className="h-4 w-4" />
-                               </Button>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                     ) : (
-                       <div className="py-12 border-2 border-dashed border-white/5 rounded-2xl text-center text-white/30 font-black uppercase text-xs tracking-widest">
-                         No operational windows configured. Click "Auto-Generate Days" to populate based on dates.
-                       </div>
-                     )}
-                   </div>
-
-                   <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-black/5 pt-8">
-                     <Button 
-                       onClick={() => handleSaveLogistics(true)} 
-                       disabled={isProcessing} 
-                       className="h-16 px-10 rounded-2xl border-2 border-black/10 bg-white text-black hover:bg-muted font-black uppercase text-xs tracking-widest transition-all"
-                     >
-                       Save Logistics Blueprint
-                     </Button>
-                     <Button 
-                       onClick={handleGenerateSchedule} 
-                       disabled={isProcessing} 
-                       className="h-16 px-12 rounded-2xl bg-black text-white hover:bg-black/90 font-black uppercase text-xs tracking-widest shadow-2xl flex items-center gap-2"
-                     >
-                       {isProcessing ? (
-                         <Loader2 className="h-4 w-4 animate-spin" />
-                       ) : (
-                         <Sparkles className="h-4 w-4 text-primary" />
-                       )}
-                       Generate Tourney Schedule
-                     </Button>
-                   </div>
-                 </div>
-               )}
+                ) : (
+                  <div className="text-center py-20 border-4 border-dashed rounded-[3rem] bg-muted/5 flex flex-col items-center max-w-2xl mx-auto space-y-6 animate-in fade-in duration-500">
+                    <div className="bg-primary/10 p-6 rounded-[2rem] text-primary shadow-inner">
+                      <CalendarDays className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-3xl font-black uppercase tracking-tighter text-black">Schedule Not Deployed</h3>
+                      <p className="text-muted-foreground uppercase text-[10px] font-black tracking-widest max-w-sm mx-auto text-center leading-relaxed">
+                        The operational fixtures for this division have not been compiled yet. Click below to initiate scheduling constraints and generate matches.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={handleGenerateSchedule} 
+                      disabled={isProcessing} 
+                      className="h-14 px-8 rounded-2xl bg-black text-white hover:bg-black/90 font-black uppercase text-xs tracking-wider shadow-lg flex items-center gap-2"
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 text-primary" />
+                      )}
+                      + Generate Tourney Schedule
+                    </Button>
+                  </div>
+                )}
              </TabsContent>
              <TabsContent value="bracket" className="mt-0">
                {(event.tournamentGames || []).length > 0 ? (
