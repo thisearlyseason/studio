@@ -320,7 +320,7 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-400">
               <section className="space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Season Timeline</h3>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-3"><Label className="text-[10px] font-black uppercase text-white/60 ml-1">Season Start</Label><Input type="date" value={config.startDate} onChange={e => setConfig({...config, startDate: e.target.value})} style={{ colorScheme: 'dark' }} className="h-14 rounded-xl bg-white/15 border-white/20 font-black text-white px-6" /></div>
                   <div className="space-y-3"><Label className="text-[10px] font-black uppercase text-white/60 ml-1">Season End</Label><Input type="date" value={config.endDate} onChange={e => setConfig({...config, endDate: e.target.value})} style={{ colorScheme: 'dark' }} className="h-14 rounded-xl bg-white/15 border-white/20 font-black text-white px-6" /></div>
                 </div>
@@ -891,7 +891,7 @@ function LeagueOverview({
                       <div className="w-[120px] shrink-0 text-right flex flex-col items-end gap-1.5">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase truncate">{game.location || 'TBD'}</p>
                         {isStaff && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100" onClick={() => { setEditingGame(game); setScoreForm({ s1: (game.score1 ?? 0).toString(), s2: (game.score2 ?? 0).toString() }); }}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg opacity-100 lg:opacity-0 lg:group-hover:opacity-100" onClick={() => { setEditingGame(game); setScoreForm({ s1: (game.score1 ?? 0).toString(), s2: (game.score2 ?? 0).toString() }); }}>
                             <Edit3 className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -1104,7 +1104,7 @@ function ManualGameDialog({ league, isOpen, onOpenChange }: { league: League, is
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase">Home Squad</Label>
                 <Select value={form.team1Id} onValueChange={(v) => setForm({...form, team1Id: v})}>
@@ -1161,7 +1161,7 @@ function ManualGameDialog({ league, isOpen, onOpenChange }: { league: League, is
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase">Match Date</Label>
                 <Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="h-12 border-2 font-black bg-white px-4 [&::-webkit-calendar-picker-indicator]:p-1" />
@@ -2400,7 +2400,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                           <td className="px-10 py-6 text-right">
                             <div className="flex items-center justify-end gap-4">
                               {isStaff && activeLeague.creatorId === authUser?.uid && (
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-primary/10 text-primary" onClick={() => handleEditTeam(team)}>
                                     <Edit3 className="h-4 w-4" />
                                   </Button>
@@ -2752,7 +2752,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
               </div>
             </DialogHeader>
             <div className="space-y-5">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2 col-span-1">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Team Name</Label>
                   <Input value={editTeamForm.teamName} onChange={e => setEditTeamForm({...editTeamForm, teamName: e.target.value})} className="h-12 rounded-xl border-2 font-bold focus:border-primary/20" />
@@ -2766,7 +2766,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   <Input value={editTeamForm.inviteCode || ''} onChange={e => setEditTeamForm({...editTeamForm, inviteCode: e.target.value.toUpperCase()})} className="h-12 rounded-xl border-2 font-black text-center tracking-widest" maxLength={6} placeholder="AUTO" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Primary Coach / Contact</Label>
                   <Input value={editTeamForm.coachName} onChange={e => setEditTeamForm({...editTeamForm, coachName: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
@@ -2776,7 +2776,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   <Input type="email" value={editTeamForm.coachEmail} onChange={e => setEditTeamForm({...editTeamForm, coachEmail: e.target.value})} className="h-12 rounded-xl border-2 font-bold" />
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Wins</Label>
                   <Input type="number" value={editTeamForm.wins} onChange={e => setEditTeamForm({...editTeamForm, wins: parseInt(e.target.value) || 0})} className="h-12 rounded-xl border-2 font-bold text-center" />

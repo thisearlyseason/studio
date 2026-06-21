@@ -649,7 +649,7 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                         <div className="space-y-3">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Commencement Date</Label>
                           <Input type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} style={{ colorScheme: 'dark' }} className="h-14 rounded-xl bg-white/15 border-white/20 font-bold text-white uppercase focus-visible:ring-primary px-6 shadow-inner" />
@@ -660,7 +660,7 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                         <div className="space-y-3">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Central Hub/Venue</Label>
                           <Input placeholder="Stadium Name" value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="h-14 rounded-xl bg-white/15 border-white/20 font-bold text-white focus-visible:ring-primary px-6 shadow-inner" />
@@ -671,7 +671,7 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                         <div className="space-y-3">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Admin Email 1</Label>
                           <Input type="email" placeholder="coach@example.com" value={form.adminEmails[0] || ''} onChange={e => {const n=[...form.adminEmails]; n[0]=e.target.value; setForm({...form, adminEmails:n});}} className="h-14 rounded-xl bg-white/15 border-white/20 font-bold text-white focus-visible:ring-primary px-6 shadow-inner" />
@@ -1104,14 +1104,14 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                   <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
                     <div className="text-center">
                       <div className="w-24 h-24 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto mb-6 shadow-[0_0_50px_rgba(var(--primary),0.3)]">
-                         <Database className="h-12 w-12" />
+                                  <Database className="h-12 w-12" />
                       </div>
                       <Badge className="bg-primary text-white border-none uppercase font-black tracking-widest text-[10px] px-6 h-8 mb-6">System Lock Achieved</Badge>
                       <h3 className="text-5xl lg:text-7xl font-black uppercase tracking-tighter mb-4 text-white leading-none">Execute<br/>Deployment</h3>
                       <p className="text-sm font-bold opacity-60 uppercase tracking-widest max-w-md mx-auto">Schedules are dynamically calculated via our algorithmic constraints engine. Proceeding initiates telemetry rendering.</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                        <div className="bg-[#0a0a0a] p-8 rounded-[3rem] border border-white/5 text-center flex flex-col items-center justify-center">
                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Engaged Squads</span>
                          <span className="text-5xl font-black text-white">{form.teams.length}</span>
@@ -2078,7 +2078,7 @@ function TournamentDetailView({
                     {isStaff && (
                       <Card className="rounded-[2.5rem] p-8 border-2 border-dashed bg-muted/5 space-y-5">
                         <h3 className="text-sm font-black uppercase tracking-widest">Add Official</h3>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div><Label className="text-[9px] uppercase font-black tracking-widest">Name *</Label>
                             <Input value={newRefName} onChange={e => setNewRefName(e.target.value)} placeholder="Full name" className="h-11 rounded-xl border-2 mt-1" /></div>
                           <div><Label className="text-[9px] uppercase font-black tracking-widest">Email *</Label>
@@ -2422,31 +2422,29 @@ function TournamentDetailView({
                                     </Badge>
                                   )}
                                </div>
-                               <div className="grid grid-cols-7 items-center text-center relative z-10 cursor-default">
-                                  <div className="col-span-3 min-w-0 flex flex-col items-center gap-2">
-                                    <SquadIdentity
-                                      teamId={(game as any).team1Id}
-                                      teamName={game.team1}
-                                      logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team1Id || t.name === game.team1)?.logoUrl}
-                                      logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
-                                      showNameWithLogo
-                                      horizontal
-                                      textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team1.toLowerCase().includes('tbd') && "italic")}
-                                    />
-                                    <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score1}</p>
+                               <div className="flex flex-col gap-6 items-center text-center relative z-10 cursor-default">
+                                  <div className="w-full flex flex-col items-center gap-2">
+                                     <SquadIdentity
+                                       teamId={(game as any).team1Id}
+                                       teamName={game.team1}
+                                       logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team1Id || t.name === game.team1)?.logoUrl}
+                                       logoClassName="h-12 w-12 rounded-xl shadow-sm border-2 shrink-0"
+                                       showNameWithLogo
+                                       textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team1.toLowerCase().includes('tbd') && "italic")}
+                                     />
+                                     <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score1}</p>
                                   </div>
-                                  <div className="col-span-1 opacity-10 font-black text-xs pt-8 italic">VS</div>
-                                  <div className="col-span-3 min-w-0 flex flex-col items-center gap-2">
-                                    <SquadIdentity
-                                      teamId={(game as any).team2Id}
-                                      teamName={game.team2}
-                                      logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team2Id || t.name === game.team2)?.logoUrl}
-                                      logoClassName="h-8 w-8 rounded-xl shadow-sm border-2 shrink-0"
-                                      showNameWithLogo
-                                      horizontal
-                                      textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team2.toLowerCase().includes('tbd') && "italic")}
-                                    />
-                                    <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score2}</p>
+                                  <div className="opacity-10 font-black text-xs italic">VS</div>
+                                  <div className="w-full flex flex-col items-center gap-2">
+                                     <SquadIdentity
+                                       teamId={(game as any).team2Id}
+                                       teamName={game.team2}
+                                       logoUrl={event.tournamentTeamsData?.find((t: any) => t.id === (game as any).team2Id || t.name === game.team2)?.logoUrl}
+                                       logoClassName="h-12 w-12 rounded-xl shadow-sm border-2 shrink-0"
+                                       showNameWithLogo
+                                       textClassName={cn("font-black text-[11px] uppercase opacity-40 truncate", isTBD && game.team2.toLowerCase().includes('tbd') && "italic")}
+                                     />
+                                     <p className={cn("text-4xl font-black tracking-tighter", isTBD ? "opacity-20" : "")}>{game.score2}</p>
                                   </div>
                                </div>
                                {game.location && <div className="pt-4 border-t border-muted/50 flex items-center justify-center gap-2 cursor-default"><MapPin className="h-3 w-3 text-primary opacity-50" /><span className="text-[9px] font-black text-muted-foreground uppercase">{game.location}</span></div>}
@@ -2776,7 +2774,7 @@ export function ManageTournamentsPageContent({ embedded = false }: { embedded?: 
                     <div className="flex items-center gap-3 text-muted-foreground"><MapPin className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest truncate">{event.location}</span></div>
                   </div>
                 </div>
-                <div className="relative z-10 grid grid-cols-2 gap-4 border-t border-muted/30 pt-8 text-left">
+                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-muted/30 pt-8 text-left">
                    <div className="space-y-1"><p className="text-[8px] font-black uppercase opacity-40">Squads</p><p className="text-xl font-black">{(event.tournamentTeamsData || []).length}</p></div>
                    <div className="space-y-1"><p className="text-[8px] font-black uppercase opacity-40">Matches</p><p className="text-xl font-black">{(event.tournamentGames || []).length}</p></div>
                 </div>
