@@ -40,94 +40,68 @@ async def run_test():
         except Exception:
             pass
         
-        # -> click
-        # button "Log In"
-        elem = page.locator("xpath=/html/body/div[2]/nav/div/div[2]/a/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Navigate to the login page (/login) and wait for the login form to load so the email and password fields are visible.
+        await page.goto("http://localhost:9002/login")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
         
-        # -> Fill the email and password fields with fallback credentials and submit the login form by clicking the Verify Identity button.
-        # email input placeholder="name@organization.com"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[2]/input").nth(0)
+        # -> Fill the 'Official Email' field with example@gmail.com, fill the 'Encrypted Password' field with password123, then click the 'Verify Identity' button to submit the login form.
+        # name@organization.com email field
+        elem = page.locator('[id="email"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("example@gmail.com")
         
-        # -> Fill the email and password fields with fallback credentials and submit the login form by clicking the Verify Identity button.
-        # password input
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[3]/div[2]/input").nth(0)
+        # -> Fill the 'Official Email' field with example@gmail.com, fill the 'Encrypted Password' field with password123, then click the 'Verify Identity' button to submit the login form.
+        # password field
+        elem = page.locator('[id="password"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("password123")
         
-        # -> Fill the email and password fields with fallback credentials and submit the login form by clicking the Verify Identity button.
-        # button "Verify Identity"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Fill the 'Official Email' field with example@gmail.com, fill the 'Encrypted Password' field with password123, then click the 'Verify Identity' button to submit the login form.
+        # Verify Identity button
+        elem = page.get_by_role('button', name='Verify Identity', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Competition Hub' link (element [2054]) to navigate to the leagues/competition area.
-        # link "Competition Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div/div[2]/div/div[2]/ul/div[2]/li[5]/a").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Open the 'Competition Hub' (left navigation) to reach league/competition features so a registration protocol can be opened.
+        # Competition Hub link
+        elem = page.get_by_role('link', name='Competition Hub', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Select Hub' button for the 'Automated Registration Form 2026-05-27' card (element [2667]) to open the league/hub and proceed to the registration form area.
-        # button "Select Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div[2]/div[2]/div[3]/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Open the league hub by clicking the 'Select Hub' button on the league card titled 'AUTOMATED REGISTRATION FORM TEST 2026-05-27' so the registration protocol and form creation tools can be accessed.
+        # Select Hub button
+        elem = page.locator('xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div/div[2]/div[2]/div/div[2]/button')
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Select Hub' button for the 'Automated Registration Form 2026-05-27' card (element index 2699) to open the league and reach the registration form area.
-        # button "Select Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div/div[2]/div[3]/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Portal Architect' button to open the portal/registration builder for this league and reveal registration form or form-creation controls.
+        # Portal Architect button
+        elem = page.get_by_role('button', name='Portal Architect', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the Select Hub button for 'Automated Division Field Form Test 2026-05-27' (element index 2987) to open the league hub and reach the registration form area.
-        # button "Select Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div[8]/div[2]/div[3]/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Protocol Architect' (or 'Portal Architect') button to open the registration/protocol builder so the form creation and field list (including Division) are displayed.
+        # Protocol Architect button
+        elem = page.get_by_role('button', name='Protocol Architect', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Open the Portal Architect to access the portal/form builder by clicking the 'Portal Architect' button (element index 3692).
-        # button "Portal Architect"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[3]/div[2]/div[2]/div[2]/button[4]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Search the Protocol/Portal builder page for the 'Division' field; if it's not found in the search results, scroll the Protocol Architect field list to reveal more fields and then inspect again.
+        await page.mouse.wheel(0, 300)
         
-        # -> Click the top-right '+ CREATE FORM' button (interactive element [3950]) to open the new form creation/editor.
-        # button "+ Create Form"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Scroll the protocol/form builder to the bottom to reveal any hidden fields, then search the page for the text 'Division' to determine whether the Division field is present.
+        await page.mouse.wheel(0, 300)
         
-        # -> Enter a form name into the New Protocol Form input (index 3980) to enable the Create Form button, then click Create Form (index 3982) to create the form.
-        # text input placeholder="e.g. Division A Registration"
-        elem = page.locator("xpath=/html/body/div[5]/div[2]/div[2]/input").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("Automated Registration Form 2026-05-27")
+        # -> Scroll the protocol/form builder down further to reveal hidden fields and then search the page for the text 'Division' to determine whether the Division field exists and is visible.
+        await page.mouse.wheel(0, 300)
         
-        # -> Enter a form name into the New Protocol Form input (index 3980) to enable the Create Form button, then click Create Form (index 3982) to create the form.
-        # button "Create Form"
-        elem = page.locator("xpath=/html/body/div[5]/div[2]/div[3]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # --> Assertions to verify final state
         
-        # -> Open the Division field settings (click element index 4652) to confirm the field is locked; before clicking, search the page for textual lock indicators.
-        # button
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[3]/div/div[3]/div[2]/div[2]/div[2]/div/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> Open the Division field settings by clicking button [4925], wait for UI to settle, and search the page for 'locked' and 'System Enforced' indicators to confirm the Division field is locked.
-        # button
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[3]/div/div[3]/div[2]/div[2]/div[2]/div/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # --> Verify the new form is displayed
+        # Assert: Expected the new form title 'New Form' to be visible.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/div[3]/div/div[7]/div[2]/div[1]/div/div[1]").nth(0)).to_contain_text("New Form", timeout=15000), "Expected the new form title 'New Form' to be visible."
+        # Assert: Expected a 'Create Form' button to be visible for the new form.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/div[3]/div/div[7]/div[2]/div[1]/button").nth(0)).to_contain_text("Create Form", timeout=15000), "Expected a 'Create Form' button to be visible for the new form."
+        # Assert: Verify the locked Division field is present at the top of the field list
+        assert False, "Expected: Verify the locked Division field is present at the top of the field list (could not be verified on the page)"
         await asyncio.sleep(5)
 
     finally:

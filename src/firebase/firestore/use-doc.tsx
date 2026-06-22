@@ -80,6 +80,21 @@ export function useDoc<T = any>(
           return;
         }
         if (error.code === 'permission-denied') {
+          // Suppress global crash for team documents/subdocuments when they suffer from transient permission-denied
+          // errors (e.g. during team creation or seeder operations) before rules propagate fully.
+          const isTeamDoc = memoizedDocRef.path.startsWith('teams/');
+          if (isTeamDoc) {
+            console.warn('[useDoc] Suppressed global crash for team document permission-denied:', memoizedDocRef.path, error.message?.slice(0, 120));
+            const contextualError = new FirestorePermissionError({
+              operation: 'get',
+              path: memoizedDocRef.path,
+            });
+            setError(contextualError);
+            setData(null);
+            setIsLoading(false);
+            return;
+          }
+
           const contextualError = new FirestorePermissionError({
             operation: 'get',
             path: memoizedDocRef.path,

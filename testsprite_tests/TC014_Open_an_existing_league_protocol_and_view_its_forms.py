@@ -40,76 +40,75 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Click the Log In button (element index 10) to open the login page or modal.
-        # button "Log In"
-        elem = page.locator("xpath=/html/body/div[2]/nav/div/div[2]/a/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Open the login page by navigating to the application's /login route and verify the login form or login fields appear.
+        await page.goto("http://localhost:9002/login")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
         
-        # -> Fill the email and password fields (use fallback credentials) and submit the login form by clicking the 'Verify Identity' button.
-        # email input placeholder="name@organization.com"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[2]/input").nth(0)
+        # -> Fill the 'Official Email' and 'Encrypted Password' fields with test credentials and click the 'Verify Identity' button to sign in.
+        # name@organization.com email field
+        elem = page.locator('[id="email"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("example@gmail.com")
         
-        # -> Fill the email and password fields (use fallback credentials) and submit the login form by clicking the 'Verify Identity' button.
-        # password input
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[3]/div[2]/input").nth(0)
+        # -> Fill the 'Official Email' and 'Encrypted Password' fields with test credentials and click the 'Verify Identity' button to sign in.
+        # password field
+        elem = page.locator('[id="password"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("password123")
         
-        # -> Fill the email and password fields (use fallback credentials) and submit the login form by clicking the 'Verify Identity' button.
-        # button "Verify Identity"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Fill the 'Official Email' and 'Encrypted Password' fields with test credentials and click the 'Verify Identity' button to sign in.
+        # Verify Identity button
+        elem = page.get_by_role('button', name='Verify Identity', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Elite Club' club selector (element index 1944) to reveal club-specific links and locate 'Manage Leagues'.
-        # button "E Elite Club ↳ Example Elite Team"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div/div[2]/div/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Portals' button to open portal options and look for 'Manage Leagues' or the League Registration area.
+        # Portals button
+        elem = page.get_by_role('button', name='Portals', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Club Hub' link (interactive element index 1931) to open the Club Hub page and search there for 'Manage Leagues' or the league management area.
-        # link "Club Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div/div[2]/div/div/ul/li[2]/a").nth(0)
+        # -> Fill the League ID field in the 'LEAGUE PORTAL' card with the visible squad code '00MSYWPZ' and then click the 'Enter Portal' button to open the league registration protocol.
+        # e.g. winter-varsity-2024 text field
+        elem = page.get_by_placeholder('e.g. winter-varsity-2024', exact=True)
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        await elem.fill("00MSYWPZ")
         
-        # -> Click the 'Competition Hub' link (element index 2020) to open the competition area and search there for 'Manage Leagues' or registration protocols.
-        # link "Competition Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div/div[2]/div/div[2]/ul/div[2]/li[5]/a").nth(0)
+        # -> Fill the League ID field in the 'LEAGUE PORTAL' card with the visible squad code '00MSYWPZ' and then click the 'Enter Portal' button to open the league registration protocol.
+        # Enter Portal button
+        elem = page.get_by_role('button', name='Enter Portal', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the 'Back to Home' button on the 'Portal not found' page to return to the main app and then report that the league portal could not be opened so the forms list could not be verified.
+        # Back to Home button
+        elem = page.get_by_role('button', name='Back to Home', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the visible 'Go to Dashboard' button on the homepage to return to the dashboard and then retry opening the League Portal from the Portals view.
+        # Go to Dashboard button
+        elem = page.get_by_role('button', name='Go to Dashboard', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the 'OPEN PORTAL' button in the 'Join a League' card to open the league portal entry dialog so a League ID can be entered and the registration protocol (forms list) can be accessed.
+        # Open Portal button
+        elem = page.get_by_role('button', name='Open Portal', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Fill the League ID field with the sample slug 'winter-varsity-2024' and click the 'Enter Portal' button to attempt opening the league registration protocol.
+        # e.g. winter-varsity-2024 text field
+        elem = page.get_by_placeholder('e.g. winter-varsity-2024', exact=True)
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        await elem.fill("winter-varsity-2024")
         
-        # -> Click the 'Select Hub' button for the first league (interactive element index 2818) to open that league's hub and look for the registration protocols/forms list.
-        # button "Select Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div/div[2]/div[3]/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Fill the League ID field with the sample slug 'winter-varsity-2024' and click the 'Enter Portal' button to attempt opening the league registration protocol.
+        # Enter Portal button
+        elem = page.get_by_role('button', name='Enter Portal', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Select Hub' button for the league titled 'Automated Registration Form 2026-05-27' (interactive element index 2946) to open that league's hub and look for the registration/forms list.
-        # button "Select Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div[2]/div[2]/div[3]/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> Click the 'Select Hub' button for the 'Automated Registration Form 2026-05-27' league (element index 3010) to open that league's hub and locate the registration/forms list.
-        # button "Select Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div[2]/div[2]/div[3]/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> Click the 'Portal Architect' button (interactive element index 3915) to open the league's portals/registration area and then verify whether the existing registration forms list is displayed.
-        # button "Portal Architect"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[3]/div[2]/div[2]/div[2]/button[4]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # --> Assertions to verify final state
+        # Assert: Verify the existing forms list is displayed
+        assert False, "Expected: Verify the existing forms list is displayed (could not be verified on the page)"
         await asyncio.sleep(5)
 
     finally:

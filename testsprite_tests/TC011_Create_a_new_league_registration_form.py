@@ -40,71 +40,91 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Navigate to http://localhost:9002/login so the login form can be filled and submitted.
-        await page.goto("http://localhost:9002/login")
+        # -> Click the 'Log In' button in the page header to open the login page or modal.
+        # Log In button
+        elem = page.locator('xpath=/html/body/div[2]/nav/div/div[2]/a/button')
+        await elem.click(timeout=10000)
+        
+        # -> Fill the email field with 'example@gmail.com', fill the password field with 'password123', and click the 'Verify Identity' button to submit the login form.
+        # name@organization.com email field
+        elem = page.locator('[id="email"]')
+        await elem.wait_for(state="visible", timeout=10000)
+        await elem.fill("example@gmail.com")
+        
+        # -> Fill the email field with 'example@gmail.com', fill the password field with 'password123', and click the 'Verify Identity' button to submit the login form.
+        # password field
+        elem = page.locator('[id="password"]')
+        await elem.wait_for(state="visible", timeout=10000)
+        await elem.fill("password123")
+        
+        # -> Fill the email field with 'example@gmail.com', fill the password field with 'password123', and click the 'Verify Identity' button to submit the login form.
+        # Verify Identity button
+        elem = page.get_by_role('button', name='Verify Identity', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the 'Club Hub' link in the left navigation to open club management and reveal league-related actions.
+        # Club Hub link
+        elem = page.get_by_role('link', name='Club Hub', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the 'Competition Hub' link in the left navigation to open the area that manages competitions and leagues.
+        # Competition Hub link
+        elem = page.get_by_role('link', name='Competition Hub', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the 'Launch League Architect' button to open the protocol architect (the red 'Launch League Architect' button near the top-right of the Competition Hub).
+        # Launch League Architect button
+        elem = page.get_by_role('button', name='Launch League Architect', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Fill the 'League Title' field with a unique name and click the 'Deploy Hub' button to create the hub so registration form creation becomes available.
+        # e.g. State Varsity Premier text field
+        elem = page.get_by_placeholder('e.g. State Varsity Premier', exact=True)
+        await elem.wait_for(state="visible", timeout=10000)
+        await elem.fill("Automated Registration Form TEST 2026-06-22")
+        
+        # -> Fill the 'League Title' field with a unique name and click the 'Deploy Hub' button to create the hub so registration form creation becomes available.
+        # Deploy Hub button
+        elem = page.get_by_role('button', name='Deploy Hub', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Close the 'League Architect' modal dialog, then search the Competition Hub page for the league titled 'Automated Registration Form TEST 2026-06-22' to verify the new form appears in the existing forms list.
+        # Close button
+        elem = page.get_by_role('button', name='Close', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the 'Launch League Architect' button to re-open the architect modal and check whether the newly deployed hub 'Automated Registration Form TEST 2026-06-22' appears in the architect's list.
+        # Launch League Architect button
+        elem = page.get_by_role('button', name='Launch League Architect', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Close the 'League Architect' dialog by clicking the 'Close' button, then search the Competition Hub page for the text 'Automated Registration Form TEST 2026-06-22' to verify the new form appears in the list.
+        # Close button
+        elem = page.get_by_role('button', name='Close', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Reload the Competition Hub page to refresh the forms list, then search the page for the deployed title 'Automated Registration Form TEST 2026-06-22' to verify whether the new hub appears in the list.
+        await page.goto("http://localhost:9002/competition")
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
         
-        # -> Fill the email and password fields and submit the login form by interacting with elements [1601], [1602], then clicking [1606].
-        # email input placeholder="name@organization.com"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[2]/input").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("example@gmail.com")
+        # -> Open the 'Launch League Architect' modal from the Competition Hub to inspect the list of deployed hubs and check for 'Automated Registration Form TEST 2026-06-22'.
+        # Launch League Architect button
+        elem = page.get_by_role('button', name='Launch League Architect', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Fill the email and password fields and submit the login form by interacting with elements [1601], [1602], then clicking [1606].
-        # password input
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[3]/div[2]/input").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("password123")
+        # -> Close the 'League Architect' dialog by clicking the 'Close' button, then search the Competition Hub page for the exact title 'Automated Registration Form TEST 2026-06-22' to verify the new form appears in the list.
+        # Close button
+        elem = page.get_by_role('button', name='Close', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Fill the email and password fields and submit the login form by interacting with elements [1601], [1602], then clicking [1606].
-        # button "Verify Identity"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # --> Assertions to verify final state
         
-        # -> Click the 'Competition Hub' link (element [2295]) to open the manage leagues area and locate the protocol architect.
-        # link "Competition Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div/div[2]/div/div[2]/ul/div[2]/li[5]/a").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> Click the 'Launch League Architect' button (element [3483]) to open the protocol architect.
-        # button "Launch League Architect"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> Type a new league title into the League Architect input and click Deploy Hub to create the hub, then verify the new league appears in the list.
-        # text input placeholder="e.g. State Varsity Premier"
-        elem = page.locator("xpath=/html/body/div[5]/div[2]/div[2]/input").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("Automated Registration Form TEST 2026-05-27")
-        
-        # -> Type a new league title into the League Architect input and click Deploy Hub to create the hub, then verify the new league appears in the list.
-        # button "Deploy Hub"
-        elem = page.locator("xpath=/html/body/div[5]/div[2]/div[3]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> Click the 'Select Hub' button for the first matching league card (interactive element [3026]) to open the league and verify the registration form details.
-        # button "Select Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[2]/div/div/div[2]/div[3]/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> click
-        # button "Portal Architect"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/div/div[3]/div[2]/div[2]/div[2]/button[4]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # --> Verify the new form appears in the existing forms list
+        # Assert: Expected the forms list to include 'Automated Registration Form TEST 2026-06-22'.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/div[2]/div[2]").nth(0)).to_contain_text("Automated Registration Form TEST 2026-06-22", timeout=15000), "Expected the forms list to include 'Automated Registration Form TEST 2026-06-22'."
         await asyncio.sleep(5)
 
     finally:

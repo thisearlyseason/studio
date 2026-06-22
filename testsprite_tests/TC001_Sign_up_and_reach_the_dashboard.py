@@ -40,70 +40,84 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Click the 'Join Now' button (interactive element [189]) to open the signup/registration page or modal.
-        # button "Join Now"
-        elem = page.locator("xpath=/html/body/div[2]/nav/div/div[2]/a[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Open the signup page by navigating to the application's '/signup' URL and load the registration form.
+        await page.goto("http://localhost:9002/signup")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
         
-        # -> Select the 'Myself (18+)' registration type and then click Next to open the email/password registration form.
-        # button "Myself (18+) I am the primary player"
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/div[2]/div[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Select the 'Player / Athlete' role and click 'Continue' so the email/password registration form can appear.
+        # Player / Athlete I am the player — join or get... button
+        elem = page.get_by_role('button', name='Player / Athlete I am the player — join or get recruited', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Select the 'Myself (18+)' registration type and then click Next to open the email/password registration form.
-        # button "Next"
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/div[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'CONTINUE' button on the role-selection screen to advance to the registration form and reveal the email/password fields.
+        # Continue button
+        elem = page.get_by_role('button', name='Continue', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Fill the full name, email, and password fields, then click 'Begin Coordination' to submit the registration form.
-        # text input
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/form/div[2]/div/input").nth(0)
+        # -> Fill the 'Full Name', 'Email Address', and 'Password' fields on the Create Account form and click the 'CREATE ACCOUNT' button to submit the registration.
+        # John Smith text field
+        elem = page.get_by_placeholder('John Smith', exact=True)
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("Test User")
         
-        # -> Fill the full name, email, and password fields, then click 'Begin Coordination' to submit the registration form.
-        # email input
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/form/div[2]/div[2]/input").nth(0)
+        # -> Fill the 'Full Name', 'Email Address', and 'Password' fields on the Create Account form and click the 'CREATE ACCOUNT' button to submit the registration.
+        # you@example.com email field
+        elem = page.get_by_placeholder('you@example.com', exact=True)
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("example@gmail.com")
         
-        # -> Fill the full name, email, and password fields, then click 'Begin Coordination' to submit the registration form.
-        # password input
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/form/div[2]/div[3]/input").nth(0)
+        # -> Fill the 'Full Name', 'Email Address', and 'Password' fields on the Create Account form and click the 'CREATE ACCOUNT' button to submit the registration.
+        # Min. 6 characters password field
+        elem = page.get_by_placeholder('Min. 6 characters', exact=True)
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("password123")
         
-        # -> Fill the full name, email, and password fields, then click 'Begin Coordination' to submit the registration form.
-        # button "Begin Coordination"
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/form/div[4]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Fill the 'Full Name', 'Email Address', and 'Password' fields on the Create Account form and click the 'CREATE ACCOUNT' button to submit the registration.
+        # Create Account button
+        elem = page.get_by_role('button', name='Create Account', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Begin Coordination' submit button (element [1822]) to retry registration and then verify whether the app navigates to the authenticated dashboard or shows workspace UI.
-        # button "Begin Coordination"
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/form/div[4]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Create Account' button to submit the registration form and check whether the authenticated dashboard workspace appears (look for dashboard title, navigation, or workspace content).
+        # Create Account button
+        elem = page.get_by_role('button', name='Create Account', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Replace the Email field [1811] with a new unique email and click the 'Begin Coordination' submit button [1822] to retry registration.
-        # email input
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/form/div[2]/div[2]/input").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("testuser+autotest1@example.com")
+        # -> Click the 'Create Account' button to submit the registration and verify that the authenticated dashboard workspace appears (look for a dashboard title or navigation elements).
+        # Create Account button
+        elem = page.get_by_role('button', name='Create Account', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Replace the Email field [1811] with a new unique email and click the 'Begin Coordination' submit button [1822] to retry registration.
-        # button "Begin Coordination"
-        elem = page.locator("xpath=/html/body/div[2]/div[3]/form/div[4]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Submit the registration by clicking the 'CREATE ACCOUNT' button and verify the authenticated dashboard or capture any visible error messages.
+        # Create Account button
+        elem = page.get_by_role('button', name='Create Account', exact=True)
+        await elem.click(timeout=10000)
         
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # -> Fill the Email Address field with a unique address (e.g., example+12345@gmail.com) and click the 'CREATE ACCOUNT' button to attempt registration again and observe if the dashboard appears or an error becomes visible.
+        # you@example.com email field
+        elem = page.get_by_placeholder('you@example.com', exact=True)
+        await elem.wait_for(state="visible", timeout=10000)
+        await elem.fill("example+12345@gmail.com")
+        
+        # -> Fill the Email Address field with a unique address (e.g., example+12345@gmail.com) and click the 'CREATE ACCOUNT' button to attempt registration again and observe if the dashboard appears or an error becomes visible.
+        # Create Account button
+        elem = page.get_by_role('button', name='Create Account', exact=True)
+        await elem.click(timeout=10000)
+        
+        # --> Assertions to verify final state
+        
+        # --> Verify the dashboard is displayed
+        await page.locator("xpath=/html/body/div[2]/div/div/div/div/div[1]/div[2]/div/div[1]/ul/li/a").nth(0).scroll_into_view_if_needed()
+        # Assert: The Dashboard navigation link is visible, confirming the dashboard is displayed.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[1]/div[2]/div/div[1]/ul/li/a").nth(0)).to_be_visible(timeout=15000), "The Dashboard navigation link is visible, confirming the dashboard is displayed."
+        
+        # --> Verify the authenticated workspace is visible
+        # Assert: The 'Dashboard' navigation link is visible in the authenticated workspace.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[1]/div[2]/div/div[1]/ul/li/a").nth(0)).to_have_text("Dashboard", timeout=15000), "The 'Dashboard' navigation link is visible in the authenticated workspace."
+        # Assert: The signed-in user's email (example+12345@gmail.com) is visible in the workspace header.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/div[2]/div/div[3]/div[1]/div/button").nth(0)).to_contain_text("example+12345@gmail.com", timeout=15000), "The signed-in user's email (example+12345@gmail.com) is visible in the workspace header."
         await asyncio.sleep(5)
 
     finally:

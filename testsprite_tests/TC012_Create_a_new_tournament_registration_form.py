@@ -40,100 +40,76 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Click the 'Log In' button (interactive element index 10) to open the login page.
-        # button "Log In"
-        elem = page.locator("xpath=/html/body/div[2]/nav/div/div[2]/a/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Log In' button in the page header to open the login page or form.
+        # Log In button
+        elem = page.locator('xpath=/html/body/div[2]/nav/div/div[2]/a/button')
+        await elem.click(timeout=10000)
         
-        # -> Fill the email and password fields with default credentials and click 'Verify Identity' (submit) to attempt login.
-        # email input placeholder="name@organization.com"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[2]/input").nth(0)
+        # -> Enter 'example@gmail.com' into the Official Email field, 'password123' into the Encrypted Password field, then click the 'Verify Identity' button to submit the login form.
+        # name@organization.com email field
+        elem = page.locator('[id="email"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("example@gmail.com")
         
-        # -> Fill the email and password fields with default credentials and click 'Verify Identity' (submit) to attempt login.
-        # password input
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[3]/div[2]/input").nth(0)
+        # -> Enter 'example@gmail.com' into the Official Email field, 'password123' into the Encrypted Password field, then click the 'Verify Identity' button to submit the login form.
+        # password field
+        elem = page.locator('[id="password"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("password123")
         
-        # -> Fill the email and password fields with default credentials and click 'Verify Identity' (submit) to attempt login.
-        # button "Verify Identity"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Enter 'example@gmail.com' into the Official Email field, 'password123' into the Encrypted Password field, then click the 'Verify Identity' button to submit the login form.
+        # Verify Identity button
+        elem = page.get_by_role('button', name='Verify Identity', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Competition Hub' link (interactive element index 2046) to navigate to the competition/tournament management area.
-        # link "Competition Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div/div[2]/div/div[2]/ul/div[2]/li[5]/a").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Competition Hub' link in the left sidebar to open the competition management area where tournament and registration tools should be located.
+        # Competition Hub link
+        elem = page.get_by_role('link', name='Competition Hub', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Tournaments' tab (interactive element index 2521) to load the tournaments list and access the Protocol Architect.
-        # button "Tournaments"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Tournaments' tab in the Competition Hub tablist to switch to the Tournaments view and expose tournament-specific launch/architect controls.
+        # Tournaments button
+        elem = page.get_by_role('tab', name='Tournaments', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Launch Hub' button for the 2026 CHAMPIONSHIP INVITATIONAL tournament (interactive element index 3572) to open the tournament's hub and access the Protocol Architect.
-        # button "Launch Hub"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[3]/div/div[2]/div/div[4]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Launch Hub' button on the tournament card to open the tournament architect so the registration protocol can be accessed.
+        # Launch Hub button
+        elem = page.get_by_role('button', name='Launch Hub', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Architecture' tab (interactive element index 3646) to open the Protocol Architect so a new registration form can be created.
-        # button "Architecture"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[3]/div/div/div[2]/div/div/div/button[6]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Architecture' tab in the tournament tab list to open the Tournament Architect and expose registration/protocol controls.
+        # Architecture button
+        elem = page.get_by_role('tab', name='Architecture', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Launch Builder' button (interactive element index 3769) to open the Form Builder so a new registration form can be created.
-        # button "Launch Builder"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[3]/div/div/div[2]/div/div[3]/div/div/div[2]/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Launch Builder' button in the Registration Architect panel to open the form builder/modal.
+        # Launch Builder button
+        elem = page.get_by_role('button', name='Launch Builder', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the '+ Create Form' button to start creating a new registration form (interactive element index 4065).
-        # button "+ Create Form"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the '+ CREATE FORM' button in the Protocol Forms view to open the form creation modal or page.
+        # + Create Form button
+        elem = page.get_by_role('button', name='+ Create Form', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Input a form name into the form name field (index 4152) and click the 'Create Form' button (index 4154) to create the new registration form.
-        # text input placeholder="e.g. Division A Registration"
-        elem = page.locator("xpath=/html/body/div[5]/div[2]/div[2]/input").nth(0)
+        # -> Type a new form name into the 'Form Name' input (placeholder: 'e.g. Division A Registration') and click the 'Create Form' button to create the form.
+        # e.g. Division A Registration text field
+        elem = page.get_by_placeholder('e.g. Division A Registration', exact=True)
         await elem.wait_for(state="visible", timeout=10000)
-        await elem.fill("Championship Invitational Registration")
+        await elem.fill("Test Registration Form - Auto")
         
-        # -> Input a form name into the form name field (index 4152) and click the 'Create Form' button (index 4154) to create the new registration form.
-        # button "Create Form"
-        elem = page.locator("xpath=/html/body/div[5]/div[2]/div[3]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Type a new form name into the 'Form Name' input (placeholder: 'e.g. Division A Registration') and click the 'Create Form' button to create the form.
+        # Create Form button
+        elem = page.get_by_role('button', name='Create Form', exact=True)
+        await elem.click(timeout=10000)
         
-        # -> Click the 'Protocol Architect' button (interactive element index 4384) to open/focus the architect panel and reveal the forms list so the newly created form can be located and verified.
-        # button "Protocol Architect"
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/button[2]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # --> Assertions to verify final state
         
-        # -> Click the breadcrumb/back element (index 4373) to return to the Protocol Architect/forms list view so the presence of 'Championship Invitational Registration' can be verified.
-        # button
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div/div/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # -> Open the 'Championship Invitational Registration' entry from the forms list to verify it loads from the list.
-        # button "Draft Championship Invitational Registra..."
-        elem = page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div/main/div/div[2]/div[2]/button[3]").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
-        
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # --> Verify the new form appears in the existing forms list
+        # Assert: The new form 'Test Registration Form - Auto' is listed in the Protocol Architect header.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/div[3]/div[1]/div[1]/div[1]").nth(0)).to_contain_text("Test Registration Form - Auto", timeout=15000), "The new form 'Test Registration Form - Auto' is listed in the Protocol Architect header."
+        # Assert: The URL contains the protocol identifier for the created form.
+        await expect(page).to_have_url(re.compile("protocol=form_test_registration_form__auto_mqop7iv4"), timeout=15000), "The URL contains the protocol identifier for the created form."
         await asyncio.sleep(5)
 
     finally:

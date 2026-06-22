@@ -40,34 +40,47 @@ async def run_test():
         except Exception:
             pass
         
-        # -> Click the 'Log In' button (element index 5) to navigate to the /login page and continue the login flow.
-        # button "Log In"
-        elem = page.locator("xpath=/html/body/div[2]/nav/div/div[2]/a/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Click the 'Log In' button in the page header to open the login page or modal.
+        # Log In button
+        elem = page.locator('xpath=/html/body/div[2]/nav/div/div[2]/a/button')
+        await elem.click(timeout=10000)
         
-        # -> Fill the email field with example@gmail.com, fill the password with password123, and submit the form by clicking the 'Verify Identity' button (index 1669).
-        # email input placeholder="name@organization.com"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[2]/input").nth(0)
+        # -> Fill the email field with example@gmail.com, fill the password field with password123, then click the 'Verify Identity' button to submit the login form.
+        # name@organization.com email field
+        elem = page.locator('[id="email"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("example@gmail.com")
         
-        # -> Fill the email field with example@gmail.com, fill the password with password123, and submit the form by clicking the 'Verify Identity' button (index 1669).
-        # password input
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div/div[3]/div[2]/input").nth(0)
+        # -> Fill the email field with example@gmail.com, fill the password field with password123, then click the 'Verify Identity' button to submit the login form.
+        # password field
+        elem = page.locator('[id="password"]')
         await elem.wait_for(state="visible", timeout=10000)
         await elem.fill("password123")
         
-        # -> Fill the email field with example@gmail.com, fill the password with password123, and submit the form by clicking the 'Verify Identity' button (index 1669).
-        # button "Verify Identity"
-        elem = page.locator("xpath=/html/body/div[2]/div[5]/div/form/div[2]/button").nth(0)
-        await elem.wait_for(state="visible", timeout=10000)
-        await elem.click()
+        # -> Fill the email field with example@gmail.com, fill the password field with password123, then click the 'Verify Identity' button to submit the login form.
+        # Verify Identity button
+        elem = page.get_by_role('button', name='Verify Identity', exact=True)
+        await elem.click(timeout=10000)
         
-        # --> Test passed — verified by AI agent
-        frame = context.pages[-1]
-        current_url = await frame.evaluate("() => window.location.href")
-        assert current_url is not None, "Test completed successfully"
+        # --> Assertions to verify final state
+        
+        # --> Verify the dashboard is displayed
+        # Assert: The browser URL contains "/dashboard", confirming the dashboard route is loaded.
+        await expect(page).to_have_url(re.compile("/dashboard"), timeout=15000), "The browser URL contains \"/dashboard\", confirming the dashboard route is loaded."
+        await page.locator("xpath=/html/body/div[2]/div/div/div/div/div[1]/div[2]/div/div[1]/ul/li[1]/a").nth(0).scroll_into_view_if_needed()
+        # Assert: The 'Dashboard' navigation link is visible, indicating the dashboard is displayed.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[1]/div[2]/div/div[1]/ul/li[1]/a").nth(0)).to_be_visible(timeout=15000), "The 'Dashboard' navigation link is visible, indicating the dashboard is displayed."
+        
+        # --> Verify the authenticated workspace is visible
+        await page.locator("xpath=/html/body/div[2]/div/div/div/div/div[1]/div[2]/div/div[1]/button").nth(0).scroll_into_view_if_needed()
+        # Assert: Left navigation shows the club/team selector (Elite Club / Example Elite Team) and is visible.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[1]/div[2]/div/div[1]/button").nth(0)).to_be_visible(timeout=15000), "Left navigation shows the club/team selector (Elite Club / Example Elite Team) and is visible."
+        await page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/header/div[2]/button[1]").nth(0).scroll_into_view_if_needed()
+        # Assert: The 'New Squad' action button is visible on the dashboard.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/header/div[2]/button[1]").nth(0)).to_be_visible(timeout=15000), "The 'New Squad' action button is visible on the dashboard."
+        await page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/header/div[2]/button[2]").nth(0).scroll_into_view_if_needed()
+        # Assert: The 'Portals' action button is visible on the dashboard.
+        await expect(page.locator("xpath=/html/body/div[2]/div/div/div/div/div[2]/div[1]/main/div/header/div[2]/button[2]").nth(0)).to_be_visible(timeout=15000), "The 'Portals' action button is visible on the dashboard."
         await asyncio.sleep(5)
 
     finally:

@@ -132,6 +132,22 @@ export function useCollection<T = any>(
             setIsLoading(false);
             return;
           }
+
+          // Suppress global crash for team subcollections when they suffer from transient permission-denied
+          // errors (e.g. during team creation or seeder operations) before rules propagate fully.
+          const isTeamSubcollection = /^teams\/[^/]+\/(members|events|games|incidents|volunteers|fundraising|equipment|groupChats|feedPosts|files|documents)/.test(path);
+          if (isTeamSubcollection) {
+            console.warn('[useCollection] Suppressed global crash for team subcollection permission-denied:', path, err.message?.slice(0, 120));
+            const permissionError = new FirestorePermissionError({
+              path: path || 'unknown',
+              operation: 'list',
+            });
+            setError(permissionError);
+            setData([]);
+            setIsLoading(false);
+            return;
+          }
+
           const permissionError = new FirestorePermissionError({
             path: path || 'unknown',
             operation: 'list',
