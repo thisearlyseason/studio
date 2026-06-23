@@ -502,11 +502,11 @@ export default function HowToGuidePage() {
         BLOCK_BRIEFING_UNIT,
         BLOCK_HIGH_PRIORITY,
         BLOCK_AI_SCOUTING,
+        BLOCK_FISCAL_AUDIT,
         BLOCK_CLUB_HUB,
         BLOCK_INSTITUTIONAL_PROTOCOLS,
         BLOCK_RECRUITMENT_PORTAL,
-        BLOCK_FLEET_LOGISTICS,
-        BLOCK_FISCAL_AUDIT
+        BLOCK_FLEET_LOGISTICS
       ]
     },
     school: {
@@ -532,12 +532,12 @@ export default function HowToGuidePage() {
         BLOCK_BRIEFING_UNIT,
         BLOCK_HIGH_PRIORITY,
         BLOCK_AI_SCOUTING,
-        BLOCK_SCHOOL_HUB,
-        BLOCK_SCHOOL_COMPLIANCE,
-        BLOCK_SCHOOL_RECRUITING,
+        BLOCK_FISCAL_AUDIT,
         BLOCK_INSTITUTIONAL_PROTOCOLS,
         BLOCK_FLEET_LOGISTICS,
-        BLOCK_FISCAL_AUDIT
+        BLOCK_SCHOOL_HUB,
+        BLOCK_SCHOOL_COMPLIANCE,
+        BLOCK_SCHOOL_RECRUITING
       ]
     },
     player: {
