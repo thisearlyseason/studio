@@ -28,6 +28,16 @@ export interface Team {
   contactEmail?: string;
   contactPhone?: string;
   registrationProtocolId?: string;
+  features?: {
+    feed?: boolean;
+    roster?: boolean;
+    practice?: boolean;
+    playbook?: boolean;
+    volunteer?: boolean;
+    fundraising?: boolean;
+    tacticalChat?: boolean;
+    library?: boolean;
+  };
 }
 
 export interface TeamMember {

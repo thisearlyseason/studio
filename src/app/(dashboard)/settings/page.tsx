@@ -30,7 +30,16 @@ import {
   ShieldCheck,
   User,
   Edit3,
-  Save
+  Save,
+  LayoutDashboard,
+  Users,
+  Dumbbell,
+  GraduationCap,
+  HandHelping,
+  PiggyBank,
+  MessageCircle,
+  FolderClosed,
+  EyeOff
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -54,6 +63,7 @@ import {
 import { useTeam } from '@/components/providers/team-provider';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -404,6 +414,62 @@ export default function SettingsPage() {
         </Card>
         )}
       </div>
+
+      {(isStaff || isPrimaryClubAuthority) && activeTeam && (
+        <div className="space-y-4 pt-10 border-t">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-2">Module Visibility</h3>
+          <p className="text-[10px] text-muted-foreground px-2 mb-4 font-bold uppercase tracking-widest leading-relaxed">
+            Toggle which squad modules are visible in the sidebar. Disabled modules are completely hidden and inaccessible to all users in this squad.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { id: 'feed', name: 'Feed', icon: LayoutDashboard },
+              { id: 'roster', name: 'Roster', icon: Users },
+              { id: 'practice', name: 'Practice', icon: Dumbbell },
+              { id: 'playbook', name: 'Playbook', icon: GraduationCap },
+              { id: 'volunteer', name: 'Volunteer', icon: HandHelping },
+              { id: 'fundraising', name: 'Fundraising', icon: PiggyBank },
+              { id: 'tacticalChat', name: 'Tactical Chat', icon: MessageCircle },
+              { id: 'library', name: 'Library', icon: FolderClosed },
+            ].map(module => {
+              const Icon = module.icon;
+              // features is undefined by default, so we treat undefined as true (enabled)
+              const isEnabled = activeTeam.features?.[module.id as keyof typeof activeTeam.features] !== false;
+              
+              const handleToggle = async (checked: boolean) => {
+                if (!db) return;
+                try {
+                  const teamRef = doc(db, 'teams', activeTeam.id);
+                  await updateDoc(teamRef, {
+                    [`features.${module.id}`]: checked
+                  });
+                  toast({ title: 'Module Updated', description: `${module.name} is now ${checked ? 'visible' : 'hidden'}.` });
+                } catch (e) {
+                  console.error('Failed to update feature', e);
+                  toast({ title: 'Error', description: 'Failed to update module visibility.', variant: 'destructive' });
+                }
+              };
+
+              return (
+                <div key={module.id} className={cn(
+                  "p-4 rounded-[2rem] border shadow-sm flex items-center justify-between transition-all",
+                  isEnabled ? "bg-white" : "bg-muted/50 grayscale-[0.5]"
+                )}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-xl", isEnabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                      {isEnabled ? <Icon className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </div>
+                    <span className={cn("text-xs font-black uppercase tracking-widest", !isEnabled && "text-muted-foreground")}>
+                      {module.name}
+                    </span>
+                  </div>
+                  <Switch checked={isEnabled} onCheckedChange={handleToggle} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4 pt-10 border-t">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-2">Account Logistics</h3>

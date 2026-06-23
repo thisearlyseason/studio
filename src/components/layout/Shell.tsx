@@ -472,6 +472,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       if (user?.role === 'league_creator' && !activeTeam) {
         return tab.name === 'Competition Hub';
       }
+
+      // Module Visibility Settings
+      if (tab.name === 'Feed' && activeTeam?.features?.feed === false) return false;
+      if (tab.name === 'Roster' && activeTeam?.features?.roster === false) return false;
+      if (tab.name === 'Practice' && activeTeam?.features?.practice === false) return false;
+      if (tab.name === 'Playbook' && activeTeam?.features?.playbook === false) return false;
+      if (tab.name === 'Volunteer' && activeTeam?.features?.volunteer === false) return false;
+      if (tab.name === 'Fundraising' && activeTeam?.features?.fundraising === false) return false;
+      if (tab.name === 'Tactical Chat' && activeTeam?.features?.tacticalChat === false) return false;
+      if (tab.name === 'Library' && activeTeam?.features?.library === false) return false;
+
       // Feed is filtered by plan/feature
       if (tab.name === 'Feed') return hasFeature?.('live_feed_read');
       // Roster: hide for school admins in institution mode (they use the School Hub instead)
@@ -518,8 +529,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             ? [{ name: 'Home', href: '/dashboard', icon: Home }]
             : []),
           { name: 'Schedule', href: '/events', icon: CalendarDays },
-          { name: 'Feed', href: '/feed', icon: LayoutDashboard, gate: () => hasFeature?.('live_feed_read') },
-          { name: 'Tactical Chat', href: '/chats', icon: MessageCircle },
+          ...(activeTeam?.features?.feed !== false ? [{ name: 'Feed', href: '/feed', icon: LayoutDashboard, gate: () => hasFeature?.('live_feed_read') }] : []),
+          ...(activeTeam?.features?.tacticalChat !== false ? [{ name: 'Tactical Chat', href: '/chats', icon: MessageCircle }] : []),
         ]
   );
 

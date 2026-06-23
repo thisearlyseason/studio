@@ -292,6 +292,27 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         router.push('/competition');
       }
     }
+
+    // Module Visibility Guard against Side-Gating
+    if (activeTeam) {
+      const isFeatureDisabled = (modulePath: string, featureKey: string) => 
+        pathname.startsWith(modulePath) && activeTeam.features?.[featureKey as keyof typeof activeTeam.features] === false;
+
+      if (
+        isFeatureDisabled('/feed', 'feed') ||
+        isFeatureDisabled('/roster', 'roster') ||
+        isFeatureDisabled('/practice', 'practice') ||
+        isFeatureDisabled('/drills', 'playbook') ||
+        isFeatureDisabled('/volunteers', 'volunteer') ||
+        isFeatureDisabled('/fundraising', 'fundraising') ||
+        isFeatureDisabled('/chats', 'tacticalChat') ||
+        isFeatureDisabled('/files', 'library')
+      ) {
+        toast({ title: 'Access Denied', description: 'This module has been disabled by your squad administrator.', variant: 'destructive' });
+        router.replace('/dashboard');
+        return;
+      }
+    }
   }, [user, isAuthResolved, router, mounted, isDemoInitializing, pathname, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent, activeTeam]);
 
   useEffect(() => {
