@@ -311,6 +311,17 @@ export type Team = {
   inviteCode?: string;
   teamName?: string; // Alias used in some contexts
   lastCodeEditedAt?: string;
+  // Module visibility settings (admin-configurable)
+  features?: {
+    feed?: boolean;
+    roster?: boolean;
+    practice?: boolean;
+    playbook?: boolean;
+    volunteer?: boolean;
+    fundraising?: boolean;
+    tacticalChat?: boolean;
+    library?: boolean;
+  };
 };
 
 export type Club = {

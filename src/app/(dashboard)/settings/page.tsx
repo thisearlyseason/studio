@@ -31,6 +31,7 @@ import {
   User,
   Edit3,
   Save,
+  BookOpen,
   LayoutDashboard,
   Users,
   Dumbbell,
@@ -473,6 +474,17 @@ export default function SettingsPage() {
 
       <div className="space-y-4 pt-10 border-t">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-2">Account Logistics</h3>
+
+        <Link href="/how-to" className="w-full p-6 bg-white rounded-3xl flex items-center justify-between border-2 border-transparent hover:border-primary/20 shadow-sm transition-all group block">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-100 p-3 rounded-2xl text-blue-600 group-hover:bg-primary group-hover:text-white transition-colors"><BookOpen className="h-6 w-6" /></div>
+            <div className="text-left">
+              <p className="font-black text-sm uppercase tracking-tight">Tactical Manual</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase">Full How-To Guide — All Modules & Features</p>
+            </div>
+          </div>
+          <ExternalLink className="h-5 w-5 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+        </Link>
         
         {isPro && (isStaff || isPrimaryClubAuthority) && (
           <button onClick={manageSubscription} className="w-full p-6 bg-white rounded-3xl flex items-center justify-between border-2 border-transparent hover:border-primary/20 shadow-sm transition-all group">
