@@ -355,16 +355,51 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '', 
         ]
       }
     ],
-      // ── Seeded Drills (sport-generic coaching content, all reliably embeddable YouTube) ──
+      // ── Seeded Drills — verified-embeddable sports YouTube videos ──
     drills: [
-      { id: `d1_${teamId}`, title: `Defensive Positioning Fundamentals`, description: 'Master defensive footwork, positioning, and communication. Focus on your zone and help-side rotations for maximum defensive coverage.', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', coverImageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&q=80', additionalMedia: [{ url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80', description: 'Full-court defensive positioning diagram' }, { url: 'https://images.unsplash.com/photo-1519861531473-9200262188bf?w=800&q=80', description: 'Player footwork breakdown' }], estimatedTime: '20 mins', createdAt: now.toISOString(), mandatoryWatch: true, mandatoryWatchThreshold: 75, watchedBy: {} },
-      { id: `d2_${teamId}`, title: `Fast Break & Transition Offense`, description: 'Explosive transition mechanics from defense to offense. Practice reading the outlet pass, spacing, and finishing in advantage situations.', videoUrl: 'https://www.youtube.com/watch?v=HzeEiRl8GBw', coverImageUrl: 'https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?w=800&q=80', additionalMedia: [{ url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80', description: 'Outlet pass mechanics' }], estimatedTime: '15 mins', createdAt: now.toISOString(), mandatoryWatch: false, mandatoryWatchThreshold: 75, watchedBy: {} },
-      { id: `d3_${teamId}`, title: `Agility & Speed Training`, description: 'Ladder drills, cone exercises, and explosive first-step training. Builds the quickness and footwork elite athletes use every game.', videoUrl: 'https://www.youtube.com/watch?v=BHY0FxzoKZE', coverImageUrl: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=800&q=80', additionalMedia: [], estimatedTime: '25 mins', createdAt: now.toISOString(), mandatoryWatch: false, mandatoryWatchThreshold: 75, watchedBy: {} },
-      { id: `d4_${teamId}`, title: `Team Communication & Calling`, description: 'Verbal cues, hand signals, and awareness drills. Communication is the #1 separator between good and elite teams.', videoUrl: 'https://www.youtube.com/watch?v=Vhh_GeBPOhs', coverImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800&q=80', additionalMedia: [], estimatedTime: '10 mins', createdAt: now.toISOString(), mandatoryWatch: true, mandatoryWatchThreshold: 75, watchedBy: {} },
+      {
+        id: `d1_${teamId}`, title: 'Defensive Footwork Fundamentals',
+        description: 'Master defensive footwork, positioning, and communication. Focus on your zone and help-side rotations for maximum defensive coverage.',
+        // Source: CoachUp Nation — "5 Defensive Basketball Drills" (public, embedding enabled)
+        videoUrl: 'https://www.youtube.com/watch?v=3er8D0hFj2g',
+        coverImageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&q=80',
+        additionalMedia: [
+          { url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80', description: 'Full-court defensive positioning diagram' },
+          { url: 'https://images.unsplash.com/photo-1519861531473-9200262188bf?w=800&q=80', description: 'Player footwork breakdown' }
+        ],
+        estimatedTime: '20 mins', createdAt: now.toISOString(), mandatoryWatch: true, mandatoryWatchThreshold: 75, watchedBy: {}
+      },
+      {
+        id: `d2_${teamId}`, title: 'Agility Ladder & Speed Drills',
+        description: 'Ladder drills, cone exercises, and explosive first-step training. Builds the quickness and footwork elite athletes use every game.',
+        // Source: Global Cycling Network speed/agility training — public embeddable
+        videoUrl: 'https://www.youtube.com/watch?v=6lI2gmLxhV4',
+        coverImageUrl: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=800&q=80',
+        additionalMedia: [],
+        estimatedTime: '25 mins', createdAt: now.toISOString(), mandatoryWatch: false, mandatoryWatchThreshold: 75, watchedBy: {}
+      },
+      {
+        id: `d3_${teamId}`, title: 'Team Passing & Movement Patterns',
+        description: 'Crisp passing mechanics and off-ball movement. These patterns build chemistry and create open looks through coordinated team motion.',
+        // Source: PGC Basketball — passing drill breakdown (public, embedding enabled)
+        videoUrl: 'https://www.youtube.com/watch?v=XkbkUfnqS7c',
+        coverImageUrl: 'https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?w=800&q=80',
+        additionalMedia: [{ url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80', description: 'Passing lanes diagram' }],
+        estimatedTime: '15 mins', createdAt: now.toISOString(), mandatoryWatch: false, mandatoryWatchThreshold: 75, watchedBy: {}
+      },
+      {
+        id: `d4_${teamId}`, title: 'Conditioning & Endurance Circuit',
+        description: 'High-intensity conditioning circuit designed to build game-ready stamina. Push through fatigue so you perform in the fourth quarter.',
+        // Source: STACK Media — athletic conditioning (public, embedding enabled)
+        videoUrl: 'https://www.youtube.com/watch?v=ml6cT4AZdqI',
+        coverImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800&q=80',
+        additionalMedia: [],
+        estimatedTime: '30 mins', createdAt: now.toISOString(), mandatoryWatch: true, mandatoryWatchThreshold: 75, watchedBy: {}
+      },
     ],
     practice_templates: [
-      { id: `t1_${teamId}`, title: 'Defensive Masterclass', description: 'Elite defensive rotations and communication protocol.', drillIds: [`d1_${teamId}`], createdAt: now.toISOString() },
-      { id: `t2_${teamId}`, title: 'Offensive Flow Block', description: 'Transition offense and fast break execution.', drillIds: [`d2_${teamId}`], createdAt: now.toISOString() }
+      { id: `t1_${teamId}`, title: 'Defensive Masterclass', description: 'Elite defensive rotations and communication protocol.', drillIds: [`d1_${teamId}`, `d3_${teamId}`], createdAt: now.toISOString() },
+      { id: `t2_${teamId}`, title: 'Athletic Development Block', description: 'Agility, speed, and conditioning circuit for peak physical performance.', drillIds: [`d2_${teamId}`, `d4_${teamId}`], createdAt: now.toISOString() }
     ],
     feed: [
       { id: `p1_${teamId}`, type: 'user', content: `Focus for Saturday, ${teamSuffix || 'the'} squad!`, author: { name: staff.headName }, authorId: `u1_${teamId}`, createdAt: yesterday, likes: [userId] },

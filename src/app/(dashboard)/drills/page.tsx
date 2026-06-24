@@ -879,50 +879,51 @@ export default function PlaybookAndGamePlayPage() {
             <div className="flex flex-col lg:flex-row min-h-full lg:h-full bg-neutral-950">
               {/* LEFT: STRATEGIC INTEL (VIDEO + DOCUMENTATION) */}
               <div className="w-full lg:flex-1 flex flex-col shrink-0 lg:h-full">
-                {/* PRIMARY INTEL: VIDEO HEADLINE */}
-                <div className="relative w-full aspect-video lg:aspect-auto lg:h-[45vh] bg-neutral-900 border-b border-white/10 shrink-0 group shadow-2xl z-10">
-                  {(() => {
-                    const data = selectedDrill || selectedFile;
-                    if (!data) return null;
-                    const url = selectedDrill ? selectedDrill.videoUrl : selectedFile?.url;
-                    const isYouTube = url && (url.includes('youtube.com') || url.includes('youtu.be/'));
-                    const isVimeo = url && (url.includes('vimeo.com'));
-                    const vimeoId = isVimeo ? url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/)?.[1] : null;
-                    return isYouTube ? (
-                      <iframe
-                        ref={iframeRef}
-                        src={`https://www.youtube.com/embed/${url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/))([^\?&"'><]+)/)?.[1]}?enablejsapi=1&autoplay=1`}
-                        className="w-full h-full border-none"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        onLoad={() => {
-                          if (data.mandatoryWatch && !hasUserWatched(data) && data.id) {
-                            startWatchTracking(data.id, 300);
-                          }
-                        }}
-                      />
-                    ) : isVimeo && vimeoId ? (
-                      <iframe
-                        src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1`}
-                        className="w-full h-full border-none"
-                        allow="autoplay; fullscreen; picture-in-picture"
-                        allowFullScreen
-                        onLoad={() => {
-                          if (data.mandatoryWatch && !hasUserWatched(data) && data.id) {
-                            startWatchTracking(data.id, 300);
-                          }
-                        }}
-                      />
-                    ) : url && url.startsWith('http') ? (
-                      <video ref={videoRef} src={url} controls autoPlay className="w-full h-full" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-4 opacity-30">
-                        <Video className="h-16 w-16 text-white" />
-                        <p className="text-white/60 text-[10px] font-black uppercase tracking-widest">No video available</p>
-                      </div>
-                    );
-                  })()}
-                </div>
+                {/* PRIMARY INTEL: VIDEO HEADLINE — only shown when a video URL exists */}
+                {(() => {
+                  const data = selectedDrill || selectedFile;
+                  if (!data) return null;
+                  const url = selectedDrill ? selectedDrill.videoUrl : selectedFile?.url;
+                  const isYouTube = url && (url.includes('youtube.com') || url.includes('youtu.be/'));
+                  const isVimeo = url && url.includes('vimeo.com');
+                  const vimeoId = isVimeo ? url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/)?.[1] : null;
+                  const hasVideo = isYouTube || (isVimeo && vimeoId) || (url && url.startsWith('http') && !isYouTube && !isVimeo);
+
+                  if (!hasVideo) return null; // ← hide entire video block when no video
+
+                  return (
+                    <div className="relative w-full aspect-video lg:aspect-auto lg:h-[45vh] bg-neutral-900 border-b border-white/10 shrink-0 group shadow-2xl z-10">
+                      {isYouTube ? (
+                        <iframe
+                          ref={iframeRef}
+                          src={`https://www.youtube.com/embed/${url!.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/))([^\?&"'><]+)/)?.[1]}?enablejsapi=1&autoplay=1`}
+                          className="w-full h-full border-none"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          onLoad={() => {
+                            if (data.mandatoryWatch && !hasUserWatched(data) && data.id) {
+                              startWatchTracking(data.id, 300);
+                            }
+                          }}
+                        />
+                      ) : isVimeo && vimeoId ? (
+                        <iframe
+                          src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1`}
+                          className="w-full h-full border-none"
+                          allow="autoplay; fullscreen; picture-in-picture"
+                          allowFullScreen
+                          onLoad={() => {
+                            if (data.mandatoryWatch && !hasUserWatched(data) && data.id) {
+                              startWatchTracking(data.id, 300);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <video ref={videoRef} src={url!} controls autoPlay className="w-full h-full" />
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* SCROLLABLE STRATEGIC DOCUMENTATION */}
                 <div className="w-full shrink-0 p-6 sm:p-12 lg:p-16 space-y-12 lg:flex-1 lg:overflow-y-auto no-scrollbar">
