@@ -749,15 +749,15 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                                 {t.source}
                               </div>
                             )}
-                            <div className="grid grid-cols-12 gap-3 items-center">
-                              <div className="col-span-1 text-[10px] font-black opacity-20">T{i+1}</div>
-                              <div className="col-span-5">
+                            <div className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:gap-3 items-stretch sm:items-center">
+                              <div className="hidden sm:block sm:col-span-1 text-[10px] font-black opacity-20">T{i+1}</div>
+                              <div className="sm:col-span-5">
                                 <Input value={t.name} onChange={e => {const n=[...form.teams]; n[i].name=e.target.value; setForm({...form, teams:n});}} placeholder="Squad Designation" className="h-12 bg-white/10 border-white/20 font-black uppercase rounded-xl text-white shadow-inner" />
                               </div>
-                              <div className="col-span-4">
+                              <div className="sm:col-span-4">
                                 <Input value={t.coach} onChange={e => {const n=[...form.teams]; n[i].coach=e.target.value; setForm({...form, teams:n});}} placeholder="Operator / Coach" className="h-12 bg-white/10 border-white/20 font-bold text-sm rounded-xl text-white shadow-inner" />
                               </div>
-                              <div className="col-span-2 flex justify-end">
+                              <div className="sm:col-span-2 flex justify-end">
                                  <Button variant="ghost" size="icon" onClick={() => setForm({...form, teams: form.teams.filter(x => x.id !== t.id)})} className="h-12 w-12 rounded-xl text-white/20 hover:text-red-500 hover:bg-red-500/10 transition-all"><X className="h-5 w-5" /></Button>
                               </div>
                             </div>

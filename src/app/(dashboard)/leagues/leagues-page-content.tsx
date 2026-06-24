@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -836,8 +836,9 @@ function LeagueOverview({
       {viewMode === 'list' ? (
         <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
           <CardContent className="p-0 text-foreground">
+            <div className="overflow-x-auto">
               {/* ── PREMIUM FIXTURE CARD GRID ── */}
-              <div className="divide-y divide-muted/40">
+              <div className="divide-y divide-muted/40 min-w-[460px]">
                 {filteredSchedule.map(game => {
                   const logo1 = teamLogoMap[game.team1Id || ''] || teamLogoMap[game.team1 || ''];
                   const logo2 = teamLogoMap[game.team2Id || ''] || teamLogoMap[game.team2 || ''];
@@ -847,7 +848,7 @@ function LeagueOverview({
                       className="group px-6 py-5 flex items-center gap-4 hover:bg-muted/5 transition-colors"
                     >
                       {/* Date/Time */}
-                      <div className="w-[100px] shrink-0 text-left">
+                      <div className="min-w-[90px] shrink-0 text-left">
                         <p className="font-black text-[11px] uppercase tracking-tight leading-none">{format(new Date(game.date), 'MMM d, yyyy')}</p>
                         <p className="text-[10px] font-bold text-muted-foreground mt-0.5">{game.time}</p>
                         {getDoubleHeaderLabel(game) && <Badge className="bg-primary/10 text-primary border-none text-[7px] h-4 font-black mt-1">DH</Badge>}
@@ -888,7 +889,7 @@ function LeagueOverview({
                       </div>
 
                       {/* Location + Edit */}
-                      <div className="w-[120px] shrink-0 text-right flex flex-col items-end gap-1.5">
+                      <div className="min-w-[100px] shrink-0 text-right flex flex-col items-end gap-1.5">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase truncate">{game.location || 'TBD'}</p>
                         {isStaff && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg opacity-100 lg:opacity-0 lg:group-hover:opacity-100" onClick={() => { setEditingGame(game); setScoreForm({ s1: (game.score1 ?? 0).toString(), s2: (game.score2 ?? 0).toString() }); }}>
@@ -905,8 +906,9 @@ function LeagueOverview({
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-10">
           <div className="w-full flex justify-center">
@@ -1465,6 +1467,17 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const { data: allLeagues, isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Auto-open a specific league when navigated to with ?leagueId=
+  useEffect(() => {
+    const qLeagueId = searchParams?.get('leagueId');
+    if (qLeagueId && allLeagues && allLeagues.length > 0) {
+      const found = allLeagues.find(l => l.id === qLeagueId);
+      if (found) setSelectedLeagueId(qLeagueId);
+    }
+  }, [searchParams, allLeagues]);
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [newDivisionName, setNewDivisionName] = useState('');
 

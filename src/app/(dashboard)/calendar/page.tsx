@@ -845,6 +845,82 @@ function CalendarSubscriptionDialog() {
   );
 }
 
+// ── LEAGUE SCHEDULE BUTTON: View all teams' schedule for a specific competition ──
+function LeagueScheduleButton({ events }: { events: TeamEvent[] }) {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  const competitions = useMemo(() => {
+    const seen = new Set<string>();
+    const comps: Array<{ id: string; name: string; type: 'league' | 'tournament'; leagueId?: string }> = [];
+    events.forEach(e => {
+      if (e.isLeagueGame && (e as any).leagueId && !seen.has((e as any).leagueId)) {
+        seen.add((e as any).leagueId);
+        comps.push({ id: (e as any).leagueId, name: (e as any).leagueName || 'League', type: 'league', leagueId: (e as any).leagueId });
+      } else if (e.isTournament && !seen.has(e.id)) {
+        seen.add(e.id);
+        comps.push({ id: e.id, name: e.title, type: 'tournament' });
+      }
+    });
+    return comps;
+  }, [events]);
+
+  if (competitions.length === 0) return null;
+
+  const handleSelect = (comp: typeof competitions[0]) => {
+    setOpen(false);
+    if (comp.type === 'league') {
+      router.push(`/leagues?leagueId=${comp.leagueId || comp.id}`);
+    } else {
+      router.push(`/competition?tournamentId=${comp.id}`);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="rounded-xl h-10 sm:h-11 border-2 font-black uppercase text-[10px] tracking-widest gap-2 text-foreground">
+          <Trophy className="h-4 w-4" />
+          <span className="hidden sm:inline">League Schedule</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
+        <DialogTitle className="sr-only">Select Competition</DialogTitle>
+        <div className="bg-black text-white p-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-primary p-2 rounded-xl"><Trophy className="h-5 w-5 text-white" /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Squad Operations</p>
+              <h2 className="text-2xl font-black uppercase tracking-tight leading-tight">League Schedule</h2>
+            </div>
+          </div>
+          <p className="text-white/50 text-[11px] font-bold uppercase tracking-widest mt-2">Select a competition to view all teams' fixtures and scores</p>
+        </div>
+        <div className="p-6 space-y-3">
+          {competitions.map(comp => (
+            <button
+              key={comp.id}
+              onClick={() => handleSelect(comp)}
+              className="w-full flex items-center justify-between p-5 rounded-[1.5rem] border-2 hover:border-primary hover:bg-primary/[0.02] transition-all group text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
+                  {comp.type === 'league' ? <Shield className="h-5 w-5 text-primary" /> : <Trophy className="h-5 w-5 text-primary" />}
+                </div>
+                <div>
+                  <p className="font-black text-sm uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">{comp.name}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{comp.type === 'league' ? 'League Hub' : 'Tournament'}</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function MasterCalendarPage() {
   const { teams, householdEvents, householdGames, activeTeamEvents, isParent, activeTeam, db, updateRSVP } = useTeam();
   
@@ -1146,27 +1222,31 @@ export default function MasterCalendarPage() {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="space-y-1">
           <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3">{isParent ? "Household Hub" : "Squad Operations"}</Badge>
           <h1 className="text-4xl font-black uppercase tracking-tight text-foreground">Master Calendar</h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="bg-muted/50 p-1 rounded-xl border-2 flex items-center shadow-inner">
-            <Button variant={viewMode === 'grid' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('grid')} className="h-9 px-4 rounded-lg font-black text-[10px] uppercase"><LayoutGrid className="h-3.5 w-3.5 mr-2" /> Grid</Button>
-            <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('list')} className="h-9 px-4 rounded-lg font-black text-[10px] uppercase"><List className="h-3.5 w-3.5 mr-2" /> Agenda</Button>
+            <Button variant={viewMode === 'grid' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('grid')} className="h-9 px-3 rounded-lg font-black text-[10px] uppercase"><LayoutGrid className="h-3.5 w-3.5 sm:mr-2" /><span className="hidden sm:inline">Grid</span></Button>
+            <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('list')} className="h-9 px-3 rounded-lg font-black text-[10px] uppercase"><List className="h-3.5 w-3.5 sm:mr-2" /><span className="hidden sm:inline">Agenda</span></Button>
           </div>
+          {/* League Schedule Button */}
+          {allEvents.some(e => e.isLeagueGame || e.isTournament) && (
+            <LeagueScheduleButton events={allEvents} />
+          )}
           <CalendarSubscriptionDialog />
           <Button
             onClick={handleOpenScheduleApp}
-            className="rounded-xl h-11 border-2 font-black uppercase text-[10px] tracking-widest gap-2 bg-black text-white hover:bg-black/80 shadow-lg shadow-black/20 border-black"
+            className="rounded-xl h-10 sm:h-11 border-2 font-black uppercase text-[10px] tracking-widest gap-2 bg-black text-white hover:bg-black/80 shadow-lg shadow-black/20 border-black"
           >
-            <Smartphone className="h-4 w-4" /> Schedule App
+            <Smartphone className="h-4 w-4" /><span className="hidden sm:inline">Schedule App</span>
           </Button>
           <Popover>
-            <PopoverTrigger asChild><Button variant="outline" className="rounded-xl h-11 border-2 font-black uppercase text-[10px] tracking-widest gap-2 text-foreground"><Filter className="h-4 w-4" /> Filters</Button></PopoverTrigger>
-            <PopoverContent className="w-80 rounded-2xl shadow-2xl p-6" align="end">
+            <PopoverTrigger asChild><Button variant="outline" className="rounded-xl h-10 sm:h-11 border-2 font-black uppercase text-[10px] tracking-widest gap-2 text-foreground"><Filter className="h-4 w-4" /><span className="hidden sm:inline">Filters</span></Button></PopoverTrigger>
+            <PopoverContent className="w-72 sm:w-80 rounded-2xl shadow-2xl p-6" align="end">
               <div className="space-y-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">Squad Enrollment</p>
                 <ScrollArea className="h-48">
@@ -1186,7 +1266,8 @@ export default function MasterCalendarPage() {
       </div>
 
 
-      <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white">
+      <div className="overflow-x-auto rounded-[2.5rem]">
+      <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white min-w-[320px]">
         <div className="bg-black text-white p-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="bg-primary p-2 rounded-xl text-white shadow-lg"><CalendarIcon className="h-5 w-5" /></div>
@@ -1220,12 +1301,12 @@ export default function MasterCalendarPage() {
         <CardContent className="p-0">
           {viewMode === 'grid' ? (
             <div className="flex flex-col">
-              <div className="grid grid-cols-7 border-b bg-muted/10">
+              <div className="grid grid-cols-7 border-b bg-muted/10 min-w-[400px]">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                   <div key={day} className="py-4 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground border-r last:border-r-0">{day}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 grid-rows-5 auto-rows-fr min-h-[600px]">
+              <div className="grid grid-cols-7 grid-rows-5 auto-rows-fr min-w-[400px] min-h-[400px] sm:min-h-[600px]">
                 {calendarDays.map((day, i) => {
                   const dayKey = format(day, 'yyyy-MM-dd');
                   const dayEvents = eventsByDay[dayKey] || [];
@@ -1293,6 +1374,7 @@ export default function MasterCalendarPage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
       <EventDetailDialog 
         event={activeDetailedEvent} 
