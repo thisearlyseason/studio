@@ -142,7 +142,7 @@ function GifPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onC
             <p className="text-[10px] font-black uppercase tracking-widest">No GIFs found</p>
           </div>
         ) : (
-          <div className="columns-3 sm:columns-4 gap-2 space-y-2">
+          <div className="columns-2 sm:columns-3 md:columns-4 gap-2 space-y-2">
             {gifs.map((gif) => {
               // Tenor v1: media is an array of objects; tinygif for thumb, gif for full
               const media = gif.media?.[0];
@@ -398,7 +398,7 @@ export default function FeedPage() {
           <div className="absolute bottom-6 left-6 right-6 lg:bottom-8 lg:left-8 lg:right-8 flex items-end justify-between">
             <div className="space-y-1">
               <Badge className="mb-2 bg-primary/80 text-white border-none font-black uppercase tracking-wider text-[8px] lg:text-[10px] h-5 lg:h-6">Active Squad</Badge>
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter leading-none truncate max-w-[280px] sm:max-w-none">{activeTeam.name}</h1>
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter leading-none truncate">{activeTeam.name}</h1>
             </div>
           </div>
         </section>

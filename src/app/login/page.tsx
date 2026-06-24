@@ -157,7 +157,7 @@ export default function LoginPage() {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black p-6 relative overflow-y-auto overflow-x-hidden">
+    <div className="flex flex-col items-center justify-start lg:justify-center min-h-screen bg-black p-6 relative overflow-y-auto overflow-x-hidden">
       <div className="absolute inset-0 w-full h-full">
         <Image 
           src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1600" 
@@ -170,7 +170,7 @@ export default function LoginPage() {
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
       
-      <div className="absolute top-6 left-6 z-30">
+      <div className="relative z-30 w-full max-w-5xl flex items-start pt-4 mb-2">
         <Link href="/">
           <Button variant="ghost" className="text-white hover:bg-white/10 font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-full border border-white/10 backdrop-blur-sm">
             <ChevronLeft className="mr-2 h-4 w-4" /> Back to Home
@@ -325,7 +325,7 @@ export default function LoginPage() {
           )}
         </Card>
 
-        <div id="demos" className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-1000 overflow-y-auto max-h-[80vh] custom-scrollbar pr-4">
+        <div id="demos" className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-1000 lg:overflow-y-auto lg:max-h-[80vh] custom-scrollbar lg:pr-4">
           <div className="bg-primary text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700">
               <ShieldAlert className="h-48 w-48" />

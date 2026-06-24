@@ -432,11 +432,11 @@ export default function PlaybookAndGamePlayPage() {
             <h1 className="text-4xl font-black tracking-tight uppercase text-foreground leading-none">Playbook Hub</h1>
           </div>
           <div className="flex bg-muted/30 p-1.5 rounded-2xl border-2 shadow-inner">
-            <button onClick={() => setViewMode('drills')} className={cn("px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all", viewMode === 'drills' ? "bg-black text-white shadow-xl" : "text-muted-foreground hover:text-black")}>Drills</button>
+            <button onClick={() => setViewMode('drills')} className={cn("px-4 sm:px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all", viewMode === 'drills' ? "bg-black text-white shadow-xl" : "text-muted-foreground hover:text-black")}>Drills</button>
             <button 
               onClick={() => isPro ? setViewMode('gameplay') : purchasePro()} 
               className={cn(
-                "px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2", 
+                "px-4 sm:px-8 h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2", 
                 viewMode === 'gameplay' ? "bg-black text-white shadow-xl" : "text-muted-foreground hover:text-black"
               )}
             >

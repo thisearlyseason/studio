@@ -149,7 +149,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 relative overflow-y-auto overflow-x-hidden">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-start lg:justify-center p-6 relative overflow-y-auto overflow-x-hidden">
       {/* Ambient gradient orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-primary/10 blur-[120px]" />
@@ -157,7 +157,7 @@ export default function SignupPage() {
       </div>
 
       {/* Back Button */}
-      <div className="absolute top-6 left-6 z-30">
+      <div className="relative z-30 w-full max-w-md flex items-start mb-4">
         <Link href="/">
           <Button variant="ghost" className="text-white hover:bg-white/10 font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-full border border-white/10 backdrop-blur-sm">
             <ChevronLeft className="mr-2 h-4 w-4" /> Back to Home

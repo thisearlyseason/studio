@@ -113,7 +113,7 @@ export default function PricingPage() {
             </Badge>
           </motion.div>
           <motion.h1
-            className="text-5xl lg:text-7xl font-black tracking-tighter leading-[0.9]"
+            className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tighter leading-[0.9]"
             variants={{ hidden: { opacity: 0, y: 36, scale: 0.97 }, visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.75, ease: [0.16, 1, 0.3, 1] } } }}
           >
             DEPLOY YOUR <span className="text-primary italic">SQUAD HUB.</span>
@@ -298,7 +298,7 @@ export default function PricingPage() {
             <h3 className="font-black text-xl uppercase tracking-tight">Need a Custom Tactical Deployment?</h3>
             <p className="text-sm font-medium text-muted-foreground">For organizations with 50+ teams, we offer custom infrastructure builds.</p>
           </div>
-          <Button variant="outline" className="h-14 px-8 rounded-xl font-black uppercase tracking-[0.2em] border-2 shadow-sm whitespace-nowrap">
+          <Button variant="outline" className="h-14 px-8 rounded-xl font-black uppercase tracking-[0.2em] border-2 shadow-sm text-center">
             Contact Enterprise <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </motion.div>

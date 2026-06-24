@@ -211,35 +211,34 @@ export default function UniversalAccountDashboard() {
       </header>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <Card className="rounded-[2.5rem] shadow-xl bg-primary text-white p-8 space-y-2 relative overflow-hidden group">
+        <Card className="rounded-[2rem] sm:rounded-[2.5rem] shadow-xl bg-primary text-white p-5 sm:p-8 space-y-2 relative overflow-hidden group">
           <TrendingUp className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Victory Ratio</p>
-          <p className="text-5xl font-black">{winRate}%</p>
+          <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Victory Ratio</p>
+          <p className="text-3xl sm:text-5xl font-black">{winRate}%</p>
         </Card>
-        <Card className="rounded-[2.5rem] shadow-xl bg-black text-white p-8 space-y-2 relative overflow-hidden group">
+        <Card className="rounded-[2rem] sm:rounded-[2.5rem] shadow-xl bg-black text-white p-5 sm:p-8 space-y-2 relative overflow-hidden group">
           <ClipboardCheck className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Compliance</p>
-          <div className="flex items-baseline gap-1"><p className="text-5xl font-black">{pendingWaiversCount}</p><span className="text-sm font-black text-primary uppercase">Pending</span></div>
+          <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Compliance</p>
+          <div className="flex items-baseline gap-1"><p className="text-3xl sm:text-5xl font-black">{pendingWaiversCount}</p><span className="text-sm font-black text-primary uppercase">Pending</span></div>
         </Card>
-        <Card className="rounded-[2.5rem] shadow-xl bg-white p-8 space-y-2 ring-1 ring-black/5 relative overflow-hidden group">
+        <Card className="rounded-[2rem] sm:rounded-[2.5rem] shadow-xl bg-white p-5 sm:p-8 space-y-2 ring-1 ring-black/5 relative overflow-hidden group">
           <Zap className="absolute -right-4 -bottom-4 h-24 w-24 text-primary opacity-5 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
-          <p className="text-[10px] font-black uppercase text-muted-foreground">Community</p>
-          <div className="flex items-baseline gap-1"><p className="text-5xl font-black text-primary">{(volunteers?.length || 0) + (fundraisers?.length || 0)}</p><span className="text-sm font-black text-foreground uppercase">Ops</span></div>
+          <p className="text-[9px] sm:text-[10px] font-black uppercase text-muted-foreground">Community</p>
+          <div className="flex items-baseline gap-1"><p className="text-3xl sm:text-5xl font-black text-primary">{(volunteers?.length || 0) + (fundraisers?.length || 0)}</p><span className="text-sm font-black text-foreground uppercase">Ops</span></div>
         </Card>
         {isYouth ? (
-          <Card className="rounded-[2.5rem] shadow-xl bg-muted/20 p-8 space-y-2 relative overflow-hidden group">
+          <Card className="rounded-[2rem] sm:rounded-[2.5rem] shadow-xl bg-muted/20 p-5 sm:p-8 space-y-2 relative overflow-hidden group">
             <Star className="absolute -right-4 -bottom-4 h-24 w-24 text-primary opacity-5 -rotate-12 group-hover:scale-110 transition-transform duration-700" />
-            <p className="text-[10px] font-black uppercase text-muted-foreground">Portals</p>
+            <p className="text-[9px] sm:text-[10px] font-black uppercase text-muted-foreground">Portals</p>
             <div className="flex items-baseline gap-1">
-              <p className="text-3xl font-black text-foreground">Active</p>
+              <p className="text-xl sm:text-3xl font-black text-foreground">Active</p>
               <span className="text-[8px] font-black uppercase text-primary tracking-widest bg-primary/10 px-2 py-0.5 rounded-full ml-2">Visible</span>
             </div>
-
           </Card>
         ) : (
-          <Card className="rounded-[2.5rem] shadow-xl bg-muted/20 p-8 space-y-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground">Household</p>
-            <p className="text-3xl font-black text-foreground">${householdBalance.toLocaleString()}</p>
+          <Card className="rounded-[2rem] sm:rounded-[2.5rem] shadow-xl bg-muted/20 p-5 sm:p-8 space-y-2">
+            <p className="text-[9px] sm:text-[10px] font-black uppercase text-muted-foreground">Household</p>
+            <p className="text-2xl sm:text-3xl font-black text-foreground">${householdBalance.toLocaleString()}</p>
             <Button variant="ghost" size="sm" className="h-6 px-2 text-[8px] font-black uppercase border mt-2 text-foreground" onClick={() => router.push('/family')}>Audit Detail</Button>
           </Card>
         )}

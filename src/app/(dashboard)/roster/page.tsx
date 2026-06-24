@@ -841,7 +841,7 @@ export default function RosterPage() {
                     <Badge className="bg-primary text-white border-none font-black text-[10px] uppercase h-6 px-4 mb-2">Verified Athlete</Badge>
                     <h2 className="text-4xl font-black tracking-tighter leading-none uppercase">{selectedMember.name}</h2>
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <p className="text-primary font-black uppercase tracking-[0.2em] text-sm">{selectedMember.position} • #{selectedMember.jersey}</p>
                           {activeTeam?.role === 'Admin' && (
                             <div className="flex gap-2">
@@ -868,9 +868,9 @@ export default function RosterPage() {
                           </div>
                         )}
                         {selectedMember.email && (
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-3 w-3" />
-                            <span>{selectedMember.email}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{selectedMember.email}</span>
                           </div>
                         )}
                         {selectedMember.parentEmail && (

@@ -174,9 +174,9 @@ export default function PracticeManagementPage() {
         {isStaff && (
           /* Left Column: Templates */
           <div className="lg:col-span-2 space-y-8">
-          <div className="flex items-center justify-between px-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-2">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Reusable Protocols</h2>
-            <div className="relative w-64">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input 
                 placeholder="Search protocols..." 

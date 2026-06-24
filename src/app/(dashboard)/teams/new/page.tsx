@@ -84,7 +84,7 @@ function NewTeamForm() {
         <ChevronLeft className="h-4 w-4 mr-1" /> Back
       </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-3 space-y-6">
           <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white ring-1 ring-black/5">
             <div className="h-2 hero-gradient w-full" />
@@ -98,7 +98,7 @@ function NewTeamForm() {
                 <Input value={teamName} onChange={e => setTeamName(e.target.value)} className="h-14 text-xl rounded-2xl border-2 font-black" placeholder="e.g. Metro Elite U14" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest">Team Protocol</Label>
                   {isSchoolAdmin && activeTeam?.type === 'school' ? (
