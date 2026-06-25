@@ -246,3 +246,121 @@ export function generalNotificationEmail({ recipientName, title, message, teamNa
     `),
   };
 }
+// ── Template 8: SaaS Owner — New Registration / Subscription Created ─────────
+export function ownerNewRegistrationEmail({ planName, planId, customerEmail, userId, amount, interval }: {
+  planName: string;
+  planId: string;
+  customerEmail: string;
+  userId: string;
+  amount: number;
+  interval: string;
+}): { subject: string; html: string } {
+  const amountStr = amount > 0 ? `$${(amount / 100).toFixed(2)} / ${interval}` : 'Free';
+  return {
+    subject: `🎉 New Registration — ${planName} (${customerEmail})`,
+    html: layout('New Subscription', `
+      <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#18181b;">New customer signed up! 🎉</p>
+      <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.6;">
+        A new account has been created and a subscription is now active.
+      </p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;border-radius:16px;overflow:hidden;margin-bottom:28px;">
+        <tbody>
+          ${field('Customer', customerEmail)}
+          ${field('Plan', planName)}
+          ${field('Plan ID', planId)}
+          ${field('Amount', amountStr)}
+          ${field('User ID', userId)}
+          ${field('Timestamp', new Date().toLocaleString('en-US', { timeZoneName: 'short' }))}
+        </tbody>
+      </table>
+      ${btn('View in Admin Dashboard', `${BASE_URL}/admin`)}
+    `),
+  };
+}
+
+// ── Template 9: SaaS Owner — Payment Received ────────────────────────────────
+export function ownerPaymentReceivedEmail({ customerEmail, planName, amount, currency, invoiceId }: {
+  customerEmail: string;
+  planName: string;
+  amount: number;
+  currency: string;
+  invoiceId: string;
+}): { subject: string; html: string } {
+  const amountStr = `${currency.toUpperCase()} $${(amount / 100).toFixed(2)}`;
+  return {
+    subject: `💰 Payment Received — ${amountStr} from ${customerEmail}`,
+    html: layout('Payment Received', `
+      <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#18181b;">Payment confirmed ✅</p>
+      <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.6;">
+        A subscription payment has been successfully processed.
+      </p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:16px;overflow:hidden;margin-bottom:28px;">
+        <tbody>
+          ${field('Customer', customerEmail)}
+          ${field('Plan', planName)}
+          ${field('Amount', amountStr)}
+          ${field('Invoice ID', invoiceId)}
+          ${field('Date', new Date().toLocaleString('en-US', { timeZoneName: 'short' }))}
+        </tbody>
+      </table>
+      ${btn('View Stripe Dashboard', 'https://dashboard.stripe.com/payments')}
+    `),
+  };
+}
+
+// ── Template 10: SaaS Owner — Subscription Cancelled ────────────────────────
+export function ownerCancellationEmail({ customerEmail, planName, userId, cancelledAt }: {
+  customerEmail: string;
+  planName: string;
+  userId: string;
+  cancelledAt: string;
+}): { subject: string; html: string } {
+  return {
+    subject: `⚠️ Subscription Cancelled — ${customerEmail} (${planName})`,
+    html: layout('Subscription Cancelled', `
+      <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#18181b;">Subscription cancelled</p>
+      <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.6;">
+        A customer has cancelled their subscription. Their account has been downgraded to Free.
+      </p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:2px solid #fed7aa;border-radius:16px;overflow:hidden;margin-bottom:28px;">
+        <tbody>
+          ${field('Customer', customerEmail)}
+          ${field('Plan', planName)}
+          ${field('User ID', userId)}
+          ${field('Cancelled At', cancelledAt)}
+        </tbody>
+      </table>
+      ${btn('View in Admin Dashboard', `${BASE_URL}/admin`)}
+    `),
+  };
+}
+
+// ── Template 11: SaaS Owner — Payment Failed ────────────────────────────────
+export function ownerPaymentFailedEmail({ customerEmail, planName, amount, currency, failureReason }: {
+  customerEmail: string;
+  planName: string;
+  amount: number;
+  currency: string;
+  failureReason?: string;
+}): { subject: string; html: string } {
+  const amountStr = `${currency.toUpperCase()} $${(amount / 100).toFixed(2)}`;
+  return {
+    subject: `🚨 Payment Failed — ${amountStr} from ${customerEmail}`,
+    html: layout('Payment Failed', `
+      <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#ef4444;">Payment failed 🚨</p>
+      <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.6;">
+        A subscription payment attempt has failed. The customer may need to update their payment method.
+      </p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border:2px solid #fecaca;border-radius:16px;overflow:hidden;margin-bottom:28px;">
+        <tbody>
+          ${field('Customer', customerEmail)}
+          ${field('Plan', planName)}
+          ${field('Amount', amountStr)}
+          ${failureReason ? field('Reason', failureReason) : ''}
+          ${field('Date', new Date().toLocaleString('en-US', { timeZoneName: 'short' }))}
+        </tbody>
+      </table>
+      ${btn('View in Stripe', 'https://dashboard.stripe.com/payments')}
+    `),
+  };
+}

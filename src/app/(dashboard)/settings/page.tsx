@@ -40,7 +40,10 @@ import {
   PiggyBank,
   MessageCircle,
   FolderClosed,
-  EyeOff
+  EyeOff,
+  Download,
+  X,
+  Smartphone
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -90,12 +93,43 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  
-  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', position: '', bio: '', schoolName: '', institutionTitle: '' });
+
+  // PWA install state (mirrors Shell.tsx logic)
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [settingsInstallDismissed, setSettingsInstallDismissed] = useState(false);
+  const [settingsDeferredPrompt, setSettingsDeferredPrompt] = useState<any>(null);
+  const [settingsIsIOS, setSettingsIsIOS] = useState(false);
+  const [showSettingsIOSInstructions, setShowSettingsIOSInstructions] = useState(false);
+  const [showSettingsGeneralInstructions, setShowSettingsGeneralInstructions] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // Read PWA state from environment
+    const standaloneMode =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone === true;
+    setIsStandalone(standaloneMode);
+    setSettingsInstallDismissed(localStorage.getItem('pwa_install_dismissed') === 'true');
+    const ua = navigator.userAgent.toLowerCase();
+    setSettingsIsIOS(/iphone|ipad|ipod/.test(ua));
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setSettingsDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
   }, []);
+
+  const handleSettingsInstallClick = async () => {
+    if (settingsIsIOS) { setShowSettingsIOSInstructions(true); return; }
+    if (!settingsDeferredPrompt) { setShowSettingsGeneralInstructions(true); return; }
+    settingsDeferredPrompt.prompt();
+    const { outcome } = await settingsDeferredPrompt.userChoice;
+    console.log(`[PWA Settings] Install prompt outcome: ${outcome}`);
+    setSettingsDeferredPrompt(null);
+  };
+
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', position: '', bio: '', schoolName: '', institutionTitle: '' });
 
   useEffect(() => {
     if (user) {
@@ -512,6 +546,57 @@ export default function SettingsPage() {
           </button>
         )}
       </div>
+
+      {/* ── App Installation Card ── */}
+      {!isStandalone && (
+        <div className="space-y-4 pt-10 border-t">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-2">App Installation</h3>
+          <Card className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden">
+            <CardHeader className="bg-muted/30 border-b p-8 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary/10 p-2.5 rounded-xl text-primary"><Smartphone className="h-5 w-5" /></div>
+                <div>
+                  <CardTitle className="text-sm font-black uppercase tracking-widest">Install App</CardTitle>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                    {settingsInstallDismissed ? 'Button hidden from sidebar' : 'Available on your device'}
+                  </p>
+                </div>
+              </div>
+              <div className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${
+                settingsInstallDismissed ? 'bg-muted text-muted-foreground' : 'bg-green-100 text-green-700'
+              }`}>
+                {settingsInstallDismissed ? 'Dismissed' : 'Available'}
+              </div>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+                Install The Squad Pro as a home screen app for faster access, offline support, and a native app experience.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                {settingsInstallDismissed ? (
+                  <Button
+                    variant="outline"
+                    className="flex-1 rounded-2xl border-2 font-black uppercase text-[10px] h-12"
+                    onClick={() => {
+                      setSettingsInstallDismissed(false);
+                      if (typeof window !== 'undefined') localStorage.removeItem('pwa_install_dismissed');
+                      toast({ title: 'Install Button Restored', description: 'The Install App button will now appear in the sidebar.' });
+                    }}
+                  >
+                    Restore Sidebar Button
+                  </Button>
+                ) : null}
+                <Button
+                  className="flex-1 rounded-2xl font-black uppercase text-[10px] h-12 shadow-lg shadow-primary/20"
+                  onClick={handleSettingsInstallClick}
+                >
+                  <Download className="h-4 w-4 mr-2" /> Install Now
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <p className="text-center text-[9px] font-black uppercase text-muted-foreground tracking-[0.3em] opacity-30 pt-10 pb-20">The Squad Coordination Hub v1.0.0 • Verified Global ID: {user.id.slice(-8)}</p>
 

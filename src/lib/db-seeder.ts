@@ -922,8 +922,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             // Sync the league games into team events for immediate visibility
             // IDs are scoped to tid to prevent Strikers/Lakers overwriting each other
             const leagueGames = [
-              { id: `lg_${tid}_1`, teamId: tid, title: `Conference Match vs ${isJunior ? 'Lakers' : 'Strikers'}`, eventType: 'game', isLeagueGame: true, date: new Date(nowObj.getTime() + (lgOffset) * 86400000).toISOString(), startTime: '10:00 AM', location: 'City Arena', description: 'National broadcast game.', matchTeamIds: [tid, isJunior ? lakerId : strikerId] },
-              { id: `lg_${tid}_2`, teamId: tid, title: `Division Rival Match vs ${isJunior ? 'Hawks' : 'Tigers'}`, eventType: 'game', isLeagueGame: true, date: new Date(nowObj.getTime() + (lgOffset + 2) * 86400000).toISOString(), startTime: isJunior ? '12:00 PM' : '02:00 PM', location: isJunior ? 'Field 7' : 'Field 2', description: 'Critical seeding match.', matchTeamIds: [tid, isJunior ? 'hawks_id' : 'tigers_id'] },
+              { id: `lg_${tid}_1`, teamId: tid, title: `Conference Match vs Riverside High`, eventType: 'game', isLeagueGame: true, date: new Date(nowObj.getTime() + (lgOffset) * 86400000).toISOString(), startTime: '10:00 AM', location: 'City Arena', description: 'National broadcast game.', matchTeamIds: [tid, 'rival_riverside'] },
+              { id: `lg_${tid}_2`, teamId: tid, title: `Division Rival Match vs Lincoln Prep`, eventType: 'game', isLeagueGame: true, date: new Date(nowObj.getTime() + (lgOffset + 2) * 86400000).toISOString(), startTime: isJunior ? '12:00 PM' : '02:00 PM', location: isJunior ? 'Field 7' : 'Field 2', description: 'Critical seeding match.', matchTeamIds: [tid, 'rival_lincoln'] },
               { id: `lg_${tid}_3`, teamId: tid, title: `Regional Qualifier`, eventType: 'game', isLeagueGame: true, date: new Date(nowObj.getTime() + (lgOffset + 4) * 86400000).toISOString(), startTime: '03:30 PM', location: 'State Complex', description: 'Qualifier for states.', matchTeamIds: [tid] },
               { id: `lg_${tid}_4`, teamId: tid, title: `Pre-Season Scrimmage`, eventType: 'game', isLeagueGame: true, date: yesterday, startTime: '04:00 PM', location: 'Home Stadium', description: 'Early season tune-up.', matchTeamIds: [tid] },
               { id: `lg_${tid}_5`, teamId: tid, title: `Mid-Season Invitational`, eventType: 'game', isLeagueGame: true, date: new Date(nowObj.getTime() + (lgOffset + 8) * 86400000).toISOString(), startTime: '11:00 AM', location: 'Summit Center', description: 'League-wide showcase event.', matchTeamIds: [tid] }
@@ -1020,7 +1020,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
     // School/League creator demo: 4 real squads (school/elite) get full data; the institution is separate.
     // For league_creator, they have no teams.
-    const teamVariants = isLeagueDemo ? [] : (isEliteDemo ? ['North', 'South', 'Academy'] : (isSchoolDemo ? ['Varsity', 'Junior Varsity', 'Freshman', 'Springfield High School'] : ['']));
+    const teamVariants = isLeagueDemo ? [] : (isEliteDemo ? ['Premier Division', 'Championship Division', 'Development Division'] : (isSchoolDemo ? ['Jr Soccer Club', 'Sr Soccer Club', 'Badminton Club', 'Jr Volleyball Club', 'Sr Volleyball Club'] : ['']));
     const leagueId = `demo_league_${userId.slice(-4)}`;
 
     // Create a league for non-parent demos to tie everything together
@@ -1032,14 +1032,18 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         for (let i = 0; i < teamVariants.length; i++) {
             const v = teamVariants[i];
             const tId = `demo_${planId}_${userId.slice(-4)}${v ? '_' + v.toLowerCase().replace(/\s+/g, '') : ''}`;
-            const tName = isSchoolDemo ? (i === 0 ? 'Springfield High School' : `Springfield ${v}`) : (v ? `Elite Squad - ${v}` : (isProTier ? 'Apex Demo Squad' : 'Grassroots Demo'));
+            const tName = isSchoolDemo ? `Springfield ${v}` : (v ? `Elite Squad - ${v}` : (isProTier ? 'Apex Demo Squad' : 'Grassroots Demo'));
             leagueTeams[tId] = { teamName: tName, coachName: 'Guest Coach', coachEmail: `coach_${i}@thesquad.pro`, wins: [3, 2, 1, 0][i] || 0, losses: [0, 1, 2, 3][i] || 0, points: [9, 6, 3, 0][i] || 0 };
             memberTeamIds.push(tId);
         }
         
         // Pad the league with mock opponents so it always has at least 4 teams (or 6 for league demo)
-        const mockOpponents = ['City Wildcats', 'Metro Stars', 'Valley Vipers', 'Coastal Elite', 'Summit United', 'Apex United'];
-        const mockTeamIds = ['wildcats_id', 'stars_id', 'vipers_id', 'elite_id', 'summit_id', 'apex_id'];
+        const mockOpponents = isSchoolDemo
+          ? ['Riverside High School', 'Lincoln Prep Academy', 'Jefferson Academy', 'Westlake Athletic', 'Central High School', 'Northview Academy']
+          : ['City Wildcats', 'Metro Stars', 'Valley Vipers', 'Coastal Elite', 'Summit United', 'Apex United'];
+        const mockTeamIds = isSchoolDemo
+          ? ['rival_riverside', 'rival_lincoln', 'rival_jefferson', 'rival_westlake', 'rival_central', 'rival_northview']
+          : ['wildcats_id', 'stars_id', 'vipers_id', 'elite_id', 'summit_id', 'apex_id'];
         let mockIndex = 0;
         const targetTeamCount = isLeagueDemo ? 6 : 4;
         while (Object.keys(leagueTeams).length < targetTeamCount) {
@@ -1070,14 +1074,22 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
               { id: 'sched4', team1: 'City Wildcats', team1Id: 'wildcats_id', team2: 'Valley Vipers', team2Id: 'vipers_id', date: later, time: '09:00 AM', location: 'Main Arena', status: 'scheduled' },
               { id: 'sched5', team1: 'Metro Stars', team1Id: 'stars_id', team2: 'Apex United', team2Id: 'apex_id', date: later, time: '11:00 AM', location: 'Court B', status: 'scheduled' },
               { id: 'sched6', team1: 'Coastal Elite', team1Id: 'elite_id', team2: 'Summit United', team2Id: 'summit_id', date: later, time: '01:00 PM', location: 'Court C', status: 'scheduled' }
+            ] : isSchoolDemo ? [
+              { id: 'sched1', team1: 'Springfield Jr Soccer Club', team1Id: primaryTid, team2: 'Riverside High School', team2Id: 'rival_riverside', date: tomorrow, time: '10:00 AM', location: 'Main Field', status: 'scheduled' },
+              { id: 'sched2', team1: 'Springfield Sr Soccer Club', team1Id: secondTid, team2: 'Lincoln Prep Academy', team2Id: 'rival_lincoln', date: tomorrow, time: '12:00 PM', location: 'Court B', status: 'scheduled' },
+              { id: 'sched3', team1: 'Springfield Badminton Club', team1Id: `demo_${planId}_${userId.slice(-4)}_badmintonclub`, team2: 'Jefferson Academy', team2Id: 'rival_jefferson', date: later, time: '09:00 AM', location: 'Gymnasium A', status: 'scheduled' },
+              { id: 'sched4', team1: 'Springfield Jr Volleyball Club', team1Id: `demo_${planId}_${userId.slice(-4)}_jrvolleyballclub`, team2: 'Westlake Athletic', team2Id: 'rival_westlake', date: later, time: '11:00 AM', location: 'Gymnasium B', status: 'scheduled' },
+              { id: 'sched5', team1: 'Springfield Sr Volleyball Club', team1Id: `demo_${planId}_${userId.slice(-4)}_srvolleyballclub`, team2: 'Central High School', team2Id: 'rival_central', date: new Date(nowObj.getTime() + 7 * 86400000).toISOString(), time: '02:00 PM', location: 'Court C', status: 'scheduled' },
+              { id: 'sched6', team1: 'Springfield Jr Soccer Club', team1Id: primaryTid, team2: 'Northview Academy', team2Id: 'rival_northview', date: new Date(nowObj.getTime() + 9 * 86400000).toISOString(), time: '04:00 PM', location: 'Main Field', status: 'scheduled' },
+              { id: 'sched7', team1: 'Springfield Sr Soccer Club', team1Id: secondTid, team2: 'Riverside High School', team2Id: 'rival_riverside', date: new Date(nowObj.getTime() + 12 * 86400000).toISOString(), time: '10:00 AM', location: 'Away – Riverside', status: 'scheduled' }
             ] : [
-              { id: 'sched1', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid, date: tomorrow, time: '10:00 AM', location: 'Main Arena', status: 'scheduled' },
-              { id: 'sched2', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: Object.values(leagueTeams)[1]?.teamName || 'Team B', team2Id: secondTid, date: later, time: '02:00 PM', location: 'Court B', status: 'scheduled' },
-              { id: 'sched3', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid, team2: Object.values(leagueTeams)[0]?.teamName || 'Team A', team2Id: primaryTid, date: new Date(nowObj.getTime() + 432000000).toISOString(), time: '11:00 AM', location: 'State Complex', status: 'scheduled' },
-              { id: 'sched4', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: 'City Wildcats', team2Id: 'wildcats_id', date: new Date(nowObj.getTime() + 7 * 86400000).toISOString(), time: '09:00 AM', location: 'Main Arena', status: 'scheduled' },
-              { id: 'sched5', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid, team2: 'Metro Stars', team2Id: 'stars_id', date: new Date(nowObj.getTime() + 9 * 86400000).toISOString(), time: '05:00 PM', location: 'Court C', status: 'scheduled' },
-              { id: 'sched6', team1: Object.values(leagueTeams)[0]?.teamName || 'Team A', team1Id: primaryTid, team2: 'Metro Stars', team2Id: 'stars_id', date: new Date(nowObj.getTime() + 12 * 86400000).toISOString(), time: '01:00 PM', location: 'State Complex', status: 'scheduled' },
-              { id: 'sched7', team1: Object.values(leagueTeams)[1]?.teamName || 'Team B', team1Id: secondTid, team2: 'City Wildcats', team2Id: 'wildcats_id', date: new Date(nowObj.getTime() + 14 * 86400000).toISOString(), time: '03:30 PM', location: 'Main Arena', status: 'scheduled' }
+              { id: 'sched1', team1: 'Elite Squad - Premier Division', team1Id: primaryTid, team2: 'City Wildcats', team2Id: 'wildcats_id', date: tomorrow, time: '10:00 AM', location: 'Main Arena', status: 'scheduled' },
+              { id: 'sched2', team1: 'Elite Squad - Championship Division', team1Id: secondTid, team2: 'Metro Stars', team2Id: 'stars_id', date: tomorrow, time: '02:00 PM', location: 'Court B', status: 'scheduled' },
+              { id: 'sched3', team1: 'Elite Squad - Premier Division', team1Id: primaryTid, team2: 'Valley Vipers', team2Id: 'vipers_id', date: later, time: '11:00 AM', location: 'State Complex', status: 'scheduled' },
+              { id: 'sched4', team1: 'Elite Squad - Championship Division', team1Id: secondTid, team2: 'Coastal Elite', team2Id: 'elite_id', date: new Date(nowObj.getTime() + 7 * 86400000).toISOString(), time: '09:00 AM', location: 'Main Arena', status: 'scheduled' },
+              { id: 'sched5', team1: 'Elite Squad - Development Division', team1Id: `demo_${planId}_${userId.slice(-4)}_developmentdivision`, team2: 'Summit United', team2Id: 'summit_id', date: new Date(nowObj.getTime() + 9 * 86400000).toISOString(), time: '05:00 PM', location: 'Court C', status: 'scheduled' },
+              { id: 'sched6', team1: 'Elite Squad - Premier Division', team1Id: primaryTid, team2: 'Apex United', team2Id: 'apex_id', date: new Date(nowObj.getTime() + 12 * 86400000).toISOString(), time: '01:00 PM', location: 'State Complex', status: 'scheduled' },
+              { id: 'sched7', team1: 'Elite Squad - Championship Division', team1Id: secondTid, team2: 'City Wildcats', team2Id: 'wildcats_id', date: new Date(nowObj.getTime() + 14 * 86400000).toISOString(), time: '03:30 PM', location: 'Main Arena', status: 'scheduled' }
             ]
         }));
     }

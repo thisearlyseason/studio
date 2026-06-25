@@ -282,7 +282,7 @@ export default function GamesPage() {
             }
           }}>
             <div className={cn("h-1.5 w-full", game.isRecorded && game.result === 'Win' ? "bg-green-500" : game.isRecorded && game.result === 'Loss' ? "bg-red-600" : game.isRecorded ? "bg-muted-foreground/30" : "bg-primary/50")} />
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-6 pb-8 space-y-4">
               <div className="flex items-center justify-between">
                 {game.isRecorded ? (
                   <Badge className={cn("text-[8px] font-black uppercase px-2 h-5 shadow-sm", game.result === 'Win' ? "bg-green-500" : game.result === 'Loss' ? "bg-red-600" : "bg-muted text-black")}>{game.result}</Badge>
@@ -294,7 +294,7 @@ export default function GamesPage() {
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">{game.isRecorded ? 'Opponent' : (game.subtitle || 'Match')}</p>
-                  <h3 className="font-black text-lg uppercase truncate group-hover:text-primary transition-colors">{game.opponent}</h3>
+                  <h3 className="font-black text-lg uppercase line-clamp-2 group-hover:text-primary transition-colors">{game.opponent}</h3>
                 </div>
                 {game.isRecorded ? (
                   <div className="flex items-baseline gap-1 text-right shrink-0">

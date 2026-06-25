@@ -175,7 +175,7 @@ export default function ClubManagementPage() {
     if (typeof window !== 'undefined') localStorage.setItem(HUB_NOTE_KEY, 'true');
   };
 
-  // Improved Hub Resolution: Find an explicit school hub, or fallback to the first pro team if user is on a school plan
+
   const schoolHub = useMemo(() => {
     const explicit = teams.find(t => t.type === 'school' || t.type === 'school_hub');
     if (explicit) return explicit;
@@ -230,6 +230,70 @@ export default function ClubManagementPage() {
       console.warn('Failed to fetch squad members:', e);
     }
   }, [db, teams]);
+
+  // Hub Broadcast Channel state
+  const [hubChannel, setHubChannel] = useState<{ id: string; name: string; memberIds: string[] } | null>(null);
+  const [hubChannelLoading, setHubChannelLoading] = useState(false);
+  const [isCreatingHubChannel, setIsCreatingHubChannel] = useState(false);
+
+  // Query for existing hub broadcast channel on mount (needs schoolHub to be resolved first)
+  useEffect(() => {
+    if (!db || !schoolHub?.id) return;
+    const fetchHubChannel = async () => {
+      setHubChannelLoading(true);
+      try {
+        // groupChats are stored at the team level
+        const snap = await getDocs(query(collection(db, 'teams', schoolHub.id, 'groupChats'), where('isHubChannel', '==', true)));
+        if (!snap.empty) {
+          const d = snap.docs[0];
+          setHubChannel({ id: d.id, name: d.data().name || 'Hub Channel', memberIds: d.data().memberIds || [] });
+        } else {
+          setHubChannel(null);
+        }
+      } catch (e) {
+        console.warn('Failed to fetch hub channel:', e);
+      } finally {
+        setHubChannelLoading(false);
+      }
+    };
+    fetchHubChannel();
+  }, [db, schoolHub?.id]);
+
+  const handleCreateHubChannel = async () => {
+    if (!schoolHub || !db || !user) return;
+    setIsCreatingHubChannel(true);
+    try {
+      // Gather all unique admin/coach userIds from all squads
+      const memberUserIds = new Set<string>();
+      if (user.id) memberUserIds.add(user.id);
+      (schoolHub.schoolAdminIds || []).forEach(id => memberUserIds.add(id));
+      for (const m of allRawMembers) {
+        if (m.status === 'removed' || !m.userId) continue;
+        const staffKeywords = ['coach', 'director', 'coordinator', 'staff', 'manager', 'trainer'];
+        const pos = (m.position || '').toLowerCase();
+        const role = (m.role || '').toLowerCase();
+        const isStaff = staffKeywords.some(kw => pos.includes(kw)) || role === 'admin';
+        if (isStaff) memberUserIds.add(m.userId);
+      }
+      const memberIdsArray = Array.from(memberUserIds);
+      const channelName = `${user?.schoolName || user?.clubName || (isSchoolMode ? 'School Hub' : 'Club Hub')} — Broadcast Channel`;
+      // createChat only accepts 2 args; patch with hub metadata after creation
+      const chatId = await createChat(channelName, memberIdsArray);
+      if (chatId && db) {
+        await updateDoc(doc(db, 'teams', schoolHub.id, 'groupChats', chatId), {
+          isHubChannel: true,
+          hubTeamId: schoolHub.id,
+        });
+      }
+      setHubChannel({ id: chatId, name: channelName, memberIds: memberIdsArray });
+      toast({ title: 'Hub Channel Created', description: `${memberIdsArray.length} members added to the broadcast channel.` });
+    } catch (e: any) {
+      console.error('Failed to create hub channel:', e);
+      toast({ title: 'Error Creating Channel', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsCreatingHubChannel(false);
+    }
+  };
 
   useEffect(() => {
     fetchAllSquadMembers();
@@ -773,6 +837,92 @@ export default function ClubManagementPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Hub Broadcast Channel ─── */}
+      {(isSchoolMode || !isSchoolMode) && schoolHub && (
+        <Card className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent border-b p-8 flex flex-row items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/10 p-3 rounded-2xl text-primary shadow-sm">
+                <MessageCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-black uppercase tracking-tight">
+                  {isSchoolMode ? 'Hub Broadcast Channel' : 'Club Broadcast Channel'}
+                </CardTitle>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                  Org-wide communication with all coaches &amp; admins
+                </p>
+              </div>
+            </div>
+            {hubChannel && (
+              <Badge className="bg-green-100 text-green-700 font-black uppercase text-[8px] tracking-widest border-none shrink-0">
+                Active
+              </Badge>
+            )}
+          </CardHeader>
+          <CardContent className="p-8">
+            {hubChannelLoading ? (
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Checking for existing channel...</span>
+              </div>
+            ) : hubChannel ? (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="space-y-2">
+                  <p className="text-sm font-black text-foreground">{hubChannel.name}</p>
+                  <div className="flex flex-wrap gap-3">
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-primary/10 text-primary">
+                      {hubChannel.memberIds.length} Members
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      All coaches &amp; admins included
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => router.push(`/chats`)}
+                  className="rounded-2xl font-black uppercase text-[10px] h-12 px-8 shadow-lg shadow-primary/20 shrink-0"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" /> Open Channel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="space-y-2">
+                  <p className="text-sm font-black text-foreground">No broadcast channel yet</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+                    Create a persistent group chat that includes all coaches and admins from every squad.
+                    Use it to share org-wide announcements, schedule changes, and urgent communications.
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-muted/50 text-muted-foreground">
+                      {allCoaches.length} Coaches
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-muted/50 text-muted-foreground">
+                      {(schoolHub.schoolAdminIds?.length || 0) + 1} Admins
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-muted/50 text-muted-foreground">
+                      {clubTeams.length} Squads
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleCreateHubChannel}
+                  disabled={isCreatingHubChannel}
+                  className="rounded-2xl font-black uppercase text-[10px] h-12 px-8 shadow-lg shadow-primary/20 shrink-0"
+                >
+                  {isCreatingHubChannel ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
+                  ) : (
+                    <><MessageCircle className="h-4 w-4 mr-2" /> Create Broadcast Channel</>
+                  )}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-8 space-y-2"><p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Total Squads</p><p className="text-5xl font-black">{clubTeams.length}</p></Card>

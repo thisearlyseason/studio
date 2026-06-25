@@ -4,12 +4,60 @@ import { initializeFirebase } from '@/firebase/core';
 import { doc, updateDoc, collection, query, where, getDocs, setDoc, writeBatch } from 'firebase/firestore';
 import { getStripe } from '@/lib/stripe-client';
 import { PLAN_PRICE_MAP, EXTRA_TEAM_PRICE_IDS } from '@/lib/stripe-price-map';
+import {
+  ownerNewRegistrationEmail,
+  ownerPaymentReceivedEmail,
+  ownerCancellationEmail,
+  ownerPaymentFailedEmail,
+} from '@/lib/email-templates';
+import { Resend } from 'resend';
 
 // Webhook endpoint secret — must be set; no silent fallback
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+/** Owner notification config — set these in .env.local / App Hosting secrets */
+const OWNER_EMAIL = process.env.OWNER_NOTIFICATION_EMAIL;
+const OWNER_FCM_TOKEN = process.env.OWNER_FCM_TOKEN; // optional — push to owner's device
+
 /** Max body size: 512KB. Stripe events are typically <64KB. */
 const MAX_BODY_SIZE = 512_000;
+
+/**
+ * Sends a push notification to the platform owner's device (fire-and-forget).
+ * Requires OWNER_FCM_TOKEN env var. Silently skips if not configured.
+ */
+async function notifyOwnerPush(title: string, body: string, url?: string) {
+  if (!OWNER_FCM_TOKEN) return;
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://studio-6850142148-fe343.web.app';
+    await fetch(`${baseUrl}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_API_SECRET || '' },
+      body: JSON.stringify({ tokens: [OWNER_FCM_TOKEN], title, body, url }),
+    });
+  } catch (err) {
+    console.warn('[Webhook] Owner push notification failed (non-critical):', err);
+  }
+}
+
+/**
+ * Sends an email notification to the platform owner (fire-and-forget).
+ * Requires OWNER_NOTIFICATION_EMAIL + RESEND_API_KEY env vars.
+ */
+async function notifyOwnerEmail(subject: string, html: string) {
+  if (!OWNER_EMAIL) return;
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: 'The Squad Pro Alerts <noreply@thesquad.pro>',
+      to: [OWNER_EMAIL],
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.warn('[Webhook] Owner email notification failed (non-critical):', err);
+  }
+}
 
 /**
  * Normalizes subscription data into Firestore user doc + audit log.
@@ -176,22 +224,75 @@ export async function POST(req: NextRequest) {
             };
           }
           await syncSubscriptionToFirestore(subscription);
+
+          // ── Owner notification: New Registration ──
+          try {
+            const customerEmail = typeof session.customer_details?.email === 'string' ? session.customer_details.email : 'unknown';
+            const amountTotal = session.amount_total ?? 0;
+            const currency = session.currency ?? 'usd';
+            // Resolve plan name from subscription items
+            let planName = 'Unknown Plan';
+            let planId = 'unknown';
+            for (const item of subscription.items.data) {
+              const resolved = PLAN_PRICE_MAP[item.price.id];
+              if (resolved) { planName = resolved.id; planId = resolved.id; break; }
+            }
+            const userId = subscription.metadata?.firebase_uid || 'unknown';
+            const tplEmail = ownerNewRegistrationEmail({ planName, planId, customerEmail, userId, amount: amountTotal, interval: subscription.items.data[0]?.price?.recurring?.interval || 'month' });
+            await Promise.all([
+              notifyOwnerEmail(tplEmail.subject, tplEmail.html),
+              notifyOwnerPush('🎉 New Registration', `${customerEmail} subscribed to ${planName}`, '/admin'),
+            ]);
+          } catch (notifyErr) {
+            console.warn('[Webhook] Owner registration notification error (non-critical):', notifyErr);
+          }
         }
         break;
       }
 
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
+      case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription;
         await syncSubscriptionToFirestore(subscription);
         break;
       }
 
-      case 'invoice.paid':
-      case 'invoice.payment_failed': {
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await syncSubscriptionToFirestore(subscription);
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await syncSubscriptionToFirestore(subscription);
+
+        // ── Owner notification: Cancellation ──
+        try {
+          const stripe = getStripe();
+          const customer = await stripe.customers.retrieve(subscription.customer as string) as Stripe.Customer;
+          const customerEmail = customer.email || 'unknown';
+          let planName = 'Unknown Plan';
+          for (const item of subscription.items.data) {
+            const resolved = PLAN_PRICE_MAP[item.price.id];
+            if (resolved) { planName = resolved.id; break; }
+          }
+          const cancelledAt = subscription.canceled_at
+            ? new Date(subscription.canceled_at * 1000).toLocaleString('en-US', { timeZoneName: 'short' })
+            : new Date().toLocaleString('en-US', { timeZoneName: 'short' });
+          const userId = subscription.metadata?.firebase_uid || 'unknown';
+          const tplEmail = ownerCancellationEmail({ customerEmail, planName, userId, cancelledAt });
+          await Promise.all([
+            notifyOwnerEmail(tplEmail.subject, tplEmail.html),
+            notifyOwnerPush('⚠️ Subscription Cancelled', `${customerEmail} cancelled ${planName}`, '/admin'),
+          ]);
+        } catch (notifyErr) {
+          console.warn('[Webhook] Owner cancellation notification error (non-critical):', notifyErr);
+        }
+        break;
+      }
+
+      case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        // In Stripe Dahlia API, subscription moved to invoice.parent.subscription_details.subscription
         const invoiceSubscriptionId =
           (invoice as any).subscription ||
           (invoice as any).parent?.subscription_details?.subscription;
@@ -199,6 +300,61 @@ export async function POST(req: NextRequest) {
           const stripe = getStripe();
           const subscription = await stripe.subscriptions.retrieve(invoiceSubscriptionId as string);
           await syncSubscriptionToFirestore(subscription);
+
+          // ── Owner notification: Payment Received ──
+          try {
+            const customer = await stripe.customers.retrieve(subscription.customer as string) as Stripe.Customer;
+            const customerEmail = customer.email || 'unknown';
+            let planName = 'Unknown Plan';
+            for (const item of subscription.items.data) {
+              const resolved = PLAN_PRICE_MAP[item.price.id];
+              if (resolved) { planName = resolved.id; break; }
+            }
+            const amountPaid = (invoice as any).amount_paid ?? 0;
+            const currency = (invoice as any).currency ?? 'usd';
+            const invoiceId = invoice.id ?? 'unknown';
+            const tplEmail = ownerPaymentReceivedEmail({ customerEmail, planName, amount: amountPaid, currency, invoiceId });
+            await Promise.all([
+              notifyOwnerEmail(tplEmail.subject, tplEmail.html),
+              notifyOwnerPush('💰 Payment Received', `${customerEmail} — $${(amountPaid / 100).toFixed(2)} ${currency.toUpperCase()}`, '/admin'),
+            ]);
+          } catch (notifyErr) {
+            console.warn('[Webhook] Owner payment notification error (non-critical):', notifyErr);
+          }
+        }
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const invoiceSubscriptionId =
+          (invoice as any).subscription ||
+          (invoice as any).parent?.subscription_details?.subscription;
+        if (invoiceSubscriptionId) {
+          const stripe = getStripe();
+          const subscription = await stripe.subscriptions.retrieve(invoiceSubscriptionId as string);
+          await syncSubscriptionToFirestore(subscription);
+
+          // ── Owner notification: Payment Failed ──
+          try {
+            const customer = await stripe.customers.retrieve(subscription.customer as string) as Stripe.Customer;
+            const customerEmail = customer.email || 'unknown';
+            let planName = 'Unknown Plan';
+            for (const item of subscription.items.data) {
+              const resolved = PLAN_PRICE_MAP[item.price.id];
+              if (resolved) { planName = resolved.id; break; }
+            }
+            const amountDue = (invoice as any).amount_due ?? 0;
+            const currency = (invoice as any).currency ?? 'usd';
+            const failureReason = (invoice as any).last_finalization_error?.message;
+            const tplEmail = ownerPaymentFailedEmail({ customerEmail, planName, amount: amountDue, currency, failureReason });
+            await Promise.all([
+              notifyOwnerEmail(tplEmail.subject, tplEmail.html),
+              notifyOwnerPush('🚨 Payment Failed', `${customerEmail} — $${(amountDue / 100).toFixed(2)} ${currency.toUpperCase()}`, '/admin'),
+            ]);
+          } catch (notifyErr) {
+            console.warn('[Webhook] Owner payment failed notification error (non-critical):', notifyErr);
+          }
         }
         break;
       }

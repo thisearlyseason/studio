@@ -51,7 +51,8 @@ import {
   Medal,
   Copy,
   Download,
-  Share
+  Share,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -123,7 +124,7 @@ const coordinationTabs = [
   { name: 'Roster', href: '/roster', icon: Users, pro: false },
   { name: 'Practice', href: '/practice', icon: Dumbbell, pro: true },
   { name: 'Competition Hub', href: '/competition', icon: Medal, pro: false },
-  { name: 'Scorekeeping', href: '/games', icon: Trophy, pro: true },
+  { name: 'Scorekeeping', href: '/games', icon: Trophy, pro: false },
   { name: 'Playbook', href: '/drills', icon: GraduationCap, pro: true },
   { name: 'Volunteer', href: '/volunteers', icon: HandHelping, pro: true },
   { name: 'Fundraising', href: '/fundraising', icon: PiggyBank, pro: true },
@@ -419,6 +420,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [showGeneralInstructions, setShowGeneralInstructions] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('pwa_install_dismissed') === 'true';
+    }
+    return false;
+  });
+
+  const handleDismissInstall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setInstallDismissed(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pwa_install_dismissed', 'true');
+    }
+  };
 
   useEffect(() => {
     // 1. Detect if already in standalone (PWA) mode
@@ -464,7 +479,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     setDeferredPrompt(null);
   };
 
-  const showInstallBtn = !isStandalone;
+  const showInstallBtn = !isStandalone && !installDismissed;
 
   const filteredCoordTabs = coordinationTabs
     .filter(tab => {
@@ -816,20 +831,29 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
               {/* PWA Install Button */}
               {showInstallBtn && (
-                <button
-                  onClick={handleInstallClick}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-dashed border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 active:scale-95 transition-all text-left group"
-                >
-                  <div className="p-2 rounded-xl bg-primary text-white shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-primary/10">
-                    <Download className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-widest leading-none">Install App</span>
-                    <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tight mt-1 truncate">
-                      Launch from home screen
-                    </span>
-                  </div>
-                </button>
+                <div className="relative group/install">
+                  <button
+                    onClick={handleInstallClick}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-dashed border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 active:scale-95 transition-all text-left group pr-10"
+                  >
+                    <div className="p-2 rounded-xl bg-primary text-white shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-primary/10">
+                      <Download className="h-4 w-4" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-widest leading-none">Install App</span>
+                      <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tight mt-1 truncate">
+                        Launch from home screen
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleDismissInstall}
+                    aria-label="Dismiss install prompt"
+                    className="absolute top-1/2 right-3 -translate-y-1/2 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 transition-all opacity-0 group-hover/install:opacity-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               )}
             </SidebarFooter>
           </Sidebar>
@@ -1230,24 +1254,36 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2">Account Management</p>
                           <div className="grid grid-cols-1 gap-2">
                             {showInstallBtn && (
-                              <button
-                                onClick={() => {
-                                  setIsMoreMenuOpen(false);
-                                  handleInstallClick();
-                                }}
-                                className="w-full flex items-center justify-between p-4 rounded-2xl border border-dashed border-primary/20 bg-primary/5 transition-all text-left active:scale-[0.98] group"
-                              >
-                                <div className="flex items-center gap-4">
-                                  <div className="p-2 rounded-xl bg-primary text-white shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-primary/10">
-                                    <Download className="h-4 w-4" />
+                              <div className="relative group/installmobile">
+                                <button
+                                  onClick={() => {
+                                    setIsMoreMenuOpen(false);
+                                    handleInstallClick();
+                                  }}
+                                  className="w-full flex items-center justify-between p-4 rounded-2xl border border-dashed border-primary/20 bg-primary/5 transition-all text-left active:scale-[0.98] group pr-12"
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className="p-2 rounded-xl bg-primary text-white shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-primary/10">
+                                      <Download className="h-4 w-4" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black uppercase tracking-widest text-primary">Install Application</span>
+                                      <span className="text-[8px] font-bold text-muted-foreground uppercase">Launch from your home screen</span>
+                                    </div>
                                   </div>
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-black uppercase tracking-widest text-primary">Install Application</span>
-                                    <span className="text-[8px] font-bold text-muted-foreground uppercase">Launch from your home screen</span>
-                                  </div>
-                                </div>
-                                <ChevronRight className="h-4 w-4 text-primary/30" />
-                              </button>
+                                  <ChevronRight className="h-4 w-4 text-primary/30" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    handleDismissInstall(e);
+                                    setIsMoreMenuOpen(false);
+                                  }}
+                                  aria-label="Dismiss install prompt"
+                                  className="absolute top-1/2 right-3 -translate-y-1/2 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 transition-all"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             )}
                             <Link
                               href="/team"
