@@ -1199,7 +1199,7 @@ export default function LandingPage() {
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <p className="text-[10px] font-black uppercase text-red-500/60 tracking-widest">All pricing is presented and billed in USD.</p>
+            <p className="text-[10px] font-black uppercase text-red-500/60 tracking-widest">All pricing is presented and billed in CAD.</p>
           </motion.div>
         </div>
       </section>
