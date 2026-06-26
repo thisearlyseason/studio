@@ -32,13 +32,36 @@ function initAdminApp(): admin.app.App {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
   if (serviceAccountJson) {
-    let serviceAccount: object;
+    let serviceAccount: object | undefined;
+
+    // Attempt 1: parse as-is (the happy path)
     try {
       serviceAccount = JSON.parse(serviceAccountJson);
-    } catch (e) {
+    } catch (_) { /* fall through */ }
+
+    // Attempt 2: base64-encoded JSON (some CI/CD systems encode it this way)
+    if (!serviceAccount) {
+      try {
+        const decoded = Buffer.from(serviceAccountJson, 'base64').toString('utf8');
+        serviceAccount = JSON.parse(decoded);
+      } catch (_) { /* fall through */ }
+    }
+
+    // Attempt 3: Vercel sometimes converts \n escape sequences to literal newlines
+    // inside the private_key value, breaking the outer JSON string. Re-escape them.
+    if (!serviceAccount) {
+      try {
+        // Replace literal newlines ONLY inside what looks like the private_key value
+        const reescaped = serviceAccountJson.replace(/\\n/g, '\\n').replace(/\n/g, '\\n');
+        serviceAccount = JSON.parse(reescaped);
+      } catch (_) { /* fall through */ }
+    }
+
+    if (!serviceAccount) {
       throw new Error(
-        '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON is set but contains invalid JSON. ' +
-        'Ensure the value is a raw JSON string (not base64 encoded or double-stringified).'
+        '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON is set but could not be parsed. ' +
+        'Please re-paste the raw contents of your serviceAccountKey.json file directly into ' +
+        'the Vercel environment variable (do not base64-encode it or wrap it in extra quotes).'
       );
     }
     _app = admin.initializeApp({
