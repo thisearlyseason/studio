@@ -54,19 +54,23 @@ export default function PricingPage() {
     const priceId = billingCycle === 'annual' ? plan.annualPriceId : plan.monthlyPriceId;
 
     try {
-      // If user is already pro, they should use the customer portal to manage their subscription
-      if (isPro && (userProfile as any)?.stripe_customer_id) {
-         const token = await getAuthToken(auth);
-         const res = await fetch('/api/stripe/customer-portal', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-           body: JSON.stringify({ userId: user.uid }),
-         });
-         const data = await res.json();
-         if (data.url) {
-           window.location.href = data.url;
-           return;
-         }
+      // If the user is already on THIS plan, send them to the portal to manage it.
+      // For a different plan (upgrade/switch), go through a new checkout session.
+      const currentPlanId = (userProfile as any)?.plan_type;
+      const isCurrentPlan = isPro && currentPlanId === plan.id;
+
+      if (isCurrentPlan && (userProfile as any)?.stripe_customer_id) {
+        const token = await getAuthToken(auth);
+        const res = await fetch('/api/stripe/customer-portal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+          body: JSON.stringify({ userId: user.uid }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+          return;
+        }
       }
 
       const token = await getAuthToken(auth);
@@ -93,6 +97,7 @@ export default function PricingPage() {
       setLoadingPlanId(null);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -199,16 +204,33 @@ export default function PricingPage() {
               <div className="space-y-3">
                 <div className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Network Capabilities</div>
                 <ul className="space-y-3">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3 group/item">
-                      <div className={cn("mt-1 p-0.5 rounded-full", plan.highlight ? "bg-primary/20" : "bg-primary/10")}>
-                        <Check className="h-2.5 w-2.5 text-primary" />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-tight leading-relaxed">{feature}</span>
-                    </li>
-                  ))}
+                  {plan.features.map((feature, i) => {
+                    const isAddon = feature.toLowerCase().includes('additional teams');
+                    return (
+                      <li key={i} className={cn("flex items-start gap-3 group/item", isAddon && "mt-1")}>
+                        {isAddon ? (
+                          <>
+                            <div className={cn("mt-0.5 p-0.5 rounded-full", plan.highlight ? "bg-green-400/20" : "bg-green-500/15")}>
+                              <Plus className="h-2.5 w-2.5 text-green-500" />
+                            </div>
+                            <span className={cn("text-[10px] font-black uppercase tracking-tight leading-relaxed", plan.highlight ? "text-green-400" : "text-green-600")}>
+                              {feature}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className={cn("mt-1 p-0.5 rounded-full", plan.highlight ? "bg-primary/20" : "bg-primary/10")}>
+                              <Check className="h-2.5 w-2.5 text-primary" />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-tight leading-relaxed">{feature}</span>
+                          </>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
+
             </CardContent>
 
             <CardFooter className="p-8 pt-0">

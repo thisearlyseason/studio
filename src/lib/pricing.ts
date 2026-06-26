@@ -51,7 +51,8 @@ export const PRICING_CONFIG: Plan[] = [
       'Master Club Management Dashboard',
       'League & Tournament Architect',
       'Staff Role Management',
-      'Priority Infrastructure'
+      'Priority Infrastructure',
+      'Add additional teams at a discounted rate'
     ]
   },
   {
@@ -67,8 +68,9 @@ export const PRICING_CONFIG: Plan[] = [
       'Up to 18 Pro Team Hubs',
       'League Series Architect',
       'Global Tournament Hosting',
-      'Brand White-labeling',
-      'Institutional Support'
+      'Advanced League Standings & Reporting',
+      'Institutional Support',
+      'Add additional teams at a discounted rate'
     ]
   },
   {
@@ -85,7 +87,8 @@ export const PRICING_CONFIG: Plan[] = [
       'Athletic Director Dashboard',
       'Academic Eligibility Sync',
       'Multi-Squad Logistical Support',
-      'Unlimited Programs'
+      'Unlimited Programs',
+      'Add additional teams at a discounted rate'
     ]
   }
 ];
