@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeFirebase } from '@/firebase/core';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken, assertOwner } from '@/lib/api-auth';
 import { PLAN_PRICE_MAP, EXTRA_TEAM_PRICE_IDS } from '@/lib/stripe-price-map';
@@ -20,12 +19,12 @@ export async function POST(req: NextRequest) {
     if (ownerCheck) return ownerCheck;
 
     const stripe = getStripe();
-    const { firestore } = initializeFirebase();
-    const userRef = doc(firestore, 'users', userId);
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const userData = userSnap.data();
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const userData = userSnap.data()!;
     const customerId = userData.stripe_customer_id;
 
     if (!customerId) {
@@ -64,7 +63,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await updateDoc(userRef, {
+    await userRef.update({
       stripe_subscription_id: activeSub.id,
       subscription_status: activeSub.status,
       plan_type: planType,
@@ -75,9 +74,12 @@ export async function POST(req: NextRequest) {
 
     // CASCADE: Update all teams
     try {
-      const teamsSnap = await getDocs(query(collection(firestore, 'teams'), where('ownerUserId', '==', userId)));
+      const teamsSnap = await adminDb
+        .collection('teams')
+        .where('ownerUserId', '==', userId)
+        .get();
       if (!teamsSnap.empty) {
-        const batch = writeBatch(firestore);
+        const batch = adminDb.batch();
         teamsSnap.docs.forEach(teamDoc => {
           batch.update(teamDoc.ref, {
             planId: planType,

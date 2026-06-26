@@ -4,8 +4,7 @@
  * Kept for backwards compatibility with pricing/page.tsx and StripePaywall.tsx callers.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeFirebase } from '@/firebase/core';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken, assertOwner } from '@/lib/api-auth';
 import { EXTRA_TEAM_PRICE_IDS, ALL_KNOWN_PRICE_IDS } from '@/lib/stripe-price-map';
@@ -33,13 +32,12 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const { firestore } = initializeFirebase();
 
-    const userRef = doc(firestore, 'users', userId);
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const userData = userSnap.data();
+    const userData = userSnap.data()!;
     let stripeCustomerId: string = userData.stripe_customer_id;
 
     if (!stripeCustomerId) {
@@ -49,7 +47,7 @@ export async function POST(req: NextRequest) {
         metadata: { firebase_uid: userId },
       });
       stripeCustomerId = customer.id;
-      await updateDoc(userRef, { stripe_customer_id: stripeCustomerId });
+      await userRef.update({ stripe_customer_id: stripeCustomerId });
     }
 
     const lineItems: any[] = [{ price: priceId, quantity: 1 }];

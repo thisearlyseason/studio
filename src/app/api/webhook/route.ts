@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { initializeFirebase } from '@/firebase/core';
-import { doc, updateDoc, collection, query, where, getDocs, setDoc, writeBatch } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { PLAN_PRICE_MAP, EXTRA_TEAM_PRICE_IDS } from '@/lib/stripe-price-map';
 import {
@@ -64,16 +63,16 @@ async function notifyOwnerEmail(subject: string, html: string) {
  * Called by all subscription lifecycle events.
  */
 async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
-  const { firestore } = initializeFirebase();
   const customerId = subscription.customer as string;
 
   // 1. Identify User — prefer firebase_uid metadata, fall back to customer index
   let userId = subscription.metadata?.firebase_uid;
 
   if (!userId) {
-    const usersSnap = await getDocs(
-      query(collection(firestore, 'users'), where('stripe_customer_id', '==', customerId))
-    );
+    const usersSnap = await adminDb
+      .collection('users')
+      .where('stripe_customer_id', '==', customerId)
+      .get();
     if (!usersSnap.empty) userId = usersSnap.docs[0].id;
   }
 
@@ -105,11 +104,11 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
 
   const status = subscription.status;
   const isActive = status === 'active' || status === 'past_due' || status === 'trialing';
-  const userRef = doc(firestore, 'users', userId);
+  const userRef = adminDb.collection('users').doc(userId);
 
   // 3. Update user plan data
   try {
-    await updateDoc(userRef, {
+    await userRef.update({
       stripe_subscription_id: subscription.id,
       stripe_customer_id: customerId,
       subscription_status: status,
@@ -120,21 +119,22 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
     });
   } catch (err: any) {
     console.error(`[Webhook] Failed to update user doc ${userId}:`, err.message);
-    if (err.code === 'not-found') return;
+    if (err.code === 5 /* NOT_FOUND in gRPC Admin SDK */) return;
   }
 
   // 4. CASCADE: Update all teams owned by this user (chunked to stay under 500-op limit)
   try {
-    const teamsSnap = await getDocs(
-      query(collection(firestore, 'teams'), where('ownerUserId', '==', userId))
-    );
+    const teamsSnap = await adminDb
+      .collection('teams')
+      .where('ownerUserId', '==', userId)
+      .get();
 
     if (!teamsSnap.empty) {
       // Chunk into groups of 400 to stay well under Firestore's 500-op batch limit
       const CHUNK = 400;
       for (let i = 0; i < teamsSnap.docs.length; i += CHUNK) {
         const chunk = teamsSnap.docs.slice(i, i + CHUNK);
-        const batch = writeBatch(firestore);
+        const batch = adminDb.batch();
         chunk.forEach(teamDoc => {
           batch.update(teamDoc.ref, {
             planId: isActive ? planType : 'free',
@@ -151,8 +151,7 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
 
   // 5. Write secondary audit log (server-side only — Firestore rules block client writes)
   try {
-    await setDoc(
-      doc(firestore, 'subscriptions', subscription.id),
+    await adminDb.collection('subscriptions').doc(subscription.id).set(
       {
         userId,
         customerId,
@@ -353,7 +352,7 @@ export async function POST(req: NextRequest) {
               notifyOwnerPush('🚨 Payment Failed', `${customerEmail} — $${(amountDue / 100).toFixed(2)} ${currency.toUpperCase()}`, '/admin'),
             ]);
           } catch (notifyErr) {
-            console.warn('[Webhook] Owner payment failed notification error (non-critical):', notifyErr);
+            console.warn('[Webhook] Owner payment failed notification error (non-critical):', notifyErr)
           }
         }
         break;

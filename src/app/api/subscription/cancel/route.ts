@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeFirebase } from '@/firebase/core';
-import { doc, getDoc } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken, assertOwner } from '@/lib/api-auth';
 
@@ -17,11 +16,10 @@ export async function POST(req: NextRequest) {
     if (ownerCheck) return ownerCheck;
 
     const stripe = getStripe();
-    const { firestore } = initializeFirebase();
-    const userSnap = await getDoc(doc(firestore, 'users', userId));
-    if (!userSnap.exists()) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const userSnap = await adminDb.collection('users').doc(userId).get();
+    if (!userSnap.exists) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const subscriptionId = userSnap.data().stripe_subscription_id;
+    const subscriptionId = userSnap.data()!.stripe_subscription_id;
     if (!subscriptionId) return NextResponse.json({ error: 'No active subscription.' }, { status: 400 });
 
     // Cancel at period end — does NOT cancel immediately

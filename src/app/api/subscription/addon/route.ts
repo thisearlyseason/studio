@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeFirebase } from '@/firebase/core';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken, assertOwner } from '@/lib/api-auth';
 import { EXTRA_TEAM_PRICE_IDS } from '@/lib/stripe-price-map';
@@ -25,13 +24,12 @@ export async function POST(req: NextRequest) {
     if (ownerCheck) return ownerCheck;
 
     const stripe = getStripe();
-    const { firestore } = initializeFirebase();
 
-    const userRef = doc(firestore, 'users', userId);
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const userRef = adminDb.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const subscriptionId = userSnap.data().stripe_subscription_id;
+    const subscriptionId = userSnap.data()!.stripe_subscription_id;
     if (!subscriptionId) {
       return NextResponse.json({
         error: 'No active subscription. You must be on a paid plan to add extra squads.',
@@ -72,7 +70,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Sync extra_teams count to Firestore
-    await updateDoc(userRef, { extra_teams: quantity });
+    await userRef.update({ extra_teams: quantity });
 
     return NextResponse.json({ success: true, subscription: updatedSubscription });
   } catch (err: any) {
