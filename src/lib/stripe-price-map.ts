@@ -3,19 +3,28 @@
  * Single source of truth used by webhook, sync, and update routes.
  * DO NOT duplicate this map in individual route files.
  */
+const priceTeamMonthly = process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_MONTHLY || 'price_1TL4qyGu1UxxOYbPen5QOIJv';
+const priceTeamAnnual = process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM_ANNUAL || 'price_1TL4qyGu1UxxOYbPxrnZKSd4';
+const priceEliteMonthly = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE_TEAMS_MONTHLY || 'price_1TL4vCGu1UxxOYbPc9MX6y8L';
+const priceEliteAnnual = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE_TEAMS_ANNUAL || 'price_1TL4vCGu1UxxOYbPxiAlj9Jc';
+const priceLeagueMonthly = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE_LEAGUE_MONTHLY || process.env.STRIPE_PRICE_ELITE_LEAGUE_MONTHLY || 'price_1TL55yGu1UxxOYbPcQvc6AZV';
+const priceLeagueAnnual = process.env.NEXT_PUBLIC_STRIPE_PRICE_ELITE_LEAGUE_ANNUAL || process.env.STRIPE_PRICE_ELITE_LEAGUE_ANNUAL || 'price_1TL55yGu1UxxOYbPV7zlMKCQ';
+const priceSchoolMonthly = process.env.NEXT_PUBLIC_STRIPE_PRICE_SCHOOLS_MONTHLY || process.env.STRIPE_PRICE_SCHOOLS_MONTHLY || 'price_1TL58qGu1UxxOYbPOUPCAqdz';
+const priceSchoolAnnual = process.env.NEXT_PUBLIC_STRIPE_PRICE_SCHOOLS_ANNUAL || process.env.STRIPE_PRICE_SCHOOLS_ANNUAL || 'price_1TL58qGu1UxxOYbPWXLqlsyB';
+
 export const PLAN_PRICE_MAP: Record<string, { id: string; teamLimit: number }> = {
   // Pro Team — Monthly & Annual
-  'price_1TL4qyGu1UxxOYbPen5QOIJv': { id: 'team', teamLimit: 1 },
-  'price_1TL4qyGu1UxxOYbPxrnZKSd4': { id: 'team', teamLimit: 1 },
+  [priceTeamMonthly]: { id: 'team', teamLimit: 1 },
+  [priceTeamAnnual]: { id: 'team', teamLimit: 1 },
   // Elite Teams — Monthly & Annual
-  'price_1TL4vCGu1UxxOYbPc9MX6y8L': { id: 'elite', teamLimit: 8 },
-  'price_1TL4vCGu1UxxOYbPxiAlj9Jc': { id: 'elite', teamLimit: 8 },
+  [priceEliteMonthly]: { id: 'elite', teamLimit: 8 },
+  [priceEliteAnnual]: { id: 'elite', teamLimit: 8 },
   // Elite League — Monthly & Annual
-  'price_1TL55yGu1UxxOYbPcQvc6AZV': { id: 'league', teamLimit: 18 },
-  'price_1TL55yGu1UxxOYbPV7zlMKCQ': { id: 'league', teamLimit: 18 },
+  [priceLeagueMonthly]: { id: 'league', teamLimit: 18 },
+  [priceLeagueAnnual]: { id: 'league', teamLimit: 18 },
   // Schools Plan — Monthly & Annual
-  'price_1TL58qGu1UxxOYbPOUPCAqdz': { id: 'school', teamLimit: 10 },
-  'price_1TL58qGu1UxxOYbPWXLqlsyB': { id: 'school', teamLimit: 10 },
+  [priceSchoolMonthly]: { id: 'school', teamLimit: 10 },
+  [priceSchoolAnnual]: { id: 'school', teamLimit: 10 },
 };
 
 // Extra Team add-on price IDs

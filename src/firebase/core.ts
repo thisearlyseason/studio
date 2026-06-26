@@ -18,7 +18,8 @@ const globalSdks = globalThis as any;
  * Initializes Firebase in a way that is safe for both Client (Browser) and Server (Node.js/Next.js).
  */
 export function initializeFirebase() {
-  if (globalSdks.firebaseSdks) return globalSdks.firebaseSdks;
+  const isClient = typeof window !== 'undefined';
+  if (isClient && globalSdks.firebaseSdks) return globalSdks.firebaseSdks;
   if (cachedSdks) return cachedSdks;
 
   const apps = getApps();
@@ -31,7 +32,9 @@ export function initializeFirebase() {
   }
 
   cachedSdks = getSdks(firebaseApp);
-  globalSdks.firebaseSdks = cachedSdks;
+  if (isClient) {
+    globalSdks.firebaseSdks = cachedSdks;
+  }
   return cachedSdks;
 }
 
