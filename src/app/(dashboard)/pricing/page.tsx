@@ -54,12 +54,11 @@ export default function PricingPage() {
     const priceId = billingCycle === 'annual' ? plan.annualPriceId : plan.monthlyPriceId;
 
     try {
-      // If the user is already on THIS plan, send them to the portal to manage it.
-      // For a different plan (upgrade/switch), go through a new checkout session.
       const currentPlanId = (userProfile as any)?.plan_type;
-      const isCurrentPlan = isPro && currentPlanId === plan.id;
+      const hasActiveSubscription = isPro && (userProfile as any)?.stripe_subscription_id;
 
-      if (isCurrentPlan && (userProfile as any)?.stripe_customer_id) {
+      // ── PATH A: Existing subscriber on the SAME plan → manage via portal ──
+      if (hasActiveSubscription && currentPlanId === plan.id) {
         const token = await getAuthToken(auth);
         const res = await fetch('/api/stripe/customer-portal', {
           method: 'POST',
@@ -67,29 +66,39 @@ export default function PricingPage() {
           body: JSON.stringify({ userId: user.uid }),
         });
         const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-          return;
-        }
+        if (data.url) { window.location.href = data.url; return; }
+        throw new Error(data.error || 'Could not open billing portal.');
       }
 
+      // ── PATH B: Existing subscriber switching to a DIFFERENT plan → direct upgrade ──
+      if (hasActiveSubscription) {
+        const token = await getAuthToken(auth);
+        const res = await fetch('/api/subscription/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+          body: JSON.stringify({ userId: user.uid, newPriceId: priceId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast({ title: "Plan Updated!", description: `You've been switched to ${plan.name}.` });
+          router.push('/dashboard/billing');
+          return;
+        }
+        throw new Error(data.error || 'Failed to update subscription.');
+      }
+
+      // ── PATH C: New subscriber → Stripe checkout session ──
       const token = await getAuthToken(auth);
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-        body: JSON.stringify({
-          priceId,
-          userId: user.uid,
-          billingCycle,
-          extraTeams
-        }),
+        body: JSON.stringify({ priceId, userId: user.uid, billingCycle, extraTeams }),
       });
-
       const data = await response.json();
       if (data.url) {
         window.location.href = data.url;
       } else {
-        throw new Error(data.error || 'Failed to initiate checkout');
+        throw new Error(data.error || 'Failed to initiate checkout.');
       }
     } catch (err: any) {
       toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
@@ -97,6 +106,7 @@ export default function PricingPage() {
       setLoadingPlanId(null);
     }
   };
+
 
 
   return (
