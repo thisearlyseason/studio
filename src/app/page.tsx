@@ -94,6 +94,90 @@ const DEMO_OPTIONS = [
 // ── Shared animation helpers ──────────────────────────────────────────────
 const fadeUp = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } } };
 
+// ── Enterprise Contact Form ──────────────────────────────────────────────
+function ContactForm({ db }: { db: any }) {
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [org, setOrg] = React.useState('');
+  const [inquiry, setInquiry] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !inquiry.trim()) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'contact_inquiries'), {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        organization: org.trim(),
+        inquiry: inquiry.trim(),
+        createdAt: serverTimestamp(),
+        source: 'landing_page_contact',
+        status: 'new',
+      });
+      setSubmitted(true);
+      // Notify admin asynchronously
+      fetch('/api/public/notify-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'contact', name: name.trim(), email: email.trim(), organization: org.trim(), inquiry: inquiry.trim() }),
+      }).catch(() => {});
+    } catch (err: any) {
+      alert('Submission failed. Please email us at teams@thesquad.pro');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="text-center py-12 space-y-4">
+        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+          <CheckCircle2 className="h-8 w-8 text-primary" />
+        </div>
+        <h3 className="text-xl font-black uppercase tracking-tight">Message Received</h3>
+        <p className="text-sm font-bold text-muted-foreground">Our team will reach out within 24 hours.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label className="text-xs font-black uppercase tracking-widest">Name *</Label>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="John Doe" className="h-12 rounded-xl bg-muted/50 border-none" required />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs font-black uppercase tracking-widest">Email *</Label>
+          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john@example.com" className="h-12 rounded-xl bg-muted/50 border-none" required />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest">Organization</Label>
+        <Input value={org} onChange={e => setOrg(e.target.value)} placeholder="State Varsity League" className="h-12 rounded-xl bg-muted/50 border-none" />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest">Inquiry *</Label>
+        <Textarea value={inquiry} onChange={e => setInquiry(e.target.value)} placeholder="Define your institutional needs..." className="min-h-[120px] rounded-xl bg-muted/50 border-none resize-none" required />
+      </div>
+      <Button
+        type="submit"
+        disabled={isSubmitting || !name.trim() || !email.trim() || !inquiry.trim()}
+        className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
+      >
+        {isSubmitting ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Sending...</> : 'Send Inquiry'}
+      </Button>
+    </form>
+  );
+}
+
+
+
 function SectionHeader({ badge, title, subtitle }: { badge: string; title: React.ReactNode; subtitle: React.ReactNode }) {
   return (
     <motion.div
@@ -1233,29 +1317,7 @@ export default function LandingPage() {
             </div>
 
             <Card className="border-none shadow-2xl rounded-[3rem] p-8 md:p-12 overflow-hidden ring-1 ring-black/5 bg-background">
-              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase tracking-widest">Name</Label>
-                    <Input placeholder="John Doe" className="h-12 rounded-xl bg-muted/50 border-none" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase tracking-widest">Email</Label>
-                    <Input type="email" placeholder="john@example.com" className="h-12 rounded-xl bg-muted/50 border-none" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest">Organization</Label>
-                  <Input placeholder="State Varsity League" className="h-12 rounded-xl bg-muted/50 border-none" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest">Inquiry</Label>
-                  <Textarea placeholder="Define your institutional needs..." className="min-h-[120px] rounded-xl bg-muted/50 border-none resize-none" />
-                </div>
-                <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 active:scale-95 transition-all">
-                  Contact Tactical Ops
-                </Button>
-              </form>
+              <ContactForm db={db} />
             </Card>
           </div>
         </div>

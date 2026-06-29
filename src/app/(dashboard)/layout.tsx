@@ -1,6 +1,7 @@
 "use client";
 
 import Shell from '@/components/layout/Shell';
+import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
 import { AlertOverlay } from '@/components/layout/AlertOverlay';
 import { useUser, useAuth } from '@/firebase';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -65,8 +66,10 @@ function DemoSeedWrapper({
     // Also check the global Firestore write lock to avoid double-seeding
     const globalLock = localStorage.getItem('squad_seeding_lock');
     if (globalLock) {
-      const [lockedPlanId, timestampStr] = globalLock.split('_');
-      const timestamp = parseInt(timestampStr, 10);
+      // Use '|' as separator to avoid false splits on plan IDs containing underscores (e.g. 'starter_squad')
+      const separatorIdx = globalLock.indexOf('|');
+      const lockedPlanId = separatorIdx !== -1 ? globalLock.slice(0, separatorIdx) : '';
+      const timestamp = separatorIdx !== -1 ? parseInt(globalLock.slice(separatorIdx + 1), 10) : NaN;
       if (lockedPlanId === demoPlanId && !isNaN(timestamp) && Date.now() - timestamp < 60_000) {
         console.warn('[Demo] Active seeding lock found in another tab/process – skipping redundant seed.');
         return;
@@ -78,7 +81,8 @@ function DemoSeedWrapper({
     // Mark as attempted BEFORE going async so concurrent re-renders don't race
     sessionStorage.setItem(sessionAttemptKey, 'true');
     setIsDemoInitializing(true);
-    localStorage.setItem('squad_seeding_lock', `${demoPlanId}_${Date.now()}`);
+    // Use '|' separator so plan IDs with underscores (e.g. 'starter_squad') parse correctly
+    localStorage.setItem('squad_seeding_lock', `${demoPlanId}|${Date.now()}`);
     setIsSeedingDemo(true);
 
     // Immediately strip the URL param to prevent a loop if the user hits refresh
@@ -89,7 +93,23 @@ function DemoSeedWrapper({
     const seed = async (attempt = 1) => {
       try {
         if (!auth.currentUser) throw new Error('No authenticated user');
+
+        // Always run the full client-side seeder — it seeds hundreds of documents
+        // (players, events, games, chats, drills, fundraising, equipment, etc.).
+        // The server-side /api/demo/seed was only a skeleton; the full seeder must be primary.
         const primaryId = await seedGuestDemoTeam(db, user.uid, demoPlanId);
+
+        // Log a diagnostic ping to the server-side route (non-blocking, for monitoring)
+        getAuthToken(auth).then(idToken => {
+          if (idToken) {
+            fetch('/api/demo/seed', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+              body: JSON.stringify({ planId: demoPlanId }),
+            }).catch(() => {}); // fire-and-forget
+          }
+        }).catch(() => {});
+
         if (primaryId) {
           localStorage.setItem('sf_session_team_id', primaryId);
         }
@@ -475,8 +495,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               </p>
             </div>
 
-            {/* Developer Debug Indicator - only rendered client-side to prevent hydration mismatch */}
-            {mounted && (
+            {/* Developer Debug Indicator - only rendered in development mode */}
+            {mounted && process.env.NODE_ENV === 'development' && (
               <div className="flex flex-wrap justify-center gap-2 pt-4">
                 {[
                   { label: 'Auth', val: isAuthResolved, inverse: true },
@@ -509,7 +529,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 className="mt-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-all"
                 onClick={() => setLoadingTimedOut(true)}
               >
-                Bypass Synchronization Gate
+                Skip Loading
               </Button>
             )}
           </div>
@@ -557,7 +577,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           setIsDemoInitializing={setIsDemoInitializing}
           setIsSeedingDemo={setIsSeedingDemo}
         />
-        <Shell>{children}</Shell>
+        <ErrorBoundary>
+          <Shell>{children}</Shell>
+        </ErrorBoundary>
       </div>
     </div>
   );

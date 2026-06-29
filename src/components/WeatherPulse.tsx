@@ -8,13 +8,16 @@ import { cn } from '@/lib/utils';
 export function WeatherPulse({ location }: { location?: string }) {
   const [weather, setWeather] = useState<{ temp: string, wind: string, precip: string, desc: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSimulated, setIsSimulated] = useState(false);
 
   useEffect(() => {
     if (!location || location === 'TBD' || location === 'Simulated Venue') {
       setWeather({ temp: '78°F', wind: '8 MPH', precip: '0%', desc: 'Fair Skies' });
+      setIsSimulated(true);
       return;
     };
     setLoading(true);
+    setIsSimulated(false);
     fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`)
       .then(res => res.json())
       .then(data => {
@@ -27,9 +30,11 @@ export function WeatherPulse({ location }: { location?: string }) {
           precip: `${current.precipMM > 0 ? (current.precipMM / 25.4).toFixed(1) : '0.0'}"`,
           desc: desc
         });
+        setIsSimulated(false);
       })
       .catch(() => {
         setWeather({ temp: '75°F', wind: '5 MPH', precip: '0%', desc: 'Clear Skies' });
+        setIsSimulated(true);
       })
       .finally(() => setLoading(false));
   }, [location]);
@@ -54,9 +59,10 @@ export function WeatherPulse({ location }: { location?: string }) {
         </div>
         <Badge className={cn(
           "border-none font-black text-[8px] h-5 px-3",
-          loading ? "animate-pulse bg-muted text-muted-foreground" : "bg-orange-100/50 text-orange-700"
+          loading ? "animate-pulse bg-muted text-muted-foreground" :
+          isSimulated ? "bg-muted text-muted-foreground" : "bg-orange-100/50 text-orange-700"
         )}>
-          {loading ? 'CALIBRATING...' : 'LIVE SATELLITE DATA'}
+          {loading ? 'LOADING...' : isSimulated ? 'SIMULATED DATA' : 'LIVE WEATHER'}
         </Badge>
       </div>
       <div className="grid grid-cols-3 gap-3">

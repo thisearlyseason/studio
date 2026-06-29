@@ -1,11 +1,18 @@
 /**
  * Server-side Firebase ID Token verification.
- * Uses Firebase's public REST endpoint — no firebase-admin SDK required.
+ * Uses the Firebase Admin SDK to cryptographically verify the JWT signature.
  * 
  * Call verifyFirebaseToken(request) at the top of every authenticated API route.
+ * 
+ * SECURITY NOTE: The previous implementation used the `accounts:lookup` REST
+ * endpoint which does NOT verify the JWT signature — it only looks up a user by
+ * token. This has been replaced with `admin.auth().verifyIdToken()` which performs
+ * full cryptographic JWT signature verification against Firebase's public keys.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import * as admin from 'firebase-admin';
+import { adminDb } from '@/lib/firebase-admin'; // Ensures admin is initialized
 
 interface DecodedToken {
   uid: string;
@@ -35,54 +42,37 @@ export async function verifyFirebaseToken(
 
   const idToken = authHeader.slice(7); // Remove "Bearer "
 
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'studio-6850142148-fe343';
-
   try {
-    // Use Google's secure token verification endpoint
-    const verifyUrl = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${
-      process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyA8G2_7gu0WK8efQ9sl7UJG6tsrC7iOCdU'
-    }`;
+    // Access adminDb to trigger lazy initialization of the Firebase Admin app
+    // before calling admin.auth() to ensure the app is always initialized first.
+    void adminDb; // side-effect: initializes admin app
 
-    const response = await fetch(verifyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
-    });
+    // Cryptographically verify the JWT signature and expiry.
+    // This is the ONLY correct way to verify Firebase ID tokens server-side.
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.error('[verifyFirebaseToken] Token verification failed:', err);
+    const role = (decodedToken as any).role as string | undefined;
+
+    return {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      role,
+    };
+  } catch (err: any) {
+    // verifyIdToken throws for expired tokens, invalid signatures, revoked tokens, etc.
+    if (
+      err.code === 'auth/id-token-expired' ||
+      err.code === 'auth/argument-error' ||
+      err.code === 'auth/id-token-revoked'
+    ) {
       return NextResponse.json(
         { error: 'Invalid or expired authentication token.' },
         { status: 401 }
       );
     }
-
-    const data = await response.json();
-    const userInfo = data?.users?.[0];
-
-    if (!userInfo?.localId) {
-      return NextResponse.json(
-        { error: 'Could not extract user identity from token.' },
-        { status: 401 }
-      );
-    }
-
-    let role: string | undefined;
-    if (userInfo.customAttributes) {
-      try {
-        const claims = JSON.parse(userInfo.customAttributes);
-        role = claims.role;
-      } catch (e) {
-        console.error('[verifyFirebaseToken] Failed to parse customAttributes:', e);
-      }
-    }
-
-    return { uid: userInfo.localId, email: userInfo.email, role };
-  } catch (err: any) {
-    console.error('[verifyFirebaseToken] Network error during verification:', err.message);
+    console.error('[verifyFirebaseToken] Token verification error:', err.message, err.code);
     return NextResponse.json(
-      { error: 'Authentication service unavailable. Please try again.' },
+      { error: 'Authentication service error. Please try again.' },
       { status: 503 }
     );
   }

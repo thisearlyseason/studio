@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { DialogClose } from '@/components/ui/dialog';
 import { X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import {
   ChartConfig,
   ChartContainer,
@@ -42,6 +43,7 @@ const chartConfig = {
 export default function GamesPage() {
   const { activeTeam, addGame, updateGame, isSuperAdmin, purchasePro, hasFeature, isStaff, activeTeamEvents, isPro } = useTeam();
   const db = useFirestore();
+  const { toast } = useToast();
   
   const gamesQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
@@ -164,7 +166,12 @@ export default function GamesPage() {
 
   const handleRecordGame = () => {
     if (!opponent || !date || !myScore || !opponentScore) return;
-    const myS = parseInt(myScore); const oppS = parseInt(opponentScore);
+    const myS = parseInt(myScore, 10);
+    const oppS = parseInt(opponentScore, 10);
+    if (isNaN(myS) || isNaN(oppS) || myS < 0 || oppS < 0) {
+      toast({ title: 'Invalid Scores', description: 'Scores must be non-negative numbers.', variant: 'destructive' });
+      return;
+    }
     let result: 'Win' | 'Loss' | 'Tie' = 'Tie'; if (myS > oppS) result = 'Win'; if (myS < oppS) result = 'Loss';
     const payload: any = { 
       opponent, 

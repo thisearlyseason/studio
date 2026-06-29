@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import * as admin from 'firebase-admin';
+import { adminDb } from '@/lib/firebase-admin'; // Ensures admin app is initialized
 
 /**
  * POST /api/notify
  * Server-side FCM push notification sender.
- * Uses Firebase Admin SDK with the service account stored in FIREBASE_SERVICE_ACCOUNT_JSON.
+ * Uses the shared Firebase Admin SDK instance from lib/firebase-admin.
  *
  * Body: {
  *   tokens: string[]          // FCM registration tokens to target
@@ -34,24 +36,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'tokens[] or topic is required' }, { status: 400 });
     }
 
-    const admin = await getFirebaseAdmin();
+    // Use shared admin instance (initialized in lib/firebase-admin.ts)
+    void adminDb; // trigger lazy init
     const messaging = admin.messaging();
 
-    const notification: any = { title, body: msgBody };
-    if (imageUrl) notification.imageUrl = imageUrl;
+    const notification: admin.messaging.Notification = { title, body: msgBody };
+    if (imageUrl) (notification as any).imageUrl = imageUrl;
 
-    const webpush = {
+    const webpush: admin.messaging.WebpushConfig = {
       notification: {
         icon: '/favicon-192.png',
         badge: '/favicon-192.png',
-        ...(url ? { click_action: url } : {}),
+        ...(url ? { clickAction: url } : {}),
       },
       fcmOptions: url ? { link: url } : undefined,
     };
 
-    let result;
+    let result: Record<string, unknown>;
     if (tokens?.length) {
-      // Send to specific devices (up to 500 at a time per FCM limit)
+      // Chunk into groups of 500 (FCM multicast limit)
       const chunks: string[][] = [];
       for (let i = 0; i < tokens.length; i += 500) {
         chunks.push(tokens.slice(i, i + 500));
@@ -75,19 +78,4 @@ export async function POST(req: NextRequest) {
     console.error('[FCM] Notify error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
-
-async function getFirebaseAdmin() {
-  const admin = await import('firebase-admin');
-  if (!admin.apps.length) {
-    const serviceAccountB64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!serviceAccountB64) throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON env var not set');
-    const serviceAccount = JSON.parse(
-      Buffer.from(serviceAccountB64, 'base64').toString('utf8')
-    );
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-  }
-  return admin;
 }

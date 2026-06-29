@@ -72,22 +72,26 @@ export async function POST(req: NextRequest) {
       last_webhook_sync: new Date().toISOString(),
     });
 
-    // CASCADE: Update all teams
+    // CASCADE: Update all teams owned by this user (chunked to stay under Firestore's 500-op batch limit)
     try {
       const teamsSnap = await adminDb
         .collection('teams')
         .where('ownerUserId', '==', userId)
         .get();
       if (!teamsSnap.empty) {
-        const batch = adminDb.batch();
-        teamsSnap.docs.forEach(teamDoc => {
-          batch.update(teamDoc.ref, {
-            planId: planType,
-            isPro: planType !== 'free',
-            last_plan_sync: new Date().toISOString(),
+        const CHUNK = 400;
+        for (let i = 0; i < teamsSnap.docs.length; i += CHUNK) {
+          const chunk = teamsSnap.docs.slice(i, i + CHUNK);
+          const batch = adminDb.batch();
+          chunk.forEach(teamDoc => {
+            batch.update(teamDoc.ref, {
+              planId: planType,
+              isPro: planType !== 'free',
+              last_plan_sync: new Date().toISOString(),
+            });
           });
-        });
-        await batch.commit();
+          await batch.commit();
+        }
       }
     } catch (cascadeErr: any) {
       console.error('[subscription/sync] Team cascade error:', cascadeErr.message);

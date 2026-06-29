@@ -43,7 +43,7 @@ export function AccessRestricted({
               <Button size="lg" className="h-16 rounded-[2rem] bg-white text-black hover:bg-primary hover:text-white font-black text-xl transition-all border-none shadow-xl active:scale-95 group/btn" onClick={() => router.push('/pricing')}>
                 Upgrade Fleet Status <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
               </Button>
-              <Button variant="ghost" className="text-white/40 hover:text-white font-black uppercase text-[10px] tracking-[0.3em] hover:bg-white/5 h-12 rounded-xl transition-all" onClick={() => router.back()}>
+              <Button variant="ghost" className="text-white/40 hover:text-white font-black uppercase text-[10px] tracking-[0.3em] hover:bg-white/5 h-12 rounded-xl transition-all" onClick={() => router.push('/dashboard')}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Return to Operations
               </Button>
             </div>
@@ -73,10 +73,10 @@ export function AccessRestricted({
           </div>
 
           <div className="pt-4">
-            <Button size="lg" className="w-full h-16 rounded-[2.5rem] bg-white text-black hover:bg-primary hover:text-white font-black text-lg transition-all border-none shadow-2xl active:scale-95 flex items-center justify-center gap-3" onClick={() => router.back()}>
+            <Button size="lg" className="w-full h-16 rounded-[2.5rem] bg-white text-black hover:bg-primary hover:text-white font-black text-lg transition-all border-none shadow-2xl active:scale-95 flex items-center justify-center gap-3" onClick={() => router.push('/dashboard')}>
               <ArrowLeft className="h-5 w-5" /> Exit Command Center
             </Button>
-            <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mt-6 group-hover:text-primary transition-colors">Unauthorized access attempt logged to central telemetry</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mt-6 group-hover:text-primary transition-colors">Contact your team administrator for access.</p>
           </div>
         </CardContent>
       </Card>

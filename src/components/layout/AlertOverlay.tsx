@@ -133,7 +133,7 @@ export function AlertOverlay() {
                 <div className="bg-white p-2 rounded-lg shadow-sm border"><Clock className="h-4 w-4 text-primary" /></div>
                 <div className="min-w-0">
                   <p className="text-[8px] font-black uppercase text-muted-foreground">Dispatch</p>
-                  <p className="text-[10px] font-bold uppercase truncate">{formatDistanceToNow(new Date(latestAlert.createdAt))} ago</p>
+                  <p className="text-[10px] font-bold uppercase truncate">{(() => { try { return formatDistanceToNow(new Date(latestAlert.createdAt)); } catch { return 'recently'; } })()} ago</p>
                 </div>
               </div>
             </div>
@@ -278,7 +278,7 @@ export function AlertsHistoryDialog({ children }: { children: React.ReactNode })
                       <div className="flex items-center justify-between mt-4">
                         <div className="flex items-center gap-1.5 opacity-40">
                           <Clock className="h-3 w-3" />
-                          <span className="text-[9px] font-black uppercase tracking-widest">{formatDistanceToNow(new Date(alert.createdAt))} ago</span>
+                          <span className="text-[9px] font-black uppercase tracking-widest">{(() => { try { return formatDistanceToNow(new Date(alert.createdAt)); } catch { return 'recently'; } })()} ago</span>
                         </div>
                         <div className={cn(
                           "flex items-center gap-1 transition-all",

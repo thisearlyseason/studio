@@ -43,10 +43,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    // Type checking is now enabled. Both project-level TS errors were fixed:
+    // 1. games/page.tsx: added missing useToast import
+    // 2. team-provider.tsx: added notificationsEnabled to UserProfile type
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [

@@ -60,6 +60,47 @@ export async function initFCM(userId: string): Promise<string | null> {
 }
 
 /**
+ * Remove the current device's FCM token from Firebase Messaging and from
+ * the user's Firestore document. Call this during sign-out to prevent
+ * stale tokens accumulating across sessions and devices.
+ */
+export async function deleteFCMToken(userId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!VAPID_KEY) return;
+  try {
+    const app = getApp();
+    const messaging = getMessaging(app);
+    const db = getFirestore(app);
+
+    // Get current token before deleting
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (!registration) return;
+
+    const currentToken = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    }).catch(() => null);
+
+    // Delete from Firebase Messaging (deregisters this device)
+    await import('firebase/messaging').then(({ deleteToken }) =>
+      deleteToken(messaging)
+    ).catch(() => {});
+
+    // Remove from Firestore token array
+    if (currentToken) {
+      await import('firebase/firestore').then(({ arrayRemove }) =>
+        updateDoc(doc(db, 'users', userId), {
+          fcmTokens: arrayRemove(currentToken),
+        })
+      ).catch(() => {});
+    }
+  } catch (err) {
+    // Non-critical — don't block logout
+    console.warn('[FCM] Token cleanup failed (non-critical):', err);
+  }
+}
+
+/**
  * Listen for FCM messages received while app is in foreground.
  * Shows a toast-style notification since the service worker only handles
  * messages when the app is backgrounded.

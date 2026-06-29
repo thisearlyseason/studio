@@ -136,6 +136,7 @@ export type UserProfile = {
   division?: string; // High-level organizational tier
   isBetaTester?: boolean;
   betaDemoSeeded?: boolean;
+  notificationsEnabled?: boolean; // Push notification preference — persisted to Firestore
 };
 
 export type PlayerProfile = {
@@ -1757,22 +1758,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   // --- TACTICAL METHODS ---
   const getRecruitingProfile = useCallback(async (playerId: string) => { if (!db) return null; const snap = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile')); return snap.exists() ? (snap.data() as RecruitingProfile) : null; }, [db]);
-  const updateRecruitingProfile = useCallback(async (playerId: string, data: Partial<RecruitingProfile>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'), { ...clean(data), updatedAt: serverTimestamp() }, { merge: true }); }, [db]);
+  // Include updatedByTeamId so Firestore rules can verify the caller owns that team.
+  const updateRecruitingProfile = useCallback(async (playerId: string, data: Partial<RecruitingProfile>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'profile'), { ...clean(data), updatedAt: serverTimestamp(), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }, { merge: true }); }, [db, activeTeam?.id]);
   const getAthleticMetrics = useCallback(async (playerId: string) => { if (!db) return null; const snap = await getDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics')); return snap.exists() ? (snap.data() as AthleticMetrics) : null; }, [db]);
-  const updateAthleticMetrics = useCallback(async (playerId: string, data: Partial<any>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics'), clean(data), { merge: true }); }, [db]);
+  const updateAthleticMetrics = useCallback(async (playerId: string, data: Partial<any>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'recruitingProfile', 'metrics'), { ...clean(data), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }, { merge: true }); }, [db, activeTeam?.id]);
   const getPlayerStats = useCallback(async (playerId: string) => { if (!db) return []; const snap = await getDocs(collection(db, 'players', playerId, 'stats')); return snap.docs.map(d => ({ ...d.data(), id: d.id } as PlayerStat)); }, [db]);
-  const addPlayerStat = useCallback(async (playerId: string, data: Partial<PlayerStat>) => { if (!db) return; await addDoc(collection(db, 'players', playerId, 'stats'), clean(data)); }, [db]);
-  const updatePlayerStat = useCallback(async (playerId: string, statId: string, data: Partial<PlayerStat>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'stats', statId), clean(data), { merge: true }); }, [db]);
+  const addPlayerStat = useCallback(async (playerId: string, data: Partial<PlayerStat>) => { if (!db) return; await addDoc(collection(db, 'players', playerId, 'stats'), { ...clean(data), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }); }, [db, activeTeam?.id]);
+  const updatePlayerStat = useCallback(async (playerId: string, statId: string, data: Partial<PlayerStat>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'stats', statId), { ...clean(data), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }, { merge: true }); }, [db, activeTeam?.id]);
   const deletePlayerStat = useCallback(async (playerId: string, statId: string) => { if (!db) return; await deleteDoc(doc(db, 'players', playerId, 'stats', statId)); }, [db]);
   const getEvaluations = useCallback(async (playerId: string) => { if (!db) return []; const snap = await getDocs(query(collection(db, 'players', playerId, 'evaluations'), orderBy('createdAt', 'desc'))); return snap.docs.map(d => ({ ...d.data(), id: d.id } as PlayerEvaluation)); }, [db]);
-  const addEvaluation = useCallback(async (playerId: string, data: Partial<PlayerEvaluation>) => { if (!db || !firebaseUser) return; await addDoc(collection(db, 'players', playerId, 'evaluations'), { ...clean(data), evaluatorId: firebaseUser.uid, createdAt: serverTimestamp() }); }, [db, firebaseUser]);
+  const addEvaluation = useCallback(async (playerId: string, data: Partial<PlayerEvaluation>) => { if (!db || !firebaseUser) return; await addDoc(collection(db, 'players', playerId, 'evaluations'), { ...clean(data), evaluatorId: firebaseUser.uid, createdAt: serverTimestamp(), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }); }, [db, firebaseUser, activeTeam?.id]);
   const getRecruitingContact = useCallback(async (playerId: string) => { if (!db) return null; const snap = await getDoc(doc(db, 'players', playerId, 'recruitingContact', 'contact')); return snap.exists() ? (snap.data() as RecruitingContact) : null; }, [db]);
-  const updateRecruitingContact = useCallback(async (playerId: string, data: Partial<RecruitingContact>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'recruitingContact', 'contact'), clean(data), { merge: true }); }, [db]);
+  const updateRecruitingContact = useCallback(async (playerId: string, data: Partial<RecruitingContact>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'recruitingContact', 'contact'), { ...clean(data), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }, { merge: true }); }, [db, activeTeam?.id]);
   const getPlayerVideos = useCallback(async (playerId: string) => { if (!db) return []; const snap = await getDocs(query(collection(db, 'players', playerId, 'videos'), orderBy('createdAt', 'desc'))); return snap.docs.map(d => ({ ...d.data(), id: d.id } as PlayerVideo)); }, [db]);
-  const addPlayerVideo = useCallback(async (playerId: string, data: Partial<PlayerVideo>) => { if (!db) return; await addDoc(collection(db, 'players', playerId, 'videos'), { ...clean(data), createdAt: serverTimestamp() }); }, [db]);
-  const updatePlayerVideo = useCallback(async (playerId: string, videoId: string, data: Partial<PlayerVideo>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'videos', videoId), clean(data), { merge: true }); }, [db]);
+  const addPlayerVideo = useCallback(async (playerId: string, data: Partial<PlayerVideo>) => { if (!db) return; await addDoc(collection(db, 'players', playerId, 'videos'), { ...clean(data), createdAt: serverTimestamp(), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }); }, [db, activeTeam?.id]);
+  const updatePlayerVideo = useCallback(async (playerId: string, videoId: string, data: Partial<PlayerVideo>) => { if (!db) return; await setDoc(doc(db, 'players', playerId, 'videos', videoId), { ...clean(data), ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }, { merge: true }); }, [db, activeTeam?.id]);
   const deletePlayerVideo = useCallback(async (playerId: string, videoId: string) => { if (!db) return; await deleteDoc(doc(db, 'players', playerId, 'videos', videoId)); }, [db]);
-  const toggleRecruitingProfile = useCallback(async (playerId: string, enabled: boolean) => { if (!db) return; await setDoc(doc(db, 'players', playerId), { recruitingProfileEnabled: enabled }, { merge: true }); }, [db]);
+  const toggleRecruitingProfile = useCallback(async (playerId: string, enabled: boolean) => { if (!db) return; await setDoc(doc(db, 'players', playerId), { recruitingProfileEnabled: enabled, ...(activeTeam?.id ? { updatedByTeamId: activeTeam.id } : {}) }, { merge: true }); }, [db, activeTeam?.id]);
   const updateStaffEvaluation = useCallback(async (memberId: string, notes: string) => { if (!activeTeam?.id || !db) return; await setDoc(doc(db, 'teams', activeTeam.id, 'members', memberId, 'staffEvaluation', 'current'), { notes, updatedAt: new Date().toISOString() }); }, [activeTeam, db]);
   const getStaffEvaluation = useCallback(async (memberId: string) => { if (!activeTeam?.id || !db) return ''; const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'members', memberId, 'staffEvaluation', 'current')); return snap.exists() ? (snap.data()?.notes || '') : ''; }, [activeTeam, db]);
 
@@ -2090,12 +2092,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       parentEmail: isChild ? firebaseUser.email : null
     })); 
 
-    // Hardening: Explicitly link team to child record for Family Hub visibility
-    if (isChild) {
-      batch.update(doc(db, 'players', playerId), {
-        joinedTeamIds: arrayUnion(tid)
-      });
-    }
+    // Always link the player doc to this team for Firestore rule lookups.
+    // isTeamCoachOfPlayer() uses players/{pid}.data.primaryTeamId to verify the coach.
+    // Without this, updateRecruitingProfile/metrics/contact all fail with permission-denied.
+    batch.update(doc(db, 'players', playerId), {
+      primaryTeamId: tid,
+      joinedTeamIds: arrayUnion(tid)
+    });
 
     await batch.commit(); return true; 
   }, [firebaseUser, db, userProfile]);

@@ -65,16 +65,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTeam } from '@/components/providers/team-provider';
-import { useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import { useAuth, useStorage } from '@/firebase';
+import { signOut, reauthenticateWithCredential, EmailAuthProvider, updateEmail } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
-import { cn, compressImage } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { PRICING_CONFIG } from '@/lib/pricing';
+import { deleteFCMToken } from '@/lib/fcm-client';
 
 export default function SettingsPage() {
   const { 
@@ -84,7 +86,8 @@ export default function SettingsPage() {
   } = useTeam();
   const auth = useAuth();
   const router = useRouter();
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(false);
+  const [isNotifLoading, setIsNotifLoading] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isDoubleConfirmOpen, setIsDoubleConfirmOpen] = useState(false);
@@ -93,6 +96,12 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const storage = useStorage();
+
+  // Reauth dialog state (for email changes)
+  const [isReauthOpen, setIsReauthOpen] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState('');
+  const [isReauthing, setIsReauthing] = useState(false);
 
   // PWA install state (mirrors Shell.tsx logic)
   const [isStandalone, setIsStandalone] = useState(false);
@@ -143,6 +152,8 @@ export default function SettingsPage() {
         schoolName: user.schoolName || user.clubName || '',
         institutionTitle: user.institutionTitle || (user.plan_type === 'school' ? 'Athletic Director' : ''),
       });
+      // Initialize notifications from user preferences
+      setNotifications((user as any).notificationsEnabled ?? true);
     }
   }, [user, activeTeam, members]);
 
@@ -160,53 +171,118 @@ export default function SettingsPage() {
   const isDemo = activeTeam?.isDemo || user?.isDemo;
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setIsUpdatingAvatar(true);
-      try {
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-          const rawData = ev.target?.result as string;
-          // Use institutional compression to stay within document limits
-          const compressedAvatar = await compressImage(rawData, 400, 400, 0.7);
-          await updateUser({ avatar: compressedAvatar });
-          toast({ title: "Avatar Updated" });
-          setIsUpdatingAvatar(false);
-        };
-        reader.readAsDataURL(e.target.files[0]);
-      } catch (error) {
-        setIsUpdatingAvatar(false);
-        toast({ title: "Update Failed", description: "Avatar packet rejected by server.", variant: "destructive" });
-      }
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setIsUpdatingAvatar(true);
+    try {
+      // Upload directly to Firebase Storage (avoids Firestore 1MB document limit)
+      const avatarRef = ref(storage, `users/${user.id}/avatar.jpg`);
+      await uploadBytes(avatarRef, file, { contentType: file.type || 'image/jpeg' });
+      const downloadUrl = await getDownloadURL(avatarRef);
+      await updateUser({ avatar: downloadUrl });
+      toast({ title: 'Avatar Updated', description: 'Profile photo saved.' });
+    } catch (error: any) {
+      console.error('[Avatar] Upload failed:', error);
+      toast({ title: 'Upload Failed', description: error.message || 'Could not upload avatar.', variant: 'destructive' });
+    } finally {
+      setIsUpdatingAvatar(false);
+      // Reset input so the same file can be re-selected
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   };
 
   const handleSaveProfile = async () => {
     setIsProcessing(true);
     try {
-      const updates: any = { name: editForm.name, email: editForm.email, phone: editForm.phone };
-      if (isPrimaryClubAuthority) {
-        updates.schoolName = editForm.schoolName || undefined;
-        updates.institutionTitle = editForm.institutionTitle || undefined;
+      const emailChanged = editForm.email.trim().toLowerCase() !== (user?.email || '').toLowerCase();
+
+      if (emailChanged && auth.currentUser) {
+        // Need to reauthenticate before changing email — open dialog
+        setIsReauthOpen(true);
+        setIsProcessing(false);
+        return;
       }
-      await updateUser(updates);
-      if (currentMember) { 
-        await updateMember(currentMember.id, { position: editForm.position, notes: editForm.bio }); 
-      }
-      setIsEditOpen(false);
-      toast({ title: "Profile Synchronized" });
+
+      // No email change — just save other fields
+      await saveProfileFields(false);
     } catch (e) {
-      toast({ title: "Sync Failed", variant: "destructive" });
+      toast({ title: 'Sync Failed', variant: 'destructive' });
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const saveProfileFields = async (includeEmailUpdate: boolean) => {
+    const updates: any = { name: editForm.name, phone: editForm.phone };
+    if (includeEmailUpdate) {
+      updates.email = editForm.email.trim().toLowerCase();
+    }
+    if (isPrimaryClubAuthority) {
+      updates.schoolName = editForm.schoolName || undefined;
+      updates.institutionTitle = editForm.institutionTitle || undefined;
+    }
+    await updateUser(updates);
+    if (currentMember) {
+      await updateMember(currentMember.id, { position: editForm.position, notes: editForm.bio });
+    }
+    setIsEditOpen(false);
+    toast({ title: 'Profile Synchronized' });
+  };
+
+  const handleReauthAndEmailUpdate = async () => {
+    if (!auth.currentUser || !reauthPassword) return;
+    setIsReauthing(true);
+    try {
+      const credential = EmailAuthProvider.credential(
+        auth.currentUser.email!,
+        reauthPassword
+      );
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await updateEmail(auth.currentUser, editForm.email.trim().toLowerCase());
+      await saveProfileFields(true);
+      setIsReauthOpen(false);
+      setReauthPassword('');
+    } catch (err: any) {
+      const msg = err.code === 'auth/wrong-password' ? 'Incorrect password.' :
+                  err.code === 'auth/email-already-in-use' ? 'This email is already in use.' :
+                  err.message || 'Reauthentication failed.';
+      toast({ title: 'Email Update Failed', description: msg, variant: 'destructive' });
+    } finally {
+      setIsReauthing(false);
+    }
+  };
+
   const handleLogout = async () => {
-    try { 
-      await signOut(auth); 
-      router.push('/login'); 
-    } catch (error) { 
-      toast({ title: "Logout Failed", variant: "destructive" }); 
+    try {
+      // Clean up FCM token before signing out (non-blocking — don't let it prevent logout)
+      if (user?.id) {
+        deleteFCMToken(user.id).catch(() => {});
+      }
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      toast({ title: "Logout Failed", variant: "destructive" });
+    }
+  };
+
+  const handleNotificationsToggle = async (enabled: boolean) => {
+    setIsNotifLoading(true);
+    try {
+      if (enabled && 'Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          toast({ title: 'Notifications Blocked', description: 'Allow notifications in your browser settings to enable this.', variant: 'destructive' });
+          setIsNotifLoading(false);
+          return;
+        }
+      }
+      setNotifications(enabled);
+      await updateUser({ notificationsEnabled: enabled });
+      toast({ title: enabled ? 'Notifications Enabled' : 'Notifications Disabled' });
+    } catch {
+      toast({ title: 'Failed to update notifications', variant: 'destructive' });
+    } finally {
+      setIsNotifLoading(false);
     }
   };
 
@@ -404,7 +480,7 @@ export default function SettingsPage() {
               <div className="bg-primary/10 p-2.5 rounded-xl text-primary"><Bell className="h-5 w-5" /></div>
               <CardTitle className="text-sm font-black uppercase tracking-widest">Tactical Alerts</CardTitle>
             </div>
-            <Switch checked={notifications} onCheckedChange={setNotifications} />
+            <Switch checked={notifications} onCheckedChange={handleNotificationsToggle} disabled={isNotifLoading} />
           </CardHeader>
           <CardContent className="p-8 space-y-4">
             <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
@@ -653,6 +729,41 @@ export default function SettingsPage() {
           <AlertDialogFooter className="mt-6">
             <AlertDialogCancel className="rounded-xl font-bold border-2">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleFinalReset} className="rounded-xl font-black bg-red-600 hover:bg-red-700">Purge Permanently</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Email Reauthentication Dialog */}
+      <AlertDialog open={isReauthOpen} onOpenChange={setIsReauthOpen}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-black uppercase text-sm tracking-widest">Confirm Identity</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs font-bold text-muted-foreground">
+              Changing your email requires your current password for security.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-xs font-black uppercase tracking-widest">Current Password</Label>
+            <Input
+              type="password"
+              placeholder="Enter your password"
+              value={reauthPassword}
+              onChange={e => setReauthPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleReauthAndEmailUpdate()}
+              className="h-11 rounded-xl"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setIsReauthOpen(false); setReauthPassword(''); }} className="rounded-full font-black uppercase text-xs">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReauthAndEmailUpdate}
+              disabled={!reauthPassword || isReauthing}
+              className="rounded-full font-black uppercase text-xs bg-primary hover:bg-primary/90"
+            >
+              {isReauthing ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Verifying...</> : 'Confirm & Update Email'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
