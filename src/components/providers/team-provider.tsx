@@ -232,6 +232,7 @@ export type PlayerEvaluation = {
 export type RecruitingContact = {
   playerEmail?: string;
   parentEmail?: string;
+  coachEmail?: string;
 };
 
 export type VideoComment = {

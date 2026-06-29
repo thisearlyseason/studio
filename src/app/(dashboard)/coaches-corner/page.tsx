@@ -2651,6 +2651,10 @@ function RecruitingProfileManager({ member }: { member: Member }) {
                           <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Parent / Guardian Email</Label>
                           <Input type="email" placeholder="parent@example.com" value={contact.parentEmail ?? ''} onChange={e => setContact({...contact, parentEmail: e.target.value})} className="h-11 rounded-xl border font-bold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                         </div>
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Coach Email <span className="text-primary">(Shown on Scout Portal — scouts will reach out here)</span></Label>
+                          <Input type="email" placeholder="coach@example.com" value={contact.coachEmail ?? ''} onChange={e => setContact({...contact, coachEmail: e.target.value})} className="h-11 rounded-xl border font-bold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+                        </div>
                       </div>
                     </div>
 

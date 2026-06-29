@@ -65,6 +65,7 @@ export default function PublicScoutPortalPage() {
   const playerRef = useMemoFirebase(() => playerId ? doc(db, 'players', playerId as string) : null, [db, playerId]);
   const profileRef = useMemoFirebase(() => playerId ? doc(db, 'players', playerId as string, 'recruitingProfile', 'profile') : null, [db, playerId]);
   const metricsRef = useMemoFirebase(() => playerId ? doc(db, 'players', playerId as string, 'recruitingProfile', 'metrics') : null, [db, playerId]);
+  const contactRef = useMemoFirebase(() => playerId ? doc(db, 'players', playerId as string, 'recruitingContact', 'contact') : null, [db, playerId]);
   const statsRef = useMemoFirebase(() => playerId ? collection(db, 'players', playerId as string, 'stats') : null, [db, playerId]);
   const evalsQuery = useMemoFirebase(() => playerId ? query(collection(db, 'players', playerId as string, 'evaluations'), orderBy('createdAt', 'desc')) : null, [db, playerId]);
   const videosQuery = useMemoFirebase(() => playerId ? query(collection(db, 'players', playerId as string, 'videos'), orderBy('createdAt', 'desc')) : null, [db, playerId]);
@@ -72,6 +73,7 @@ export default function PublicScoutPortalPage() {
   const { data: player, isLoading: playerLoading } = useDoc(playerRef);
   const { data: profile, isLoading: profileLoading } = useDoc(profileRef);
   const { data: metrics, isLoading: metricsLoading } = useDoc(metricsRef);
+  const { data: contactData } = useDoc(contactRef);
   const { data: statsData, isLoading: statsLoading } = useCollection(statsRef);
   const { data: evalsData, isLoading: evalsLoading } = useCollection(evalsQuery);
   const { data: videosData, isLoading: videosLoading } = useCollection(videosQuery);
@@ -842,7 +844,25 @@ export default function PublicScoutPortalPage() {
                 <div className="absolute inset-0 bg-primary opacity-5" />
                 <div className="relative z-10 space-y-4">
                   <p className="text-xs font-medium text-white/60 leading-relaxed italic">Direct contact details are restricted to verified institutional scouts and professional agencies.</p>
-                  <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-primary hover:text-white transition-all">Request Credentials</Button>
+                  {contactData?.coachEmail ? (
+                    <a
+                      href={`mailto:${contactData.coachEmail}?subject=${encodeURIComponent(`Requesting Scouting Information Package – ${playerName}`)}`}
+                      className="block w-full"
+                    >
+                      <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-primary hover:text-white transition-all">
+                        <Mail className="h-4 w-4 mr-2" /> Reach Out to Coach
+                      </Button>
+                    </a>
+                  ) : (
+                    <Button disabled className="w-full h-12 rounded-xl bg-white/20 text-white/40 font-black uppercase text-[10px] tracking-widest cursor-not-allowed">
+                      Contact Not Yet Available
+                    </Button>
+                  )}
+                  {contactData?.coachEmail && (
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 text-center">
+                      Opens your email client · Subject auto-filled
+                    </p>
+                  )}
                 </div>
               </Card>
             </section>
