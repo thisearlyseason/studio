@@ -77,18 +77,17 @@ export const PRICING_CONFIG: Plan[] = [
     id: 'school',
     name: 'Schools Plan',
     description: 'K-12 Athletic Department command center.',
-    teamLimit: 10,
+    teamLimit: 15,
     monthlyPrice: '$175',
     annualPrice: '$1,750',
     monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_SCHOOLS_MONTHLY || process.env.STRIPE_PRICE_SCHOOLS_MONTHLY || 'price_1TL58qGu1UxxOYbPOUPCAqdz',
     annualPriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_SCHOOLS_ANNUAL || process.env.STRIPE_PRICE_SCHOOLS_ANNUAL || 'price_1TL58qGu1UxxOYbPWXLqlsyB',
     features: [
-      'Up to 10 Pro Team Hubs',
+      '15 Pro Squad Hubs Included',
       'Athletic Director Dashboard',
       'Academic Eligibility Sync',
       'Multi-Squad Logistical Support',
-      'Unlimited Programs',
-      'Add additional teams at a discounted rate'
+      'Need more? Add extra squads at the lowest per-squad rate on the platform'
     ]
   }
 ];

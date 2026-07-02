@@ -1338,15 +1338,16 @@ export default function LandingPage() {
                     <CardTitle className="text-2xl font-black uppercase tracking-tight text-white">School District</CardTitle>
                     <PricingDisplay monthly="$175" annual="$1,750" annualMonthly="$146" color="text-[#10b981]" />
                   </div>
-                  <CardDescription className="text-[10px] font-bold text-white/40 uppercase">Unlimited Sports & Programs.</CardDescription>
+                  <CardDescription className="text-[10px] font-bold text-white/40 uppercase">15 Squads Included · Extras at School Rate.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-8 pt-0 flex-1 space-y-6">
                   <div className="pt-4 border-t border-white/10 space-y-3">
                     <p className="text-[9px] font-black uppercase text-white/30">Academic Athletics</p>
                     <ul className="space-y-2">
-                      <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/70"><GraduationCap className="h-3.5 w-3.5 text-[#10b981]" /> District Dashboard</li>
+                      <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/70"><GraduationCap className="h-3.5 w-3.5 text-[#10b981]" /> 15 Pro Squad Hubs Included</li>
                       <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/70"><GraduationCap className="h-3.5 w-3.5 text-[#10b981]" /> Athletic Director Hub</li>
                       <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/70"><GraduationCap className="h-3.5 w-3.5 text-[#10b981]" /> Academic Eligibility</li>
+                      <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-[#10b981]/80"><CheckCircle2 className="h-3.5 w-3.5 text-[#10b981]" /> Extra squads at lowest rate</li>
                     </ul>
                   </div>
                 </CardContent>

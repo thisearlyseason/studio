@@ -94,9 +94,9 @@ const PLAN_DEFS: Record<string, {
   },
   school: {
     id: 'school', label: 'Schools Plan', price: '$175/mo', annualPrice: '$1,750/yr',
-    desc: 'K-12 Athletic Department command center',
-    features: ['Up to 10 Pro Team Hubs', 'Athletic Director Dashboard', 'Academic Eligibility Sync', 'Multi-Squad Logistics'],
-    highlight: true, trial: true, priceId: PRICING_CONFIG.find(p => p.id === 'school')?.monthlyPriceId || '', teamLimit: 10,
+    desc: '15 squads included · add more anytime at the lowest per-squad rate on the platform',
+    features: ['15 Pro Squad Hubs Included', 'Athletic Director Dashboard', 'Academic Eligibility Sync', 'Extra squads at school-exclusive discount'],
+    highlight: true, trial: true, priceId: PRICING_CONFIG.find(p => p.id === 'school')?.monthlyPriceId || '', teamLimit: 15,
   },
 };
 
