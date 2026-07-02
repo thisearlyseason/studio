@@ -47,7 +47,8 @@ import {
   PenTool,
   Building,
   GraduationCap,
-  BookOpen
+  BookOpen,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -93,6 +94,56 @@ const DEMO_OPTIONS = [
 
 // ── Shared animation helpers ──────────────────────────────────────────────
 const fadeUp = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } } };
+
+// ── Pricing Toggle Context ──────────────────────────────────────────────
+const PricingCycleContext = React.createContext<{ cycle: 'monthly' | 'annual'; setCycle: (c: 'monthly' | 'annual') => void }>({ cycle: 'monthly', setCycle: () => {} });
+
+function PricingToggle() {
+  const { cycle, setCycle } = React.useContext(PricingCycleContext);
+  return (
+    <div className="flex items-center bg-white/10 p-1.5 rounded-2xl ring-1 ring-white/10 backdrop-blur-sm">
+      <button
+        onClick={() => setCycle('monthly')}
+        className={cn(
+          'px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
+          cycle === 'monthly' ? 'bg-white text-black shadow-sm' : 'text-white/50 hover:text-white/80'
+        )}
+      >
+        Monthly
+      </button>
+      <button
+        onClick={() => setCycle('annual')}
+        className={cn(
+          'px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2',
+          cycle === 'annual' ? 'bg-white text-black shadow-sm' : 'text-white/50 hover:text-white/80'
+        )}
+      >
+        Annual
+        <span className="bg-primary/20 text-primary font-black text-[8px] px-1.5 py-0.5 rounded-full border border-primary/30">SAVE 20%</span>
+      </button>
+    </div>
+  );
+}
+
+function PricingDisplay({ monthly, annual, annualMonthly, color, darkBg }: { monthly: string; annual: string; annualMonthly: string; color: string; darkBg?: boolean }) {
+  const { cycle } = React.useContext(PricingCycleContext);
+  const opacityClass = darkBg ? 'opacity-60' : 'text-white/40';
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-baseline gap-1">
+        <span className={cn('text-4xl font-black tracking-tighter transition-all duration-300', color)}>
+          {cycle === 'annual' ? annualMonthly : monthly}
+        </span>
+        <span className={cn('text-[10px] font-black uppercase', darkBg ? 'opacity-60' : 'text-white/40')}>/mo</span>
+      </div>
+      {cycle === 'annual' && (
+        <p className={cn('text-[9px] font-black uppercase tracking-wider', color, 'opacity-70')}>
+          {annual}/yr · billed annually
+        </p>
+      )}
+    </div>
+  );
+}
 
 // ── Enterprise Contact Form ──────────────────────────────────────────────
 function ContactForm({ db }: { db: any }) {
@@ -221,6 +272,7 @@ export default function LandingPage() {
   const [newsletterName, setNewsletterName] = useState('');
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterDone, setNewsletterDone] = useState(false);
+  const [pricingCycle, setPricingCycle] = useState<'monthly' | 'annual'>('monthly');
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
@@ -1071,6 +1123,7 @@ export default function LandingPage() {
       </section>
 
       <section id="pricing" className="py-32 bg-black relative overflow-hidden">
+      <PricingCycleContext.Provider value={{ cycle: pricingCycle, setCycle: setPricingCycle }}>
         {/* Animated gradient orbs */}
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px] pointer-events-none animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-primary/8 blur-[100px] pointer-events-none" />
@@ -1078,7 +1131,7 @@ export default function LandingPage() {
 
         <div className="container mx-auto px-6 relative z-10">
           <motion.div
-            className="text-center space-y-5 mb-20 max-w-3xl mx-auto"
+            className="text-center space-y-5 mb-16 max-w-3xl mx-auto"
             initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }}
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }}
           >
@@ -1091,6 +1144,47 @@ export default function LandingPage() {
             <motion.div variants={fadeUp} className="flex items-center gap-2 text-primary font-black uppercase tracking-widest text-[10px] bg-primary/10 px-4 py-2 rounded-full border border-primary/20 w-fit mx-auto">
               <AlertCircle className="h-3 w-3" /><span>Limited Introductory Pricing • Competitive Advantage Locked</span>
             </motion.div>
+
+            {/* Billing Cycle Toggle */}
+            <motion.div variants={fadeUp} className="flex items-center justify-center mt-4">
+              <PricingToggle />
+            </motion.div>
+          </motion.div>
+
+          {/* ── 5-Day Trial Banner ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative max-w-2xl mx-auto mb-12 overflow-hidden"
+          >
+            <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-primary/60 via-yellow-400/40 to-primary/60 opacity-60 blur-[2px]" />
+            <div className="relative flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 bg-black rounded-2xl px-8 py-5">
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 pointer-events-none rounded-2xl"
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 5, ease: 'easeInOut' }}
+              />
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="bg-primary/20 border border-primary/30 rounded-xl p-2.5">
+                  <Clock className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-white font-black uppercase tracking-tight text-sm leading-none">5-Day Free Trial</p>
+                  <p className="text-white/50 font-bold text-[10px] uppercase tracking-widest mt-0.5">on all paid plans</p>
+                </div>
+              </div>
+              <div className="hidden sm:block w-px h-8 bg-white/10" />
+              <div className="flex flex-wrap items-center justify-center gap-3 relative z-10">
+                {['Card saved upfront', 'No charge for 5 days', 'Cancel anytime'].map((item) => (
+                  <span key={item} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/60">
+                    <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
           </motion.div>
 
           <div className="max-w-7xl mx-auto">
@@ -1146,10 +1240,7 @@ export default function LandingPage() {
                     </div>
                     <div className="space-y-1">
                       <CardTitle className="text-2xl font-black uppercase tracking-tight">Squad Pro</CardTitle>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-black tracking-tighter text-primary">$19.99</span>
-                        <span className="text-[10px] font-black uppercase opacity-60">/mo</span>
-                      </div>
+                      <PricingDisplay monthly="$19.99" annual="$199" annualMonthly="$16.58" color="text-primary" darkBg />
                     </div>
                     <CardDescription className="text-[10px] font-bold text-white/50 uppercase">Championship tools for one team.</CardDescription>
                   </CardHeader>
@@ -1182,10 +1273,7 @@ export default function LandingPage() {
                   <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/30 text-primary w-fit">ORGANIZATION</Badge>
                   <div className="space-y-1">
                     <CardTitle className="text-2xl font-black uppercase tracking-tight text-white">Elite Teams</CardTitle>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black tracking-tighter text-primary">$110</span>
-                      <span className="text-[10px] font-black uppercase text-white/40">/mo</span>
-                    </div>
+                    <PricingDisplay monthly="$119" annual="$1,119" annualMonthly="$93" color="text-primary" />
                   </div>
                   <CardDescription className="text-[10px] font-bold text-white/40 uppercase">8 Pro Teams + Master Club Hub.</CardDescription>
                 </CardHeader>
@@ -1218,10 +1306,7 @@ export default function LandingPage() {
                   <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-primary/30 text-primary w-fit">INSTITUTIONAL</Badge>
                   <div className="space-y-1">
                     <CardTitle className="text-2xl font-black uppercase tracking-tight text-white">Elite League</CardTitle>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black tracking-tighter text-primary">$279</span>
-                      <span className="text-[10px] font-black uppercase text-white/40">/mo</span>
-                    </div>
+                    <PricingDisplay monthly="$279" annual="$2,790" annualMonthly="$233" color="text-primary" />
                   </div>
                   <CardDescription className="text-[10px] font-bold text-white/40 uppercase">20 Pro Teams + Public Hubs.</CardDescription>
                 </CardHeader>
@@ -1251,10 +1336,7 @@ export default function LandingPage() {
                   <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-3 h-5 border-[#10b981]/30 text-[#10b981] w-fit">K-12 DISTRICT</Badge>
                   <div className="space-y-1">
                     <CardTitle className="text-2xl font-black uppercase tracking-tight text-white">School District</CardTitle>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black tracking-tighter text-[#10b981]">$150</span>
-                      <span className="text-[10px] font-black uppercase text-white/40">/mo</span>
-                    </div>
+                    <PricingDisplay monthly="$175" annual="$1,750" annualMonthly="$146" color="text-[#10b981]" />
                   </div>
                   <CardDescription className="text-[10px] font-bold text-white/40 uppercase">Unlimited Sports & Programs.</CardDescription>
                 </CardHeader>
@@ -1286,6 +1368,7 @@ export default function LandingPage() {
             <p className="text-[10px] font-black uppercase text-red-500/60 tracking-widest">All pricing is presented and billed in CAD.</p>
           </motion.div>
         </div>
+      </PricingCycleContext.Provider>
       </section>
 
       <section id="contact" className="py-24 bg-white">

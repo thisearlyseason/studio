@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const { priceId, userId, billingCycle = 'monthly', extraTeams = 0 } = await req.json();
+    const { priceId, userId, billingCycle = 'monthly', extraTeams = 0, trialDays = 0, newUser = false } = await req.json();
 
     if (!priceId || !userId) {
       return NextResponse.json({ error: 'Missing priceId or userId' }, { status: 400 });
@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
     }
     if (extraTeams < 0 || extraTeams > 50) {
       return NextResponse.json({ error: 'extraTeams must be between 0 and 50.' }, { status: 400 });
+    }
+    if (trialDays < 0 || trialDays > 30) {
+      return NextResponse.json({ error: 'trialDays must be between 0 and 30.' }, { status: 400 });
     }
 
     const stripe = getStripe();
@@ -61,14 +64,19 @@ export async function POST(req: NextRequest) {
     const origin =
       req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
 
+    const successUrl = `${origin}/dashboard?success=true${newUser ? '&newUser=true' : ''}`;
+
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
       line_items: lineItems,
-      success_url: `${origin}/dashboard?success=true`,
+      success_url: successUrl,
       cancel_url: `${origin}/pricing?canceled=true`,
       metadata: { firebase_uid: userId },
-      subscription_data: { metadata: { firebase_uid: userId } },
+      subscription_data: {
+        metadata: { firebase_uid: userId },
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
+      },
       allow_promotion_codes: true,
     });
 
