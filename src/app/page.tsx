@@ -889,9 +889,9 @@ export default function LandingPage() {
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0 md:divide-x md:divide-white/10">
             {[
-              { value: 2400, label: 'Athletes Managed', suffix: '+' },
+              { value: 1100, label: 'Athletes Managed', suffix: '' },
               { value: 98,   label: 'Uptime SLA',        suffix: '%' },
-              { value: 340,  label: 'Teams Deployed',    suffix: '+' },
+              { value: 220,  label: 'Teams Deployed',    suffix: '+' },
               { value: 5,    label: 'Day Free Trial',    suffix: '-Day' },
             ].map((stat, i) => (
               <motion.div
@@ -1133,9 +1133,9 @@ export default function LandingPage() {
               <motion.div
                 key={i}
                 variants={fadeUp}
-                className="h-full perspective-800"
+                className="h-full perspective-800 rounded-[2.5rem] overflow-hidden"
               >
-                <TiltCard strength={8} className="h-full">
+                <TiltCard strength={8} className="h-full rounded-[2.5rem] overflow-hidden">
                   <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full group relative overflow-hidden cursor-pointer transition-colors duration-500 hover:bg-gray-950 hover:text-white">
                     {/* Accent gradient top-left */}
                     <div className={`absolute top-0 left-0 w-64 h-64 bg-gradient-to-br ${accent} rounded-full blur-2xl pointer-events-none opacity-60 group-hover:opacity-0 transition-opacity`} />
@@ -1416,8 +1416,8 @@ export default function LandingPage() {
               { Icon: Baby,   title: 'Guardian Hub',        desc: 'Manage multiple children from one unified Household Hub. Track consolidated dues, verify digital waivers, and manage volunteer assignments globally.', color: 'from-blue-500/10 via-transparent', num: '02' },
               { Icon: User,   title: 'Athlete Performance', desc: 'A personal dashboard. Sign waivers, watch study film, track match results, and manage your Professional Recruiting Portfolio.', color: 'from-emerald-500/10 via-transparent', num: '03' },
             ].map(({ Icon, title, desc, color, num }, i) => (
-              <motion.div key={i} variants={fadeUp} className="perspective-800 h-full">
-                <TiltCard strength={6} className="h-full">
+              <motion.div key={i} variants={fadeUp} className="perspective-800 h-full rounded-[2.5rem] overflow-hidden">
+                <TiltCard strength={6} className="h-full rounded-[2.5rem] overflow-hidden">
                   <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full relative overflow-hidden group cursor-pointer hover:bg-gray-950 hover:text-white transition-colors duration-500">
                     {/* Gradient top accent */}
                     <div className={`absolute top-0 left-0 w-full h-40 bg-gradient-to-b ${color} to-transparent pointer-events-none opacity-70 group-hover:opacity-0 transition-opacity`} />
