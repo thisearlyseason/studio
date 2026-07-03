@@ -891,12 +891,17 @@ export default function PlaybookAndGamePlayPage() {
 
                   if (!hasVideo) return null; // ← hide entire video block when no video
 
+                  const ytId = isYouTube
+                    ? url!.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/))([^\?&"'><]+)/)?.[1]
+                    : null;
+
                   return (
                     <div className="relative w-full aspect-video lg:aspect-auto lg:h-[45vh] bg-neutral-900 border-b border-white/10 shrink-0 group shadow-2xl z-10">
-                      {isYouTube ? (
+                      {isYouTube && ytId ? (
                         <iframe
                           ref={iframeRef}
-                          src={`https://www.youtube.com/embed/${url!.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/))([^\?&"'><]+)/)?.[1]}?enablejsapi=1&autoplay=1`}
+                          key={ytId}
+                          src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&autoplay=1&rel=0`}
                           className="w-full h-full border-none"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
@@ -906,6 +911,11 @@ export default function PlaybookAndGamePlayPage() {
                             }
                           }}
                         />
+                      ) : isYouTube && !ytId ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/40">
+                          <svg className="h-12 w-12 opacity-30" fill="currentColor" viewBox="0 0 24 24"><path d="M21.8 8s-.2-1.4-.8-2c-.8-.8-1.6-.8-2-.9C16.8 5 12 5 12 5s-4.8 0-7 .1c-.4.1-1.2.1-2 .9-.6.6-.8 2-.8 2S2 9.6 2 11.2v1.5c0 1.6.2 3.2.2 3.2s.2 1.4.8 2c.8.8 1.8.7 2.3.8C6.8 19 12 19 12 19s4.8 0 7-.2c.4-.1 1.2-.1 2-.9.6-.6.8-2 .8-2s.2-1.6.2-3.2v-1.5C22 9.6 21.8 8 21.8 8zM9.7 14.5V9.4l5.5 2.6-5.5 2.5z"/></svg>
+                          <p className="text-[11px] font-black uppercase tracking-widest">Invalid Video URL</p>
+                        </div>
                       ) : isVimeo && vimeoId ? (
                         <iframe
                           src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1`}

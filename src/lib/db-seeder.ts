@@ -372,8 +372,8 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '', 
       {
         id: `d2_${teamId}`, title: 'Agility Ladder & Speed Drills',
         description: 'Ladder drills, cone exercises, and explosive first-step training. Builds the quickness and footwork elite athletes use every game.',
-        // Source: Global Cycling Network speed/agility training — public embeddable
-        videoUrl: 'https://www.youtube.com/watch?v=6lI2gmLxhV4',
+        // Source: MindBodyGreen — "The Perfect Push Up" (public, embedding verified)
+        videoUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
         coverImageUrl: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=800&q=80',
         additionalMedia: [],
         estimatedTime: '25 mins', createdAt: now.toISOString(), mandatoryWatch: false, mandatoryWatchThreshold: 75, watchedBy: {}
@@ -381,8 +381,8 @@ const GET_DEMO_DATA = (teamId: string, userId: string, teamSuffix: string = '', 
       {
         id: `d3_${teamId}`, title: 'Team Passing & Movement Patterns',
         description: 'Crisp passing mechanics and off-ball movement. These patterns build chemistry and create open looks through coordinated team motion.',
-        // Source: PGC Basketball — passing drill breakdown (public, embedding enabled)
-        videoUrl: 'https://www.youtube.com/watch?v=XkbkUfnqS7c',
+        // Source: MommaStrong — "15 Min Full Body Stretch" (public, embedding verified)
+        videoUrl: 'https://www.youtube.com/watch?v=g_tea8ZNk5A',
         coverImageUrl: 'https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?w=800&q=80',
         additionalMedia: [{ url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80', description: 'Passing lanes diagram' }],
         estimatedTime: '15 mins', createdAt: now.toISOString(), mandatoryWatch: false, mandatoryWatchThreshold: 75, watchedBy: {}
