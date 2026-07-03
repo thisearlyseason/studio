@@ -1277,11 +1277,12 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         const variant = teamVariants[i];
         const tId = `demo_${planId}_${userId.slice(-4)}_${variant.toLowerCase().replace(/\s+/g, '')}`;
         const staff = COACHING_STAFF[i % COACHING_STAFF.length];
+        const squadName = `Springfield ${variant}`;
         const u1 = `u1_${tId}`;
         const u2 = `u2_${tId}`;
         hubMemberIds.push(u1, u2);
-        staffMeta[u1] = { name: staff.headName, position: 'Head Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.headAvatar}` };
-        staffMeta[u2] = { name: staff.asstName, position: 'Assistant Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.asstAvatar}` };
+        staffMeta[u1] = { name: staff.headName, position: 'Head Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.headAvatar}`, squadName };
+        staffMeta[u2] = { name: staff.asstName, position: 'Assistant Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.asstAvatar}`, squadName };
       }
 
       const hubBatch = new BatchHelper(db);

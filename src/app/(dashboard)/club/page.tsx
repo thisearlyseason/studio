@@ -290,10 +290,12 @@ export default function ClubManagementPage() {
           memberUserIds.add(m.userId);
           // Only write metadata once per userId (first occurrence wins)
           if (!staffMetadata[m.userId]) {
+            const squadName = teams.find(t => t.id === m.teamId)?.name || teams.find(t => t.id === m.teamId)?.teamName || '';
             staffMetadata[m.userId] = {
               name: m.name || m.userId,
               position: m.position || role,
               avatar: m.avatar || '',
+              ...(squadName ? { squadName } : {}),
             };
           }
         }

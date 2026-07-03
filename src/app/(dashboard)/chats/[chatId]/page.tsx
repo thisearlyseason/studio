@@ -204,16 +204,16 @@ export default function ChatRoomPage() {
   }
 
   const currentMemberIds: string[] = currentChat?.memberIds || [];
-  const staffMetadata: Record<string, { name: string; position: string; avatar: string }> = currentChat?.staffMetadata || {};
+  const staffMetadata: Record<string, { name: string; position: string; avatar: string; squadName?: string }> = currentChat?.staffMetadata || {};
   const staffKeywords = ['coach', 'director', 'coordinator', 'staff', 'manager', 'trainer'];
 
   // Resolve each member ID: real teamMember → staffMetadata → truncated ID placeholder
   const activeMemberEntries = currentMemberIds.map(uid => {
     const found = teamMembers.find(m => m.userId === uid || m.id === uid);
-    if (found) return found;
+    if (found) return { ...found, squadName: staffMetadata[uid]?.squadName };
     const meta = staffMetadata[uid];
-    if (meta) return { id: uid, userId: uid, name: meta.name, position: meta.position, avatar: meta.avatar };
-    return { id: uid, userId: uid, name: uid.length > 16 ? uid.slice(0, 12) + '...' : uid, position: 'Staff Member', avatar: undefined };
+    if (meta) return { id: uid, userId: uid, name: meta.name, position: meta.position, avatar: meta.avatar, squadName: meta.squadName };
+    return { id: uid, userId: uid, name: uid.length > 16 ? uid.slice(0, 12) + '...' : uid, position: 'Staff Member', avatar: undefined, squadName: undefined };
   });
 
   // For hub broadcast channels, only coaches/directors appear in the "Recruit to Channel" list
@@ -517,6 +517,11 @@ export default function ChatRoomPage() {
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-black uppercase truncate">{m.name}</p>
                           <p className="text-[8px] font-bold text-muted-foreground uppercase">{m.position}</p>
+                          {(m as any).squadName && (
+                            <p className="text-[8px] font-bold text-primary/60 uppercase tracking-widest mt-0.5">
+                              {(m as any).squadName}
+                            </p>
+                          )}
                         </div>
                         {!isSelf && (
                           <Tooltip>
