@@ -34,7 +34,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https: storage.googleapis.com *.firebasestorage.app placehold.co images.unsplash.com picsum.photos api.dicebear.com freeimage.host",
       "media-src 'self' blob: data: https: storage.googleapis.com *.firebasestorage.app",
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.firebaseapp.com https://api.stripe.com https://api.straico.com https://freeimage.host wss://*.firebaseio.com *.vercel-analytics.com elfsight.com *.elfsight.com elfsightcdn.com *.elfsightcdn.com",
-      "frame-src 'self' js.stripe.com checkout.stripe.com elfsight.com *.elfsight.com elfsightcdn.com *.elfsightcdn.com",
+      "frame-src 'self' js.stripe.com checkout.stripe.com elfsight.com *.elfsight.com elfsightcdn.com *.elfsightcdn.com youtube.com *.youtube.com youtu.be *.youtu.be www.youtube-nocookie.com",
       "worker-src 'self' blob:",
       "child-src 'self' blob:",
     ].join('; '),
