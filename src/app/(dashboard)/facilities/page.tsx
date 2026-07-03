@@ -94,13 +94,24 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
 }
 
 function EditFacilityDialog({ facility }: { facility: Facility }) {
-  const { updateFacility, isSuperAdmin, user } = useTeam();
+  const { updateFacility, isSuperAdmin, isPrimaryClubAuthority, user } = useTeam();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: facility.name, address: facility.address || '', notes: facility.notes || '' });
   const [saving, setSaving] = useState(false);
 
-  const canEdit = facility.clubId === user?.id || isSuperAdmin;
-  if (!canEdit) return null;
+  // Sync form whenever dialog opens (picks up latest facility data)
+  const handleOpenChange = (val: boolean) => {
+    if (val) setForm({ name: facility.name, address: facility.address || '', notes: facility.notes || '' });
+    setOpen(val);
+  };
+
+  // Wait for user to load before deciding — don't permanently hide the button
+  const canEdit = !user
+    ? false
+    : (facility.clubId === user.id || isSuperAdmin || isPrimaryClubAuthority);
+
+  // If user is loaded and definitely can't edit, hide button
+  if (user && !canEdit) return null;
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
@@ -112,7 +123,7 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -171,7 +182,7 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
 }
 
 export default function FacilityManagementPage() {
-  const { activeTeam, isStaff, isPro, addFacility, deleteFacility, isSuperAdmin, user } = useTeam();
+  const { activeTeam, isStaff, isPro, addFacility, deleteFacility, isSuperAdmin, isPrimaryClubAuthority, user } = useTeam();
   
   if (!isStaff) return <AccessRestricted type="role" />;
 
@@ -283,7 +294,7 @@ export default function FacilityManagementPage() {
                 <div className="bg-primary/5 p-5 rounded-[1.5rem] text-primary shadow-inner">
                   <MapPin className="h-10 w-10" />
                 </div>
-                {(facility.clubId === user?.id || isSuperAdmin) && (
+                {(!user || facility.clubId === user?.id || isSuperAdmin || isPrimaryClubAuthority) && (
                   <div className="flex items-center gap-1">
                     <EditFacilityDialog facility={facility} />
                     <Tooltip>
