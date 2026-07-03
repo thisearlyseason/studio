@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTeam, PlayerProfile, Team, TeamEvent } from '@/components/providers/team-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { query, where, collectionGroup } from 'firebase/firestore';
+import { query, where, collectionGroup, getDocs, collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
 const COMMON_SPORTS = ['Soccer', 'Basketball', 'Baseball', 'Softball', 'Football', 'Hockey', 'Lacrosse', 'Tennis', 'Golf', 'Swimming', 'Track & Field', 'Volleyball', 'Wrestling', 'Cross Country', 'Gymnastics'];
@@ -746,10 +746,7 @@ function MasterSquadWall({ consolidatedTeams }: { consolidatedTeams: { team: Tea
               </h4>
               <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-1.5 truncate">
                 <Trophy className="h-2 w-2 opacity-50 shrink-0" />
-                <span className="truncate">{team.sport || 'ATHLETICS'} • {team.code || team.teamCode || team.inviteCode || team.id.toUpperCase()}</span>
-                {(team.isDemo || team.id.startsWith('demo_')) && (
-                  <Badge variant="outline" className="text-[6px] h-3 px-1 border-primary/20 text-primary uppercase font-black bg-primary/5 ml-1 shrink-0">DEMO-ID</Badge>
-                )}
+                <span className="truncate">{team.sport || 'ATHLETICS'}</span>
               </div>
             </div>
           </Card>
@@ -798,6 +795,89 @@ export default function FamilyPage() {
     return query(collectionGroup(db, 'signatures'), where('userId', '==', user.id));
   }, [db, user?.id]);
   const { data: signatures } = useCollection<any>(sigsQuery);
+
+  const [pendingWaivers, setPendingWaivers] = useState<Array<{docId: string; title: string; content: string; required: boolean; teamId: string; teamName: string; childId: string; childName: string}>>([]);
+  const [signingWaiver, setSigningWaiver] = useState<{docId: string; title: string; content: string; teamId: string; childId: string; childName: string; teamName: string} | null>(null);
+  const [isSigning, setIsSigning] = useState(false);
+  const [signatureText, setSignatureText] = useState('');
+  const waiversFetchedRef = useRef(false);
+
+  // Fetch unsigned waivers for all children across all their teams
+  useEffect(() => {
+    if (!db || !user?.id || !myChildren?.length || waiversFetchedRef.current) return;
+    waiversFetchedRef.current = true;
+    const fetchPendingWaivers = async () => {
+      const pending: typeof pendingWaivers = [];
+      for (const child of myChildren) {
+        for (const teamId of (child.joinedTeamIds || [])) {
+          try {
+            // Fetch waiver documents for this team
+            const docsSnap = await getDocs(collection(db, 'teams', teamId, 'documents'));
+            const team = teams.find(t => t.id === teamId);
+            const teamName = (team as any)?.name || (team as any)?.teamName || teamId;
+            for (const d of docsSnap.docs) {
+              const data = d.data();
+              if (data.type !== 'waiver' || !data.isActive) continue;
+              // Check if parent already signed this waiver for this child
+              const childUserId = child.userId || child.id;
+              try {
+                const sigSnap = await getDocs(query(
+                  collection(db, 'teams', teamId, 'members', childUserId, 'signatures'),
+                  where('documentId', '==', d.id)
+                ));
+                if (!sigSnap.empty) continue; // Already signed
+              } catch (e) {
+                // If no member doc, treat as unsigned
+              }
+              pending.push({
+                docId: d.id,
+                title: data.title || 'Waiver',
+                content: data.content || '',
+                required: data.required || false,
+                teamId,
+                teamName,
+                childId: child.id,
+                childName: `${child.firstName} ${child.lastName}`,
+              });
+            }
+          } catch (e) {
+            // skip teams we can't read
+          }
+        }
+      }
+      setPendingWaivers(pending);
+    };
+    fetchPendingWaivers();
+  }, [db, user?.id, myChildren, teams]);
+
+  const handleSignWaiver = async () => {
+    if (!signingWaiver || !signatureText.trim() || !user?.id || !db) return;
+    setIsSigning(true);
+    try {
+      const childMemberId = myChildren.find(c => c.id === signingWaiver.childId)?.userId || signingWaiver.childId;
+      const sigRef = doc(db, 'teams', signingWaiver.teamId, 'members', childMemberId, 'signatures', signingWaiver.docId);
+      await setDoc(sigRef, {
+        id: `sig_${Date.now()}`,
+        documentId: signingWaiver.docId,
+        teamId: signingWaiver.teamId,
+        userId: childMemberId,
+        parentUserId: user.id,
+        userName: signingWaiver.childName,
+        signatureName: signatureText.trim(),
+        timestamp: new Date().toISOString(),
+        signedByParent: true,
+      });
+      // Remove from pending list
+      setPendingWaivers(prev => prev.filter(w => !(w.docId === signingWaiver.docId && w.childId === signingWaiver.childId)));
+      setSigningWaiver(null);
+      setSignatureText('');
+      toast({ title: 'Waiver Signed', description: `${signingWaiver.title} signed for ${signingWaiver.childName}.` });
+    } catch (e: any) {
+      toast({ title: 'Signature Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsSigning(false);
+    }
+  };
 
   const handleAddChild = async () => {
     if (!newChild.firstName || !newChild.lastName || !newChild.dob) {
@@ -1170,6 +1250,97 @@ export default function FamilyPage() {
         </Dialog>
       </div>
 
+      {/* Pending Waivers — shown only when there are unsigned waivers */}
+      {pendingWaivers.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="bg-red-500/10 p-2 rounded-xl">
+                <FileSignature className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Pending Waivers</h2>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{pendingWaivers.length} requiring your signature</p>
+              </div>
+            </div>
+            <Badge className="bg-red-500 text-white border-none font-black text-[10px] px-3 h-6 animate-pulse">{pendingWaivers.length} PENDING</Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendingWaivers.map(w => (
+              <Card key={`${w.childId}_${w.docId}`} className="rounded-[2rem] border-none shadow-md ring-2 ring-red-200 bg-white overflow-hidden">
+                <div className="h-1 bg-red-500 w-full" />
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                          {w.required ? 'REQUIRED' : 'OPTIONAL'}
+                        </span>
+                      </div>
+                      <h3 className="font-black text-sm uppercase tracking-tight text-foreground truncate">{w.title}</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground mt-0.5">
+                        For <span className="text-foreground font-black">{w.childName}</span> · {w.teamName}
+                      </p>
+                    </div>
+                    <FileSignature className="h-6 w-6 text-red-400 shrink-0 mt-1" />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full h-10 rounded-xl font-black uppercase text-[10px] tracking-widest bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-200"
+                    onClick={() => setSigningWaiver(w)}
+                  >
+                    <Signature className="h-3.5 w-3.5 mr-2" /> Review & Sign
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sign Waiver Dialog */}
+      <Dialog open={!!signingWaiver} onOpenChange={open => { if (!open) { setSigningWaiver(null); setSignatureText(''); } }}>
+        <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden sm:max-w-2xl bg-white text-foreground flex flex-col max-h-[90vh]">
+          <DialogTitle className="sr-only">Sign Waiver</DialogTitle>
+          <div className="h-2 bg-red-500 w-full shrink-0" />
+          <div className="overflow-y-auto flex-1">
+            <div className="p-8 space-y-6">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight">{signingWaiver?.title}</DialogTitle>
+                <DialogDescription className="text-[10px] font-black uppercase tracking-widest text-red-500">
+                  For {signingWaiver?.childName} · {signingWaiver?.teamName}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="bg-muted/20 rounded-2xl p-6 border max-h-64 overflow-y-auto">
+                <pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap leading-relaxed">{signingWaiver?.content}</pre>
+              </div>
+              <div className="space-y-3 p-5 bg-red-50 rounded-2xl border-2 border-red-100">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-red-600">Your Full Legal Name (Electronic Signature)</Label>
+                <Input
+                  placeholder="Type your full name to sign..."
+                  value={signatureText}
+                  onChange={e => setSignatureText(e.target.value)}
+                  className="h-12 rounded-xl border-2 font-bold focus-visible:ring-red-300 border-red-200"
+                />
+                <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
+                  By typing your name above, you electronically sign this document as the legal guardian of {signingWaiver?.childName}. This is legally binding.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 border-t shrink-0 flex gap-3">
+            <Button variant="outline" className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px]" onClick={() => { setSigningWaiver(null); setSignatureText(''); }}>Cancel</Button>
+            <Button
+              className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px] bg-red-500 hover:bg-red-600 text-white shadow-lg"
+              onClick={handleSignWaiver}
+              disabled={!signatureText.trim() || isSigning}
+            >
+              {isSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-3.5 w-3.5 mr-1.5" /> Confirm Signature</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Master Wall - Strategic Visibility Layer */}
       <MasterSquadWall consolidatedTeams={consolidatedTeams} />
 
@@ -1231,7 +1402,7 @@ export default function FamilyPage() {
                 </div>
               )}
 
-              <Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-primary hover:text-white transition-all shadow-xl" onClick={() => router.push('/pricing')}>
+              <Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-primary hover:text-white transition-all shadow-xl" onClick={() => router.push('/family/payments')}>
                 <CreditCard className="h-4 w-4 mr-2" /> Manage Payments Hub
               </Button>
             </CardContent>

@@ -911,6 +911,20 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             id: alexId, teamId: lakerId, name: 'Alex Guest', role: 'Member', position: 'Player', joinedAt: now, isDemo: true, parentId: userId, email: alexEmail
         }));
 
+        // Seed household payment records
+        const paymentRecords = [
+          { id: `pay1_${userId}`, childId: juniorId, childName: 'Junior Guest', teamId: strikerId, teamName: 'Strikers', description: 'Season Registration Fee', amount: 350.00, status: 'paid', date: day(-45), dueDate: day(-60), invoiceNumber: `INV-${userId.slice(-4)}-001`, category: 'Registration' },
+          { id: `pay2_${userId}`, childId: juniorId, childName: 'Junior Guest', teamId: strikerId, teamName: 'Strikers', description: 'Team Equipment Package', amount: 125.00, status: 'paid', date: day(-30), dueDate: day(-35), invoiceNumber: `INV-${userId.slice(-4)}-002`, category: 'Equipment' },
+          { id: `pay3_${userId}`, childId: juniorId, childName: 'Junior Guest', teamId: strikerId, teamName: 'Strikers', description: 'Spring Tournament Entry', amount: 80.00, status: 'paid', date: day(-15), dueDate: day(-20), invoiceNumber: `INV-${userId.slice(-4)}-003`, category: 'Tournament Entry' },
+          { id: `pay4_${userId}`, childId: alexId, childName: 'Alex Guest', teamId: lakerId, teamName: 'Lakers', description: 'Season Registration Fee', amount: 400.00, status: 'paid', date: day(-40), dueDate: day(-55), invoiceNumber: `INV-${userId.slice(-4)}-004`, category: 'Registration' },
+          { id: `pay5_${userId}`, childId: alexId, childName: 'Alex Guest', teamId: lakerId, teamName: 'Lakers', description: 'Monthly Team Dues — April', amount: 85.00, status: 'paid', date: day(-28), dueDate: day(-28), invoiceNumber: `INV-${userId.slice(-4)}-005`, category: 'Dues' },
+          { id: `pay6_${userId}`, childId: alexId, childName: 'Alex Guest', teamId: lakerId, teamName: 'Lakers', description: 'Monthly Team Dues — May', amount: 85.00, status: 'pending', date: day(-7), dueDate: day(7), invoiceNumber: `INV-${userId.slice(-4)}-006`, category: 'Dues' },
+          { id: `pay7_${userId}`, childId: juniorId, childName: 'Junior Guest', teamId: strikerId, teamName: 'Strikers', description: 'Elite Performance Camp', amount: 220.00, status: 'overdue', date: day(-20), dueDate: day(-5), invoiceNumber: `INV-${userId.slice(-4)}-007`, category: 'Tournament Entry' },
+          { id: `pay8_${userId}`, childId: alexId, childName: 'Alex Guest', teamId: lakerId, teamName: 'Lakers', description: 'Pre-Season Medical Screening', amount: 60.00, status: 'pending', date: day(-3), dueDate: day(14), invoiceNumber: `INV-${userId.slice(-4)}-008`, category: 'Medical' },
+        ];
+        paymentRecords.forEach(p => batch.set(doc(db, 'users', userId, 'payments', p.id), clean({ ...p, isDemo: true })));
+        await batch.flush();
+
         for (const tid of tids) {
             const isJunior = tid === strikerId;
             
