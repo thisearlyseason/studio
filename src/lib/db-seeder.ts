@@ -1269,7 +1269,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       const instId = `demo_${planId}_${userId.slice(-4)}_institution`;
       const hubChatId = `hub_broadcast_${userId.slice(-4)}`;
       const hubMemberIds: string[] = [userId];
-      const staffMeta: Record<string, { name: string; position: string; avatar: string }> = {
+      const staffMeta: Record<string, { name: string; position: string; avatar: string; squadName?: string }> = {
         [userId]: { name: 'Guest Admin', position: 'Athletic Director', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=guest` }
       };
 
