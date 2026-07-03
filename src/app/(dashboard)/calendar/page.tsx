@@ -1320,20 +1320,30 @@ export default function MasterCalendarPage() {
                         <span className={cn("h-7 w-7 flex items-center justify-center rounded-full text-xs font-black transition-all", isTodayDate ? "bg-primary text-white" : (isSelected ? "bg-black text-white" : "text-muted-foreground"))}>{format(day, 'd')}</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {dayEvents.map(event => (
+                      {dayEvents.map(event => (
                           <Tooltip key={event.id}>
                             <TooltipTrigger asChild>
-                              <div 
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`View ${event.title}`}
                                 className={cn(
-                                  "p-1 rounded-md flex items-center justify-center shrink-0 border border-white/10",
+                                  "p-1 rounded-md flex items-center justify-center shrink-0 border border-white/10 cursor-pointer hover:scale-125 hover:shadow-md transition-all active:scale-95",
                                   EVENT_TYPE_COLORS[event.eventType as EventType || 'other']
                                 )}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedDay(day);
+                                  setActiveDetailedEventId(event.id);
+                                }}
+                                onKeyDown={(e) => e.key === 'Enter' && (e.stopPropagation(), setActiveDetailedEventId(event.id))}
                               >
                                 {event.isTournament ? <Trophy className="h-3 w-3" /> : (event.eventType === 'game' ? <Activity className="h-3 w-3" /> : <div className="h-3 w-3 rounded-full border-2 border-white/50" />)}
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              {event.startTime} - {event.title}
+                            <TooltipContent side="bottom" className="text-[10px] font-black">
+                              <span className="opacity-60">{event.startTime}</span>{event.startTime ? ' · ' : ''}{event.title}
+                              <div className="text-[9px] opacity-50 mt-0.5">Click to view details</div>
                             </TooltipContent>
                           </Tooltip>
                         ))}
@@ -1342,13 +1352,34 @@ export default function MasterCalendarPage() {
                   );
                 })}
               </div>
-              <div className="p-8 border-t bg-muted/5 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{selectedDay ? format(selectedDay, 'EEEE, MMMM do') : 'Select a day'}</h3>
-                  <Badge variant="outline" className="font-black text-[10px] uppercase text-foreground">{selectedDayEvents.length} Events</Badge>
+              {/* ── Scroll-hint tip: day event panel below ── */}
+              <div className="px-6 pt-5 pb-3 border-t bg-muted/5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="bg-primary/10 p-1.5 rounded-lg">
+                    <ChevronDown className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    {selectedDayEvents.length > 0
+                      ? <><span className="text-foreground">{selectedDayEvents.length} event{selectedDayEvents.length !== 1 ? 's' : ''}</span>{' '}&mdash; full details below
+                      </>
+                      : 'Click any day to see its events below'}
+                  </p>
                 </div>
+                <Badge variant="outline" className="font-black text-[10px] uppercase text-foreground shrink-0">
+                  {selectedDay ? format(selectedDay, 'MMM d') : 'No day selected'}
+                </Badge>
+              </div>
+              <div className="px-8 pb-8 pt-4 bg-muted/5 space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{selectedDay ? format(selectedDay, 'EEEE, MMMM do') : 'Select a day'}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {selectedDayEvents.map(event => <EventItem key={event.id} event={event} teams={teams} onClick={() => setActiveDetailedEventId(event.id)} />)}
+                  {selectedDayEvents.length > 0
+                    ? selectedDayEvents.map(event => <EventItem key={event.id} event={event} teams={teams} onClick={() => setActiveDetailedEventId(event.id)} />)
+                    : (
+                      <div className="col-span-full py-8 text-center rounded-2xl border-2 border-dashed border-muted/30">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">No events scheduled for this day</p>
+                      </div>
+                    )
+                  }
                 </div>
               </div>
             </div>
