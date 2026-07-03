@@ -1260,5 +1260,47 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     }
 
     await batch.commit();
+
+    // ── School Demo: Auto-seed Hub Broadcast Channel ──────────────────────────
+    // Create the hub broadcast channel under the institution groupChats so the
+    // Athletic Director sees a pre-populated channel immediately on first login.
+    // memberIds + staffMetadata includes every head/assistant coach from all squads.
+    if (isSchoolDemo) {
+      const instId = `demo_${planId}_${userId.slice(-4)}_institution`;
+      const hubChatId = `hub_broadcast_${userId.slice(-4)}`;
+      const hubMemberIds: string[] = [userId];
+      const staffMeta: Record<string, { name: string; position: string; avatar: string }> = {
+        [userId]: { name: 'Guest Admin', position: 'Athletic Director', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=guest` }
+      };
+
+      for (let i = 0; i < teamVariants.length; i++) {
+        const variant = teamVariants[i];
+        const tId = `demo_${planId}_${userId.slice(-4)}_${variant.toLowerCase().replace(/\s+/g, '')}`;
+        const staff = COACHING_STAFF[i % COACHING_STAFF.length];
+        const u1 = `u1_${tId}`;
+        const u2 = `u2_${tId}`;
+        hubMemberIds.push(u1, u2);
+        staffMeta[u1] = { name: staff.headName, position: 'Head Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.headAvatar}` };
+        staffMeta[u2] = { name: staff.asstName, position: 'Assistant Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.asstAvatar}` };
+      }
+
+      const hubBatch = new BatchHelper(db);
+      // Flush institution doc first so the groupChat subcollection write passes rule evaluation
+      hubBatch.set(doc(db, 'teams', instId, 'groupChats', hubChatId), clean({
+        id: hubChatId,
+        name: 'Springfield High School — Broadcast Channel',
+        createdBy: userId,
+        memberIds: hubMemberIds,
+        isDeleted: false,
+        teamId: instId,
+        createdAt: now,
+        isHubChannel: true,
+        hubTeamId: instId,
+        staffMetadata: staffMeta,
+        isDemo: true
+      }));
+      await hubBatch.flush();
+    }
+
     return `demo_${planId}_${userId.slice(-4)}`;
 }

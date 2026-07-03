@@ -204,12 +204,29 @@ export default function ChatRoomPage() {
   }
 
   const currentMemberIds: string[] = currentChat?.memberIds || [];
-  // For each memberID in the chat, find their team member record if available
+  const staffMetadata: Record<string, { name: string; position: string; avatar: string }> = currentChat?.staffMetadata || {};
+  const staffKeywords = ['coach', 'director', 'coordinator', 'staff', 'manager', 'trainer'];
+
+  // Resolve each member ID: real teamMember → staffMetadata → truncated ID placeholder
   const activeMemberEntries = currentMemberIds.map(uid => {
     const found = teamMembers.find(m => m.userId === uid || m.id === uid);
-    return found || { id: uid, userId: uid, name: uid.length > 16 ? uid.slice(0, 12) + '...' : uid, position: 'Member', avatar: undefined };
+    if (found) return found;
+    const meta = staffMetadata[uid];
+    if (meta) return { id: uid, userId: uid, name: meta.name, position: meta.position, avatar: meta.avatar };
+    return { id: uid, userId: uid, name: uid.length > 16 ? uid.slice(0, 12) + '...' : uid, position: 'Staff Member', avatar: undefined };
   });
-  const availableMembers = teamMembers.filter(m => !currentMemberIds.includes(m.userId) && !currentMemberIds.includes(m.id));
+
+  // For hub broadcast channels, only coaches/directors appear in the "Recruit to Channel" list
+  // — players are never recruitable to the broadcast channel
+  const availableMembers = teamMembers.filter(m => {
+    if (currentMemberIds.includes(m.userId) || currentMemberIds.includes(m.id)) return false;
+    if (currentChat?.isHubChannel) {
+      const pos = (m.position || '').toLowerCase();
+      const role = (m.role || '').toLowerCase();
+      return staffKeywords.some(kw => pos.includes(kw)) || role === 'admin';
+    }
+    return true;
+  });
 
   return (
     <div className="flex flex-col h-[calc(100vh-160px)] md:h-[calc(100vh-130px)] -mt-4 md:-mt-4 -mx-4 overflow-hidden bg-muted/5">

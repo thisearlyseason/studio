@@ -263,30 +263,54 @@ export default function ClubManagementPage() {
     if (!schoolHub || !db || !user) return;
     setIsCreatingHubChannel(true);
     try {
-      // Gather all unique admin/coach userIds from all squads
+      const staffKeywords = ['coach', 'director', 'coordinator', 'staff', 'manager', 'trainer'];
+      // Gather all unique admin/coach userIds + their display metadata
       const memberUserIds = new Set<string>();
-      if (user.id) memberUserIds.add(user.id);
-      (schoolHub.schoolAdminIds || []).forEach(id => memberUserIds.add(id));
+      const staffMetadata: Record<string, { name: string; position: string; avatar: string }> = {};
+
+      // Always include the AD (current user) first
+      if (user.id) {
+        memberUserIds.add(user.id);
+        staffMetadata[user.id] = {
+          name: user.name || 'Athletic Director',
+          position: 'Athletic Director',
+          avatar: user.avatar || '',
+        };
+      }
+      // Include any explicit school admins
+      (schoolHub.schoolAdminIds || []).forEach((id: string) => memberUserIds.add(id));
+
+      // Include coaching staff from all subsquads — exclude players
       for (const m of allRawMembers) {
         if (m.status === 'removed' || !m.userId) continue;
-        const staffKeywords = ['coach', 'director', 'coordinator', 'staff', 'manager', 'trainer'];
         const pos = (m.position || '').toLowerCase();
         const role = (m.role || '').toLowerCase();
         const isStaff = staffKeywords.some(kw => pos.includes(kw)) || role === 'admin';
-        if (isStaff) memberUserIds.add(m.userId);
+        if (isStaff) {
+          memberUserIds.add(m.userId);
+          // Only write metadata once per userId (first occurrence wins)
+          if (!staffMetadata[m.userId]) {
+            staffMetadata[m.userId] = {
+              name: m.name || m.userId,
+              position: m.position || role,
+              avatar: m.avatar || '',
+            };
+          }
+        }
       }
+
       const memberIdsArray = Array.from(memberUserIds);
       const channelName = `${user?.schoolName || user?.clubName || (isSchoolMode ? 'School Hub' : 'Club Hub')} — Broadcast Channel`;
-      // createChat only accepts 2 args; patch with hub metadata after creation
       const chatId = await createChat(channelName, memberIdsArray);
       if (chatId && db) {
         await updateDoc(doc(db, 'teams', schoolHub.id, 'groupChats', chatId), {
           isHubChannel: true,
           hubTeamId: schoolHub.id,
+          staffMetadata,
         });
       }
       setHubChannel({ id: chatId, name: channelName, memberIds: memberIdsArray });
-      toast({ title: 'Hub Channel Created', description: `${memberIdsArray.length} members added to the broadcast channel.` });
+      toast({ title: 'Hub Channel Created', description: `${memberIdsArray.length} staff members added to the broadcast channel.` });
     } catch (e: any) {
       console.error('Failed to create hub channel:', e);
       toast({ title: 'Error Creating Channel', description: e.message, variant: 'destructive' });
