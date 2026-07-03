@@ -1,8 +1,8 @@
 
 "use client"; 
 
-import React, { useState, useEffect } from 'react';
-import { motion, useInView } from 'framer-motion';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, useInView, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
@@ -94,6 +94,51 @@ const DEMO_OPTIONS = [
 
 // ── Shared animation helpers ──────────────────────────────────────────────
 const fadeUp = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } } };
+
+// ── 3D Tilt Hook ─────────────────────────────────────────────────────────
+function useTilt(strength = 12) {
+  const ref = useRef<HTMLDivElement>(null);
+  const handleMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width  - 0.5) * 2;
+    const y = ((e.clientY - r.top)  / r.height - 0.5) * 2;
+    el.style.setProperty('--rx', `${-y * strength}deg`);
+    el.style.setProperty('--ry', `${x * strength}deg`);
+  }, [strength]);
+  const handleLeave = useCallback(() => {
+    const el = ref.current; if (!el) return;
+    el.style.setProperty('--rx', '0deg');
+    el.style.setProperty('--ry', '0deg');
+  }, []);
+  return { ref, onMouseMove: handleMove, onMouseLeave: handleLeave };
+}
+
+// ── 3D Stats Counter ─────────────────────────────────────────────────────
+function StatCounter({ value, label, suffix = '' }: { value: number; label: string; suffix?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.5 });
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!inView) return;
+    let start = 0;
+    const step = value / 60;
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= value) { setCount(value); clearInterval(timer); }
+      else setCount(Math.floor(start));
+    }, 16);
+    return () => clearInterval(timer);
+  }, [inView, value]);
+  return (
+    <div ref={ref} className="text-center">
+      <div className="text-4xl md:text-5xl font-black tracking-tighter text-white">
+        {count.toLocaleString()}<span className="text-primary">{suffix}</span>
+      </div>
+      <div className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-1">{label}</div>
+    </div>
+  );
+}
 
 // ── Pricing Toggle Context ──────────────────────────────────────────────
 const PricingCycleContext = React.createContext<{ cycle: 'monthly' | 'annual'; setCycle: (c: 'monthly' | 'annual') => void }>({ cycle: 'monthly', setCycle: () => {} });
@@ -278,6 +323,16 @@ export default function LandingPage() {
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
+
+  // ── Hero intro: curtain splits open after mount ──
+  const [heroRevealed, setHeroRevealed] = useState(false);
+  const [shockwaveFired, setShockwaveFired] = useState(false);
+  useEffect(() => {
+    // Slight delay so the black frame is seen then peels away
+    const t1 = setTimeout(() => setHeroRevealed(true), 80);
+    const t2 = setTimeout(() => setShockwaveFired(true), 900);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
 
   const handleNewsletterSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -510,14 +565,48 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative h-screen flex items-center justify-center overflow-hidden" id="hero">
+
+        {/* ── CURTAIN: two black panels split open top/bottom ── */}
+        <motion.div
+          className="absolute inset-x-0 top-0 h-1/2 bg-black z-50 origin-top"
+          initial={{ scaleY: 1 }}
+          animate={{ scaleY: heroRevealed ? 0 : 1 }}
+          transition={{ duration: 1.1, ease: [0.76, 0, 0.24, 1] }}
+        />
+        <motion.div
+          className="absolute inset-x-0 bottom-0 h-1/2 bg-black z-50 origin-bottom"
+          initial={{ scaleY: 1 }}
+          animate={{ scaleY: heroRevealed ? 0 : 1 }}
+          transition={{ duration: 1.1, ease: [0.76, 0, 0.24, 1] }}
+        />
+
+        {/* ── SHOCKWAVE RINGS from center ── */}
+        {shockwaveFired && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            {[0, 1, 2, 3].map((i) => (
+              <motion.div
+                key={i}
+                className="absolute rounded-full border-2 border-primary/40"
+                initial={{ width: 0, height: 0, opacity: 0.8 }}
+                animate={{ width: '200vmax', height: '200vmax', opacity: 0 }}
+                transition={{ duration: 1.8, delay: i * 0.18, ease: [0.2, 0, 0.8, 1] }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── Video backgrounds ── */}
         {sportsVideos.map((clip, idx) => (
-          <div
+          <motion.div
             key={idx}
             className={cn(
               "absolute inset-0 transition-opacity duration-1000 ease-in-out",
               currentImageIndex === idx ? "opacity-100" : "opacity-0"
             )}
+            initial={{ scale: 1.3 }}
+            animate={{ scale: heroRevealed ? 1.05 : 1.3 }}
+            transition={{ duration: 2.2, ease: [0.16, 1, 0.3, 1] }}
           >
             <video
               ref={(el) => { videoRefs.current[idx] = el; }}
@@ -527,14 +616,93 @@ export default function LandingPage() {
               playsInline
               autoPlay={idx === 0}
               onEnded={handleVideoEnded}
-              className="absolute inset-0 w-full h-full object-cover scale-105"
+              className="absolute inset-0 w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-black/55 bg-gradient-to-b from-black/50 via-black/20 to-black/80" />
-          </div>
+          </motion.div>
         ))}
 
+        {/* ── RED SWEEP: diagonal streak across the screen on reveal ── */}
+        <motion.div
+          className="absolute inset-0 z-30 pointer-events-none"
+          style={{ background: 'linear-gradient(105deg, transparent 0%, rgba(196,31,31,0.18) 40%, transparent 60%)' }}
+          initial={{ x: '-100%' }}
+          animate={{ x: heroRevealed ? '200%' : '-100%' }}
+          transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        />
+
+        {/* ── Floating 3D geometric shapes in hero ── */}
+        <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+          {/* Large rotating ring */}
+          <motion.div
+            className="absolute top-[15%] right-[8%] w-64 h-64 rounded-full border border-white/8 float-slow opacity-40"
+            initial={{ opacity: 0, scale: 0.4, rotate: -30 }}
+            animate={{ opacity: 0.4, scale: 1, rotate: 0 }}
+            transition={{ delay: 1.3, duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          />
+          <motion.div
+            className="absolute w-48 h-48 rounded-full border border-primary/15 float-slow opacity-60"
+            style={{ top: '18%', right: '10%' }}
+            initial={{ opacity: 0, scale: 0.3 }}
+            animate={{ opacity: 0.6, scale: 1 }}
+            transition={{ delay: 1.5, duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          />
+          {/* Small glowing orb */}
+          <motion.div
+            className="absolute top-[25%] left-[6%] w-6 h-6 rounded-full bg-primary/60 blur-sm float-fast"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 0.7, scale: 1 }}
+            transition={{ delay: 1.6, duration: 0.7, type: 'spring', stiffness: 300 }}
+          />
+          {/* Tiny diamond */}
+          <motion.div
+            className="absolute top-[40%] right-[20%] w-4 h-4 bg-primary/50 rotate-45 float-fast"
+            initial={{ opacity: 0, scale: 0, rotate: 45 }}
+            animate={{ opacity: 0.6, scale: 1 }}
+            transition={{ delay: 1.7, duration: 0.6, type: 'spring', stiffness: 400 }}
+          />
+          {/* Diagonal line */}
+          <motion.div
+            className="absolute top-1/2 left-1/2 w-[600px] h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-x-1/2 -translate-y-1/2 rotate-[-30deg]"
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{ delay: 1.0, duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+          />
+          {/* Bottom-right live match card */}
+          <motion.div
+            className="absolute bottom-[20%] right-[8%] bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-3 text-white"
+            initial={{ opacity: 0, x: 60, rotateY: 20 }}
+            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+            transition={{ delay: 1.8, duration: 0.9, type: 'spring', stiffness: 200, damping: 20 }}
+          >
+            <motion.div animate={{ y: [0, -10, 0], rotate: [0, 1, 0] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 2 }}>
+              <div className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">Live Match</div>
+              <div className="text-xs font-black">🏆 Hawks 3 – 1 Bulls</div>
+              <div className="text-[8px] text-white/40 mt-0.5">Q3 · 14:32</div>
+            </motion.div>
+          </motion.div>
+          {/* Top-left roster card */}
+          <motion.div
+            className="absolute top-[30%] left-[8%] bg-white/8 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-3 text-white hidden md:block"
+            initial={{ opacity: 0, x: -60, rotateY: -20 }}
+            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+            transition={{ delay: 2.0, duration: 0.9, type: 'spring', stiffness: 200, damping: 20 }}
+          >
+            <motion.div animate={{ y: [0, -8, 0], rotate: [0, -0.5, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 2.5 }}>
+              <div className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">Roster</div>
+              <div className="text-xs font-black">23 Athletes</div>
+              <div className="flex gap-1 mt-1.5">{[...Array(5)].map((_,i) => <div key={i} className="w-4 h-4 rounded-full bg-white/20 border border-white/30" />)}</div>
+            </motion.div>
+          </motion.div>
+        </div>
+
         {/* Sport indicators */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+        <motion.div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        >
           {sportsVideos.map((clip, idx) => (
             <button
               key={idx}
@@ -549,72 +717,87 @@ export default function LandingPage() {
               {clip.sport}
             </button>
           ))}
-        </div>
+        </motion.div>
 
+        {/* ── MAIN HERO CONTENT — bold 3D entry ── */}
+        <div className="container relative z-20 px-6 text-center space-y-8" style={{ perspective: '1200px' }}>
 
-        <motion.div
-          className="container relative z-10 px-6 text-center space-y-8"
-          initial="hidden"
-          animate="visible"
-          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.15 } } }}
-        >
-          {/* Badge — drops from above */}
+          {/* Badge */}
           <motion.div
-            variants={{
-              hidden: { opacity: 0, y: -18 },
-              visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut' } }
-            }}
+            initial={{ opacity: 0, y: -30, rotateX: 45 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
+            transition={{ delay: 0.6, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            style={{ transformStyle: 'preserve-3d' }}
           >
             <Badge className="bg-primary/20 backdrop-blur-md text-primary-foreground border-primary/30 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em]">
               Institutional Team Infrastructure
             </Badge>
           </motion.div>
 
-          {/* H1 Headline — word-by-word masked slide-up */}
+          {/* H1 Headline — bold 3D slam-in */}
           <h1 className="sr-only">Dominate Your Season — The Squad Elite Sports Management Platform</h1>
-          <motion.div
-            aria-hidden="true"
-            className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-[0.88] max-w-5xl mx-auto drop-shadow-2xl"
-            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.13, delayChildren: 0.05 } } }}
-          >
-            {/* Line 1 */}
-            <div className="overflow-hidden pb-1">
-              <motion.span
-                className="block"
-                variants={{ hidden: { y: '105%', opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } } }}
+          <div aria-hidden="true" className="relative" style={{ perspective: '900px', transformStyle: 'preserve-3d' }}>
+
+            {/* DOMINATE — slams down from rotateX perspective */}
+            <div className="overflow-hidden pb-2">
+              <motion.div
+                className="text-5xl md:text-9xl font-black text-white tracking-tighter leading-[0.88] drop-shadow-2xl"
+                initial={{ y: '110%', rotateX: -80, opacity: 0, scale: 1.1 }}
+                animate={{ y: 0, rotateX: 0, opacity: 1, scale: 1 }}
+                transition={{ delay: 0.7, duration: 0.95, ease: [0.16, 1, 0.3, 1] }}
+                style={{ transformOrigin: 'top center', display: 'block' }}
               >
                 DOMINATE
-              </motion.span>
+              </motion.div>
             </div>
-            {/* Line 2 */}
+
+            {/* YOUR SEASON — side-by-side, each hits separately */}
             <div className="overflow-hidden pb-1 flex items-baseline justify-center gap-4 md:gap-6 flex-wrap">
               <motion.span
-                className="inline-block"
-                variants={{ hidden: { y: '105%', opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } } }}
+                className="inline-block text-5xl md:text-9xl font-black text-white tracking-tighter leading-[0.88] drop-shadow-2xl"
+                initial={{ x: -120, rotateY: 60, opacity: 0 }}
+                animate={{ x: 0, rotateY: 0, opacity: 1 }}
+                transition={{ delay: 1.05, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+                style={{ transformOrigin: 'left center' }}
               >
                 YOUR
               </motion.span>
               <motion.span
-                className="inline-block text-primary italic"
-                variants={{ hidden: { y: '105%', opacity: 0, scale: 0.95 }, visible: { y: 0, opacity: 1, scale: 1, transition: { duration: 0.75, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } } }}
+                className="inline-block text-5xl md:text-9xl font-black text-primary italic tracking-tighter leading-[0.88] drop-shadow-2xl"
+                initial={{ x: 120, rotateY: -60, opacity: 0, scale: 0.85 }}
+                animate={{ x: 0, rotateY: 0, opacity: 1, scale: 1 }}
+                transition={{ delay: 1.15, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                style={{ transformOrigin: 'right center' }}
               >
                 SEASON.
               </motion.span>
             </div>
-          </motion.div>
 
-          {/* Subtitle — blur-to-clear fade */}
+            {/* Underline streak */}
+            <motion.div
+              className="mx-auto mt-3 h-1 rounded-full bg-gradient-to-r from-transparent via-primary to-transparent"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: '60%', opacity: 1 }}
+              transition={{ delay: 1.5, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </div>
+
+          {/* Subtitle */}
           <motion.p
             className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-medium leading-relaxed"
-            variants={{ hidden: { opacity: 0, filter: 'blur(8px)', y: 12 }, visible: { opacity: 1, filter: 'blur(0px)', y: 0, transition: { duration: 0.9, ease: 'easeOut' } } }}
+            initial={{ opacity: 0, filter: 'blur(12px)', y: 20 }}
+            animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+            transition={{ delay: 1.55, duration: 1.0, ease: 'easeOut' }}
           >
             The all-in-one tactical platform for elite sports organizations. Coordinate rosters, automate brackets, and verify performance.
           </motion.p>
 
-          {/* Buttons — scale up from below */}
+          {/* Buttons */}
           <motion.div
             className="flex flex-col items-center justify-center gap-3 pt-4 w-full max-w-xs mx-auto"
-            variants={{ hidden: { opacity: 0, scale: 0.92, y: 16 }, visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } } }}
+            initial={{ opacity: 0, y: 30, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 1.8, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
             {user ? (
               <Link href="/dashboard" className="w-full">
@@ -676,6 +859,35 @@ export default function LandingPage() {
               </DialogContent>
             </Dialog>
           </motion.div>
+        </div>
+      </section>
+
+      {/* ══ 3D STATS MARQUEE BAR ══ */}
+      <section className="relative py-20 bg-black overflow-hidden grid-beam">
+        {/* Ambient glow behind stats */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-black to-black pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-32 bg-primary/8 blur-[80px] pointer-events-none" />
+        <motion.div
+          className="container mx-auto px-6 relative z-10"
+          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.4 }}
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0 md:divide-x md:divide-white/10">
+            {[
+              { value: 2400, label: 'Athletes Managed', suffix: '+' },
+              { value: 98,   label: 'Uptime SLA',        suffix: '%' },
+              { value: 340,  label: 'Teams Deployed',    suffix: '+' },
+              { value: 5,    label: 'Day Free Trial',    suffix: '-Day' },
+            ].map((stat, i) => (
+              <motion.div
+                key={i}
+                variants={fadeUp}
+                className="flex justify-center md:px-8"
+              >
+                <StatCounter value={stat.value} label={stat.label} suffix={stat.suffix} />
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
       </section>
 
@@ -860,77 +1072,89 @@ export default function LandingPage() {
       )}
 
       <section id="features" className="py-32 bg-white relative overflow-hidden">
-        <div className="container mx-auto px-6">
+        {/* Subtle background grid */}
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.04) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-primary/4 blur-[120px] pointer-events-none" />
+
+        <div className="container mx-auto px-6 relative z-10">
           <SectionHeader
             badge="Institutional Suite"
             title={<>PROFESSIONAL <br /> <span className="text-primary italic">INFRASTRUCTURE.</span></>}
             subtitle="The Squad provides the foundational protocols and advanced modules required to scale from a single team to an entire league."
           />
 
+          {/* 3D tilt feature cards */}
           <StaggerGrid className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <motion.div whileHover={{ y: -6, scale: 1.01 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:bg-black hover:text-white transition-all duration-500 h-full">
-              <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
-                <TableIcon className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-black uppercase tracking-tight">Tournament & League Elite Engines</h3>
-              <p className="text-sm font-medium leading-relaxed opacity-70">
-                Automated <strong>League Itineraries</strong> and bracket generation with a <strong>Public Spectator Hub</strong> and mobile <strong>Scorekeeper Portal</strong> for real-time results.
-              </p>
-              <ul className="space-y-3 pt-4">
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Live Standings</li>
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Multi-Team Conflicts</li>
-              </ul>
-            </Card>
-            </motion.div>
-
-            <motion.div whileHover={{ y: -6, scale: 1.01 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:bg-black hover:text-white transition-all duration-500 h-full">
-              <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
-                <PenTool className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-black uppercase tracking-tight">Branded Briefing Unit</h3>
-              <p className="text-sm font-medium leading-relaxed opacity-70">
-                Export professionally branded <strong>Tactical PDF Briefings</strong> for every event. Automated <strong>AI Image Optimization</strong> ensures drill assets load instantly.
-              </p>
-              <ul className="space-y-3 pt-4">
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Printable Itineraries</li>
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Institutional Branding</li>
-              </ul>
-            </Card>
-            </motion.div>
-
-            <motion.div whileHover={{ y: -6, scale: 1.01 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:bg-black hover:text-white transition-all duration-500 h-full">
-              <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
-                <Video className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-black uppercase tracking-tight">Film Watch Verification</h3>
-              <p className="text-sm font-medium leading-relaxed opacity-70">
-                The <strong>75% Watch Rule</strong> ensures teammates study their assignments. Monitor video compliance directly in your master roster ledger.
-              </p>
-              <ul className="space-y-3 pt-4">
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> 10GB Pro Storage</li>
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Verified Compliance</li>
-              </ul>
-            </Card>
-            </motion.div>
-
-            <motion.div whileHover={{ y: -6, scale: 1.01 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-            <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 group hover:bg-black hover:text-white transition-all duration-500 h-full">
-              <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/20">
-                <ClipboardList className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-black uppercase tracking-tight">Recruitment Engine</h3>
-              <p className="text-sm font-medium leading-relaxed opacity-70">
-                Custom <strong>Form Architect</strong> for registration. Collect medical waivers and fees with automated coach assignment and performance portfolios.
-              </p>
-              <ul className="space-y-3 pt-4">
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Digital Signatures</li>
-                <li className="flex items-center gap-3 text-xs font-bold uppercase"><CheckCircle2 className="h-4 w-4 text-primary" /> Performance Export</li>
-              </ul>
-            </Card>
-            </motion.div>
+            {[
+              {
+                Icon: TableIcon,
+                title: 'Tournament & League Elite Engines',
+                desc: <>Automated <strong>League Itineraries</strong> and bracket generation with a <strong>Public Spectator Hub</strong> and mobile <strong>Scorekeeper Portal</strong> for real-time results.</>,
+                items: ['Live Standings', 'Multi-Team Conflicts'],
+                accent: 'from-primary/20 to-transparent',
+              },
+              {
+                Icon: PenTool,
+                title: 'Branded Briefing Unit',
+                desc: <>Export professionally branded <strong>Tactical PDF Briefings</strong> for every event. Automated <strong>AI Image Optimization</strong> ensures drill assets load instantly.</>,
+                items: ['Printable Itineraries', 'Institutional Branding'],
+                accent: 'from-blue-500/10 to-transparent',
+              },
+              {
+                Icon: Video,
+                title: 'Film Watch Verification',
+                desc: <>The <strong>75% Watch Rule</strong> ensures teammates study their assignments. Monitor video compliance directly in your master roster ledger.</>,
+                items: ['10GB Pro Storage', 'Verified Compliance'],
+                accent: 'from-purple-500/10 to-transparent',
+              },
+              {
+                Icon: ClipboardList,
+                title: 'Recruitment Engine',
+                desc: <>Custom <strong>Form Architect</strong> for registration. Collect medical waivers and fees with automated coach assignment and performance portfolios.</>,
+                items: ['Digital Signatures', 'Performance Export'],
+                accent: 'from-emerald-500/10 to-transparent',
+              },
+            ].map(({ Icon, title, desc, items, accent }, i) => {
+              // eslint-disable-next-line react-hooks/rules-of-hooks
+              const tilt = useTilt(8);
+              return (
+                <motion.div
+                  key={i}
+                  variants={fadeUp}
+                  className="h-full perspective-800"
+                >
+                  <div
+                    ref={tilt.ref}
+                    onMouseMove={tilt.onMouseMove}
+                    onMouseLeave={tilt.onMouseLeave}
+                    className="tilt-card h-full"
+                  >
+                    <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full group relative overflow-hidden cursor-pointer transition-colors duration-500 hover:bg-gray-950 hover:text-white">
+                      {/* Accent gradient top-left */}
+                      <div className={`absolute top-0 left-0 w-64 h-64 bg-gradient-to-br ${accent} rounded-full blur-2xl pointer-events-none opacity-60 group-hover:opacity-0 transition-opacity`} />
+                      {/* Dark mode glow */}
+                      <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* Shimmer */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 translate-x-[-200%] group-hover:translate-x-[300%] transition-transform duration-1000 pointer-events-none" />
+                      <div className="relative z-10 space-y-6">
+                        <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/30 group-hover:shadow-primary/50 transition-shadow">
+                          <Icon className="h-8 w-8 text-white" />
+                        </div>
+                        <h3 className="text-2xl font-black uppercase tracking-tight">{title}</h3>
+                        <p className="text-sm font-medium leading-relaxed opacity-70">{desc}</p>
+                        <ul className="space-y-3 pt-2">
+                          {items.map(item => (
+                            <li key={item} className="flex items-center gap-3 text-xs font-bold uppercase">
+                              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </Card>
+                  </div>
+                </motion.div>
+              );
+            })}
           </StaggerGrid>
         </div>
       </section>
@@ -1018,77 +1242,161 @@ export default function LandingPage() {
     </section>
 
       <section className="py-32 bg-black text-white overflow-hidden relative">
+        {/* Deep depth orbs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[700px] h-[700px] rounded-full bg-primary/6 blur-[150px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-primary/4 blur-[120px] pointer-events-none" />
+
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-            <div className="space-y-8">
-              <Badge className="bg-primary text-white border-none font-black px-4 h-7 uppercase tracking-widest text-[10px]">Strategic Advantages</Badge>
-              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none uppercase">CHAMPIONSHIP <br /> <span className="text-primary italic">OPERATIONS.</span></h2>
+            <motion.div
+              className="space-y-8"
+              initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }}
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+            >
+              <motion.div variants={fadeUp}>
+                <Badge className="bg-primary text-white border-none font-black px-4 h-7 uppercase tracking-widest text-[10px]">Strategic Advantages</Badge>
+              </motion.div>
+              <motion.h2 variants={fadeUp} className="text-4xl md:text-6xl font-black tracking-tight leading-none uppercase">
+                CHAMPIONSHIP <br /> <span className="text-primary italic">OPERATIONS.</span>
+              </motion.h2>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <BrainCircuit className="h-8 w-8 text-primary" />
-                  <h3 className="text-lg font-black uppercase">AI Scouting Analyst</h3>
-                  <p className="text-xs text-white/60 leading-relaxed font-medium">Generate <strong>Structured Opponent Intel</strong> from match notes using integrated GenAI protocols.</p>
-                </div>
-                <div className="space-y-3">
-                  <Video className="h-8 w-8 text-primary" />
-                  <h3 className="text-lg font-black uppercase">HD Tactical Capture</h3>
-                  <p className="text-xs text-white/60 leading-relaxed font-medium">Extract high-resolution <strong>Tactical Frames</strong> from raw film for granular play-by-play breakdown.</p>
-                </div>
-                <div className="space-y-3">
-                  <Building className="h-8 w-8 text-primary" />
-                  <h3 className="text-lg font-black uppercase">Institutional Hub</h3>
-                  <p className="text-xs text-white/60 leading-relaxed font-medium"><strong>Fiscal Pulse Auditing</strong> for club directors managing 20+ squads with aggregated financial visibility.</p>
-                </div>
-                <div className="space-y-3">
-                  <ShieldAlert className="h-8 w-8 text-primary" />
-                  <h3 className="text-lg font-black uppercase">Recruiting Portfolios</h3>
-                  <p className="text-xs text-white/60 leading-relaxed font-medium">Certified <strong>Personnel Evaluations</strong> that athletes can export directly to college recruitment pipelines.</p>
-                </div>
+                {[
+                  { Icon: BrainCircuit, title: 'AI Scouting Analyst', desc: <>Generate <strong>Structured Opponent Intel</strong> from match notes using integrated GenAI protocols.</> },
+                  { Icon: Video,        title: 'HD Tactical Capture',  desc: <>Extract high-resolution <strong>Tactical Frames</strong> from raw film for granular play-by-play breakdown.</> },
+                  { Icon: Building,     title: 'Institutional Hub',    desc: <><strong>Fiscal Pulse Auditing</strong> for club directors managing 20+ squads with aggregated financial visibility.</> },
+                  { Icon: ShieldAlert,  title: 'Recruiting Portfolios',desc: <>Certified <strong>Personnel Evaluations</strong> that athletes can export directly to college recruitment pipelines.</> },
+                ].map(({ Icon, title, desc }, i) => (
+                  <motion.div key={i} variants={fadeUp} className="space-y-3 group">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary transition-colors">
+                      <Icon className="h-5 w-5 text-primary group-hover:text-white transition-colors" />
+                    </div>
+                    <h3 className="text-lg font-black uppercase">{title}</h3>
+                    <p className="text-xs text-white/60 leading-relaxed font-medium">{desc}</p>
+                  </motion.div>
+                ))}
               </div>
-            </div>
+            </motion.div>
             
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 blur-[120px] rounded-full" />
-              <Card className="relative z-10 rounded-[3rem] border-white/10 bg-white/5 backdrop-blur-xl p-8 lg:p-12 shadow-2xl overflow-hidden">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20"><Activity className="h-5 w-5 text-white" /></div>
-                      <span className="font-black uppercase tracking-widest text-xs">Live Tactical Feed</span>
+            {/* ── 3D Layered UI Mockup ── */}
+            <div className="relative perspective-1200">
+              {/* Background glow */}
+              <div className="absolute inset-0 bg-primary/15 blur-[100px] rounded-full animate-depth-pulse" />
+
+              {/* Layer 3 — back (blurred, shifted) */}
+              <motion.div
+                className="absolute -bottom-6 -left-6 right-6 h-full rounded-[2.5rem] bg-white/3 border border-white/6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1, duration: 0.8 }}
+                style={{ transform: 'rotateX(4deg) rotateY(-6deg) scale(0.95)', transformStyle: 'preserve-3d' }}
+              />
+              {/* Layer 2 — mid */}
+              <motion.div
+                className="absolute -bottom-3 -left-3 right-3 h-full rounded-[2.5rem] bg-white/5 border border-white/8"
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2, duration: 0.8 }}
+                style={{ transform: 'rotateX(3deg) rotateY(-4deg) scale(0.975)', transformStyle: 'preserve-3d' }}
+              />
+              {/* Layer 1 — front card */}
+              <motion.div
+                initial={{ opacity: 0, y: 30, rotateX: 8 }}
+                whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3, duration: 0.9, ease: [0.16,1,0.3,1] }}
+                className="relative z-10"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <Card className="rounded-[2.5rem] border-white/10 bg-white/5 backdrop-blur-xl p-8 lg:p-10 depth-card-dark overflow-hidden">
+                  {/* Shimmer sweep on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/4 to-transparent -skew-x-12 animate-shimmer-x pointer-events-none rounded-[2.5rem]" />
+                  <div className="space-y-6 relative z-10">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/40 float-fast">
+                          <Activity className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="font-black uppercase tracking-widest text-xs">Live Tactical Feed</span>
+                      </div>
+                      <Badge variant="outline" className="border-white/20 text-white font-black text-[8px] px-2 h-5 glow-red">ENCRYPTED</Badge>
                     </div>
-                    <Badge variant="outline" className="border-white/20 text-white font-black text-[8px] px-2 h-5">ENCRYPTED</Badge>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-muted/20 shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-2 w-24 bg-white/20 rounded-full" />
-                        <div className="h-2 w-full bg-white/10 rounded-full" />
+                    {/* Notifications stack */}
+                    <div className="space-y-3">
+                      {[
+                        { label: 'Coach Ramirez posted new drill film', time: '2m ago', active: false },
+                        { label: 'Bracket auto-generated: Semifinals', time: 'Live', active: true },
+                        { label: '4 athletes signed waiver', time: '8m ago', active: false },
+                      ].map((item, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, x: -12 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          viewport={{ once: true }}
+                          transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
+                          className={cn(
+                            'p-4 rounded-2xl border flex items-center gap-4',
+                            item.active
+                              ? 'bg-primary/10 border-primary/30'
+                              : 'bg-white/4 border-white/8'
+                          )}
+                        >
+                          <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', item.active ? 'bg-primary animate-pulse' : 'bg-white/20')} />
+                          <p className="flex-1 text-[10px] font-bold text-white/70 leading-snug">{item.label}</p>
+                          <span className={cn('text-[8px] font-black uppercase shrink-0', item.active ? 'text-primary' : 'text-white/30')}>{item.time}</span>
+                        </motion.div>
+                      ))}
+                    </div>
+                    {/* Progress bars */}
+                    <div className="space-y-3 pt-2 border-t border-white/8">
+                      <p className="text-[9px] font-black uppercase text-white/30 tracking-widest">Roster Compliance</p>
+                      {[
+                        { label: 'Film Watch', pct: 87, color: 'bg-primary' },
+                        { label: 'Waivers Signed', pct: 100, color: 'bg-emerald-500' },
+                        { label: 'Fees Collected', pct: 74, color: 'bg-blue-500' },
+                      ].map(({ label, pct, color }) => (
+                        <div key={label} className="space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-[9px] font-bold text-white/50 uppercase">{label}</span>
+                            <span className="text-[9px] font-black text-white/60">{pct}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+                            <motion.div
+                              className={cn('h-full rounded-full', color)}
+                              initial={{ width: 0 }}
+                              whileInView={{ width: `${pct}%` }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 1.2, delay: 0.6, ease: [0.16,1,0.3,1] }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Footer */}
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Active Coordination Hub</p>
+                      <div className="flex -space-x-2">
+                        {[...Array(4)].map((_,i) => (
+                          <div key={i} className="h-7 w-7 rounded-full border-2 border-black/60 bg-gradient-to-br from-white/20 to-white/5 float-fast" style={{animationDelay:`${i*0.4}s`}} />
+                        ))}
                       </div>
                     </div>
-                    <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20 flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-primary/40 shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-2 w-32 bg-primary/40 rounded-full" />
-                        <div className="h-2 w-3/4 bg-primary/20 rounded-full" />
-                      </div>
-                    </div>
                   </div>
-                  <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Active Coordination Hub</p>
-                    <div className="flex -space-x-2">
-                      {[1,2,3,4].map(i => <div key={i} className="h-6 w-6 rounded-full border-2 border-black bg-muted/40" />)}
-                    </div>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </motion.div>
             </div>
           </div>
         </div>
       </section>
 
       <section id="roles" className="py-32 bg-white relative overflow-hidden">
+        {/* Diagonal grid */}
+        <div className="absolute inset-0 pointer-events-none opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.035) 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 blur-[100px] rounded-full pointer-events-none" />
+
         <div className="container mx-auto px-6 relative z-10">
           <SectionHeader
             badge="Specialized Interfaces"
@@ -1097,27 +1405,39 @@ export default function LandingPage() {
           />
 
           <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            <motion.div whileHover={{ y: -10, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-              <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 h-full">
-                <Trophy className="h-12 w-12 text-primary" />
-                <h3 className="text-2xl font-black uppercase tracking-tight">Coaches & Managers</h3>
-                <p className="text-sm font-medium text-muted-foreground leading-relaxed">Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts, auto-generate brackets, and track personnel performance.</p>
-              </Card>
-            </motion.div>
-            <motion.div whileHover={{ y: -10, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-              <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 h-full">
-                <Baby className="h-12 w-12 text-primary" />
-                <h3 className="text-2xl font-black uppercase tracking-tight">Guardian Hub</h3>
-                <p className="text-sm font-medium text-muted-foreground leading-relaxed">Manage multiple children from one unified Household Hub. Track consolidated dues, verify digital waivers, and manage volunteer assignments globally.</p>
-              </Card>
-            </motion.div>
-            <motion.div whileHover={{ y: -10, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-              <Card className="rounded-[3rem] border-none shadow-xl bg-muted/20 p-10 space-y-6 h-full">
-                <User className="h-12 w-12 text-primary" />
-                <h3 className="text-2xl font-black uppercase tracking-tight">Athlete Performance</h3>
-                <p className="text-sm font-medium text-muted-foreground leading-relaxed">A personal dashboard. Sign waivers, watch study film, track match results, and manage your <strong>Professional Recruiting Portfolio</strong>.</p>
-              </Card>
-            </motion.div>
+            {[
+              { Icon: Trophy, title: 'Coaches & Managers',  desc: 'Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts, auto-generate brackets, and track personnel performance.', color: 'from-primary/15 via-transparent', num: '01' },
+              { Icon: Baby,   title: 'Guardian Hub',        desc: 'Manage multiple children from one unified Household Hub. Track consolidated dues, verify digital waivers, and manage volunteer assignments globally.', color: 'from-blue-500/10 via-transparent', num: '02' },
+              { Icon: User,   title: 'Athlete Performance', desc: 'A personal dashboard. Sign waivers, watch study film, track match results, and manage your Professional Recruiting Portfolio.', color: 'from-emerald-500/10 via-transparent', num: '03' },
+            ].map(({ Icon, title, desc, color, num }, i) => {
+              // eslint-disable-next-line react-hooks/rules-of-hooks
+              const tilt = useTilt(6);
+              return (
+                <motion.div key={i} variants={fadeUp} className="perspective-800 h-full">
+                  <div
+                    ref={tilt.ref}
+                    onMouseMove={tilt.onMouseMove}
+                    onMouseLeave={tilt.onMouseLeave}
+                    className="tilt-card h-full"
+                  >
+                    <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full relative overflow-hidden group cursor-pointer hover:bg-gray-950 hover:text-white transition-colors duration-500">
+                      {/* Gradient top accent */}
+                      <div className={`absolute top-0 left-0 w-full h-40 bg-gradient-to-b ${color} to-transparent pointer-events-none opacity-70 group-hover:opacity-0 transition-opacity`} />
+                      <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* Number badge */}
+                      <div className="absolute top-8 right-8 text-[80px] font-black text-black/4 group-hover:text-white/4 leading-none select-none transition-colors">{num}</div>
+                      <div className="relative z-10 space-y-6">
+                        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors">
+                          <Icon className="h-7 w-7 text-primary group-hover:text-white transition-colors" />
+                        </div>
+                        <h3 className="text-2xl font-black uppercase tracking-tight">{title}</h3>
+                        <p className="text-sm font-medium text-muted-foreground leading-relaxed group-hover:text-white/60 transition-colors">{desc}</p>
+                      </div>
+                    </Card>
+                  </div>
+                </motion.div>
+              );
+            })}
           </StaggerGrid>
         </div>
       </section>

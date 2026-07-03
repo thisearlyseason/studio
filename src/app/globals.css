@@ -79,7 +79,102 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* ── 3D / Dimensional Utilities ─────────────────────────────────────── */
+  .perspective-800  { perspective: 800px; }
+  .perspective-1200 { perspective: 1200px; }
+  .preserve-3d      { transform-style: preserve-3d; }
+  .backface-hidden  { backface-visibility: hidden; }
+
+  /* Tilt card: JS sets --rx/--ry via inline style */
+  .tilt-card {
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+    transform: perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateZ(0);
+    will-change: transform;
+  }
+  .tilt-card:hover {
+    box-shadow: 0 40px 80px -10px rgba(0,0,0,0.35), 0 0 0 1px rgba(196,31,31,0.12);
+  }
+
+  /* depth-layer: subtle drop-shadow stack to imply physical lift */
+  .depth-card {
+    box-shadow:
+      0 1px 2px rgba(0,0,0,0.12),
+      0 4px 8px rgba(0,0,0,0.10),
+      0 12px 24px rgba(0,0,0,0.08),
+      0 24px 48px rgba(0,0,0,0.06);
+  }
+  .depth-card-dark {
+    box-shadow:
+      0 1px 2px rgba(0,0,0,0.40),
+      0 4px 16px rgba(0,0,0,0.30),
+      0 16px 40px rgba(0,0,0,0.24),
+      0 0 0 1px rgba(255,255,255,0.04);
+  }
+
+  /* Floating / levitate animation */
+  .float-slow  { animation: float-slow 6s ease-in-out infinite; }
+  .float-med   { animation: float-med  4s ease-in-out infinite; }
+  .float-fast  { animation: float-fast 3s ease-in-out infinite; }
+
+  /* Grid-beam: horizontal scan line */
+  .grid-beam::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 39px,
+      rgba(196,31,31,0.04) 40px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 39px,
+      rgba(196,31,31,0.04) 40px
+    );
+    pointer-events: none;
+  }
+
+  /* Glow ring */
+  .glow-red {
+    box-shadow: 0 0 0 1px rgba(196,31,31,0.3),
+                0 0 20px rgba(196,31,31,0.15),
+                0 0 60px rgba(196,31,31,0.08);
+  }
 }
+
+/* ── Keyframe Library ───────────────────────────────────────────────────── */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-18px) rotate(1deg); }
+  66%       { transform: translateY(-8px) rotate(-0.5deg); }
+}
+@keyframes float-med {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-7px) scale(1.01); }
+}
+@keyframes shimmer-x {
+  0%   { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(300%) skewX(-12deg); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes depth-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196,31,31,0); }
+  50%       { box-shadow: 0 0 40px 8px rgba(196,31,31,0.15); }
+}
+
+.animate-shimmer-x     { animation: shimmer-x 2.8s linear infinite; }
+.animate-spin-slow     { animation: spin-slow 12s linear infinite; }
+.animate-depth-pulse   { animation: depth-pulse 3s ease-in-out infinite; }
 
 /* Institutional PDF Light Mode Architecture */
 .pdf-light-mode {
