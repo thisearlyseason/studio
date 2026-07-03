@@ -193,12 +193,16 @@ export default function ClubManagementPage() {
 
   // School Logic: Get sub-squads relative to the identified hub
   const schoolSquads = useMemo(() => {
-    if (schoolHub) {
-      // Return teams that are linked to this hub, or all other owned teams if it's a fallback hub
-      return teams.filter(t => t.id !== schoolHub.id && (t.schoolId === schoolHub.id || (isSchoolMode && t.ownerUserId === user?.id)));
-    }
-    return [];
-  }, [schoolHub, teams, isSchoolMode, user?.id]);
+    if (!schoolHub) return [];
+    return teams.filter(t => {
+      if (t.id === schoolHub.id) return false;
+      // School: squads linked via schoolId
+      if (t.schoolId === schoolHub.id) return true;
+      // School fallback or Elite: all other teams owned by same user
+      if ((isSchoolMode || isEliteAccount) && t.ownerUserId === user?.id) return true;
+      return false;
+    });
+  }, [schoolHub, teams, isSchoolMode, isEliteAccount, user?.id]);
 
   const clubTeams = useMemo(() => {
     if (schoolHub) {
@@ -241,19 +245,31 @@ export default function ClubManagementPage() {
   const [isCreatingHubChannel, setIsCreatingHubChannel] = useState(false);
 
   // Query for existing hub broadcast channel on mount (needs schoolHub to be resolved first)
+  // For elite: the channel may be under any of the owned teams — search all of them.
+  const [hubChannelTeamId, setHubChannelTeamId] = useState<string | null>(null);
   useEffect(() => {
-    if (!db || !schoolHub?.id) return;
+    if (!db) return;
+    // Determine candidate teams to search
+    const candidateTeamId = schoolHub?.id;
+    const candidateTeams = isEliteAccount
+      ? teams.filter(t => t.ownerUserId === user?.id && t.isPro).map(t => t.id)
+      : candidateTeamId ? [candidateTeamId] : [];
+    if (candidateTeams.length === 0) return;
+
     const fetchHubChannel = async () => {
       setHubChannelLoading(true);
       try {
-        // groupChats are stored at the team level
-        const snap = await getDocs(query(collection(db, 'teams', schoolHub.id, 'groupChats'), where('isHubChannel', '==', true)));
-        if (!snap.empty) {
-          const d = snap.docs[0];
-          setHubChannel({ id: d.id, name: d.data().name || 'Hub Channel', memberIds: d.data().memberIds || [] });
-        } else {
-          setHubChannel(null);
+        for (const tid of candidateTeams) {
+          const snap = await getDocs(query(collection(db, 'teams', tid, 'groupChats'), where('isHubChannel', '==', true)));
+          if (!snap.empty) {
+            const d = snap.docs[0];
+            setHubChannelTeamId(tid);
+            setHubChannel({ id: d.id, name: d.data().name || 'Hub Channel', memberIds: d.data().memberIds || [] });
+            return;
+          }
         }
+        setHubChannelTeamId(null);
+        setHubChannel(null);
       } catch (e) {
         console.warn('Failed to fetch hub channel:', e);
       } finally {
@@ -261,30 +277,34 @@ export default function ClubManagementPage() {
       }
     };
     fetchHubChannel();
-  }, [db, schoolHub?.id]);
+  }, [db, schoolHub?.id, isEliteAccount, teams, user?.id]);
+
+  // The team that actually holds the hub channel (may differ from schoolHub for elite)
+  const hubTeam = useMemo(() => {
+    if (hubChannelTeamId) return teams.find(t => t.id === hubChannelTeamId) || schoolHub;
+    return schoolHub;
+  }, [hubChannelTeamId, teams, schoolHub]);
 
   const handleCreateHubChannel = async () => {
-    if (!schoolHub || !db || !user) return;
+    // For elite, use the first owned Pro team as hub. For school, use the institution.
+    const targetHub = hubTeam || schoolHub;
+    if (!targetHub || !db || !user) return;
     setIsCreatingHubChannel(true);
     try {
       const staffKeywords = ['coach', 'director', 'coordinator', 'staff', 'manager', 'trainer'];
-      // Gather all unique admin/coach userIds + their display metadata
       const memberUserIds = new Set<string>();
       const staffMetadata: Record<string, { name: string; position: string; avatar: string }> = {};
 
-      // Always include the AD (current user) first
       if (user.id) {
         memberUserIds.add(user.id);
         staffMetadata[user.id] = {
-          name: user.name || 'Athletic Director',
-          position: 'Athletic Director',
+          name: user.name || (isEliteAccount ? 'League Organizer' : 'Athletic Director'),
+          position: isEliteAccount ? 'League Organizer' : 'Athletic Director',
           avatar: user.avatar || '',
         };
       }
-      // Include any explicit school admins
-      (schoolHub.schoolAdminIds || []).forEach((id: string) => memberUserIds.add(id));
+      (targetHub.schoolAdminIds || []).forEach((id: string) => memberUserIds.add(id));
 
-      // Include coaching staff from all subsquads — exclude players
       for (const m of allRawMembers) {
         if (m.status === 'removed' || !m.userId) continue;
         const pos = (m.position || '').toLowerCase();
@@ -292,7 +312,6 @@ export default function ClubManagementPage() {
         const isStaff = staffKeywords.some(kw => pos.includes(kw)) || role === 'admin';
         if (isStaff) {
           memberUserIds.add(m.userId);
-          // Only write metadata once per userId (first occurrence wins)
           if (!staffMetadata[m.userId]) {
             const squadName = teams.find(t => t.id === m.teamId)?.name || teams.find(t => t.id === m.teamId)?.teamName || '';
             staffMetadata[m.userId] = {
@@ -309,11 +328,12 @@ export default function ClubManagementPage() {
       const channelName = `${user?.schoolName || user?.clubName || (isSchoolMode ? 'School Hub' : (isEliteAccount ? 'Apex Academy' : 'Club Hub'))} — Broadcast Channel`;
       const chatId = await createChat(channelName, memberIdsArray);
       if (chatId && db) {
-        await updateDoc(doc(db, 'teams', schoolHub.id, 'groupChats', chatId), {
+        await updateDoc(doc(db, 'teams', targetHub.id, 'groupChats', chatId), {
           isHubChannel: true,
-          hubTeamId: schoolHub.id,
+          hubTeamId: targetHub.id,
           staffMetadata,
         });
+        setHubChannelTeamId(targetHub.id);
       }
       setHubChannel({ id: chatId, name: channelName, memberIds: memberIdsArray });
       toast({ title: 'Hub Channel Created', description: `${memberIdsArray.length} staff members added to the broadcast channel.` });
@@ -890,7 +910,7 @@ export default function ClubManagementPage() {
               <Button
                 size="sm"
                 onClick={() => {
-                  const teamId = schoolHub?.id;
+                  const teamId = hubTeam?.id || schoolHub?.id;
                   const url = `/chats/${hubChannel.id}${teamId ? `?teamId=${teamId}` : ''}`;
                   router.push(url);
                 }}
