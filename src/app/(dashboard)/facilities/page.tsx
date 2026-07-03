@@ -119,16 +119,16 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Tooltip>
-          <TooltipTrigger asChild>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
             <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/5 rounded-xl h-10 w-10">
               <Pencil className="h-4 w-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>Edit Facility</TooltipContent>
-        </Tooltip>
-      </DialogTrigger>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Edit Facility</TooltipContent>
+      </Tooltip>
       <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
         <DialogTitle className="sr-only">Edit Facility</DialogTitle>
         <div className="h-2 bg-primary w-full" />
