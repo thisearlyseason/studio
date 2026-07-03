@@ -94,24 +94,19 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
 }
 
 function EditFacilityDialog({ facility }: { facility: Facility }) {
-  const { updateFacility, isSuperAdmin, isPrimaryClubAuthority, user } = useTeam();
+  const { updateFacility, isStaff, user } = useTeam();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: facility.name, address: facility.address || '', notes: facility.notes || '' });
   const [saving, setSaving] = useState(false);
 
-  // Sync form whenever dialog opens (picks up latest facility data)
+  // Sync form whenever dialog opens so it always reflects latest data
   const handleOpenChange = (val: boolean) => {
     if (val) setForm({ name: facility.name, address: facility.address || '', notes: facility.notes || '' });
     setOpen(val);
   };
 
-  // Wait for user to load before deciding — don't permanently hide the button
-  const canEdit = !user
-    ? false
-    : (facility.clubId === user.id || isSuperAdmin || isPrimaryClubAuthority);
-
-  // If user is loaded and definitely can't edit, hide button
-  if (user && !canEdit) return null;
+  // Any staff member can edit — Firestore rules enforce the actual security
+  if (!isStaff) return null;
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
@@ -119,7 +114,7 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
     await updateFacility(facility.id, { name: form.name, address: form.address, notes: form.notes });
     setSaving(false);
     setOpen(false);
-    toast({ title: "Facility Updated", description: `${form.name} details saved.` });
+    toast({ title: 'Facility Updated', description: `${form.name} details saved. Any events using this facility will reflect the new information.` });
   };
 
   return (
@@ -182,7 +177,7 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
 }
 
 export default function FacilityManagementPage() {
-  const { activeTeam, isStaff, isPro, addFacility, deleteFacility, isSuperAdmin, isPrimaryClubAuthority, user } = useTeam();
+  const { activeTeam, isStaff, isPro, addFacility, deleteFacility, isSuperAdmin, user } = useTeam();
   
   if (!isStaff) return <AccessRestricted type="role" />;
 
@@ -294,7 +289,7 @@ export default function FacilityManagementPage() {
                 <div className="bg-primary/5 p-5 rounded-[1.5rem] text-primary shadow-inner">
                   <MapPin className="h-10 w-10" />
                 </div>
-                {(!user || facility.clubId === user?.id || isSuperAdmin || isPrimaryClubAuthority) && (
+                {isStaff && (
                   <div className="flex items-center gap-1">
                     <EditFacilityDialog facility={facility} />
                     <Tooltip>

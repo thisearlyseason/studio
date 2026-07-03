@@ -403,22 +403,29 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn() &&
         request.resource.data.clubId == request.auth.uid;
+      // Allow update/delete if:
+      //   • superadmin
+      //   • original creator (clubId == uid)
+      //   • demo facility (isDemo bypass)
+      //   • any signed-in staff/coach (isPro team owner or admin role)
       allow update, delete: if isSuperAdmin() || (isSignedIn() && (
         resource.data.clubId == request.auth.uid ||
-        resource.data.isDemo == true
+        resource.data.isDemo == true ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isPrimaryClubAuthority', false) == true ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['coach', 'admin', 'athletic_director', 'league_creator']
       ));
 
       match /{subCollection}/{docId} {
         allow read: if isSignedIn();
-        // isDemo bypass: during demo seeding, the facility parent doc may not yet be
-        // committed when fields are written. Allow writes when the doc is explicitly
-        // tagged isDemo:true, or when the facility's clubId matches the auth user.
         allow write: if isSuperAdmin() || (isSignedIn() && (
           request.resource.data.isDemo == true ||
-          get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid
+          get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid ||
+          get(/databases/$(database)/documents/facilities/$(facilityId)).data.isDemo == true ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['coach', 'admin', 'athletic_director', 'league_creator']
         ));
       }
     }
+
 
     // ─── Features ────────────────────────────────────────────────────────────
     match /features/{featureId} {

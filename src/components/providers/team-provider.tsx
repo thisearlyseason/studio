@@ -2730,7 +2730,32 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [db, activeTeam, isStaff]);
 
   const addFacility = useCallback(async (d: any) => { if (firebaseUser && db) await addDoc(collection(db, 'facilities'), clean({ ...d, clubId: firebaseUser.uid })); }, [db, firebaseUser]);
-  const updateFacility = useCallback(async (id: string, d: Partial<Facility>) => { if(db) await updateDoc(doc(db, 'facilities', id), clean(d as any)); }, [db]);
+  const updateFacility = useCallback(async (id: string, d: Partial<Facility>) => {
+    if (!db) return;
+    // 1. Update the facility document itself
+    await updateDoc(doc(db, 'facilities', id), clean(d as any));
+    // 2. Sync all team events that reference this facility so location stays current
+    if (d.address !== undefined || d.name !== undefined) {
+      try {
+        const newLocation = d.address || d.name || '';
+        // Query across all teams the user is part of
+        const teamIds = teamsRaw.map((t: any) => t.id).filter(Boolean);
+        for (const teamId of teamIds) {
+          const evSnap = await getDocs(
+            query(collection(db, 'teams', teamId, 'events'), where('facilityId', '==', id))
+          );
+          const batch = writeBatch(db);
+          evSnap.forEach(evDoc => {
+            if (newLocation) batch.update(evDoc.ref, { location: newLocation });
+          });
+          if (!evSnap.empty) await batch.commit();
+        }
+      } catch (_) {
+        // Non-critical — facility doc already updated
+      }
+    }
+  }, [db, teamsRaw]);
+
   const deleteFacility = useCallback(async (id: string) => { if(db) await deleteDoc(doc(db, 'facilities', id)); }, [db]);
   const addField = useCallback(async (fid: string, n: string) => { if(db) await addDoc(collection(db, 'facilities', fid, 'fields'), { name: n, facilityId: fid }); }, [db]);
   const deleteFacilityField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
