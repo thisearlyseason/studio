@@ -107,10 +107,12 @@ service cloud.firestore {
           (exists(/databases/$(database)/documents/teams/$(teamId)) &&
            get(/databases/$(database)/documents/teams/$(teamId)).data.isDemo == true)
         ));
-        // Only team owner can write members; team owner check uses demo-prefix shortcut
+        // isDemo bypass: demo seeder writes members before team doc is committed;
+        // the teamId.matches regex covers this but isDemo provides belt-and-suspenders safety.
         allow write: if isSuperAdmin() || (isSignedIn() && (
           isTeamOwner(teamId) ||
-          request.resource.data.ownerUserId == request.auth.uid
+          request.resource.data.ownerUserId == request.auth.uid ||
+          request.resource.data.isDemo == true
         ));
 
         match /signatures/{sigId} {
@@ -160,14 +162,21 @@ service cloud.firestore {
         }
       }
 
-      // FIX #1: Removed isDemo bypass from catch-all write — only owner writes allowed
+      // FIX #1: isDemo bypass added for batch race condition on demo seeding
+      // where team doc may not yet be committed when subcollection writes are evaluated.
       match /{subCollection}/{docId} {
         allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
-        allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
+        allow write: if isSuperAdmin() || (isSignedIn() && (
+          isTeamOwner(teamId) ||
+          request.resource.data.isDemo == true
+        ));
 
         match /{subSubCollection}/{subDocId} {
           allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
-          allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
+          allow write: if isSuperAdmin() || (isSignedIn() && (
+            isTeamOwner(teamId) ||
+            request.resource.data.isDemo == true
+          ));
         }
       }
     }

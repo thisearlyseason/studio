@@ -791,6 +791,9 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
                 ownerUserId: teamOwner,
                 joinedAt: now
             }));
+            // CRITICAL: Flush team doc before subcollection writes so exists(teams/teamId)
+            // returns true when Firestore evaluates the member/event write rules.
+            await batch.flush();
 
             // Member record inside the team (teams/{teamId}/members/{uid})
             batch.set(doc(db, 'teams', v.id, 'members', userId), clean({
@@ -1151,6 +1154,12 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         batch.set(doc(db, 'users', userId, 'teamMemberships', teamId), clean({
             teamId, name, role, isPro: isProTier || isSchoolDemo, planId: plan_type, isDemo: true, joinedAt: now, ownerUserId: userId, type: teamType, schoolId
         }));
+        // CRITICAL: Flush team doc to Firestore BEFORE writing subcollections.
+        // Firestore rules evaluate exists(teams/teamId) at commit time — if the team doc
+        // is in the same batch as subcollection writes, the exists() check returns false
+        // and the write is denied even though isTeamOwner has the demo_* regex bypass.
+        // Committing the team first guarantees the document is live before subcollections.
+        await batch.flush();
 
         batch.set(doc(db, 'teams', teamId, 'members', userId), clean({
             id: userId, userId, teamId, playerId: `p_${userId}_${teamId}`, 
