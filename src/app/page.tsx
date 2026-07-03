@@ -114,6 +114,21 @@ function useTilt(strength = 12) {
   return { ref, onMouseMove: handleMove, onMouseLeave: handleLeave };
 }
 
+// ── TiltCard: safe wrapper so hooks are always at component level ─────────
+function TiltCard({ strength = 12, className, children }: { strength?: number; className?: string; children: React.ReactNode }) {
+  const tilt = useTilt(strength);
+  return (
+    <div
+      ref={tilt.ref}
+      onMouseMove={tilt.onMouseMove}
+      onMouseLeave={tilt.onMouseLeave}
+      className={cn('tilt-card', className)}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ── 3D Stats Counter ─────────────────────────────────────────────────────
 function StatCounter({ value, label, suffix = '' }: { value: number; label: string; suffix?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -1114,47 +1129,38 @@ export default function LandingPage() {
                 items: ['Digital Signatures', 'Performance Export'],
                 accent: 'from-emerald-500/10 to-transparent',
               },
-            ].map(({ Icon, title, desc, items, accent }, i) => {
-              // eslint-disable-next-line react-hooks/rules-of-hooks
-              const tilt = useTilt(8);
-              return (
-                <motion.div
-                  key={i}
-                  variants={fadeUp}
-                  className="h-full perspective-800"
-                >
-                  <div
-                    ref={tilt.ref}
-                    onMouseMove={tilt.onMouseMove}
-                    onMouseLeave={tilt.onMouseLeave}
-                    className="tilt-card h-full"
-                  >
-                    <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full group relative overflow-hidden cursor-pointer transition-colors duration-500 hover:bg-gray-950 hover:text-white">
-                      {/* Accent gradient top-left */}
-                      <div className={`absolute top-0 left-0 w-64 h-64 bg-gradient-to-br ${accent} rounded-full blur-2xl pointer-events-none opacity-60 group-hover:opacity-0 transition-opacity`} />
-                      {/* Dark mode glow */}
-                      <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-                      {/* Shimmer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 translate-x-[-200%] group-hover:translate-x-[300%] transition-transform duration-1000 pointer-events-none" />
-                      <div className="relative z-10 space-y-6">
-                        <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/30 group-hover:shadow-primary/50 transition-shadow">
-                          <Icon className="h-8 w-8 text-white" />
-                        </div>
-                        <h3 className="text-2xl font-black uppercase tracking-tight">{title}</h3>
-                        <p className="text-sm font-medium leading-relaxed opacity-70">{desc}</p>
-                        <ul className="space-y-3 pt-2">
-                          {items.map(item => (
-                            <li key={item} className="flex items-center gap-3 text-xs font-bold uppercase">
-                              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> {item}
-                            </li>
-                          ))}
-                        </ul>
+            ].map(({ Icon, title, desc, items, accent }, i) => (
+              <motion.div
+                key={i}
+                variants={fadeUp}
+                className="h-full perspective-800"
+              >
+                <TiltCard strength={8} className="h-full">
+                  <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full group relative overflow-hidden cursor-pointer transition-colors duration-500 hover:bg-gray-950 hover:text-white">
+                    {/* Accent gradient top-left */}
+                    <div className={`absolute top-0 left-0 w-64 h-64 bg-gradient-to-br ${accent} rounded-full blur-2xl pointer-events-none opacity-60 group-hover:opacity-0 transition-opacity`} />
+                    {/* Dark mode glow */}
+                    <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Shimmer */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 translate-x-[-200%] group-hover:translate-x-[300%] transition-transform duration-1000 pointer-events-none" />
+                    <div className="relative z-10 space-y-6">
+                      <div className="bg-primary p-4 rounded-2xl w-fit shadow-lg shadow-primary/30 group-hover:shadow-primary/50 transition-shadow">
+                        <Icon className="h-8 w-8 text-white" />
                       </div>
-                    </Card>
-                  </div>
-                </motion.div>
-              );
-            })}
+                      <h3 className="text-2xl font-black uppercase tracking-tight">{title}</h3>
+                      <p className="text-sm font-medium leading-relaxed opacity-70">{desc}</p>
+                      <ul className="space-y-3 pt-2">
+                        {items.map(item => (
+                          <li key={item} className="flex items-center gap-3 text-xs font-bold uppercase">
+                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </Card>
+                </TiltCard>
+              </motion.div>
+            ))}
           </StaggerGrid>
         </div>
       </section>
@@ -1409,35 +1415,26 @@ export default function LandingPage() {
               { Icon: Trophy, title: 'Coaches & Managers',  desc: 'Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts, auto-generate brackets, and track personnel performance.', color: 'from-primary/15 via-transparent', num: '01' },
               { Icon: Baby,   title: 'Guardian Hub',        desc: 'Manage multiple children from one unified Household Hub. Track consolidated dues, verify digital waivers, and manage volunteer assignments globally.', color: 'from-blue-500/10 via-transparent', num: '02' },
               { Icon: User,   title: 'Athlete Performance', desc: 'A personal dashboard. Sign waivers, watch study film, track match results, and manage your Professional Recruiting Portfolio.', color: 'from-emerald-500/10 via-transparent', num: '03' },
-            ].map(({ Icon, title, desc, color, num }, i) => {
-              // eslint-disable-next-line react-hooks/rules-of-hooks
-              const tilt = useTilt(6);
-              return (
-                <motion.div key={i} variants={fadeUp} className="perspective-800 h-full">
-                  <div
-                    ref={tilt.ref}
-                    onMouseMove={tilt.onMouseMove}
-                    onMouseLeave={tilt.onMouseLeave}
-                    className="tilt-card h-full"
-                  >
-                    <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full relative overflow-hidden group cursor-pointer hover:bg-gray-950 hover:text-white transition-colors duration-500">
-                      {/* Gradient top accent */}
-                      <div className={`absolute top-0 left-0 w-full h-40 bg-gradient-to-b ${color} to-transparent pointer-events-none opacity-70 group-hover:opacity-0 transition-opacity`} />
-                      <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-                      {/* Number badge */}
-                      <div className="absolute top-8 right-8 text-[80px] font-black text-black/4 group-hover:text-white/4 leading-none select-none transition-colors">{num}</div>
-                      <div className="relative z-10 space-y-6">
-                        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors">
-                          <Icon className="h-7 w-7 text-primary group-hover:text-white transition-colors" />
-                        </div>
-                        <h3 className="text-2xl font-black uppercase tracking-tight">{title}</h3>
-                        <p className="text-sm font-medium text-muted-foreground leading-relaxed group-hover:text-white/60 transition-colors">{desc}</p>
+            ].map(({ Icon, title, desc, color, num }, i) => (
+              <motion.div key={i} variants={fadeUp} className="perspective-800 h-full">
+                <TiltCard strength={6} className="h-full">
+                  <Card className="rounded-[2.5rem] border-none depth-card bg-white p-10 space-y-6 h-full relative overflow-hidden group cursor-pointer hover:bg-gray-950 hover:text-white transition-colors duration-500">
+                    {/* Gradient top accent */}
+                    <div className={`absolute top-0 left-0 w-full h-40 bg-gradient-to-b ${color} to-transparent pointer-events-none opacity-70 group-hover:opacity-0 transition-opacity`} />
+                    <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Number badge */}
+                    <div className="absolute top-8 right-8 text-[80px] font-black text-black/4 group-hover:text-white/4 leading-none select-none transition-colors">{num}</div>
+                    <div className="relative z-10 space-y-6">
+                      <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors">
+                        <Icon className="h-7 w-7 text-primary group-hover:text-white transition-colors" />
                       </div>
-                    </Card>
-                  </div>
-                </motion.div>
-              );
-            })}
+                      <h3 className="text-2xl font-black uppercase tracking-tight">{title}</h3>
+                      <p className="text-sm font-medium text-muted-foreground leading-relaxed group-hover:text-white/60 transition-colors">{desc}</p>
+                    </div>
+                  </Card>
+                </TiltCard>
+              </motion.div>
+            ))}
           </StaggerGrid>
         </div>
       </section>
