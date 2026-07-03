@@ -66,7 +66,7 @@ import {
 } from "@/components/ui/tooltip";
 import { updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
-export default function ChatRoomPage() {
+function ChatRoomInner() {
   const { chatId } = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -631,5 +631,20 @@ export default function ChatRoomPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function ChatRoomPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex flex-col items-center justify-center h-full gap-4 animate-pulse">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Synchronizing Secure Feed...</p>
+        </div>
+      }
+    >
+      <ChatRoomInner />
+    </React.Suspense>
   );
 }
