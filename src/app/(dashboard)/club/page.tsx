@@ -889,7 +889,10 @@ export default function ClubManagementPage() {
             ) : hubChannel ? (
               <Button
                 size="sm"
-                onClick={() => router.push('/chats/' + hubChannel.id)}
+                onClick={() => {
+                  if (schoolHub) setActiveTeam(schoolHub);
+                  router.push('/chats/' + hubChannel.id);
+                }}
                 className="rounded-xl font-black uppercase text-[10px] h-9 px-4 shadow-md shadow-primary/20 shrink-0"
               >
                 <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> Open Channel
