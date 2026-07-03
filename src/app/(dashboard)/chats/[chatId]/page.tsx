@@ -277,9 +277,9 @@ export default function ChatRoomPage() {
         </div>
         <div className="flex items-center gap-2 px-1 overflow-x-auto custom-scrollbar whitespace-nowrap pb-1">
           <p className="text-[8px] font-black uppercase text-muted-foreground/60 tracking-widest shrink-0">Members:</p>
-          {activeMembers.map((m, i) => (
+          {activeMemberEntries.map((m, i) => (
             <span key={m.id} className="text-[9px] font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full uppercase">
-              {m.name}{i < activeMembers.length - 1 ? '' : ''}
+              {m.name}{i < activeMemberEntries.length - 1 ? '' : ''}
             </span>
           ))}
         </div>
