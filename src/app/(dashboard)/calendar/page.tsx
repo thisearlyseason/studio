@@ -327,6 +327,7 @@ function EventItem({ event, teams, onClick }: { event: TeamEvent, teams: any[], 
 
 
 function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+  const isDemo = !!(event as any)?.isDemo;
   const { updateRSVP, user, myChildren, isParent, isPlayer, isStaff, members, teams, getMember } = useTeam();
   const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({});
 
@@ -516,7 +517,7 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
                     </div>
                   </div>
 
-                  <WeatherPulse location={event.location} />
+                  <WeatherPulse location={event.location} isDemo={isDemo} />
                 </TabsContent>
 
                 <TabsContent value="matches" className="space-y-6 mt-0 animate-in fade-in duration-300">
