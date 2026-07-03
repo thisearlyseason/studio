@@ -890,8 +890,9 @@ export default function ClubManagementPage() {
               <Button
                 size="sm"
                 onClick={() => {
-                  if (schoolHub) setActiveTeam(schoolHub);
-                  router.push('/chats/' + hubChannel.id);
+                  const teamId = schoolHub?.id;
+                  const url = `/chats/${hubChannel.id}${teamId ? `?teamId=${teamId}` : ''}`;
+                  router.push(url);
                 }}
                 className="rounded-xl font-black uppercase text-[10px] h-9 px-4 shadow-md shadow-primary/20 shrink-0"
               >

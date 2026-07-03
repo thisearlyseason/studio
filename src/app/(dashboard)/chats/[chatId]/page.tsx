@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { 
   ChevronLeft, 
   Send, 
@@ -69,12 +69,19 @@ import { updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase
 export default function ChatRoomPage() {
   const { chatId } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { 
     addMessage, votePoll, user, formatTime, activeTeam, 
     updateChat, deleteChat, hideChatForUser, members: teamMembers, 
     isStaff 
   } = useTeam();
   const db = useFirestore();
+
+  // For hub channels opened by an organizer who has no activeTeam selected,
+  // the teamId is passed as a URL query param so we can query Firestore directly
+  // without forcing a global team context switch.
+  const urlTeamId = searchParams?.get('teamId') ?? null;
+  const effectiveTeamId = urlTeamId || activeTeam?.id || null;
   
   const [input, setInput] = useState('');
   const [isPollDialogOpen, setIsPollDialogOpen] = useState(false);
@@ -94,20 +101,20 @@ export default function ChatRoomPage() {
   const hasInitializedName = useRef(false);
 
   const chatDocRef = useMemoFirebase(() => {
-    if (!activeTeam || !db || !chatId) return null;
-    return doc(db, 'teams', activeTeam.id, 'groupChats', chatId as string);
-  }, [activeTeam?.id, db, chatId]);
+    if (!effectiveTeamId || !db || !chatId) return null;
+    return doc(db, 'teams', effectiveTeamId, 'groupChats', chatId as string);
+  }, [effectiveTeamId, db, chatId]);
 
   const { data: currentChat, isLoading: isChatLoading } = useDoc(chatDocRef);
 
   const messagesQuery = useMemoFirebase(() => {
-    if (!activeTeam || !db || !chatId) return null;
+    if (!effectiveTeamId || !db || !chatId) return null;
     return query(
-      collection(db, 'teams', activeTeam.id, 'groupChats', chatId as string, 'messages'),
+      collection(db, 'teams', effectiveTeamId, 'groupChats', chatId as string, 'messages'),
       orderBy('createdAt', 'asc'),
       limitToLast(100)
     );
-  }, [activeTeam?.id, db, chatId]);
+  }, [effectiveTeamId, db, chatId]);
 
   const { data: rawMessages, isLoading: isMessagesLoading } = useCollection<Message>(messagesQuery);
   const messages = useMemo(() => (rawMessages ? [...rawMessages] : []), [rawMessages]);
@@ -135,22 +142,22 @@ export default function ChatRoomPage() {
   };
 
   const handleRename = () => {
-    if (!newName.trim() || !chatId || !activeTeam) return;
+    if (!newName.trim() || !chatId || !effectiveTeamId) return;
     setIsRenameDialogOpen(false);
-    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'groupChats', chatId as string), { name: newName.trim() });
+    updateDocumentNonBlocking(doc(db, 'teams', effectiveTeamId, 'groupChats', chatId as string), { name: newName.trim() });
     toast({ title: "Channel Identity Updated" });
   };
 
   const handleAddMember = (memberId: string) => {
-    if (!chatId || !activeTeam) return;
-    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'groupChats', chatId as string), { memberIds: arrayUnion(memberId) });
+    if (!chatId || !effectiveTeamId) return;
+    updateDocumentNonBlocking(doc(db, 'teams', effectiveTeamId, 'groupChats', chatId as string), { memberIds: arrayUnion(memberId) });
     toast({ title: "Squad Member Added" });
   };
 
   const handleRemoveMember = (memberId: string) => {
-    if (!chatId || !activeTeam || !currentChat) return;
+    if (!chatId || !effectiveTeamId || !currentChat) return;
     const newIds = (currentChat.memberIds || []).filter((id: string) => id !== memberId);
-    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'groupChats', chatId as string), { memberIds: newIds });
+    updateDocumentNonBlocking(doc(db, 'teams', effectiveTeamId, 'groupChats', chatId as string), { memberIds: newIds });
     toast({ title: 'Member Removed' });
   };
 
