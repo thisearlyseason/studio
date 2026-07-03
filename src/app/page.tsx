@@ -711,9 +711,8 @@ export default function LandingPage() {
           </motion.div>
         </div>
 
-        {/* Sport indicators */}
         <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2"
+          className="absolute bottom-8 left-0 right-0 z-20 flex items-center justify-center gap-2 px-4 flex-wrap"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 2.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -749,53 +748,59 @@ export default function LandingPage() {
             </Badge>
           </motion.div>
 
-          {/* H1 Headline — bold 3D slam-in */}
+          {/* H1 Headline — MASSIVE 3D slam-in with ground shudder */}
           <h1 className="sr-only">Dominate Your Season — The Squad Elite Sports Management Platform</h1>
-          <div aria-hidden="true" className="relative" style={{ perspective: '900px', transformStyle: 'preserve-3d' }}>
+          <motion.div
+            aria-hidden="true"
+            className="relative"
+            style={{ perspective: '600px', transformStyle: 'preserve-3d' }}
+            animate={heroRevealed ? { x: [0, -6, 5, -3, 2, 0], y: [0, 4, -3, 2, -1, 0] } : {}}
+            transition={{ delay: 1.35, duration: 0.5, ease: 'easeOut' }}
+          >
 
-            {/* DOMINATE — slams down from rotateX perspective */}
+            {/* DOMINATE — crashes straight down from above with extreme rotateX */}
             <div className="overflow-hidden pb-2">
               <motion.div
-                className="text-5xl md:text-9xl font-black text-white tracking-tighter leading-[0.88] drop-shadow-2xl"
-                initial={{ y: '110%', rotateX: -80, opacity: 0, scale: 1.1 }}
-                animate={{ y: 0, rotateX: 0, opacity: 1, scale: 1 }}
-                transition={{ delay: 0.7, duration: 0.95, ease: [0.16, 1, 0.3, 1] }}
-                style={{ transformOrigin: 'top center', display: 'block' }}
+                className="text-5xl md:text-9xl font-black text-white tracking-tighter leading-[0.88]"
+                initial={{ y: '-120%', rotateX: -120, opacity: 0, scale: 1.4, filter: 'blur(8px)' }}
+                animate={{ y: 0, rotateX: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                transition={{ delay: 0.7, duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                style={{ transformOrigin: 'top center', display: 'block', textShadow: '0 8px 40px rgba(0,0,0,0.8), 0 0 80px rgba(196,31,31,0.3)' }}
               >
                 DOMINATE
               </motion.div>
             </div>
 
-            {/* YOUR SEASON — side-by-side, each hits separately */}
+            {/* YOUR SEASON — side-by-side, each slams in from the sides with huge rotateY */}
             <div className="overflow-hidden pb-1 flex items-baseline justify-center gap-4 md:gap-6 flex-wrap">
               <motion.span
-                className="inline-block text-5xl md:text-9xl font-black text-white tracking-tighter leading-[0.88] drop-shadow-2xl"
-                initial={{ x: -120, rotateY: 60, opacity: 0 }}
-                animate={{ x: 0, rotateY: 0, opacity: 1 }}
-                transition={{ delay: 1.05, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-                style={{ transformOrigin: 'left center' }}
+                className="inline-block text-5xl md:text-9xl font-black text-white tracking-tighter leading-[0.88]"
+                initial={{ x: -200, rotateY: 90, opacity: 0, scale: 0.7, filter: 'blur(10px)' }}
+                animate={{ x: 0, rotateY: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                transition={{ delay: 1.05, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                style={{ transformOrigin: 'left center', textShadow: '0 8px 40px rgba(0,0,0,0.8)' }}
               >
                 YOUR
               </motion.span>
               <motion.span
-                className="inline-block text-5xl md:text-9xl font-black text-primary italic tracking-tighter leading-[0.88] drop-shadow-2xl"
-                initial={{ x: 120, rotateY: -60, opacity: 0, scale: 0.85 }}
-                animate={{ x: 0, rotateY: 0, opacity: 1, scale: 1 }}
-                transition={{ delay: 1.15, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-                style={{ transformOrigin: 'right center' }}
+                className="inline-block text-5xl md:text-9xl font-black text-primary italic tracking-tighter leading-[0.88]"
+                initial={{ x: 200, rotateY: -90, opacity: 0, scale: 0.5, filter: 'blur(12px)' }}
+                animate={{ x: 0, rotateY: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                transition={{ delay: 1.15, duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                style={{ transformOrigin: 'right center', textShadow: '0 8px 40px rgba(196,31,31,0.5), 0 0 60px rgba(196,31,31,0.4)' }}
               >
                 SEASON.
               </motion.span>
             </div>
 
-            {/* Underline streak */}
+            {/* Underline streak — fires after impact */}
             <motion.div
-              className="mx-auto mt-3 h-1 rounded-full bg-gradient-to-r from-transparent via-primary to-transparent"
+              className="mx-auto mt-3 h-1.5 rounded-full bg-gradient-to-r from-transparent via-primary to-transparent"
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: '60%', opacity: 1 }}
-              transition={{ delay: 1.5, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              animate={{ width: '70%', opacity: 1 }}
+              transition={{ delay: 1.45, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             />
-          </div>
+          </motion.div>
 
           {/* Subtitle */}
           <motion.p
