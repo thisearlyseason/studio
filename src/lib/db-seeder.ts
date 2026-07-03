@@ -657,7 +657,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         : 'Primary training venue. Gate code: 1992#. Concessions open on game days. Coaches arrive 45 min early.',
       isDemo: true
     }));
-    
+    // CRITICAL: Flush the facility doc before writing fields subcollection.
+    // The fields write rule calls get(facilities/{facilityId}) — if the parent doc
+    // is in the same batch, the get() returns null and the write is denied.
+    await batch.flush();
+
     // Enroll Standard Fields/Courts
     const fieldResources = isSchoolDemo
       ? ['Main Gymnasium', 'Field House', 'Outdoor Track', 'Football Field', 'Tennis Courts']
@@ -671,6 +675,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         isDemo: true
       }));
     });
+    await batch.flush();
 
     // Second facility for elite/school demos
     if (isEliteDemo || isSchoolDemo) {
@@ -683,6 +688,8 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
         notes: 'Secondary training venue. Call ahead for equipment setup.',
         isDemo: true
       }));
+      // Flush fac2 doc before its fields subcollection
+      await batch.flush();
       const field2Resources = isSchoolDemo
         ? ['Court A', 'Court B', 'Wrestling Room']
         : ['Turf Field 1', 'Turf Field 2'];
@@ -695,6 +702,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
           isDemo: true
         }));
       });
+      await batch.flush();
     }
   }
 
