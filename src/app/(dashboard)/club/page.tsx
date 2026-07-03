@@ -840,87 +840,45 @@ export default function ClubManagementPage() {
 
       {/* ─── Hub Broadcast Channel ─── */}
       {(isSchoolMode || !isSchoolMode) && schoolHub && (
-        <Card className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent border-b p-8 flex flex-row items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-primary/10 p-3 rounded-2xl text-primary shadow-sm">
-                <MessageCircle className="h-6 w-6" />
-              </div>
-              <div>
-                <CardTitle className="text-xl font-black uppercase tracking-tight">
-                  {isSchoolMode ? 'Hub Broadcast Channel' : 'Club Broadcast Channel'}
-                </CardTitle>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                  Org-wide communication with all coaches &amp; admins
-                </p>
-              </div>
+        <Card className="rounded-2xl border-none bg-white ring-1 ring-black/5 p-4 sm:p-5">
+          <div className="flex items-center gap-4">
+            <div className="bg-primary/10 p-2.5 rounded-xl text-primary shrink-0">
+              <MessageCircle className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black uppercase tracking-tight leading-tight">Hub Broadcast Channel</p>
+              <p className="text-[10px] font-bold text-muted-foreground">Open tactical chat · All coaches &amp; admins</p>
             </div>
             {hubChannel && (
-              <Badge className="bg-green-100 text-green-700 font-black uppercase text-[8px] tracking-widest border-none shrink-0">
-                Active
+              <Badge className="bg-primary/10 text-primary font-black uppercase text-[8px] tracking-widest border-none shrink-0">
+                {hubChannel.memberIds.length} Members
               </Badge>
             )}
-          </CardHeader>
-          <CardContent className="p-8">
             {hubChannelLoading ? (
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Checking for existing channel...</span>
-              </div>
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
             ) : hubChannel ? (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <p className="text-sm font-black text-foreground">{hubChannel.name}</p>
-                  <div className="flex flex-wrap gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-primary/10 text-primary">
-                      {hubChannel.memberIds.length} Members
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      All coaches &amp; admins included
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  onClick={() => router.push(`/chats`)}
-                  className="rounded-2xl font-black uppercase text-[10px] h-12 px-8 shadow-lg shadow-primary/20 shrink-0"
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" /> Open Channel
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                onClick={() => router.push('/chats/' + hubChannel.id)}
+                className="rounded-xl font-black uppercase text-[10px] h-9 px-4 shadow-md shadow-primary/20 shrink-0"
+              >
+                <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> Open Channel
+              </Button>
             ) : (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <p className="text-sm font-black text-foreground">No broadcast channel yet</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
-                    Create a persistent group chat that includes all coaches and admins from every squad.
-                    Use it to share org-wide announcements, schedule changes, and urgent communications.
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-muted/50 text-muted-foreground">
-                      {allCoaches.length} Coaches
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-muted/50 text-muted-foreground">
-                      {(schoolHub.schoolAdminIds?.length || 0) + 1} Admins
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-muted/50 text-muted-foreground">
-                      {clubTeams.length} Squads
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleCreateHubChannel}
-                  disabled={isCreatingHubChannel}
-                  className="rounded-2xl font-black uppercase text-[10px] h-12 px-8 shadow-lg shadow-primary/20 shrink-0"
-                >
-                  {isCreatingHubChannel ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
-                  ) : (
-                    <><MessageCircle className="h-4 w-4 mr-2" /> Create Broadcast Channel</>
-                  )}
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                onClick={handleCreateHubChannel}
+                disabled={isCreatingHubChannel}
+                className="rounded-xl font-black uppercase text-[10px] h-9 px-4 shadow-md shadow-primary/20 shrink-0"
+              >
+                {isCreatingHubChannel ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Creating...</>
+                ) : (
+                  <>Set Up Channel</>
+                )}
+              </Button>
             )}
-          </CardContent>
+          </div>
         </Card>
       )}
 

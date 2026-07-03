@@ -147,6 +147,13 @@ export default function ChatRoomPage() {
     toast({ title: "Squad Member Added" });
   };
 
+  const handleRemoveMember = (memberId: string) => {
+    if (!chatId || !activeTeam || !currentChat) return;
+    const newIds = (currentChat.memberIds || []).filter((id: string) => id !== memberId);
+    updateDocumentNonBlocking(doc(db, 'teams', activeTeam.id, 'groupChats', chatId as string), { memberIds: newIds });
+    toast({ title: 'Member Removed' });
+  };
+
   const handleDeleteChat = async () => {
     if (!chatId) return;
     if (isStaff) {
@@ -196,9 +203,13 @@ export default function ChatRoomPage() {
     );
   }
 
-  const currentMemberIds = currentChat?.memberIds || [];
-  const activeMembers = teamMembers.filter(m => currentMemberIds.includes(m.userId));
-  const availableMembers = teamMembers.filter(m => !currentMemberIds.includes(m.userId));
+  const currentMemberIds: string[] = currentChat?.memberIds || [];
+  // For each memberID in the chat, find their team member record if available
+  const activeMemberEntries = currentMemberIds.map(uid => {
+    const found = teamMembers.find(m => m.userId === uid || m.id === uid);
+    return found || { id: uid, userId: uid, name: uid.length > 16 ? uid.slice(0, 12) + '...' : uid, position: 'Member', avatar: undefined };
+  });
+  const availableMembers = teamMembers.filter(m => !currentMemberIds.includes(m.userId) && !currentMemberIds.includes(m.id));
 
   return (
     <div className="flex flex-col h-[calc(100vh-160px)] md:h-[calc(100vh-130px)] -mt-4 md:-mt-4 -mx-4 overflow-hidden bg-muted/5">
@@ -477,18 +488,37 @@ export default function ChatRoomPage() {
               <div className="space-y-3">
                 <p className="text-[10px] font-black uppercase text-muted-foreground px-1 tracking-widest">Active Teammates ({currentMemberIds.length})</p>
                 <div className="max-h-[200px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                  {activeMembers.map(m => (
-                    <div key={m.id} className="flex items-center gap-3 p-3 bg-primary/5 rounded-2xl border border-primary/10">
-                      <Avatar className="h-8 w-8 rounded-xl border-2 border-background shadow-sm">
-                        <AvatarImage src={m.avatar} />
-                        <AvatarFallback className="font-black text-[10px] bg-white">{m.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="text-xs font-black uppercase truncate">{m.name}</p>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">{m.position}</p>
+                  {activeMemberEntries.map(m => {
+                    const memberId = m.userId || m.id;
+                    const isSelf = memberId === user?.id;
+                    return (
+                      <div key={m.id} className="flex items-center gap-3 p-3 bg-primary/5 rounded-2xl border border-primary/10">
+                        <Avatar className="h-8 w-8 rounded-xl border-2 border-background shadow-sm">
+                          <AvatarImage src={m.avatar} />
+                          <AvatarFallback className="font-black text-[10px] bg-white">{m.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black uppercase truncate">{m.name}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase">{m.position}</p>
+                        </div>
+                        {!isSelf && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 rounded-lg p-0 hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
+                                onClick={() => handleRemoveMember(memberId)}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Remove from channel</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
