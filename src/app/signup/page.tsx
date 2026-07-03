@@ -24,6 +24,7 @@ import { PRICING_CONFIG } from '@/lib/pricing';
 type RegTarget = 'self' | 'child' | 'coach' | 'league_creator' | 'school_ad' | null;
 type PlanChoice = 'starter' | 'pro_team' | 'elite_teams' | 'elite_league' | 'school' | null;
 type SignupStep = 'target' | 'plan' | 'join_team' | 'account';
+type BillingCycle = 'monthly' | 'annual';
 
 const SIGNUP_OPTIONS: { id: RegTarget; icon: any; label: string; desc: string; badge: string }[] = [
   {
@@ -65,38 +66,57 @@ const SIGNUP_OPTIONS: { id: RegTarget; icon: any; label: string; desc: string; b
 
 // Plan definitions keyed by plan choice ID
 const PLAN_DEFS: Record<string, {
-  id: string; label: string; price: string; annualPrice: string; desc: string;
-  features: string[]; highlight?: boolean; trial?: boolean; priceId: string; teamLimit: number;
+  id: string; label: string;
+  monthlyPrice: string; annualPrice: string;
+  monthlyPriceId: string; annualPriceId: string;
+  desc: string;
+  features: string[];
+  highlight?: boolean; trial?: boolean; teamLimit: number;
+  savingsLabel?: string;
 }> = {
   starter: {
-    id: 'starter', label: 'Starter', price: 'Free', annualPrice: 'Free',
+    id: 'starter', label: 'Starter',
+    monthlyPrice: 'Free', annualPrice: 'Free',
+    monthlyPriceId: '', annualPriceId: '',
     desc: 'Core coordination tools, no commitment',
     features: ['1 Team Hub', 'Scheduling & Chats', 'Score Tracking'],
-    priceId: '', teamLimit: 1,
+    teamLimit: 1,
   },
   pro_team: {
-    id: 'pro_team', label: 'Pro Team', price: '$19.99/mo', annualPrice: '$199/yr',
+    id: 'pro_team', label: 'Pro Team',
+    monthlyPrice: '$19.99/mo', annualPrice: '$199/yr',
+    monthlyPriceId: PRICING_CONFIG.find(p => p.id === 'team')?.monthlyPriceId || '',
+    annualPriceId:  PRICING_CONFIG.find(p => p.id === 'team')?.annualPriceId  || '',
     desc: 'Championship tools for one competitive team',
     features: ['1 Pro Team Hub', 'Unlimited Athletes', 'Digital Waivers & Payments', 'Advanced Analytics'],
-    highlight: true, trial: true, priceId: PRICING_CONFIG.find(p => p.id === 'team')?.monthlyPriceId || '', teamLimit: 1,
+    highlight: true, trial: true, teamLimit: 1, savingsLabel: 'Save ~17%',
   },
   elite_teams: {
-    id: 'elite_teams', label: 'Elite Teams', price: '$119/mo', annualPrice: '$1,119/yr',
+    id: 'elite_teams', label: 'Elite Teams',
+    monthlyPrice: '$119/mo', annualPrice: '$1,119/yr',
+    monthlyPriceId: PRICING_CONFIG.find(p => p.id === 'elite')?.monthlyPriceId || '',
+    annualPriceId:  PRICING_CONFIG.find(p => p.id === 'elite')?.annualPriceId  || '',
     desc: 'Multi-squad management for growing clubs',
     features: ['Up to 8 Pro Team Hubs', 'Master Club Dashboard', 'Staff Role Management', 'League & Tournament Architect'],
-    highlight: true, trial: true, priceId: PRICING_CONFIG.find(p => p.id === 'elite')?.monthlyPriceId || '', teamLimit: 8,
+    highlight: true, trial: true, teamLimit: 8, savingsLabel: 'Save ~22%',
   },
   elite_league: {
-    id: 'elite_league', label: 'Elite League', price: '$279/mo', annualPrice: '$2,790/yr',
+    id: 'elite_league', label: 'Elite League',
+    monthlyPrice: '$279/mo', annualPrice: '$2,790/yr',
+    monthlyPriceId: PRICING_CONFIG.find(p => p.id === 'league')?.monthlyPriceId || '',
+    annualPriceId:  PRICING_CONFIG.find(p => p.id === 'league')?.annualPriceId  || '',
     desc: 'Institutional scale for series and leagues',
     features: ['Up to 18 Pro Team Hubs', 'League Series Architect', 'Global Tournament Hosting', 'Advanced Standings & Reporting'],
-    trial: true, priceId: PRICING_CONFIG.find(p => p.id === 'league')?.monthlyPriceId || '', teamLimit: 18,
+    trial: true, teamLimit: 18, savingsLabel: 'Save ~17%',
   },
   school: {
-    id: 'school', label: 'Schools Plan', price: '$175/mo', annualPrice: '$1,750/yr',
+    id: 'school', label: 'Schools Plan',
+    monthlyPrice: '$175/mo', annualPrice: '$1,750/yr',
+    monthlyPriceId: PRICING_CONFIG.find(p => p.id === 'school')?.monthlyPriceId || '',
+    annualPriceId:  PRICING_CONFIG.find(p => p.id === 'school')?.annualPriceId  || '',
     desc: '15 squads included · add more anytime at the lowest per-squad rate on the platform',
     features: ['15 Pro Squad Hubs Included', 'Athletic Director Dashboard', 'Academic Eligibility Sync', 'Extra squads at school-exclusive discount'],
-    highlight: true, trial: true, priceId: PRICING_CONFIG.find(p => p.id === 'school')?.monthlyPriceId || '', teamLimit: 15,
+    highlight: true, trial: true, teamLimit: 15, savingsLabel: 'Save ~17%',
   },
 };
 
@@ -111,6 +131,7 @@ export default function SignupPage() {
   const [step, setStep] = useState<SignupStep>('target');
   const [regTarget, setRegTarget] = useState<RegTarget>(null);
   const [planChoice, setPlanChoice] = useState<PlanChoice>(null);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [joinCode, setJoinCode] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -196,7 +217,10 @@ export default function SignupPage() {
       const isPaid = planChoice && planChoice !== 'starter';
       if (isPaid) {
         const planDef = PLAN_DEFS[planChoice as string];
-        if (!planDef?.priceId) {
+        const resolvedPriceId = billingCycle === 'annual'
+          ? planDef?.annualPriceId
+          : planDef?.monthlyPriceId;
+        if (!resolvedPriceId) {
           // Fallback: go to pricing if price ID missing
           toast({ title: 'Plan Setup Issue', description: 'Please complete your upgrade from the pricing page.', variant: 'destructive' });
           router.push('/pricing');
@@ -208,9 +232,9 @@ export default function SignupPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeader(token) },
             body: JSON.stringify({
-              priceId: planDef.priceId,
+              priceId: resolvedPriceId,
               userId: user.uid,
-              billingCycle: 'monthly',
+              billingCycle,
               trialDays: 5,
               newUser: true,
             }),
@@ -476,11 +500,61 @@ export default function SignupPage() {
                 )}
               </div>
 
+              {/* ── Billing Cycle Toggle ── */}
+              {rolePlans.some(p => p !== 'starter') && (
+                <div className="flex items-center justify-center">
+                  <div className="relative flex items-center bg-muted rounded-2xl p-1 gap-0">
+                    <button
+                      type="button"
+                      onClick={() => setBillingCycle('monthly')}
+                      className={cn(
+                        'relative z-10 px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-200',
+                        billingCycle === 'monthly'
+                          ? 'bg-white text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillingCycle('annual')}
+                      className={cn(
+                        'relative z-10 px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-200 flex items-center gap-1.5',
+                        billingCycle === 'annual'
+                          ? 'bg-white text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      Annual
+                      <span className={cn(
+                        'text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full transition-all',
+                        billingCycle === 'annual'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-green-50 text-green-600'
+                      )}>
+                        Save up to 22%
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {rolePlans.map((planId) => {
                   const plan = PLAN_DEFS[planId as string];
                   if (!plan) return null;
                   const isSelected = planChoice === planId;
+                  const displayPrice = plan.id === 'starter'
+                    ? 'Free'
+                    : billingCycle === 'annual'
+                      ? plan.annualPrice
+                      : plan.monthlyPrice;
+                  const altPrice = plan.id === 'starter'
+                    ? null
+                    : billingCycle === 'annual'
+                      ? `or ${plan.monthlyPrice}`
+                      : `or ${plan.annualPrice} annually`;
                   return (
                     <button
                       key={plan.id}
@@ -512,12 +586,17 @@ export default function SignupPage() {
                             )}
                           </div>
                           <p className="text-[10px] font-semibold text-muted-foreground mb-2 leading-snug">{plan.desc}</p>
-                          <div className="flex items-baseline gap-1 mb-2">
+                          <div className="flex items-baseline gap-1.5 mb-2 flex-wrap">
                             <span className={cn("text-xl font-black tracking-tight", plan.id === 'starter' ? 'text-foreground' : 'text-primary')}>
-                              {plan.price}
+                              {displayPrice}
                             </span>
-                            {plan.id !== 'starter' && (
-                              <span className="text-[9px] font-black text-muted-foreground uppercase">· {plan.annualPrice}</span>
+                            {altPrice && (
+                              <span className="text-[9px] font-semibold text-muted-foreground">{altPrice}</span>
+                            )}
+                            {billingCycle === 'annual' && plan.id !== 'starter' && plan.savingsLabel && (
+                              <span className="text-[8px] font-black uppercase tracking-widest bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                                {plan.savingsLabel}
+                              </span>
                             )}
                           </div>
                           <ul className="space-y-0.5">
@@ -580,13 +659,18 @@ export default function SignupPage() {
                 )}
                 {/* Chosen plan summary pill */}
                 {planChoice && planChoice !== 'starter' && (
-                  <div className="flex items-center justify-center gap-2 mt-2">
+                  <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
                     <div className="flex items-center gap-1.5 bg-black text-white rounded-full py-1.5 px-3">
                       <Zap className="h-3 w-3 text-primary" />
                       <span className="text-[9px] font-black uppercase tracking-widest">
                         {PLAN_DEFS[planChoice]?.label}
                       </span>
-                      <span className="text-[8px] text-white/50 uppercase">· {PLAN_DEFS[planChoice]?.price}</span>
+                      <span className="text-[8px] text-white/50 uppercase">
+                        · {billingCycle === 'annual' ? PLAN_DEFS[planChoice]?.annualPrice : PLAN_DEFS[planChoice]?.monthlyPrice}
+                      </span>
+                      <span className="text-[8px] text-primary/70 uppercase font-black">
+                        {billingCycle === 'annual' ? '· Annual' : '· Monthly'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1 bg-green-50 border border-green-200 rounded-full py-1 px-2">
                       <Clock className="h-2.5 w-2.5 text-green-600" />
