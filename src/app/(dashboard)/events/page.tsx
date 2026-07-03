@@ -68,6 +68,7 @@ import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { downloadICS } from '@/lib/calendar-utils';
 import { WeatherPulse } from '@/components/WeatherPulse';
 import { EventDetailDialog, formatDateRange, formatDayRange } from './EventDetailDialog';
+import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete';
 
 const EVENT_TYPE_COLORS: Record<EventType, string> = {
   game: 'bg-primary border-primary text-white',
@@ -619,7 +620,12 @@ export default function EventsPage() {
               </div>
             </div>
             <div className="flex-1 p-10 space-y-6 bg-white">
-              <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase ml-1">Location</Label><Input value={newLocation} onChange={e => setNewLocation(e.target.value)} className="h-12 rounded-xl border-2 font-bold" /></div>
+              <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase ml-1">Location</Label><LocationAutocomplete
+                value={newLocation}
+                onChange={setNewLocation}
+                placeholder="Search venue or enter address…"
+                inputClassName="h-12 rounded-xl border-2 font-bold"
+              /></div>
               <div className="space-y-1.5"><Label className="text-[10px] font-black uppercase ml-1">Event Brief</Label><Textarea value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-xl min-h-[100px] border-2 font-medium" /></div>
               
               {eventType === 'practice' && (

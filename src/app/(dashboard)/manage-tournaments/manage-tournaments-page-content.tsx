@@ -62,6 +62,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -663,7 +664,12 @@ function TournamentDeploymentWizard({ isOpen, onOpenChange, onComplete, editEven
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                         <div className="space-y-3">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Central Hub/Venue</Label>
-                          <Input placeholder="Stadium Name" value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="h-14 rounded-xl bg-white/15 border-white/20 font-bold text-white focus-visible:ring-primary px-6 shadow-inner" />
+                          <LocationAutocomplete
+                          value={form.location}
+                          onChange={(val) => setForm({...form, location: val})}
+                          placeholder="Search venue or enter address…"
+                          inputClassName="h-14 rounded-xl bg-white/15 border-white/20 font-bold text-white focus-visible:ring-primary px-6 shadow-inner pl-9"
+                        />
                         </div>
                         <div className="space-y-3">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-white/60 ml-2">Registration Toll ($)</Label>

@@ -78,6 +78,7 @@ import { collection, query, orderBy, doc, getDoc, updateDoc, collectionGroup, wh
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -3738,7 +3739,12 @@ function SafetyHub() {
               </div>
 
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Location</Label><Input placeholder="Field/Court" value={form.location ?? ''} onChange={e => setForm({...form, location: e.target.value})} className="h-12 border-2 rounded-xl font-bold" /></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase ml-1">Location</Label><LocationAutocomplete
+                value={form.location ?? ''}
+                onChange={(val) => setForm({...form, location: val})}
+                placeholder="Search venue or enter address…"
+                inputClassName="h-12 border-2 rounded-xl font-bold"
+              /></div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase ml-1">Severity</Label>
                   <Select value={form.severity} onValueChange={(v: any) => setForm({...form, severity: v})}>
