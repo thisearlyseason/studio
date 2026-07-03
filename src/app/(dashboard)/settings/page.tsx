@@ -596,13 +596,13 @@ export default function SettingsPage() {
           <ExternalLink className="h-5 w-5 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
         </Link>
         
-        {isPro && (isStaff || isPrimaryClubAuthority) && (
-          <button onClick={manageSubscription} className="w-full p-6 bg-white rounded-3xl flex items-center justify-between border-2 border-transparent hover:border-primary/20 shadow-sm transition-all group">
+        {isPro && !isDemo && (isStaff || isPrimaryClubAuthority) && (
+          <button onClick={() => router.push('/dashboard/billing')} className="w-full p-6 bg-white rounded-3xl flex items-center justify-between border-2 border-transparent hover:border-primary/20 shadow-sm transition-all group">
             <div className="flex items-center gap-4">
               <div className="bg-amber-100 p-3 rounded-2xl text-amber-600 group-hover:bg-primary group-hover:text-white transition-colors"><CreditCard className="h-6 w-6" /></div>
               <div className="text-left">
-                <p className="font-black text-sm uppercase tracking-tight">Manage Elite Seat</p>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase">Billing & Tier Configuration</p>
+                <p className="font-black text-sm uppercase tracking-tight">Manage Subscription</p>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase">Upgrade · Downgrade · Cancel</p>
               </div>
             </div>
             <ExternalLink className="h-5 w-5 text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />

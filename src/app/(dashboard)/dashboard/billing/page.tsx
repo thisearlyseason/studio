@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function BillingDashboard() {
-  const { user: userProfile, isPro, teams, proQuotaStatus, updateTeamPlan } = useTeam();
+  const { user: userProfile, isPro, teams, activeTeam, proQuotaStatus, updateTeamPlan } = useTeam();
   const auth = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -62,9 +62,15 @@ export default function BillingDashboard() {
     setAddonQty(userProfile?.extra_teams || 0);
   }, [userProfile?.extra_teams]);
 
+  // Demo detection: team IDs starting with 'demo_' or isDemo flag on team/user
+  const isDemo = !!(activeTeam?.isDemo || (userProfile as any)?.isDemo ||
+    teams?.some(t => t.id?.startsWith('demo_')));
+
   const currentPlan = PRICING_CONFIG.find(p => p.id === userProfile?.plan_type) || null;
   const isOverLimit = (teams || []).length > (userProfile?.team_limit || 1);
   const isStripeLinked = !!userProfile?.stripe_subscription_id;
+  // Multi-team plans are those with a limit > 1 (Elite, League, Schools)
+  const isMultiTeamPlan = (userProfile?.team_limit || 1) > 1;
 
   // ─── Handlers (unchanged from original) ────────────────────────────────────
   const handleUpdatePlan = async (newPlan: Plan | null, initialAddons?: number) => {
@@ -531,10 +537,15 @@ export default function BillingDashboard() {
         </Card>
       )}
 
-      {/* ── Squad Allocation ── */}
-      {teams && teams.filter(t => t.ownerUserId === userProfile.id).length > 0 && (
+      {/* ── Squad Pro Allocation — only meaningful for multi-team plans ── */}
+      {isMultiTeamPlan && teams && teams.filter(t => t.ownerUserId === userProfile.id).length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-widest">Squad Pro Allocation</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-widest">Squad Pro Allocation</h2>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase">
+              {proQuotaStatus.remaining} slot{proQuotaStatus.remaining !== 1 ? 's' : ''} available
+            </p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {teams.filter(t => t.ownerUserId === userProfile.id).map(team => (
               <Card key={team.id} className={cn('rounded-[1.75rem] border-2 overflow-hidden transition-all', team.isPro ? 'border-primary/20 bg-primary/[0.02]' : 'border-border/40')}>
@@ -572,15 +583,30 @@ export default function BillingDashboard() {
                 </CardContent>
               </Card>
             ))}
-            <Card
-              className="rounded-[1.75rem] border-2 border-dashed border-border/60 flex flex-col items-center justify-center p-6 gap-3 hover:border-primary/40 transition-all cursor-pointer group"
-              onClick={() => router.push('/dashboard')}
-            >
-              <div className="p-3 rounded-full bg-white shadow-sm border group-hover:scale-110 transition-transform">
-                <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-              </div>
-              <p className="font-black uppercase text-[10px] text-center">Add New Squad</p>
-            </Card>
+            {/* Add New Squad — disabled when at limit, prompts upgrade instead */}
+            {proQuotaStatus.remaining > 0 ? (
+              <Card
+                className="rounded-[1.75rem] border-2 border-dashed border-border/60 flex flex-col items-center justify-center p-6 gap-3 hover:border-primary/40 transition-all cursor-pointer group"
+                onClick={() => router.push('/dashboard')}
+              >
+                <div className="p-3 rounded-full bg-white shadow-sm border group-hover:scale-110 transition-transform">
+                  <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                </div>
+                <p className="font-black uppercase text-[10px] text-center">Add New Squad</p>
+              </Card>
+            ) : (
+              <Card
+                className="rounded-[1.75rem] border-2 border-dashed border-amber-200 bg-amber-50/50 flex flex-col items-center justify-center p-6 gap-3"
+              >
+                <div className="p-3 rounded-full bg-amber-100 border border-amber-200">
+                  <LockIcon className="h-5 w-5 text-amber-600" />
+                </div>
+                <p className="font-black uppercase text-[10px] text-center text-amber-700">Slot Limit Reached</p>
+                <p className="text-[9px] font-bold text-amber-600/80 text-center leading-tight">
+                  Upgrade your plan or add extra squad slots above to unlock more squads.
+                </p>
+              </Card>
+            )}
           </div>
         </div>
       )}
@@ -591,12 +617,14 @@ export default function BillingDashboard() {
           <div className="space-y-1">
             <h3 className="font-black uppercase text-sm text-red-700 tracking-tight">Cancel Subscription</h3>
             <p className="text-[11px] font-bold text-red-600/70 leading-relaxed">
-              You can cancel at any time. All features remain active until the end of your current billing period.
-              Your data is preserved and you can resubscribe at any time.
+              {isDemo
+                ? 'You are currently on a demo account. Cancellation is only available for live paid subscriptions. To test this flow, sign up for a live plan.'
+                : 'You can cancel at any time. All features remain active until the end of your current billing period. Your data is preserved and you can resubscribe at any time.'
+              }
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            {isStripeLinked && (
+            {!isDemo && isStripeLinked && (
               <Button
                 variant="outline"
                 className="rounded-xl font-bold h-10 border-red-200 text-red-600 hover:bg-red-50 gap-2"
@@ -607,35 +635,41 @@ export default function BillingDashboard() {
                 Manage in Stripe
               </Button>
             )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="rounded-xl font-black uppercase text-[10px] h-10 text-red-600 hover:text-white hover:bg-red-600 border border-red-200 gap-2"
-                  disabled={loading === 'cancel' || !isStripeLinked}
-                >
-                  {loading === 'cancel' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><XCircle className="h-4 w-4" /> Cancel Subscription</>}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="rounded-[2rem]">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="font-black uppercase">Confirm Cancellation</AlertDialogTitle>
-                  <AlertDialogDescription className="font-bold text-sm">
-                    Your subscription will be cancelled at the end of the current billing period.
-                    You will retain full access until then. This action can be reversed by contacting support or resubscribing.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-xl font-black">Keep My Plan</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="rounded-xl font-black bg-red-600 hover:bg-red-700"
-                    onClick={handleCancel}
+            {isDemo ? (
+              <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-black text-[10px] uppercase px-4 h-10 flex items-center">
+                Demo Account — Not Available
+              </Badge>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="rounded-xl font-black uppercase text-[10px] h-10 text-red-600 hover:text-white hover:bg-red-600 border border-red-200 gap-2"
+                    disabled={loading === 'cancel' || !isStripeLinked}
                   >
-                    Yes, Cancel Subscription
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    {loading === 'cancel' ? <Loader2 className="h-4 w-4 animate-spin" /> : <><XCircle className="h-4 w-4" /> Cancel Subscription</>}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-[2rem]">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="font-black uppercase">Confirm Cancellation</AlertDialogTitle>
+                    <AlertDialogDescription className="font-bold text-sm">
+                      Your subscription will be cancelled at the end of the current billing period.
+                      You will retain full access until then. This action can be reversed by contacting support or resubscribing.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-xl font-black">Keep My Plan</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="rounded-xl font-black bg-red-600 hover:bg-red-700"
+                      onClick={handleCancel}
+                    >
+                      Yes, Cancel Subscription
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       </div>
