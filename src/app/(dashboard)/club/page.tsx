@@ -137,7 +137,7 @@ function TeamComplianceCard({ teams, clubDocs }: { teams: Team[], clubDocs: Team
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
 export default function ClubManagementPage() {
-  const { teams, user, isPrimaryClubAuthority, createNewTeam, setActiveTeam, updateUser, updateTeam, deleteTeam, deployClubProtocol, hasFeature, isSchoolMode, isSchoolAdmin, activeTeam, members, db, createChat, reinstateMember } = useTeam();
+  const { teams, user, isPrimaryClubAuthority, createNewTeam, setActiveTeam, updateUser, updateTeam, deleteTeam, deployClubProtocol, hasFeature, isSchoolMode, isSchoolAdmin, activeTeam, members, db, createChat, reinstateMember, isEliteAccount } = useTeam();
   const [selectedCoach, setSelectedCoach] = useState<Member | null>(null);
   
   if (!isPrimaryClubAuthority) {
@@ -184,8 +184,12 @@ export default function ClubManagementPage() {
     if (isSchoolMode) {
       return teams.find(t => t.ownerUserId === user?.id && t.isPro) || teams[0] || null;
     }
+    // For elite multi-team organizers, treat their primary owned Pro team as the hub
+    if (isEliteAccount && isPrimaryClubAuthority) {
+      return teams.find(t => t.ownerUserId === user?.id && t.isPro) || null;
+    }
     return null;
-  }, [teams, isSchoolMode, user?.id]);
+  }, [teams, isSchoolMode, isEliteAccount, isPrimaryClubAuthority, user?.id]);
 
   // School Logic: Get sub-squads relative to the identified hub
   const schoolSquads = useMemo(() => {
@@ -302,7 +306,7 @@ export default function ClubManagementPage() {
       }
 
       const memberIdsArray = Array.from(memberUserIds);
-      const channelName = `${user?.schoolName || user?.clubName || (isSchoolMode ? 'School Hub' : 'Club Hub')} — Broadcast Channel`;
+      const channelName = `${user?.schoolName || user?.clubName || (isSchoolMode ? 'School Hub' : (isEliteAccount ? 'Apex Academy' : 'Club Hub'))} — Broadcast Channel`;
       const chatId = await createChat(channelName, memberIdsArray);
       if (chatId && db) {
         await updateDoc(doc(db, 'teams', schoolHub.id, 'groupChats', chatId), {

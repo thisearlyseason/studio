@@ -1303,5 +1303,43 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
       await hubBatch.flush();
     }
 
+    // ── Elite Demo: Auto-seed Hub Broadcast Channel ───────────────────────────
+    if (isEliteDemo) {
+      const primaryTId = `demo_${planId}_${userId.slice(-4)}_${teamVariants[0].toLowerCase().replace(/\s+/g, '')}`;
+      const hubChatId = `hub_broadcast_elite_${userId.slice(-4)}`;
+      const hubMemberIds: string[] = [userId];
+      const staffMeta: Record<string, { name: string; position: string; avatar: string; squadName?: string }> = {
+        [userId]: { name: 'Guest Coach', position: 'League Organizer', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=guestcoach` }
+      };
+
+      for (let i = 0; i < teamVariants.length; i++) {
+        const variant = teamVariants[i];
+        const tId = `demo_${planId}_${userId.slice(-4)}_${variant.toLowerCase().replace(/\s+/g, '')}`;
+        const staff = COACHING_STAFF[i % COACHING_STAFF.length];
+        const squadName = `Elite Squad - ${variant}`;
+        const u1 = `u1_${tId}`;
+        const u2 = `u2_${tId}`;
+        hubMemberIds.push(u1, u2);
+        staffMeta[u1] = { name: staff.headName, position: 'Head Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.headAvatar}`, squadName };
+        staffMeta[u2] = { name: staff.asstName, position: 'Assistant Coach', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${staff.asstAvatar}`, squadName };
+      }
+
+      const eliteBatch = new BatchHelper(db);
+      eliteBatch.set(doc(db, 'teams', primaryTId, 'groupChats', hubChatId), clean({
+        id: hubChatId,
+        name: 'Apex Academy — Broadcast Channel',
+        createdBy: userId,
+        memberIds: hubMemberIds,
+        isDeleted: false,
+        teamId: primaryTId,
+        createdAt: now,
+        isHubChannel: true,
+        hubTeamId: primaryTId,
+        staffMetadata: staffMeta,
+        isDemo: true
+      }));
+      await eliteBatch.flush();
+    }
+
     return `demo_${planId}_${userId.slice(-4)}`;
 }

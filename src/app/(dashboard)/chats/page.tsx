@@ -23,13 +23,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where } from 'firebase/firestore';
+import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 export default function ChatsPage() {
-  const { activeTeam, members, createChat, isStaff, isParent, isPlayer, isSuperAdmin, user } = useTeam();
+  const { activeTeam, members, createChat, isStaff, isParent, isPlayer, isSuperAdmin, user, teams, isPrimaryClubAuthority, isSchoolMode, isEliteAccount } = useTeam();
   const db = useFirestore();
   const router = useRouter();
   
@@ -38,6 +38,7 @@ export default function ChatsPage() {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [allStaffMembers, setAllStaffMembers] = useState<any[]>([]);
 
   // Localized chat fetching for performance
   const chatsQuery = useMemoFirebase(() => {
@@ -70,6 +71,8 @@ export default function ChatsPage() {
 
   // Governance: Filter member list based on position
   const filteredMembers = useMemo(() => {
+    // For AD or elite organizer: show all coaching staff from all teams
+    if (isPrimaryClubAuthority && allStaffMembers.length > 0) return allStaffMembers;
     if (!activeTeam) return [];
     if (isSuperAdmin || isStaff) return members;
     
@@ -89,7 +92,39 @@ export default function ChatsPage() {
     }
 
     return members;
-  }, [members, isStaff, isParent, isPlayer, isSuperAdmin, activeTeam]);
+  }, [members, allStaffMembers, isPrimaryClubAuthority, isStaff, isParent, isPlayer, isSuperAdmin, activeTeam]);
+
+  // Fetch coaching staff from all teams for AD/elite organizer
+  useEffect(() => {
+    if (!isPrimaryClubAuthority || !db || !teams?.length) return;
+    const staffKeywords = ['coach', 'director', 'coordinator', 'staff', 'manager', 'trainer'];
+    let cancelled = false;
+
+    const fetchAllStaff = async () => {
+      const staffMap = new Map<string, any>();
+      for (const team of teams) {
+        try {
+          const snap = await getDocs(collection(db, 'teams', team.id, 'members'));
+          snap.forEach(d => {
+            const m = d.data();
+            if (!m.userId || m.status === 'removed') return;
+            const pos = (m.position || '').toLowerCase();
+            const role = (m.role || '').toLowerCase();
+            const isStaffMember = staffKeywords.some(kw => pos.includes(kw)) || role === 'admin';
+            if (isStaffMember && !staffMap.has(m.userId)) {
+              staffMap.set(m.userId, { ...m, squadName: team.name || team.teamName });
+            }
+          });
+        } catch (e) {
+          // Permission on some teams might fail — skip silently
+        }
+      }
+      if (!cancelled) setAllStaffMembers(Array.from(staffMap.values()));
+    };
+
+    fetchAllStaff();
+    return () => { cancelled = true; };
+  }, [isPrimaryClubAuthority, db, teams]);
 
   useEffect(() => {
     setMounted(true);
@@ -114,6 +149,8 @@ export default function ChatsPage() {
     setSelectedMembers([]);
     router.push(`/chats/${chatId}`);
   };
+
+  const getMemberId = (m: any) => m.userId || m.id;
 
   const toggleMember = (memberId: string) => {
     setSelectedMembers(prev => 
@@ -170,24 +207,27 @@ export default function ChatsPage() {
                     <div className="space-y-1.5">
                       {filteredMembers.map((member) => (
                         <div 
-                          key={member.id} 
+                          key={getMemberId(member)} 
                           className={cn(
                             "flex items-center justify-between p-3 hover:bg-white rounded-xl cursor-pointer transition-all group",
-                            selectedMembers.includes(member.id) ? "bg-white shadow-sm ring-1 ring-primary/10" : ""
+                            selectedMembers.includes(getMemberId(member)) ? "bg-white shadow-sm ring-1 ring-primary/10" : ""
                           )}
-                          onClick={() => toggleMember(member.id)}
+                          onClick={() => toggleMember(getMemberId(member))}
                         >
                           <div className="flex items-center gap-3">
                             <Avatar className="h-9 w-9 rounded-xl border-2 border-background shadow-sm">
                               <AvatarImage src={member.avatar} />
-                              <AvatarFallback className="font-black text-xs bg-muted">{member.name[0]}</AvatarFallback>
+                              <AvatarFallback className="font-black text-xs bg-muted">{member.name?.[0] ?? '?'}</AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col">
                               <span className="text-sm font-black tracking-tight">{member.name}</span>
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{member.position}</span>
+                              {member.squadName && (
+                                <span className="text-[9px] font-bold text-primary/60 uppercase tracking-widest">{member.squadName}</span>
+                              )}
                             </div>
                           </div>
-                          <Checkbox checked={selectedMembers.includes(member.id)} className="rounded-lg h-5 w-5 border-2" onCheckedChange={() => {}} />
+                          <Checkbox checked={selectedMembers.includes(getMemberId(member))} className="rounded-lg h-5 w-5 border-2" onCheckedChange={() => {}} />
                         </div>
                       ))}
                     </div>
