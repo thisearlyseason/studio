@@ -72,9 +72,20 @@ export default function BillingDashboard() {
   // Multi-team plans are those with a limit > 1 (Elite, League, Schools)
   const isMultiTeamPlan = (userProfile?.team_limit || 1) > 1;
 
-  // ─── Handlers (unchanged from original) ────────────────────────────────────
+  // ─── Handlers ────────────────────────────────────────────────────────────
   const handleUpdatePlan = async (newPlan: Plan | null, initialAddons?: number) => {
     if (!userProfile?.id) return;
+
+    // Demo accounts cannot make real Stripe transactions
+    if (isDemo) {
+      toast({
+        title: 'Demo Account',
+        description: 'Plan changes are not available on demo accounts. Sign up for a live account to upgrade, downgrade, or manage your subscription.',
+        variant: 'default',
+      });
+      return;
+    }
+
     setLoading(newPlan ? 'plan_' + newPlan.id : 'addon_init');
     if (!isStripeLinked) {
       try {
@@ -130,6 +141,14 @@ export default function BillingDashboard() {
 
   const handleUpdateAddon = async (qty: number) => {
     if (!userProfile?.id) return;
+    if (isDemo) {
+      toast({
+        title: 'Demo Account',
+        description: 'Plan changes are not available on demo accounts. Sign up for a live account to manage your subscription.',
+        variant: 'default',
+      });
+      return;
+    }
     if (!isStripeLinked) {
       toast({ title: 'Subscription Required', description: 'You must have an active Stripe subscription to scale squads.', variant: 'destructive' });
       return;
