@@ -7,6 +7,7 @@ import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -144,7 +145,12 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Physical Address</Label>
-              <Input value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="h-14 rounded-2xl font-bold border-2" placeholder="123 Stadium Way..." />
+              <LocationAutocomplete
+                value={form.address}
+                onChange={(val) => setForm({...form, address: val})}
+                placeholder="123 Stadium Way, City, State…"
+                inputClassName="h-14 rounded-2xl font-bold border-2"
+              />
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Operational Notes</Label>
@@ -245,7 +251,12 @@ export default function FacilityManagementPage() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Physical Address</Label>
-                    <Input placeholder="123 Stadium Way..." value={newFac.address} onChange={e => setNewFac({...newFac, address: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
+                    <LocationAutocomplete
+                      value={newFac.address}
+                      onChange={(val) => setNewFac({...newFac, address: val})}
+                      placeholder="123 Stadium Way, City, State…"
+                      inputClassName="h-14 rounded-2xl font-bold border-2"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-foreground">Operational Notes</Label>
