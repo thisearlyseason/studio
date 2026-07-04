@@ -2021,68 +2021,332 @@ function RecruitingProfileManager({ member }: { member: Member }) {
   const getSportFields = () => {
     switch (activeSport) {
       case 'Baseball': return [
-        { key: 'sixtyYardDash', label: '60yd Dash (s)', type: 'number' }, { key: 'exitVelo', label: 'Exit Velo (mph)', type: 'number' },
-        { key: 'throwingVelo', label: 'Throw Velo (mph)', type: 'number' }, { key: 'popTime', label: 'Pop Time (s)', type: 'number' },
-        { key: 'pitchVelo', label: 'Pitch Velo (mph)', type: 'number' }, { key: 'infieldVelo', label: 'Infield Velo', type: 'number' },
-        { key: 'batSpeed', label: 'Bat Speed (mph)', type: 'number' }, { key: 'launchAngle', label: 'Launch Angle (°)', type: 'number' },
-        { key: 'sprintHome', label: 'Home to 1st (s)', type: 'number' }, { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' }
+        { key: 'sixtyYardDash', label: '60yd Dash (s)', type: 'number' },
+        { key: 'exitVelo', label: 'Exit Velo (mph)', type: 'number' },
+        { key: 'throwingVelo', label: 'Throw Velo (mph)', type: 'number' },
+        { key: 'popTime', label: 'Pop Time (s)', type: 'number' },
+        { key: 'pitchVelo', label: 'Pitch Velo (mph)', type: 'number' },
+        { key: 'spinRate', label: 'Spin Rate (rpm)', type: 'number' },
+        { key: 'batSpeed', label: 'Bat Speed (mph)', type: 'number' },
+        { key: 'launchAngle', label: 'Launch Angle (°)', type: 'number' },
+        { key: 'sprintHome', label: 'Home to 1st (s)', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'infielderRangeScore', label: 'Fielding Range (1-10)', type: 'number' },
+        { key: 'caughtStealingPct', label: 'CS% (Catchers)', type: 'number' },
+      ];
+      case 'Softball': return [
+        { key: 'sixtyYardDash', label: '60yd Dash (s)', type: 'number' },
+        { key: 'exitVelo', label: 'Exit Velo (mph)', type: 'number' },
+        { key: 'throwingVelo', label: 'Throw Velo (mph)', type: 'number' },
+        { key: 'popTime', label: 'Pop Time (s)', type: 'number' },
+        { key: 'pitchSpeed', label: 'Pitch Speed (mph)', type: 'number' },
+        { key: 'spinRate', label: 'Spin Rate (rpm)', type: 'number' },
+        { key: 'batSpeed', label: 'Bat Speed (mph)', type: 'number' },
+        { key: 'launchAngle', label: 'Launch Angle (°)', type: 'number' },
+        { key: 'sprintHome', label: 'Home to 1st (s)', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+      ];
+      case 'Basketball': return [
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'standingReach', label: 'Standing Reach (in)', type: 'number' },
+        { key: 'wingspan', label: 'Wingspan (in)', type: 'number' },
+        { key: 'laneAgility', label: 'Lane Agility (s)', type: 'number' },
+        { key: 'threeQuarterSprint', label: '3/4 Court Sprint (s)', type: 'number' },
+        { key: 'benchPress', label: 'Bench Press (reps)', type: 'number' },
+        { key: 'fortyYardDash', label: '40yd Dash (s)', type: 'number' },
+        { key: 'freeThrowPct', label: 'Free Throw % (practice)', type: 'number' },
+        { key: 'threePtRange', label: '3PT Range (ft)', type: 'number' },
+        { key: 'handSize', label: 'Hand Size (in)', type: 'number' },
       ];
       case 'Slowpitch': return [
-        { key: 'exitVelo', label: 'Exit Velo (mph)', type: 'number' }, { key: 'batSpeed', label: 'Bat Speed (mph)', type: 'number' },
-        { key: 'sixtyYardDash', label: '60yd Dash (s)', type: 'number' }, { key: 'throwingVelo', label: 'Throw Velo (mph)', type: 'number' },
-        { key: 'launchAngle', label: 'Launch Angle (°)', type: 'number' }, { key: 'sprintHome', label: 'Home to 1st (s)', type: 'number' },
-        { key: 'fieldingRange', label: 'Fielding Range', type: 'number' }, { key: 'armStrength', label: 'Arm Strength', type: 'number' },
-        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' }, { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' }
+        { key: 'exitVelo', label: 'Exit Velo (mph)', type: 'number' },
+        { key: 'batSpeed', label: 'Bat Speed (mph)', type: 'number' },
+        { key: 'sixtyYardDash', label: '60yd Dash (s)', type: 'number' },
+        { key: 'throwingVelo', label: 'Throw Velo (mph)', type: 'number' },
+        { key: 'launchAngle', label: 'Launch Angle (°)', type: 'number' },
+        { key: 'sprintHome', label: 'Home to 1st (s)', type: 'number' },
+        { key: 'fieldingRange', label: 'Fielding Range', type: 'number' },
+        { key: 'armStrength', label: 'Arm Strength', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
       ];
       case 'Football': return [
-        { key: 'fortyYardDash', label: '40yd Dash (s)', type: 'number' }, { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
-        { key: 'benchPress', label: 'Bench Press (reps)', type: 'number' }, { key: 'broadJump', label: 'Broad Jump (in)', type: 'number' },
-        { key: 'threeConeDrill', label: '3-Cone Drill (s)', type: 'number' }, { key: 'twentyYardShuttle', label: '20yd Shuttle (s)', type: 'number' },
-        { key: 'squat', label: 'Squat (lbs)', type: 'number' }, { key: 'powerClean', label: 'Power Clean (lbs)', type: 'number' },
-        { key: 'throwingVelo', label: 'Throw Velo (mph)', type: 'number' }, { key: 'wingspan', label: 'Wingspan (in)', type: 'number' }
+        { key: 'fortyYardDash', label: '40yd Dash (s)', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'benchPress', label: 'Bench Press (reps 225)', type: 'number' },
+        { key: 'broadJump', label: 'Broad Jump (in)', type: 'number' },
+        { key: 'threeConeDrill', label: '3-Cone Drill (s)', type: 'number' },
+        { key: 'twentyYardShuttle', label: '20yd Shuttle (s)', type: 'number' },
+        { key: 'squat', label: 'Squat (lbs)', type: 'number' },
+        { key: 'powerClean', label: 'Power Clean (lbs)', type: 'number' },
+        { key: 'throwingVelo', label: 'Throw Velo (mph)', type: 'number' },
+        { key: 'wingspan', label: 'Wingspan (in)', type: 'number' },
+        { key: 'tenYardSplit', label: '10yd Split (s)', type: 'number' },
+        { key: 'handSize', label: 'Hand Size (in)', type: 'number' },
       ];
       case 'Soccer': return [
-        { key: 'shuttleRun', label: 'Shuttle Run (s)', type: 'number' }, { key: 'beepTest', label: 'Beep Test Level', type: 'number' },
-        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' }, { key: 'fortyYardDash', label: '40yd Dash (s)', type: 'number' },
-        { key: 'sprintSpeed', label: 'Sprint Speed (mph)', type: 'number' }, { key: 'vo2Max', label: 'VO2 Max', type: 'number' },
-        { key: 'passingAcc', label: 'Passing Acc (%)', type: 'number' }, { key: 'shotPower', label: 'Shot Power (mph)', type: 'number' },
-        { key: 'dribbleSpeed', label: 'Dribble Speed', type: 'number' }, { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' }
+        { key: 'shuttleRun', label: 'Shuttle Run (s)', type: 'number' },
+        { key: 'beepTest', label: 'Beep Test Level', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'fortyYardDash', label: '40yd Dash (s)', type: 'number' },
+        { key: 'sprintSpeed', label: 'Sprint Speed (mph)', type: 'number' },
+        { key: 'vo2Max', label: 'VO2 Max (mL/kg/min)', type: 'number' },
+        { key: 'shotPower', label: 'Shot Power (mph)', type: 'number' },
+        { key: 'dribbleSpeed', label: 'Dribble Speed (mph)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+        { key: 'aerobicCapacity', label: 'Aerobic Capacity (1-10)', type: 'number' },
+      ];
+      case 'Lacrosse': return [
+        { key: 'fortyYardDash', label: '40yd Dash (s)', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'shotVelo', label: 'Shot Velo (mph)', type: 'number' },
+        { key: 'passVelo', label: 'Pass Velo (mph)', type: 'number' },
+        { key: 'agility', label: 'Agility Rating (1-10)', type: 'number' },
+        { key: 'faceoffWinRate', label: 'Faceoff Win % (practice)', type: 'number' },
+        { key: 'groundBallRate', label: 'Ground Ball Rate (1-10)', type: 'number' },
+        { key: 'beepTest', label: 'Beep Test Level', type: 'number' },
+        { key: 'sprintSpeed', label: 'Sprint Speed (mph)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+      ];
+      case 'Hockey': return [
+        { key: 'skatingSpeed', label: 'Skating Speed (mph)', type: 'number' },
+        { key: 'shotSpeed', label: 'Slap Shot (mph)', type: 'number' },
+        { key: 'wristShotSpeed', label: 'Wrist Shot (mph)', type: 'number' },
+        { key: 'skatingStride', label: 'Stride Efficiency (1-10)', type: 'number' },
+        { key: 'agility', label: 'Agility (1-10)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+        { key: 'beepTest', label: 'Beep Test Level', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'benchPress', label: 'Bench Press (reps)', type: 'number' },
+        { key: 'endurance', label: 'Endurance (1-10)', type: 'number' },
+      ];
+      case 'Volleyball': return [
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'standingReach', label: 'Standing Reach (in)', type: 'number' },
+        { key: 'attackApproachJump', label: 'Attack Jump (in)', type: 'number' },
+        { key: 'blockJump', label: 'Block Jump (in)', type: 'number' },
+        { key: 'serveVelo', label: 'Serve Velo (mph)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+        { key: 'agility', label: 'Agility (1-10)', type: 'number' },
+        { key: 'wingspan', label: 'Wingspan (in)', type: 'number' },
+        { key: 'fortyYardDash', label: '40yd Dash (s)', type: 'number' },
+        { key: 'endurance', label: 'Endurance (1-10)', type: 'number' },
       ];
       case 'Tennis': return [
-        { key: 'serveVelo', label: 'Serve Velo (mph)', type: 'number' }, { key: 'forehandVelo', label: 'Forehand (mph)', type: 'number' },
-        { key: 'backhandVelo', label: 'Backhand (mph)', type: 'number' }, { key: 'footworkDrill', label: 'Footwork (s)', type: 'number' },
-        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' }, { key: 'sprintSpeed', label: 'Sprint Speed (mph)', type: 'number' },
-        { key: 'agility', label: 'Agility Rating', type: 'number' }, { key: 'firstServePerc', label: '1st Serve %', type: 'number' },
-        { key: 'rallyConsist', label: 'Rally Consist.', type: 'number' }, { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' }
+        { key: 'serveVelo', label: 'Serve Velo (mph)', type: 'number' },
+        { key: 'forehandVelo', label: 'Forehand (mph)', type: 'number' },
+        { key: 'backhandVelo', label: 'Backhand (mph)', type: 'number' },
+        { key: 'footworkDrill', label: 'Footwork Drill (s)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+        { key: 'sprintSpeed', label: 'Sprint Speed (mph)', type: 'number' },
+        { key: 'agility', label: 'Agility Rating (1-10)', type: 'number' },
+        { key: 'firstServePerc', label: '1st Serve %', type: 'number' },
+        { key: 'rallyConsist', label: 'Rally Consistency (1-10)', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
       ];
       case 'Pickleball': return [
-        { key: 'serveVelo', label: 'Serve Velo (mph)', type: 'number' }, { key: 'forehandVelo', label: 'Forehand (mph)', type: 'number' },
-        { key: 'footworkDrill', label: 'Footwork (s)', type: 'number' }, { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
-        { key: 'dinkAccuracy', label: 'Dink Acc (%)', type: 'number' }, { key: 'driveSpeed', label: 'Drive Speed (mph)', type: 'number' },
-        { key: 'agility', label: 'Agility Rating', type: 'number' }, { key: 'sprintSpeed', label: 'Sprint Speed (mph)', type: 'number' },
-        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' }, { key: 'handSpeed', label: 'Hand Speed', type: 'number' }
+        { key: 'serveVelo', label: 'Serve Velo (mph)', type: 'number' },
+        { key: 'forehandVelo', label: 'Forehand (mph)', type: 'number' },
+        { key: 'footworkDrill', label: 'Footwork Drill (s)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+        { key: 'dinkAccuracy', label: 'Dink Accuracy (%)', type: 'number' },
+        { key: 'driveSpeed', label: 'Drive Speed (mph)', type: 'number' },
+        { key: 'agility', label: 'Agility Rating (1-10)', type: 'number' },
+        { key: 'sprintSpeed', label: 'Sprint Speed (mph)', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'handSpeed', label: 'Hand Speed (1-10)', type: 'number' },
       ];
       case 'Golf': return [
-        { key: 'clubSpeed', label: 'Club Speed (mph)', type: 'number' }, { key: 'ballSpeed', label: 'Ball Speed (mph)', type: 'number' },
-        { key: 'smashFactor', label: 'Smash Factor', type: 'number' }, { key: 'spinRate', label: 'Spin Rate (rpm)', type: 'number' },
-        { key: 'carryDistance', label: 'Carry Dist (yds)', type: 'number' }, { key: 'launchAngle', label: 'Launch Angle (°)', type: 'number' },
-        { key: 'attackAngle', label: 'Attack Angle (°)', type: 'number' }, { key: 'clubPath', label: 'Club Path (°)', type: 'number' },
-        { key: 'faceAngle', label: 'Face Angle (°)', type: 'number' }, { key: 'dynamicLoft', label: 'Dynamic Loft (°)', type: 'number' }
+        { key: 'clubSpeed', label: 'Club Speed (mph)', type: 'number' },
+        { key: 'ballSpeed', label: 'Ball Speed (mph)', type: 'number' },
+        { key: 'smashFactor', label: 'Smash Factor', type: 'number' },
+        { key: 'spinRate', label: 'Spin Rate (rpm)', type: 'number' },
+        { key: 'carryDistance', label: 'Carry Dist (yds)', type: 'number' },
+        { key: 'launchAngle', label: 'Launch Angle (°)', type: 'number' },
+        { key: 'attackAngle', label: 'Attack Angle (°)', type: 'number' },
+        { key: 'clubPath', label: 'Club Path (°)', type: 'number' },
+        { key: 'faceAngle', label: 'Face Angle (°)', type: 'number' },
+        { key: 'dynamicLoft', label: 'Dynamic Loft (°)', type: 'number' },
       ];
       case 'Cornhole': return [
-        { key: 'bagAccuracy', label: 'Bag Accuracy (%)', type: 'number' }, { key: 'holePercentage', label: 'Hole % (in bag)', type: 'number' },
-        { key: 'releaseSpeed', label: 'Release Speed (mph)', type: 'number' }, { key: 'consistency', label: 'Consistency (1-10)', type: 'number' },
-        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' }, { key: 'armEndurance', label: 'Arm Endurance (1-10)', type: 'number' },
-        { key: 'footwork', label: 'Footwork (1-10)', type: 'number' }, { key: 'wristSnap', label: 'Wrist Snap Rating', type: 'number' },
-        { key: 'mentalComposure', label: 'Mental Composure (1-10)', type: 'number' }, { key: 'cancellationRate', label: 'Cancellation Rate (%)', type: 'number' }
+        { key: 'bagAccuracy', label: 'Bag Accuracy (%)', type: 'number' },
+        { key: 'holePercentage', label: 'Hole % (in bag)', type: 'number' },
+        { key: 'releaseSpeed', label: 'Release Speed (mph)', type: 'number' },
+        { key: 'consistency', label: 'Consistency (1-10)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+        { key: 'armEndurance', label: 'Arm Endurance (1-10)', type: 'number' },
+        { key: 'mentalComposure', label: 'Mental Composure (1-10)', type: 'number' },
+        { key: 'cancellationRate', label: 'Cancellation Rate (%)', type: 'number' },
       ];
       case 'Custom':
       default: return [
-        { key: 'agility', label: 'Agility (1-10)', type: 'number' }, { key: 'strength', label: 'Strength (1-10)', type: 'number' },
-        { key: 'sprint', label: 'Sprint (s)', type: 'number' }, { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
-        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' }, { key: 'endurance', label: 'Endurance (1-10)', type: 'number' },
-        { key: 'flexibility', label: 'Flexibility (1-10)', type: 'number' }, { key: 'explosiveness', label: 'Explosiveness', type: 'number' },
-        { key: 'coordination', label: 'Coordination', type: 'number' }, { key: 'balance', label: 'Balance (1-10)', type: 'number' }
+        { key: 'agility', label: 'Agility (1-10)', type: 'number' },
+        { key: 'strength', label: 'Strength (1-10)', type: 'number' },
+        { key: 'sprint', label: 'Sprint (s)', type: 'number' },
+        { key: 'verticalJump', label: 'Vertical Jump (in)', type: 'number' },
+        { key: 'reactionTime', label: 'Reaction (ms)', type: 'number' },
+        { key: 'endurance', label: 'Endurance (1-10)', type: 'number' },
+        { key: 'flexibility', label: 'Flexibility (1-10)', type: 'number' },
+        { key: 'explosiveness', label: 'Explosiveness (1-10)', type: 'number' },
+        { key: 'coordination', label: 'Coordination (1-10)', type: 'number' },
+        { key: 'balance', label: 'Balance (1-10)', type: 'number' },
+      ];
+    }
+  };
+
+  // Sport-specific seasonal stat columns for the Stats tab
+  const getSeasonalStatColumns = (): Array<{ key: string; label: string; tooltip?: string }> => {
+    switch (activeSport) {
+      case 'Baseball': return [
+        { key: 'avg', label: 'AVG', tooltip: 'Batting Average' },
+        { key: 'obp', label: 'OBP', tooltip: 'On-Base %' },
+        { key: 'slg', label: 'SLG', tooltip: 'Slugging %' },
+        { key: 'ops', label: 'OPS', tooltip: 'OBP + SLG' },
+        { key: 'hr', label: 'HR', tooltip: 'Home Runs' },
+        { key: 'rbi', label: 'RBI', tooltip: 'Runs Batted In' },
+        { key: 'sb', label: 'SB', tooltip: 'Stolen Bases' },
+        { key: 'era', label: 'ERA', tooltip: 'Earned Run Avg (Pitchers)' },
+        { key: 'k', label: 'K', tooltip: 'Strikeouts (Pitchers)' },
+        { key: 'whip', label: 'WHIP', tooltip: 'Walks+Hits per IP' },
+      ];
+      case 'Softball': return [
+        { key: 'avg', label: 'AVG', tooltip: 'Batting Average' },
+        { key: 'obp', label: 'OBP', tooltip: 'On-Base %' },
+        { key: 'slg', label: 'SLG', tooltip: 'Slugging %' },
+        { key: 'hr', label: 'HR', tooltip: 'Home Runs' },
+        { key: 'rbi', label: 'RBI', tooltip: 'Runs Batted In' },
+        { key: 'sb', label: 'SB', tooltip: 'Stolen Bases' },
+        { key: 'era', label: 'ERA', tooltip: 'Earned Run Avg (Pitchers)' },
+        { key: 'k', label: 'K', tooltip: 'Strikeouts (Pitchers)' },
+      ];
+      case 'Slowpitch': return [
+        { key: 'avg', label: 'AVG', tooltip: 'Batting Average' },
+        { key: 'hr', label: 'HR', tooltip: 'Home Runs' },
+        { key: 'rbi', label: 'RBI', tooltip: 'Runs Batted In' },
+        { key: 'slugPct', label: 'SLG%', tooltip: 'Slugging %' },
+        { key: 'obp', label: 'OBP', tooltip: 'On-Base %' },
+      ];
+      case 'Basketball': return [
+        { key: 'ppg', label: 'PPG', tooltip: 'Points Per Game' },
+        { key: 'rpg', label: 'RPG', tooltip: 'Rebounds Per Game' },
+        { key: 'apg', label: 'APG', tooltip: 'Assists Per Game' },
+        { key: 'spg', label: 'SPG', tooltip: 'Steals Per Game' },
+        { key: 'bpg', label: 'BPG', tooltip: 'Blocks Per Game' },
+        { key: 'fgPct', label: 'FG%', tooltip: 'Field Goal %' },
+        { key: 'threePct', label: '3P%', tooltip: '3-Point %' },
+        { key: 'ftPct', label: 'FT%', tooltip: 'Free Throw %' },
+        { key: 'topg', label: 'TOV', tooltip: 'Turnovers Per Game' },
+      ];
+      case 'Football': return [
+        { key: 'passYds', label: 'PASS YDS', tooltip: 'Passing Yards' },
+        { key: 'passTds', label: 'PASS TD', tooltip: 'Passing Touchdowns' },
+        { key: 'rushYds', label: 'RUSH YDS', tooltip: 'Rushing Yards' },
+        { key: 'rushTds', label: 'RUSH TD', tooltip: 'Rushing Touchdowns' },
+        { key: 'recYds', label: 'REC YDS', tooltip: 'Receiving Yards' },
+        { key: 'recTds', label: 'REC TD', tooltip: 'Receiving Touchdowns' },
+        { key: 'tackles', label: 'TCKL', tooltip: 'Total Tackles' },
+        { key: 'sacks', label: 'SACKS', tooltip: 'Quarterback Sacks' },
+        { key: 'ints', label: 'INT', tooltip: 'Interceptions' },
+        { key: 'yac', label: 'YAC', tooltip: 'Yards After Catch' },
+      ];
+      case 'Soccer': return [
+        { key: 'goals', label: 'G', tooltip: 'Goals' },
+        { key: 'assists', label: 'A', tooltip: 'Assists' },
+        { key: 'shots', label: 'SH', tooltip: 'Total Shots' },
+        { key: 'shotsOnTarget', label: 'SOT', tooltip: 'Shots on Target' },
+        { key: 'keyPasses', label: 'KP', tooltip: 'Key Passes' },
+        { key: 'dribbles', label: 'DRB', tooltip: 'Successful Dribbles' },
+        { key: 'tackles', label: 'TKL', tooltip: 'Tackles' },
+        { key: 'interceptions', label: 'INT', tooltip: 'Interceptions' },
+        { key: 'cleanSheets', label: 'CS', tooltip: 'Clean Sheets (GK/Def)' },
+        { key: 'savePct', label: 'SV%', tooltip: 'Save % (Goalkeeper)' },
+      ];
+      case 'Lacrosse': return [
+        { key: 'goals', label: 'G', tooltip: 'Goals' },
+        { key: 'assists', label: 'A', tooltip: 'Assists' },
+        { key: 'groundBalls', label: 'GB', tooltip: 'Ground Balls' },
+        { key: 'faceoffWins', label: 'FO%', tooltip: 'Faceoff Win %' },
+        { key: 'saves', label: 'SV', tooltip: 'Saves (Goalie)' },
+        { key: 'shots', label: 'SH', tooltip: 'Shots' },
+        { key: 'shotsOnCage', label: 'SOC', tooltip: 'Shots on Cage' },
+        { key: 'caused', label: 'CT', tooltip: 'Caused Turnovers' },
+      ];
+      case 'Hockey': return [
+        { key: 'goals', label: 'G', tooltip: 'Goals' },
+        { key: 'assists', label: 'A', tooltip: 'Assists' },
+        { key: 'plusMinus', label: '+/-', tooltip: 'Plus/Minus' },
+        { key: 'shots', label: 'SH', tooltip: 'Shots on Goal' },
+        { key: 'hits', label: 'HIT', tooltip: 'Hits' },
+        { key: 'blocks', label: 'BLK', tooltip: 'Blocked Shots' },
+        { key: 'savePct', label: 'SV%', tooltip: 'Save % (Goalie)' },
+        { key: 'gaa', label: 'GAA', tooltip: 'Goals Against Avg (Goalie)' },
+        { key: 'pim', label: 'PIM', tooltip: 'Penalty Minutes' },
+      ];
+      case 'Volleyball': return [
+        { key: 'kills', label: 'K', tooltip: 'Kills' },
+        { key: 'killPct', label: 'K%', tooltip: 'Kill %' },
+        { key: 'aces', label: 'ACE', tooltip: 'Aces' },
+        { key: 'digs', label: 'DIG', tooltip: 'Digs' },
+        { key: 'blocks', label: 'BLK', tooltip: 'Blocks' },
+        { key: 'assists', label: 'AST', tooltip: 'Assists (Setter)' },
+        { key: 'errors', label: 'ERR', tooltip: 'Errors' },
+        { key: 'servicePct', label: 'SRV%', tooltip: 'Service %' },
+      ];
+      case 'Tennis': return [
+        { key: 'wins', label: 'W', tooltip: 'Wins' },
+        { key: 'losses', label: 'L', tooltip: 'Losses' },
+        { key: 'firstServe', label: '1S%', tooltip: '1st Serve In %' },
+        { key: 'acesPerMatch', label: 'ACE', tooltip: 'Aces Per Match' },
+        { key: 'doubleFaults', label: 'DF', tooltip: 'Double Faults' },
+        { key: 'breakPct', label: 'BP%', tooltip: 'Break Point Conversion %' },
+        { key: 'winsOnFirstServe', label: 'W1S%', tooltip: 'Win % on 1st Serve' },
+      ];
+      case 'Pickleball': return [
+        { key: 'wins', label: 'W', tooltip: 'Wins' },
+        { key: 'losses', label: 'L', tooltip: 'Losses' },
+        { key: 'winPct', label: 'WIN%', tooltip: 'Win Percentage' },
+        { key: 'dinkWinRate', label: 'DRK%', tooltip: 'Dink Rally Win Rate' },
+        { key: 'thirdShotDrop', label: '3SD%', tooltip: '3rd Shot Drop %' },
+        { key: 'aces', label: 'ACE', tooltip: 'Aces' },
+      ];
+      case 'Golf': return [
+        { key: 'scoringAvg', label: 'AVG', tooltip: 'Scoring Average' },
+        { key: 'fairwayPct', label: 'FWY%', tooltip: 'Fairways Hit %' },
+        { key: 'girPct', label: 'GIR%', tooltip: 'Greens in Regulation %' },
+        { key: 'puttsPerRound', label: 'PUTT', tooltip: 'Putts Per Round' },
+        { key: 'scrambling', label: 'SCR%', tooltip: 'Scrambling %' },
+        { key: 'drivingDist', label: 'DIST', tooltip: 'Avg Driving Distance' },
+        { key: 'strokesGained', label: 'SG', tooltip: 'Strokes Gained (total)' },
+      ];
+      case 'Slowpitch': return [
+        { key: 'avg', label: 'AVG', tooltip: 'Batting Average' },
+        { key: 'hr', label: 'HR', tooltip: 'Home Runs' },
+        { key: 'rbi', label: 'RBI', tooltip: 'Runs Batted In' },
+        { key: 'slg', label: 'SLG', tooltip: 'Slugging %' },
+        { key: 'obp', label: 'OBP', tooltip: 'On-Base %' },
+        { key: 'sb', label: 'SB', tooltip: 'Stolen Bases' },
+      ];
+      case 'Cornhole': return [
+        { key: 'wins', label: 'W', tooltip: 'Wins' },
+        { key: 'losses', label: 'L', tooltip: 'Losses' },
+        { key: 'bagAccuracy', label: 'ACC%', tooltip: 'Bag Accuracy %' },
+        { key: 'holePct', label: 'HOLE%', tooltip: 'Hole % (bags in hole)' },
+        { key: 'pointsPerRound', label: 'PPR', tooltip: 'Points Per Round' },
+        { key: 'cancellationRate', label: 'CNCL%', tooltip: 'Cancellation Rate %' },
+      ];
+      case 'Custom': return [
+        { key: 'stat1', label: 'STAT 1', tooltip: 'Custom Stat 1' },
+        { key: 'stat2', label: 'STAT 2', tooltip: 'Custom Stat 2' },
+        { key: 'stat3', label: 'STAT 3', tooltip: 'Custom Stat 3' },
+        { key: 'stat4', label: 'STAT 4', tooltip: 'Custom Stat 4' },
+        { key: 'stat5', label: 'STAT 5', tooltip: 'Custom Stat 5' },
+        { key: 'stat6', label: 'STAT 6', tooltip: 'Custom Stat 6' },
+      ];
+      default: return [
+        { key: 'gamesPlayed', label: 'GP', tooltip: 'Games Played' },
+        { key: 'points', label: 'PTS', tooltip: 'Points' },
+        { key: 'assists', label: 'AST', tooltip: 'Assists' },
+        { key: 'efficiency', label: 'EFF', tooltip: 'Efficiency Rating' },
       ];
     }
   };
@@ -2502,7 +2766,7 @@ function RecruitingProfileManager({ member }: { member: Member }) {
                         <Select value={activeSport} onValueChange={(v: any) => setProfile({...profile, typeOfSport: v})}>
                           <SelectTrigger className="h-12 border-2 rounded-xl font-bold uppercase text-[10px]"><SelectValue /></SelectTrigger>
                           <SelectContent className="rounded-xl">
-                            {['Baseball', 'Softball', 'Basketball', 'Soccer', 'Football', 'Lacrosse', 'Hockey', 'Pickleball', 'Golf', 'Tennis', 'Cornhole', 'Custom'].map(s => (
+                            {['Baseball', 'Softball', 'Slowpitch', 'Basketball', 'Soccer', 'Football', 'Lacrosse', 'Hockey', 'Volleyball', 'Pickleball', 'Golf', 'Tennis', 'Cornhole', 'Custom'].map(s => (
                               <SelectItem key={s} value={s} className="font-bold uppercase text-[10px]">{s}</SelectItem>
                             ))}
                           </SelectContent>
@@ -2775,45 +3039,76 @@ function RecruitingProfileManager({ member }: { member: Member }) {
                     )}
                   </TabsContent>
 
-                  <TabsContent value="seasonal" className="mt-8 space-y-8">
+                  <TabsContent value="seasonal" className="mt-8 space-y-6">
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-primary opacity-60">Verified Seasonal Records</p>
-                      <Button type="button" size="sm" variant="outline" className="h-8 text-[8px] font-black uppercase rounded-xl border-2" onClick={handleAddStatRow}><Plus className="h-3 w-3 mr-1" /> Add Record</Button>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary opacity-70">Verified Seasonal Records</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                          {activeSport} · {getSeasonalStatColumns().length} tracked metrics
+                        </p>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" className="h-8 text-[8px] font-black uppercase rounded-xl border-2" onClick={handleAddStatRow}>
+                        <Plus className="h-3 w-3 mr-1" /> Add Season
+                      </Button>
                     </div>
-                    <div className="space-y-4">
-                      {stats.map((s, i) => (
-                        <div key={s.id} className="grid grid-cols-6 gap-3 bg-muted/20 p-5 rounded-3xl border border-black/5 items-end">
-                           <div className="space-y-1 col-span-1">
-                             <Label className="text-[8px] font-black uppercase ml-1 opacity-50">Season</Label>
-                             <Input value={s.season} onChange={e => updateStat(s.id, 'season', e.target.value)} className="h-10 border-2 rounded-xl font-bold text-center bg-white" />
-                           </div>
-                           <div className="space-y-1 col-span-1">
-                             <Label className="text-[8px] font-black uppercase ml-1 opacity-50">GP</Label>
-                             <Input type="number" value={s.gamesPlayed} onChange={e => updateStat(s.id, 'gamesPlayed', parseInt(e.target.value))} className="h-10 border-2 rounded-xl font-bold text-center bg-white" />
-                           </div>
-                           <div className="space-y-1 col-span-1">
-                             <Label className="text-[8px] font-black uppercase ml-1 opacity-50">PTS</Label>
-                             <Input type="number" value={s.points} onChange={e => updateStat(s.id, 'points', parseInt(e.target.value))} className="h-10 border-2 rounded-xl font-bold text-center bg-white" />
-                           </div>
-                           <div className="space-y-1 col-span-1">
-                             <Label className="text-[8px] font-black uppercase ml-1 opacity-50">AST</Label>
-                             <Input type="number" value={s.assists} onChange={e => updateStat(s.id, 'assists', parseInt(e.target.value))} className="h-10 border-2 rounded-xl font-bold text-center bg-white" />
-                           </div>
-                           <div className="space-y-1 col-span-1">
-                             <Label className="text-[8px] font-black uppercase ml-1 opacity-50">EFF</Label>
-                             <Input type="number" value={s.efficiency} onChange={e => updateStat(s.id, 'efficiency', parseInt(e.target.value))} className="h-10 border-2 rounded-xl font-black text-center bg-zinc-100" />
-                           </div>
-                           <div className="flex justify-end p-1">
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 rounded-lg hover:bg-red-50" onClick={() => handleDeleteStat(s.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                           </div>
-                        </div>
+
+                    {/* Column Legend */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {getSeasonalStatColumns().map(col => (
+                        <span key={col.key} title={col.tooltip} className="bg-primary/5 text-primary px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-default border border-primary/10">
+                          {col.label}{col.tooltip ? <span className="opacity-40 normal-case font-normal ml-1">= {col.tooltip}</span> : ''}
+                        </span>
                       ))}
+                    </div>
+
+                    <div className="space-y-4">
+                      {activeSport === 'Custom' && (
+                        <p className="text-[9px] font-bold text-primary/60 uppercase tracking-widest bg-primary/5 px-4 py-2 rounded-xl border border-primary/10">
+                          Custom sport — use the label fields above to rename each stat column to match your sport.
+                        </p>
+                      )}
+                      {stats.map((s, i) => {
+                        const cols = getSeasonalStatColumns();
+                        return (
+                          <div key={s.id} className="bg-muted/20 p-5 rounded-3xl border border-black/5 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="space-y-1 min-w-[80px]">
+                                <Label className="text-[8px] font-black uppercase ml-1 opacity-50">Season</Label>
+                                <Input value={s.season} onChange={e => updateStat(s.id, 'season', e.target.value)} className="h-10 border-2 rounded-xl font-bold text-center bg-white w-[90px]" />
+                              </div>
+                              <div className="space-y-1 min-w-[60px]">
+                                <Label className="text-[8px] font-black uppercase ml-1 opacity-50">GP</Label>
+                                <Input type="number" value={s.gamesPlayed ?? ''} onChange={e => updateStat(s.id, 'gamesPlayed', parseInt(e.target.value))} className="h-10 border-2 rounded-xl font-bold text-center bg-white w-[70px]" />
+                              </div>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-400 rounded-lg hover:bg-red-50 ml-auto shrink-0" onClick={() => handleDeleteStat(s.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                            <div className="overflow-x-auto pb-1">
+                              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(cols.length, 5)}, minmax(70px, 1fr))` }}>
+                                {cols.map(col => (
+                                  <div key={col.key} className="space-y-1">
+                                    <Label className="text-[8px] font-black uppercase ml-1 opacity-50" title={col.tooltip}>{col.label}</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.001"
+                                      placeholder="—"
+                                      value={(s as any)[col.key] ?? ''}
+                                      onChange={e => updateStat(s.id, col.key, parseFloat(e.target.value))}
+                                      className="h-10 border-2 rounded-xl font-bold text-center bg-white w-full"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                       {stats.length === 0 && (
                         <div className="text-center py-12 border-2 border-dashed rounded-[2rem] opacity-30">
-                           <History className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                           <p className="text-[10px] font-black uppercase">No seasonal analytics established.</p>
+                          <History className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                          <p className="text-[10px] font-black uppercase">No seasonal records yet.</p>
+                          <p className="text-[9px] font-bold text-muted-foreground mt-1">Click "Add Season" to start tracking {activeSport} stats.</p>
                         </div>
                       )}
                     </div>
