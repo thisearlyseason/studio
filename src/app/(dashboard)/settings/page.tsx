@@ -223,7 +223,20 @@ export default function SettingsPage() {
     }
     await updateUser(updates);
     if (currentMember) {
-      await updateMember(currentMember.id, { position: editForm.position, notes: editForm.bio });
+      // Players cannot self-assign a position at all.
+      // Even non-players cannot self-promote to coach/staff roles via this form —
+      // those are assigned only by a coach through the roster management page.
+      const PROTECTED_POSITIONS = ['Coach', 'Assistant Coach', 'Squad Leader', 'Athletic Director', 'Staff', 'Manager'];
+      const positionUpdate: Record<string, any> = { notes: editForm.bio };
+      if (!isPlayer) {
+        const desiredPosition = editForm.position;
+        const isPromotingToStaff = PROTECTED_POSITIONS.includes(desiredPosition);
+        // Only allow writing staff positions if they are already staff (i.e. label update, not promotion)
+        if (!isPromotingToStaff || isStaff) {
+          positionUpdate.position = desiredPosition;
+        }
+      }
+      await updateMember(currentMember.id, positionUpdate);
     }
     setIsEditOpen(false);
     toast({ title: 'Profile Synchronized' });
@@ -396,22 +409,31 @@ export default function SettingsPage() {
                         <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Legal Name</Label>
                         <Input className="h-12 rounded-xl border-2 font-bold bg-muted/10 focus:bg-white transition-all" value={editForm.name} onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Squad Position</Label>
-                        <Select value={editForm.position} onValueChange={(v) => setEditForm(prev => ({ ...prev, position: v }))}>
-                          <SelectTrigger className="h-12 rounded-xl border-2 font-bold bg-muted/10 focus:bg-white"><SelectValue /></SelectTrigger>
-                          <SelectContent className="rounded-xl">
-                            <SelectItem value="Coach" className="font-bold">Coach</SelectItem>
-                            <SelectItem value="Assistant Coach" className="font-bold">Assistant Coach</SelectItem>
-                            <SelectItem value="Squad Leader" className="font-bold">Squad Leader</SelectItem>
-                            <SelectItem value="Forward" className="font-bold">Forward</SelectItem>
-                            <SelectItem value="Midfield" className="font-bold">Midfield</SelectItem>
-                            <SelectItem value="Defense" className="font-bold">Defense</SelectItem>
-                            <SelectItem value="Keeper" className="font-bold">Goalkeeper</SelectItem>
-                            <SelectItem value="Parent" className="font-bold">Guardian</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* Squad Position — only visible/editable by staff, not players */}
+                      {!isPlayer && (
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Squad Position</Label>
+                          <Select value={editForm.position} onValueChange={(v) => setEditForm(prev => ({ ...prev, position: v }))}>
+                            <SelectTrigger className="h-12 rounded-xl border-2 font-bold bg-muted/10 focus:bg-white"><SelectValue /></SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              {/* Staff-level options: only available if already a coach/staff role */}
+                              {isStaff && (
+                                <>
+                                  <SelectItem value="Coach" className="font-bold">Coach</SelectItem>
+                                  <SelectItem value="Assistant Coach" className="font-bold">Assistant Coach</SelectItem>
+                                  <SelectItem value="Squad Leader" className="font-bold">Squad Leader</SelectItem>
+                                  <SelectItem value="Athletic Director" className="font-bold">Athletic Director</SelectItem>
+                                </>
+                              )}
+                              {/* Player-facing field positions */}
+                              <SelectItem value="Forward" className="font-bold">Forward</SelectItem>
+                              <SelectItem value="Midfield" className="font-bold">Midfield</SelectItem>
+                              <SelectItem value="Defense" className="font-bold">Defense</SelectItem>
+                              <SelectItem value="Keeper" className="font-bold">Goalkeeper</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Contact Email</Label>
                         <Input type="email" className="h-12 rounded-xl border-2 font-bold bg-muted/10 focus:bg-white" value={editForm.email} onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))} />
