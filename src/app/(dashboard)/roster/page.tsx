@@ -50,6 +50,7 @@ import { useTeam, Member, TeamDocument } from '@/components/providers/team-provi
 import { EmailExportDialog } from '@/components/team/EmailExportDialog';
 import { 
   Dialog, 
+  DialogClose,
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
@@ -57,6 +58,7 @@ import {
   DialogDescription, 
   DialogFooter
 } from '@/components/ui/dialog';
+import { X } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { generateBrandedPDF } from '@/lib/pdf-utils';
@@ -98,7 +100,7 @@ const POSITION_OPTIONS = [
 ];
 
 export default function RosterPage() {
-  const { activeTeam, user, members, isMembersLoading, isStaff, isPlayer, isParent, myChildren, updateStaffEvaluation, getStaffEvaluation, updateMember, updateTeam, purchasePro, getLeagueMembers, createChat, removeMember, getRecruitingProfile, getAthleticMetrics, getPlayerStats, getEvaluations, getRecruitingContact } = useTeam();
+  const { activeTeam, user, members, isMembersLoading, isStaff, isPlayer, isParent, myChildren, updateStaffEvaluation, getStaffEvaluation, updateMember, updateTeam, purchasePro, getLeagueMembers, createChat, removeMember, getRecruitingProfile, getAthleticMetrics, getPlayerStats, getEvaluations, getRecruitingContact, isPrimaryClubAuthority, isSuperAdmin } = useTeam();
 
   const db = useFirestore();
   const router = useRouter();
@@ -118,6 +120,13 @@ export default function RosterPage() {
   const isPartOfLeague = useMemo(() => {
     return activeTeam?.leagueIds && Object.keys(activeTeam.leagueIds).length > 0;
   }, [activeTeam]);
+
+  // Only coaches, organizers, and ADs can assign positions
+  const canAssignPosition = isPrimaryClubAuthority || isSuperAdmin || (() => {
+    const coachRoles = ['Coach', 'Assistant Coach', 'Athletic Director'];
+    const currentMember = members?.find(m => m.userId === user?.id);
+    return coachRoles.includes(currentMember?.position || '');
+  })();
 
   // Fetch team protocols to see what's "turned on"
   const docsQuery = useMemoFirebase(() => (db && activeTeam?.id) ? query(collection(db, 'teams', activeTeam.id, 'documents')) : null, [db, activeTeam?.id]);
@@ -782,9 +791,18 @@ export default function RosterPage() {
       )}
 
       <Dialog open={!!selectedMemberId} onOpenChange={(open) => !open && setSelectedMemberId(null)}>
-        <DialogContent className="rounded-t-[3rem] sm:rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white overflow-y-auto max-h-[95dvh] sm:max-h-[90vh] custom-scrollbar text-foreground">
+        <DialogContent className="rounded-t-[3rem] sm:rounded-[3rem] sm:max-w-5xl border-none shadow-2xl p-0 flex flex-col bg-white max-h-[95dvh] sm:max-h-[90vh] text-foreground overflow-hidden">
           <DialogTitle className="sr-only">Player Profile: {selectedMember?.name}</DialogTitle>
           <DialogDescription className="sr-only">Detailed athletic portfolio and personnel evaluation for {selectedMember?.name}</DialogDescription>
+          {/* Sticky close button */}
+          <div className="sticky top-0 z-50 flex justify-end p-3 shrink-0 bg-white/80 backdrop-blur-sm">
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-black/5 hover:bg-black/10 text-black/40 hover:text-black transition-all">
+                <X className="h-5 w-5" />
+              </Button>
+            </DialogClose>
+          </div>
+          <div className="overflow-y-auto custom-scrollbar flex-1">
           {selectedMember && (() => {
             // Determine if the viewer can see the full detail panel:
             //   - Staff always can
@@ -843,7 +861,7 @@ export default function RosterPage() {
                     <div className="space-y-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-primary font-black uppercase tracking-[0.2em] text-sm">{selectedMember.position} • #{selectedMember.jersey}</p>
-                          {activeTeam?.role === 'Admin' && (
+                          {canAssignPosition && (
                             <div className="flex gap-2">
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1162,10 +1180,11 @@ export default function RosterPage() {
             </div>
             );
           })()}
+          </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditPositionOpen} onOpenChange={setIsEditPositionOpen}>
+      {canAssignPosition && <Dialog open={isEditPositionOpen} onOpenChange={setIsEditPositionOpen}>
         <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
           <DialogTitle className="sr-only">Provision Role</DialogTitle>
           <DialogDescription className="sr-only">Update organizational authority and team position</DialogDescription>
@@ -1221,7 +1240,7 @@ export default function RosterPage() {
             </DialogFooter>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       <Dialog open={!!activeVideo} onOpenChange={() => setActiveVideo(null)}>
         <DialogContent className="rounded-[3rem] sm:max-w-4xl p-0 border-none shadow-2xl overflow-hidden bg-white">

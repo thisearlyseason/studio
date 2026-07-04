@@ -324,7 +324,7 @@ export default function GamesPage() {
         <DialogContent className="rounded-[3rem] sm:max-w-xl p-0 border-none shadow-2xl overflow-hidden bg-white">
           <DialogTitle className="sr-only">Record Match Result</DialogTitle>
           <div className="h-2 bg-primary w-full" />
-          <div className="p-8 lg:p-12 space-y-8">
+          <div className="p-4 sm:p-8 lg:p-12 space-y-8">
             <DialogHeader>
               <DialogTitle className="text-3xl font-black uppercase tracking-tight">Record Result</DialogTitle>
               <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Broadcast the final match score</DialogDescription>

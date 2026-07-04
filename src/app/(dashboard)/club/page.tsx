@@ -764,9 +764,9 @@ export default function ClubManagementPage() {
       )}
 
       <Dialog open={isSubSquadModalOpen} onOpenChange={setIsSubSquadModalOpen}>
-        <DialogContent className="rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden sm:max-w-md bg-white">
+        <DialogContent className="rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden sm:max-w-md w-full bg-white">
           <div className="h-2 bg-gradient-to-r from-primary via-black to-primary w-full" />
-          <div className="p-10 space-y-8">
+          <div className="p-6 sm:p-10 space-y-8 w-full">
             <DialogHeader>
               <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-4">
                 <Users className="h-8 w-8 text-primary" />

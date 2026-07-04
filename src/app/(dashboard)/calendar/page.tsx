@@ -363,14 +363,17 @@ function EventDetailDialog({ event, isOpen, onOpenChange }: { event: TeamEvent |
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-white text-foreground flex flex-col h-[90vh] sm:h-auto sm:max-h-[85vh]">
+      <DialogContent className="sm:max-w-4xl p-0 sm:rounded-[2.5rem] rounded-t-[2rem] border-none shadow-2xl bg-white text-foreground flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden">
         <DialogTitle className="sr-only">Event Details: {event.title}</DialogTitle>
-        <DialogClose asChild>
-          <Button variant="ghost" size="icon" className="absolute top-4 right-4 z-50 h-10 w-10 rounded-full bg-black/5 hover:bg-black/10 text-black/40 hover:text-black transition-all">
-            <X className="h-5 w-5" />
-          </Button>
-        </DialogClose>
-        <div className="flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
+        {/* Sticky close button header */}
+        <div className="sticky top-0 z-50 flex justify-end p-3 shrink-0">
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-black/5 hover:bg-black/10 text-black/40 hover:text-black transition-all">
+              <X className="h-5 w-5" />
+            </Button>
+          </DialogClose>
+        </div>
+        <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
           {/* LEFT PANEL: ELITE STATUS & RSVP */}
           <div className="w-full lg:w-2/5 flex flex-col text-white bg-black p-8 relative shrink-0 lg:h-full h-auto">
             <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 pointer-events-none">

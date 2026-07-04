@@ -1744,7 +1744,7 @@ function TournamentDetailView({
           </div>
         )}
       </div>
-      <div className="bg-black rounded-[3.5rem] p-12 text-white relative overflow-hidden shadow-2xl border border-white/5">
+      <div className="bg-black rounded-[3.5rem] p-6 sm:p-12 text-white relative overflow-hidden shadow-2xl border border-white/5">
         <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none"><Zap className="h-48 w-48 text-primary" /></div>
         <div className="relative z-10 space-y-8">
            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -2915,7 +2915,7 @@ export function ManageTournamentsPageContent({ embedded = false }: { embedded?: 
       <Dialog open={isDuplicateOpen} onOpenChange={setIsDuplicateOpen}>
         <DialogContent className="rounded-[4rem] sm:max-w-md p-0 overflow-hidden bg-black text-white border-none shadow-[0_0_100px_rgba(0,0,0,0.5)]">
           <div className="h-2 bg-primary w-full" />
-          <div className="p-12 space-y-10">
+          <div className="p-4 sm:p-12 space-y-10">
             <DialogHeader>
               <div className="flex items-center gap-4 mb-2">
                 <div className="bg-primary/20 p-4 rounded-[1.5rem] text-primary"><Copy className="h-8 w-8" /></div>

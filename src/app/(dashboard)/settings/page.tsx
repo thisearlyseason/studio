@@ -82,7 +82,7 @@ export default function SettingsPage() {
   const { 
     user, updateUser, members, activeTeam, updateMember, 
     manageSubscription, isPro, resetSquadData, checkCodeUniqueness, 
-    updateTeamCode, isStaff, isPrimaryClubAuthority, db
+    updateTeamCode, isStaff, isPlayer, isPrimaryClubAuthority, db
   } = useTeam();
   const auth = useAuth();
   const router = useRouter();
@@ -489,7 +489,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {(isStaff || isPrimaryClubAuthority) && (
+        {(isStaff && !isPlayer || isPrimaryClubAuthority) && (
         <Card className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden">
           <CardHeader className="bg-muted/30 border-b p-8 flex flex-row items-center justify-between">
             <div className="flex items-center gap-4">
@@ -526,7 +526,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {(isStaff || isPrimaryClubAuthority) && activeTeam && (
+      {(isStaff && !isPlayer || isPrimaryClubAuthority) && activeTeam && (
         <div className="space-y-4 pt-10 border-t">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-2">Module Visibility</h3>
           <p className="text-[10px] text-muted-foreground px-2 mb-4 font-bold uppercase tracking-widest leading-relaxed">
