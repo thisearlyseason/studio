@@ -3091,10 +3091,13 @@ function RecruitingProfileManager({ member }: { member: Member }) {
                                     <Label className="text-[8px] font-black uppercase ml-1 opacity-50" title={col.tooltip}>{col.label}</Label>
                                     <Input
                                       type="number"
-                                      step="0.001"
+                                      step="0.1"
                                       placeholder="—"
                                       value={(s as any)[col.key] ?? ''}
-                                      onChange={e => updateStat(s.id, col.key, parseFloat(e.target.value))}
+                                      onChange={e => {
+                                        const raw = parseFloat(e.target.value);
+                                        updateStat(s.id, col.key, isNaN(raw) ? "" : Math.round(raw * 10) / 10);
+                                      }}
                                       className="h-10 border-2 rounded-xl font-bold text-center bg-white w-full"
                                     />
                                   </div>
