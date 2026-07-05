@@ -3,16 +3,14 @@
  *
  * Use this module in all API routes and server functions instead of the client
  * SDK (`firebase/firestore`). The Admin SDK uses standard HTTP rather than
- * gRPC/WebSockets and works correctly in serverless environments (Firebase App
- * Hosting, Vercel, etc.) where the client SDK's persistent connection fails
- * with "client is offline".
+ * gRPC/WebSockets and works correctly in serverless environments (Vercel, etc.)
  *
  * Initialization is LAZY — the Admin app is only created on the first actual
  * API request, not at build/module-load time. This prevents build failures
  * caused by missing environment variables during the Vercel build phase.
  *
  * Initialization order:
- *   1. FIREBASE_SERVICE_ACCOUNT_JSON env var (full service-account JSON string)
+ *   1. FIREBASE_SERVICE_ACCOUNT_JSON env var (full service-account JSON string OR base64)
  *   2. Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS / GCP metadata)
  */
 import * as admin from 'firebase-admin';
@@ -34,12 +32,12 @@ function initAdminApp(): admin.app.App {
   if (serviceAccountJson) {
     let serviceAccount: object | undefined;
 
-    // Attempt 1: parse as-is (the happy path)
+    // Attempt 1: parse as-is (the happy path — raw JSON pasted into Vercel)
     try {
       serviceAccount = JSON.parse(serviceAccountJson);
     } catch (_) { /* fall through */ }
 
-    // Attempt 2: base64-encoded JSON (some CI/CD systems encode it this way)
+    // Attempt 2: base64-encoded JSON
     if (!serviceAccount) {
       try {
         const decoded = Buffer.from(serviceAccountJson, 'base64').toString('utf8');
@@ -48,28 +46,36 @@ function initAdminApp(): admin.app.App {
     }
 
     // Attempt 3: Vercel sometimes converts \n escape sequences to literal newlines
-    // inside the private_key value, breaking the outer JSON string. Re-escape them.
+    // inside the private_key value, breaking the outer JSON. Re-escape them.
     if (!serviceAccount) {
       try {
-        // Replace literal newlines ONLY inside what looks like the private_key value
         const reescaped = serviceAccountJson.replace(/\\n/g, '\\n').replace(/\n/g, '\\n');
         serviceAccount = JSON.parse(reescaped);
       } catch (_) { /* fall through */ }
     }
 
     if (!serviceAccount) {
+      console.error(
+        '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON is set but FAILED TO PARSE.',
+        'Length:', serviceAccountJson.length,
+        'First 40 chars:', serviceAccountJson.slice(0, 40)
+      );
       throw new Error(
-        '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON is set but could not be parsed. ' +
-        'Please re-paste the raw contents of your serviceAccountKey.json file directly into ' +
-        'the Vercel environment variable (do not base64-encode it or wrap it in extra quotes).'
+        '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON could not be parsed. ' +
+        'Paste the raw serviceAccountKey.json contents directly into the Vercel env var.'
       );
     }
+
     _app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
+    console.info('[firebase-admin] Initialized with service account credentials.');
   } else {
-    // Fallback: Application Default Credentials (works on GCP/Firebase App Hosting automatically)
-    console.warn('[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set — using Application Default Credentials.');
+    // Fallback: Application Default Credentials (GCP/Firebase App Hosting)
+    console.warn(
+      '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set — using Application Default Credentials.',
+      'This will FAIL on Vercel unless you set the env var.'
+    );
     _app = admin.initializeApp();
   }
 
@@ -84,8 +90,7 @@ function getDb(): admin.firestore.Firestore {
 
 /**
  * Lazily-initialized Firestore Admin instance.
- * Accessing any property on this object triggers initialization on first use,
- * not at module load / build time.
+ * Accessing any property triggers initialization on first use, not at build time.
  */
 export const adminDb = new Proxy({} as admin.firestore.Firestore, {
   get(_target, prop: PropertyKey) {
