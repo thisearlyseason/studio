@@ -1074,13 +1074,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                              Always shown when user is a school admin or elite club organizer,
                              regardless of which squad is currently active. */}
                         {isInstitutionAuthority && (
-                          <div className="space-y-3">
-                            {/* Hub link */}
-                            <Link
-                              href="/club"
-                              onClick={() => setIsMoreMenuOpen(false)}
+                          <div className="space-y-2">
+                            {/* Hub link — clears activeTeam so hub shows in institution mode */}
+                            <button
+                              onClick={() => { setActiveTeam(null as any); router.push('/club'); setIsMoreMenuOpen(false); }}
                               className={cn(
-                                "flex items-center justify-between p-4 rounded-2xl border bg-primary text-white transition-all active:scale-[0.98]",
+                                "w-full flex items-center justify-between p-4 rounded-2xl border bg-primary text-white transition-all active:scale-[0.98]",
                                 pathname === '/club' ? "ring-2 ring-white ring-offset-2 ring-offset-primary" : ""
                               )}
                             >
@@ -1088,80 +1087,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                                 <div className="bg-white/20 p-2 rounded-xl text-white">
                                   <Building className="h-5 w-5" />
                                 </div>
-                                <div className="flex flex-col">
+                                <div className="flex flex-col text-left">
                                   <span className="text-xs font-black uppercase tracking-widest">{isSchoolMode ? 'School Hub' : 'Club Hub'}</span>
                                   <span className="text-[8px] font-bold text-white/60 uppercase">Institutional Command</span>
                                 </div>
                               </div>
                               <ChevronRight className="h-4 w-4 text-white/40" />
-                            </Link>
-
-                            {/* Squad list — always visible so users can switch squads from anywhere */}
-                            {teams.filter(t => t.type !== 'school').length > 0 && (
-                              <div className="space-y-1.5">
-                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Switch Squad ({teams.filter(t => t.type !== 'school').length})</p>
-                                <div className="space-y-1 max-h-52 overflow-y-auto overscroll-contain">
-                                  {teams.filter(t => t.type !== 'school').map(team => {
-                                    const isActive = activeTeam?.id === team.id;
-                                    return (
-                                      <button
-                                        key={team.id}
-                                        onClick={() => { setActiveTeam(team); router.push('/dashboard'); setIsMoreMenuOpen(false); }}
-                                        className={cn(
-                                          "w-full flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.98]",
-                                          isActive ? "bg-primary/5 border-primary/20" : "bg-muted/30 border-transparent hover:bg-white hover:border-primary/20"
-                                        )}
-                                      >
-                                        <Avatar className="h-9 w-9 rounded-xl shrink-0 border shadow-sm">
-                                          {team.teamLogoUrl && <AvatarImage src={team.teamLogoUrl} className="object-cover" />}
-                                          <AvatarFallback className={cn("font-black text-xs", isActive ? "bg-primary/20 text-primary" : "bg-muted")}>{(team.name?.[0] || 'T').toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col min-w-0 flex-1">
-                                          <span className="font-black text-xs uppercase tracking-tight truncate text-foreground">{team.name}</span>
-                                          <span className="text-[8px] font-bold text-muted-foreground uppercase">{team.sport || 'Squad'}</span>
-                                        </div>
-                                        {isActive && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                            </button>
                           </div>
                         )}
 
-                        {/* ── REGULAR MULTI-TEAM SQUAD SWITCHER ───────────────────────────
-                             For non-institution users who have more than one team. */}
-                        {!isInstitutionAuthority && teams.filter(t => t.type !== 'school').length > 1 && (
-                          <div className="space-y-1.5">
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">My Squads ({teams.filter(t => t.type !== 'school').length})</p>
-                            <div className="space-y-1 max-h-44 overflow-y-auto overscroll-contain">
-                              {teams.filter(t => t.type !== 'school').map(team => {
-                                const isActive = activeTeam?.id === team.id;
-                                return (
-                                  <button
-                                    key={team.id}
-                                    onClick={() => { setActiveTeam(team); router.push('/dashboard'); setIsMoreMenuOpen(false); }}
-                                    className={cn(
-                                      "w-full flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.98]",
-                                      isActive ? "bg-primary/5 border-primary/20" : "bg-muted/30 border-transparent hover:bg-white hover:border-primary/20"
-                                    )}
-                                  >
-                                    <Avatar className="h-9 w-9 rounded-xl shrink-0 border shadow-sm">
-                                      {team.teamLogoUrl && <AvatarImage src={team.teamLogoUrl} className="object-cover" />}
-                                      <AvatarFallback className={cn("font-black text-xs", isActive ? "bg-primary/20 text-primary" : "bg-muted")}>{(team.name?.[0] || 'T').toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                      <span className="font-black text-xs uppercase tracking-tight truncate text-foreground">{team.name}</span>
-                                      <span className="text-[8px] font-bold text-muted-foreground uppercase">{team.sport || 'Squad'}</span>
-                                    </div>
-                                    {isActive && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
-                                  </button>
-                                );
-              })}
-                            </div>
-                          </div>
-                        )}
+                        {/* Regular multi-team switcher removed — lightning bolt top-left handles squad switching */}
+
 
                         {/* ── SQUAD OPERATIONAL NAV ───────────────────────────────────────
                              Only shown when a real squad (not the school/hub record) is active.

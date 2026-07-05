@@ -699,7 +699,7 @@ export default function ClubManagementPage() {
   };
 
   return (
-    <div className="space-y-10 pb-20 animate-in fade-in duration-700">
+    <div className="space-y-6 md:space-y-10 pb-20 animate-in fade-in duration-700 overflow-x-hidden w-full">
     <Card className="bg-black text-white p-6 md:p-10 lg:p-14 rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl relative overflow-hidden group border-none hero-gradient">
         <div className="absolute top-0 right-0 p-6 md:p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
           <Building className="h-40 w-40 md:h-64 md:w-64" />
@@ -733,12 +733,12 @@ export default function ClubManagementPage() {
           <div className="shrink-0 mt-0.5 w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
             <Info className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1 space-y-2 relative z-10">
+          <div className="flex-1 space-y-2 relative z-10 min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary">How the School Hub Works</p>
-            <h3 className="text-lg font-black uppercase tracking-tight leading-tight text-foreground">
+            <h3 className="text-base md:text-lg font-black uppercase tracking-tight leading-tight text-foreground">
               One Hub. Every Squad. One Master Schedule.
             </h3>
-            <div className="text-sm text-muted-foreground space-y-1.5 leading-relaxed">
+            <div className="text-xs md:text-sm text-muted-foreground space-y-1.5 leading-relaxed">
               <p>
                 <strong className="text-foreground">Squads</strong> are individual teams under your institution — e.g. <em>"Varsity Boys Basketball"</em> or <em>"JV Girls Soccer"</em>. Each squad has its own roster, coach, and calendar.
               </p>

@@ -95,58 +95,54 @@ export function AlertOverlay() {
         <DialogTitle className="sr-only">High Priority Squad Alert</DialogTitle>
         <DialogDescription className="sr-only">Important directive from squad command</DialogDescription>
         {/* Championship Header */}
-        <div className="bg-primary text-white p-8 relative overflow-hidden">
+        <div className="bg-primary text-white p-6 sm:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-6 opacity-10 -rotate-12 pointer-events-none">
             <Megaphone className="h-40 w-48" />
           </div>
-          <div className="relative z-10 space-y-4">
+          <div className="relative z-10 space-y-3">
             <div className="flex items-center gap-3">
               <div className="bg-white/20 backdrop-blur-md p-2.5 rounded-2xl border border-white/20 animate-pulse">
                 <Bell className="h-6 w-6 text-white" />
               </div>
               <Badge className="bg-white text-primary border-none font-black uppercase tracking-[0.2em] text-[9px] h-6 px-3 shadow-lg">Priority Broadcast</Badge>
             </div>
-            <h2 className="text-3xl md:text-4xl font-black leading-[0.9] tracking-tighter uppercase max-w-[90%]">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black leading-[0.9] tracking-tighter uppercase">
               {latestAlert.title}
             </h2>
           </div>
         </div>
 
-        <div className="p-8 lg:p-10 space-y-8">
-          <div className="space-y-6">
-            <div className="bg-muted/30 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/10 relative group">
-              <QuoteIcon className="absolute -top-4 -left-2 h-10 w-10 text-primary/10" />
-              <p className="text-lg font-bold text-foreground leading-relaxed italic relative z-10">
-                "{latestAlert.message}"
-              </p>
-            </div>
+        <div className="p-6 sm:p-8 space-y-6">
+          <div className="bg-muted/30 p-5 sm:p-8 rounded-[2rem] border-2 border-dashed border-primary/10 relative group">
+            <QuoteIcon className="absolute -top-4 -left-2 h-10 w-10 text-primary/10" />
+            <p className="text-base sm:text-lg font-bold text-foreground leading-relaxed italic relative z-10">
+              &ldquo;{latestAlert.message}&rdquo;
+            </p>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-muted/20 p-4 rounded-2xl flex items-center gap-3 border border-transparent">
-                <div className="bg-white p-2 rounded-lg shadow-sm border"><Users className="h-4 w-4 text-primary" /></div>
-                <div className="min-w-0">
-                  <p className="text-[8px] font-black uppercase text-muted-foreground">Target</p>
-                  <p className="text-[10px] font-bold uppercase truncate">{latestAlert.audience}</p>
-                </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-muted/20 p-4 rounded-2xl flex items-center gap-3 border border-transparent">
+              <div className="bg-white p-2 rounded-lg shadow-sm border shrink-0"><Users className="h-4 w-4 text-primary" /></div>
+              <div className="min-w-0">
+                <p className="text-[8px] font-black uppercase text-muted-foreground">Target</p>
+                <p className="text-[10px] font-bold uppercase truncate">{latestAlert.audience}</p>
               </div>
-              <div className="bg-muted/20 p-4 rounded-2xl flex items-center gap-3 border border-transparent">
-                <div className="bg-white p-2 rounded-lg shadow-sm border"><Clock className="h-4 w-4 text-primary" /></div>
-                <div className="min-w-0">
-                  <p className="text-[8px] font-black uppercase text-muted-foreground">Dispatch</p>
-                  <p className="text-[10px] font-bold uppercase truncate">{(() => { try { return formatDistanceToNow(new Date(latestAlert.createdAt)); } catch { return 'recently'; } })()} ago</p>
-                </div>
+            </div>
+            <div className="bg-muted/20 p-4 rounded-2xl flex items-center gap-3 border border-transparent">
+              <div className="bg-white p-2 rounded-lg shadow-sm border shrink-0"><Clock className="h-4 w-4 text-primary" /></div>
+              <div className="min-w-0">
+                <p className="text-[8px] font-black uppercase text-muted-foreground">Dispatch</p>
+                <p className="text-[10px] font-bold uppercase truncate">{(() => { try { return formatDistanceToNow(new Date(latestAlert.createdAt)); } catch { return 'recently'; } })()} ago</p>
               </div>
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
-            <Button 
-              className="w-full h-16 rounded-[2rem] text-lg font-black uppercase tracking-widest shadow-2xl shadow-primary/30 active:scale-95 transition-all hover:ring-4 hover:ring-primary/10" 
-              onClick={handleUnderstood}
-            >
-              Acknowledged Hub Directive
-            </Button>
-          </DialogFooter>
+          <Button
+            className="w-full h-14 rounded-[2rem] text-sm font-black uppercase tracking-widest shadow-2xl shadow-primary/30 active:scale-95 transition-all"
+            onClick={handleUnderstood}
+          >
+            Acknowledged Hub Directive
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
