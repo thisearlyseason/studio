@@ -2191,23 +2191,23 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
 
       {selectedLeagueId && activeLeague ? (
         <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-          <div className="flex items-center gap-4 mb-4">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedLeagueId(null)} className="rounded-full h-12 w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-6 w-6" /></Button>
-            <div className="bg-primary/5 px-4 py-2 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest border border-primary/10 flex items-center gap-1.5">
-              <span>Active Context: {activeLeague.name}</span>
+          <div className="flex items-center gap-3 mb-4 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedLeagueId(null)} className="rounded-full h-10 w-10 md:h-12 md:w-12 border-2 hover:bg-muted shrink-0 text-black border-black"><ChevronLeft className="h-5 w-5 md:h-6 md:w-6" /></Button>
+            <div className="bg-primary/5 px-3 py-2 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest border border-primary/10 flex items-center gap-1.5 min-w-0 overflow-hidden">
+              <span className="truncate">Active Context: {activeLeague.name}</span>
               {activeLeague.divisionTitle && (
-                <span className="text-muted-foreground/80">• {activeLeague.divisionTitle}</span>
+                <span className="text-muted-foreground/80 shrink-0">• {activeLeague.divisionTitle}</span>
               )}
             </div>
           </div>
-          <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-black text-white p-10 relative group">
-            <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700"><ShieldCheck className="h-48 w-48" /></div>
-            <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
-              <div className="flex items-center gap-6">
-                <div className="bg-primary p-5 rounded-[1.5rem] shadow-xl"><Trophy className="h-10 w-10 text-white" /></div>
-              <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-4xl font-black uppercase tracking-tight leading-none">{activeLeague.name}</h2>
+          <Card className="rounded-[2rem] md:rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-black text-white p-5 md:p-10 relative group">
+            <div className="absolute top-0 right-0 p-6 md:p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700"><ShieldCheck className="h-32 w-32 md:h-48 md:w-48" /></div>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-8 relative z-10">
+              <div className="flex items-center gap-4 md:gap-6 min-w-0">
+                <div className="bg-primary p-3 md:p-5 rounded-[1rem] md:rounded-[1.5rem] shadow-xl shrink-0"><Trophy className="h-7 w-7 md:h-10 md:w-10 text-white" /></div>
+              <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tight leading-none break-words">{activeLeague.name}</h2>
                     {activeLeague.divisionTitle && (
                       <Badge className="bg-primary text-white border-none font-black text-[10px] h-6 px-3.5 uppercase tracking-wider">
                         {activeLeague.divisionTitle}
@@ -2217,8 +2217,8 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   </div>
                   <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-2">{activeLeague.sport} • {Object.keys(activeLeague.teams || {}).length} Participating Squads</p>
                   {/* Editable League ID/Slug */}
-                  <div className="flex items-center gap-2 mt-3">
-                    <div className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-lg px-3 h-9">
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <div className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-lg px-3 h-9 max-w-full overflow-hidden">
                       <LinkIcon className="h-3 w-3 text-white/40 shrink-0" />
                       {isStaff && activeLeague.creatorId === authUser?.uid ? (
                         <input
@@ -2234,25 +2234,25 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                               }
                             }
                           }}
-                          className="bg-transparent text-white/80 font-black text-[10px] uppercase tracking-widest outline-none w-40 placeholder:text-white/30 border-b border-white/20 focus:border-primary pb-0.5"
+                          className="bg-transparent text-white/80 font-black text-[10px] uppercase tracking-widest outline-none w-32 md:w-40 placeholder:text-white/30 border-b border-white/20 focus:border-primary pb-0.5"
                           placeholder="league-slug"
                         />
                       ) : (
-                        <span className="text-white/60 font-black text-[10px] uppercase tracking-widest">{activeLeague.slug || activeLeague.id}</span>
+                        <span className="text-white/60 font-black text-[10px] uppercase tracking-widest truncate max-w-[120px] md:max-w-none">{activeLeague.slug || activeLeague.id}</span>
                       )}
                       <button
                         onClick={() => { navigator.clipboard.writeText(activeLeague.slug || activeLeague.id); toast({ title: 'League ID Copied' }); }}
-                        className="text-white/30 hover:text-white transition-colors ml-1"
+                        className="text-white/30 hover:text-white transition-colors ml-1 shrink-0"
                       >
                         <Copy className="h-3 w-3" />
                       </button>
                     </div>
-                    <span className="text-white/30 text-[8px] font-bold uppercase tracking-widest">League ID / Slug</span>
+                    <span className="text-white/30 text-[8px] font-bold uppercase tracking-widest hidden sm:inline">League ID / Slug</span>
                   </div>
                 </div>
               </div>
               {isStaff && activeLeague.creatorId === authUser?.uid && (
-                <div className="flex flex-wrap gap-2 justify-end">
+                <div className="flex flex-wrap gap-2 justify-start md:justify-end w-full md:w-auto">
                   <Button 
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.slug || activeLeague.id}?protocol=team_config`);
@@ -2260,32 +2260,34 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                     }} 
                     variant="ghost" 
                     size="icon" 
-                    className="h-12 w-12 rounded-xl border-white/20 border hover:bg-white/10 text-white transition-all"
+                    className="h-10 w-10 md:h-12 md:w-12 rounded-xl border-white/20 border hover:bg-white/10 text-white transition-all"
                   >
-                    <Share2 className="h-5 w-5" />
+                    <Share2 className="h-4 w-4 md:h-5 md:w-5" />
                   </Button>
-                  <Button onClick={handleEditLeague} variant="ghost" size="icon" className="h-12 w-12 rounded-xl border-white/20 border hover:bg-white/10 text-white transition-all"><Settings className="h-5 w-5" /></Button>
-                  <Button onClick={() => setIsSeasonOpen(true)} variant="outline" className="rounded-xl h-12 px-6 border-white/20 bg-white/5 text-white hover:bg-white hover:text-black transition-all flex items-center gap-2">
+                  <Button onClick={handleEditLeague} variant="ghost" size="icon" className="h-10 w-10 md:h-12 md:w-12 rounded-xl border-white/20 border hover:bg-white/10 text-white transition-all"><Settings className="h-4 w-4 md:h-5 md:w-5" /></Button>
+                  <Button onClick={() => setIsSeasonOpen(true)} variant="outline" className="rounded-xl h-10 md:h-12 px-4 md:px-6 border-white/20 bg-white/5 text-white hover:bg-white hover:text-black transition-all flex items-center gap-2 text-xs">
                     Season Architect
                   </Button>
                   {activeLeague.schedulerConfig && (
                     <Button 
                       onClick={handleDeployLeagueSchedule} 
                       disabled={isDeployingSchedule}
-                      className="rounded-xl h-12 px-6 bg-primary text-white hover:bg-primary/90 hover:text-white transition-all flex items-center gap-2 font-black uppercase text-xs shadow-xl"
+                      className="rounded-xl h-10 md:h-12 px-4 md:px-6 bg-primary text-white hover:bg-primary/90 hover:text-white transition-all flex items-center gap-2 font-black uppercase text-xs shadow-xl"
                     >
                       {isDeployingSchedule ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Deploy Season Schedule
+                      <span className="hidden sm:inline">Deploy Season Schedule</span>
+                      <span className="sm:hidden">Deploy</span>
                     </Button>
                   )}
                   {!isStarter && (
                   <Button 
                     variant="default" 
-                    className="rounded-xl h-12 px-6 font-black uppercase text-xs shadow-xl flex items-center gap-2 hover:text-black transition-all"
+                    className="rounded-xl h-10 md:h-12 px-4 md:px-6 font-black uppercase text-xs shadow-xl flex items-center gap-2 hover:text-black transition-all"
                     onClick={() => router.push(`/leagues/registration/${activeLeague.id}`)}
                   >
                     <FileText className="h-4 w-4" />
-                    Portal Architect
+                    <span className="hidden sm:inline">Portal Architect</span>
+                    <span className="sm:hidden">Portal</span>
                   </Button>
                   )}
                 </div>
@@ -2361,13 +2363,13 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-0">
             <TabsContent value="teams" className="mt-0 animate-in fade-in duration-500">
-              <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
+              <Card className="rounded-[2rem] md:rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b"><tr><th className="px-10 py-5">Squad Rank</th><th className="px-4 py-5 text-center">Portal Code</th><th className="px-4 py-5 text-center">Record</th><th className="px-4 py-5 text-center">PTS</th><th className="px-4 py-5 text-center">Compliance</th><th className="px-10 py-5 text-right text-primary">Actions</th></tr></thead>
+                      <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b"><tr><th className="px-4 md:px-10 py-4 md:py-5">Squad Rank</th><th className="px-3 md:px-4 py-4 md:py-5 text-center">Portal Code</th><th className="px-3 md:px-4 py-4 md:py-5 text-center">Record</th><th className="px-3 md:px-4 py-4 md:py-5 text-center">PTS</th><th className="px-3 md:px-4 py-4 md:py-5 text-center">Compliance</th><th className="px-4 md:px-10 py-4 md:py-5 text-right text-primary">Actions</th></tr></thead>
                       <tbody className="divide-y divide-muted/50">{sortedStandings.map((team, idx) => (
                         <tr key={team.id} className="hover:bg-primary/5 transition-colors group">
-                          <td className="px-10 py-6">
+                          <td className="px-4 md:px-10 py-4 md:py-6">
                             <div className="flex items-center gap-4">
                               <span className="text-xs font-black text-muted-foreground/40 w-6">{idx + 1}</span>
                               <SquadIdentity 
@@ -2416,7 +2418,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                               </Badge>
                             )}
                           </td>
-                          <td className="px-10 py-6 text-right">
+                          <td className="px-4 md:px-10 py-4 md:py-6 text-right">
                             <div className="flex items-center justify-end gap-4">
                               {isStaff && activeLeague.creatorId === authUser?.uid && (
                                 <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
@@ -2469,11 +2471,11 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                 <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b"><tr><th className="px-10 py-5">Athlete Name</th><th className="px-4 py-5 text-center">Portal Code</th><th className="px-4 py-5 text-center">Status</th><th className="px-4 py-5 text-center">Compliance</th><th className="px-10 py-5 text-right">Contact</th></tr></thead>
+                      <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b"><tr><th className="px-4 md:px-10 py-4 md:py-5">Athlete Name</th><th className="px-3 md:px-4 py-4 md:py-5 text-center">Portal Code</th><th className="px-3 md:px-4 py-4 md:py-5 text-center">Status</th><th className="px-3 md:px-4 py-4 md:py-5 text-center">Compliance</th><th className="px-4 md:px-10 py-4 md:py-5 text-right">Contact</th></tr></thead>
                       <tbody className="divide-y divide-muted/50">
                         {Object.entries(activeLeague.individualRecruits || {}).map(([id, p]) => (
                           <tr key={id} className="hover:bg-primary/5 transition-colors group">
-                            <td className="px-10 py-6">
+                            <td className="px-4 md:px-10 py-4 md:py-6">
                               <div className="flex items-center gap-4">
                                 <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><UserPlus className="h-5 w-5" /></div>
                                 <div className="space-y-1">
@@ -2511,17 +2513,17 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-6 text-center font-bold text-xs">
+                            <td className="px-3 md:px-4 py-4 md:py-6 text-center font-bold text-xs">
                               {(p.teamCode || p.inviteCode || p.code) ? (
                                 <Badge variant="outline" className="border-primary/20 text-primary font-black text-[9px] h-6 px-3">{p.teamCode || p.inviteCode || p.code}</Badge>
                               ) : (
                                 <span className="text-[10px] font-bold text-muted-foreground/30">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-6 text-center">
+                            <td className="px-3 md:px-4 py-4 md:py-6 text-center">
                               <Badge className={cn("border-none font-black text-[8px] uppercase px-3 h-6", p.status === 'pending' ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700")}>{p.status}</Badge>
                             </td>
-                            <td className="px-4 py-6 text-center">
+                            <td className="px-3 md:px-4 py-4 md:py-6 text-center">
                               {p.signedAt ? (
                                 <div className="space-y-0.5">
                                   <Badge className="bg-black/5 text-black border-none font-black text-[7px] h-4">SIGNED</Badge>
@@ -2529,7 +2531,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                                 </div>
                               ) : <span className="text-[8px] font-bold text-muted-foreground uppercase opacity-40 italic">Pending</span>}
                             </td>
-                            <td className="px-10 py-6 text-right">
+                            <td className="px-4 md:px-10 py-4 md:py-6 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 {p.signedAt && activeLeague && (
                                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-primary/10 text-primary" onClick={() => exportWaiver({ 
@@ -2571,11 +2573,11 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                 <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b"><tr><th className="px-10 py-5">Document Title</th><th className="px-4 py-5">Type</th><th className="px-4 py-5">Signer</th><th className="px-4 py-5">Signed Date</th><th className="px-10 py-5 text-right">Actions</th></tr></thead>
+                      <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest border-b"><tr><th className="px-4 md:px-10 py-4 md:py-5">Document Title</th><th className="px-3 md:px-4 py-4 md:py-5">Type</th><th className="px-3 md:px-4 py-4 md:py-5">Signer</th><th className="px-3 md:px-4 py-4 md:py-5">Signed Date</th><th className="px-4 md:px-10 py-4 md:py-5 text-right">Actions</th></tr></thead>
                       <tbody className="divide-y divide-muted/50">
                         {waivers.map((waiver) => (
                           <tr key={waiver.id} className="hover:bg-primary/5 transition-colors group">
-                            <td className="px-10 py-6">
+                            <td className="px-4 md:px-10 py-4 md:py-6">
                               <div className="flex items-center gap-4">
                                 <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><FileText className="h-5 w-5" /></div>
                                 <span className="font-black text-sm uppercase truncate text-foreground">{waiver.title}</span>
@@ -2584,7 +2586,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                             <td className="px-4 py-6 text-[10px] font-black uppercase text-muted-foreground">{waiver.type}</td>
                             <td className="px-4 py-6 font-black text-xs uppercase">{waiver.signer}</td>
                             <td className="px-4 py-6 text-[10px] font-bold text-muted-foreground uppercase">{format(new Date(waiver.signedAt), 'MMM d, h:mm a')}</td>
-                            <td className="px-10 py-6 text-right">
+                            <td className="px-4 md:px-10 py-4 md:py-6 text-right">
                               {!isStarter && (
                               <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary" onClick={() => exportWaiver(waiver)}>
                                 <Download className="h-5 w-5" />

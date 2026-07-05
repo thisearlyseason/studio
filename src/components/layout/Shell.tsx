@@ -1011,7 +1011,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 expands naturally and never gets clipped by overflow:hidden */}
             <div className="flex flex-col flex-1 min-h-0">
               <BetaNotificationBanner />
-              <main className="flex-1 overflow-y-auto p-4 md:p-10 max-w-7xl mx-auto w-full custom-scrollbar pb-32 md:pb-10 text-foreground">
+              <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-10 max-w-7xl mx-auto w-full custom-scrollbar pb-32 md:pb-10 text-foreground">
                 {children}
               </main>
             </div>
@@ -1066,28 +1066,61 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     <ScrollArea className="flex-1 px-6 pb-10">
                       <div className="space-y-8 pt-4">
 
-                        {/* Institution/Hub mode: squad-select prompt instead of operational nav */}
+                        {/* Institution/Hub mode: show squad switcher + hub link */}
                         {(isSchoolInstitutionMode || isEliteHubMode) ? (
-                          <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
-                            <div className="h-16 w-16 rounded-3xl bg-primary/10 flex items-center justify-center">
-                              <Building className="h-8 w-8 text-primary" />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-sm font-black uppercase tracking-tight text-foreground">
-                                {isSchoolMode ? 'School Hub Mode' : 'Club Hub Mode'}
-                              </p>
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                Select a squad above to access<br />team operations
-                              </p>
-                            </div>
+                          <div className="space-y-4">
+                            {/* Hub link */}
                             <Link
                               href="/club"
                               onClick={() => setIsMoreMenuOpen(false)}
-                              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                              className={cn(
+                                "flex items-center justify-between p-4 rounded-2xl border bg-primary text-white transition-all active:scale-[0.98]",
+                                pathname === '/club' ? "ring-2 ring-white ring-offset-2 ring-offset-primary" : ""
+                              )}
                             >
-                              <Building className="h-4 w-4" />
-                              {isSchoolMode ? 'School Hub' : 'Club Hub'}
+                              <div className="flex items-center gap-4">
+                                <div className="bg-white/20 p-2 rounded-xl text-white">
+                                  <Building className="h-5 w-5" />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-black uppercase tracking-widest">{isSchoolMode ? 'School Hub' : 'Club Hub'}</span>
+                                  <span className="text-[8px] font-bold text-white/60 uppercase">Institutional Command</span>
+                                </div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-white/40" />
                             </Link>
+
+                            {/* Squad list */}
+                            {teams.length > 0 && (
+                              <div className="space-y-1.5">
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Switch Squad ({teams.filter(t => t.type !== 'school').length})</p>
+                                <div className="space-y-1 max-h-48 overflow-y-auto overscroll-contain pr-0.5">
+                                  {teams.filter(t => t.type !== 'school').map(team => {
+                                    const isActive = activeTeam?.id === team.id;
+                                    return (
+                                      <button
+                                        key={team.id}
+                                        onClick={() => { setActiveTeam(team); router.push('/dashboard'); setIsMoreMenuOpen(false); }}
+                                        className={cn(
+                                          "w-full flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.98]",
+                                          isActive ? "bg-primary/5 border-primary/20" : "bg-muted/30 border-transparent hover:bg-white hover:border-primary/20"
+                                        )}
+                                      >
+                                        <Avatar className="h-9 w-9 rounded-xl shrink-0 border shadow-sm">
+                                          {team.teamLogoUrl && <AvatarImage src={team.teamLogoUrl} className="object-cover" />}
+                                          <AvatarFallback className={cn("font-black text-xs", isActive ? "bg-primary/20 text-primary" : "bg-muted")}>{(team.name?.[0] || 'T').toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col min-w-0 flex-1">
+                                          <span className="font-black text-xs uppercase tracking-tight truncate text-foreground">{team.name}</span>
+                                          <span className="text-[8px] font-bold text-muted-foreground uppercase">{team.sport || 'Squad'}</span>
+                                        </div>
+                                        {isActive && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <>

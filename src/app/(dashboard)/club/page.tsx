@@ -700,26 +700,26 @@ export default function ClubManagementPage() {
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-700">
-      <Card className="bg-black text-white p-10 lg:p-14 rounded-[3.5rem] shadow-2xl relative overflow-hidden group border-none hero-gradient">
-        <div className="absolute top-0 right-0 p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
-          <Building className="h-64 w-64" />
+    <Card className="bg-black text-white p-6 md:p-10 lg:p-14 rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl relative overflow-hidden group border-none hero-gradient">
+        <div className="absolute top-0 right-0 p-6 md:p-10 opacity-10 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
+          <Building className="h-40 w-40 md:h-64 md:w-64" />
         </div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="space-y-3">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 md:gap-8">
+          <div className="space-y-2 md:space-y-3">
             <Badge className="bg-primary text-white border-none font-black uppercase tracking-[0.2em] text-[10px] h-7 px-4 shadow-lg">Institutional Command</Badge>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-[0.8] text-white">
+            <h1 className="text-3xl md:text-4xl lg:text-6xl font-black tracking-tighter uppercase leading-[0.85] md:leading-[0.8] text-white break-words">
               {user?.schoolName || user?.clubName || (isSchoolMode ? 'School Hub' : 'Club Hub')}
             </h1>
             <p className="text-white/60 font-bold uppercase tracking-[0.2em] text-[10px] ml-1">
               {user?.institutionTitle || (isSchoolMode ? 'Athletic Director' : 'Club Authority')} &bull; {user?.name}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="h-14 px-8 rounded-2xl border-white/20 bg-white/10 text-white hover:bg-white hover:text-black transition-all font-black uppercase text-xs" onClick={() => setIsEditOpen(true)}>
+          <div className="flex flex-wrap gap-2 md:gap-3">
+            <Button variant="outline" className="h-11 md:h-14 px-5 md:px-8 rounded-2xl border-white/20 bg-white/10 text-white hover:bg-white hover:text-black transition-all font-black uppercase text-xs" onClick={() => setIsEditOpen(true)}>
               <Edit3 className="h-4 w-4 mr-2" /> {isSchoolMode ? 'Edit School' : 'Edit Club'}
             </Button>
-            <Button className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/40 bg-white text-black hover:bg-primary hover:text-white transition-all border-none" onClick={() => setIsSubSquadModalOpen(true)}>
-              <Plus className="h-5 w-5 mr-2" /> {isSchoolMode ? 'Add Sub-Squad' : 'Add Squad'}
+            <Button className="h-11 md:h-14 px-5 md:px-8 rounded-2xl text-base md:text-lg font-black shadow-xl shadow-primary/40 bg-white text-black hover:bg-primary hover:text-white transition-all border-none" onClick={() => setIsSubSquadModalOpen(true)}>
+              <Plus className="h-4 w-4 md:h-5 md:w-5 mr-2" /> {isSchoolMode ? 'Add Sub-Squad' : 'Add Squad'}
             </Button>
           </div>
         </div>
@@ -936,11 +936,11 @@ export default function ClubManagementPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-8 space-y-2"><p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Total Squads</p><p className="text-5xl font-black">{clubTeams.length}</p></Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-8 space-y-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <Card className="rounded-[2rem] md:rounded-[2.5rem] border-none shadow-md bg-primary text-white p-5 md:p-8 space-y-2"><p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Total Squads</p><p className="text-4xl md:text-5xl font-black">{clubTeams.length}</p></Card>
+        <Card className="rounded-[2rem] md:rounded-[2.5rem] border-none shadow-md bg-black text-white p-5 md:p-8 space-y-3">
           <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Fiscal Pulse</p>
-          <p className="text-3xl font-black">${fiscalSummary.fiscalPulseTotal.toLocaleString()}</p>
+          <p className="text-2xl md:text-3xl font-black">${fiscalSummary.fiscalPulseTotal.toLocaleString()}</p>
           <Progress value={fiscalSummary.fiscalPulseRate} className="h-1.5 bg-white/10" />
           <div className="flex gap-3 pt-1">
             <p className="text-[8px] font-bold opacity-40 uppercase tracking-widest">
@@ -950,8 +950,8 @@ export default function ClubManagementPage() {
             </p>
           </div>
         </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 space-y-2 ring-1 ring-black/5"><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Compliance Rating</p><p className="text-5xl font-black text-primary">{stats.compliance}%</p></Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-muted/20 p-8 space-y-4"><div className="flex items-center gap-3"><ShieldAlert className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase text-foreground">Safety Oversights</p></div><p className="text-3xl font-black text-foreground">{clubIncidents.length}</p></Card>
+        <Card className="rounded-[2rem] md:rounded-[2.5rem] border-none shadow-md bg-white p-5 md:p-8 space-y-2 ring-1 ring-black/5"><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Compliance Rating</p><p className="text-4xl md:text-5xl font-black text-primary">{stats.compliance}%</p></Card>
+        <Card className="rounded-[2rem] md:rounded-[2.5rem] border-none shadow-md bg-muted/20 p-5 md:p-8 space-y-4"><div className="flex items-center gap-3"><ShieldAlert className="h-5 w-5 text-primary" /><p className="text-[10px] font-black uppercase text-foreground">Safety Oversights</p></div><p className="text-3xl font-black text-foreground">{clubIncidents.length}</p></Card>
       </div>
 
       <Tabs defaultValue="squads" className="space-y-8">
@@ -1104,18 +1104,18 @@ export default function ClubManagementPage() {
         {schoolHub && (
           <TabsContent value="admins" className="space-y-6 mt-0 animate-in fade-in">
             <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
-              <CardHeader className="bg-black text-white p-10">
-                <div className="flex items-center gap-6">
-                  <div className="bg-primary p-4 rounded-2xl shadow-xl shadow-primary/20">
-                    <ShieldCheck className="h-8 w-8 text-white" />
+              <CardHeader className="bg-black text-white p-6 md:p-10">
+                <div className="flex items-center gap-4 md:gap-6">
+                  <div className="bg-primary p-3 md:p-4 rounded-2xl shadow-xl shadow-primary/20 shrink-0">
+                    <ShieldCheck className="h-6 w-6 md:h-8 md:w-8 text-white" />
                   </div>
-                  <div>
-                    <CardTitle className="text-3xl font-black uppercase tracking-tight">Institutional Authorities</CardTitle>
+                  <div className="min-w-0">
+                    <CardTitle className="text-xl md:text-3xl font-black uppercase tracking-tight">Institutional Authorities</CardTitle>
                     <CardDescription className="text-white/60 font-bold uppercase text-[10px] mt-2 tracking-widest">Manage co-administrators for the {schoolHub.name} hub</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-10 space-y-8">
+              <CardContent className="p-5 md:p-10 space-y-8">
                 {schoolHub.ownerUserId === user?.id && (
                   <div className="flex flex-col md:flex-row gap-4">
                     <Input
@@ -1328,7 +1328,7 @@ export default function ClubManagementPage() {
         </Dialog>
 
         <TabsContent value="compliance" className="space-y-8 mt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12">
             <div className="lg:col-span-8 space-y-6">
               <div className="flex items-center justify-between px-2">
                 <div>
@@ -1643,27 +1643,27 @@ export default function ClubManagementPage() {
 
         <TabsContent value="safety" className="mt-0">
           <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
-            <CardHeader className="bg-black text-white p-10">
-              <div className="flex items-center gap-6">
-                <div className="bg-primary p-4 rounded-2xl shadow-xl shadow-primary/20">
-                  <ShieldAlert className="h-8 w-8 text-white" />
+            <CardHeader className="bg-black text-white p-6 md:p-10">
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="bg-primary p-3 md:p-4 rounded-2xl shadow-xl shadow-primary/20 shrink-0">
+                  <ShieldAlert className="h-6 w-6 md:h-8 md:w-8 text-white" />
                 </div>
-                <div><CardTitle className="text-3xl font-black uppercase tracking-tight">Institutional Safety Audit</CardTitle><CardDescription className="text-white/60 font-bold uppercase text-[10px] mt-2 tracking-widest">Aggregate incident reporting across all managed operational units</CardDescription></div>
+                <div className="min-w-0"><CardTitle className="text-xl md:text-3xl font-black uppercase tracking-tight">Institutional Safety Audit</CardTitle><CardDescription className="text-white/60 font-bold uppercase text-[10px] mt-2 tracking-widest">Aggregate incident reporting across all managed operational units</CardDescription></div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead className="bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b">
-                    <tr><th className="px-10 py-6">Incident</th><th className="px-6 py-6">Squad</th><th className="px-6 py-6">Severity</th><th className="px-10 py-6 text-right">Date</th></tr>
+                    <tr><th className="px-4 md:px-10 py-4 md:py-6">Incident</th><th className="px-3 md:px-6 py-4 md:py-6">Squad</th><th className="px-3 md:px-6 py-4 md:py-6">Severity</th><th className="px-4 md:px-10 py-4 md:py-6 text-right">Date</th></tr>
                   </thead>
                   <tbody className="divide-y divide-muted/50">
                     {clubIncidents.map(inc => (
                       <tr key={inc.id} onClick={() => setViewingIncident(inc)} className="hover:bg-primary/5 transition-colors group cursor-pointer">
-                        <td className="px-10 py-6"><p className="font-black text-sm uppercase text-foreground">{inc.title}</p><p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">{inc.location}</p></td>
-                        <td className="px-6 py-6 font-black text-xs uppercase text-foreground">{inc.teamName}</td>
-                        <td className="px-6 py-6"><Badge className={cn("border-none font-black text-[8px] uppercase px-3 h-5", inc.emergencyServicesCalled ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground")}>{inc.emergencyServicesCalled ? 'CRITICAL' : 'ROUTINE'}</Badge></td>
-                        <td className="px-10 py-6 text-right font-black text-xs uppercase text-foreground">
+                        <td className="px-4 md:px-10 py-4 md:py-6"><p className="font-black text-sm uppercase text-foreground">{inc.title}</p><p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">{inc.location}</p></td>
+                        <td className="px-3 md:px-6 py-4 md:py-6 font-black text-xs uppercase text-foreground">{inc.teamName}</td>
+                        <td className="px-3 md:px-6 py-4 md:py-6"><Badge className={cn("border-none font-black text-[8px] uppercase px-3 h-5", inc.emergencyServicesCalled ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground")}>{inc.emergencyServicesCalled ? 'CRITICAL' : 'ROUTINE'}</Badge></td>
+                        <td className="px-4 md:px-10 py-4 md:py-6 text-right font-black text-xs uppercase text-foreground">
                           {(() => { try { return format(parseISO(inc.date), 'MMMM d, yyyy'); } catch { return inc.date; } })()}
                         </td>
                       </tr>
