@@ -908,23 +908,67 @@ export default function ClubManagementPage() {
       </div>
 
       {/* ── TABS ── */}
-      <Tabs defaultValue="squads" className="space-y-6">
-        {/* Scrollable tab bar: use a wrapper that clips internally so negative margins
-            don't break the page-level overflow boundary on Android Chrome */}
-        <div className="w-full overflow-x-auto pb-1" style={{WebkitOverflowScrolling:'touch', scrollbarWidth:'none', msOverflowStyle:'none'}}>
-          <TabsList className="bg-muted/50 rounded-xl p-1 h-11 flex border shadow-inner whitespace-nowrap gap-0.5" style={{minWidth:'max-content'}}>
-            <TabsTrigger value="squads" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-black data-[state=active]:text-white">{schoolHub ? 'Squads' : 'Squad Roster'}</TabsTrigger>
-            {schoolHub && (
-              <TabsTrigger value="coaches" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-primary data-[state=active]:text-white">Coaches</TabsTrigger>
-            )}
-            {schoolHub && (
-              <TabsTrigger value="admins" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-primary data-[state=active]:text-white">Admins</TabsTrigger>
-            )}
-            <TabsTrigger value="compliance" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-black data-[state=active]:text-white">Waivers</TabsTrigger>
-            <TabsTrigger value="finance" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Finance</TabsTrigger>
-            <TabsTrigger value="safety" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-primary data-[state=active]:text-white">Safety</TabsTrigger>
-          </TabsList>
-        </div>
+      <Tabs defaultValue="squads" className="space-y-5">
+        {/*
+          Mobile: CSS grid — tabs wrap naturally into rows, all visible, no scroll.
+            • School hub (6 tabs) → 3-col grid = 2 rows of 3
+            • Club only  (4 tabs) → 2-col grid = 2 rows of 2
+          sm+: single-row flex pill (original look).
+          Triggers appear exactly ONCE in the DOM so Radix focus management stays intact.
+        */}
+        <TabsList className={cn(
+          "bg-muted/40 border shadow-inner p-1 h-auto gap-1 w-full",
+          // Mobile grid: columns depend on how many tabs are shown
+          schoolHub ? "grid grid-cols-3 rounded-2xl" : "grid grid-cols-2 rounded-2xl",
+          // sm+: single pill row
+          "sm:flex sm:flex-row sm:flex-nowrap sm:h-11 sm:rounded-xl sm:w-auto sm:inline-flex sm:items-center sm:gap-0.5 sm:p-1"
+        )}>
+          <TabsTrigger
+            value="squads"
+            className="rounded-xl sm:rounded-lg font-black text-[9px] sm:text-[10px] uppercase py-2.5 sm:py-0 sm:px-4 h-9 sm:h-auto data-[state=active]:bg-black data-[state=active]:text-white"
+          >
+            Squads
+          </TabsTrigger>
+
+          {schoolHub && (
+            <TabsTrigger
+              value="coaches"
+              className="rounded-xl sm:rounded-lg font-black text-[9px] sm:text-[10px] uppercase py-2.5 sm:py-0 sm:px-4 h-9 sm:h-auto data-[state=active]:bg-primary data-[state=active]:text-white"
+            >
+              Coaches
+            </TabsTrigger>
+          )}
+
+          {schoolHub && (
+            <TabsTrigger
+              value="admins"
+              className="rounded-xl sm:rounded-lg font-black text-[9px] sm:text-[10px] uppercase py-2.5 sm:py-0 sm:px-4 h-9 sm:h-auto data-[state=active]:bg-primary data-[state=active]:text-white"
+            >
+              Admins
+            </TabsTrigger>
+          )}
+
+          <TabsTrigger
+            value="compliance"
+            className="rounded-xl sm:rounded-lg font-black text-[9px] sm:text-[10px] uppercase py-2.5 sm:py-0 sm:px-4 h-9 sm:h-auto data-[state=active]:bg-black data-[state=active]:text-white"
+          >
+            Waivers
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="finance"
+            className="rounded-xl sm:rounded-lg font-black text-[9px] sm:text-[10px] uppercase py-2.5 sm:py-0 sm:px-4 h-9 sm:h-auto data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
+          >
+            Finance
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="safety"
+            className="rounded-xl sm:rounded-lg font-black text-[9px] sm:text-[10px] uppercase py-2.5 sm:py-0 sm:px-4 h-9 sm:h-auto data-[state=active]:bg-primary data-[state=active]:text-white"
+          >
+            Safety
+          </TabsTrigger>
+        </TabsList>
 
         {/* ── SQUADS TAB ── */}
         <TabsContent value="squads" className="space-y-8 mt-0">
