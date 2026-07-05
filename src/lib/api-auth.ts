@@ -70,9 +70,15 @@ export async function verifyFirebaseToken(
         { status: 401 }
       );
     }
-    console.error('[verifyFirebaseToken] Token verification error:', err.message, err.code);
+    // Log full error detail for easier Vercel log diagnosis
+    console.error(
+      '[verifyFirebaseToken] Unexpected error — code:', err.code,
+      '| message:', err.message,
+      '| FIREBASE_SERVICE_ACCOUNT_JSON set:', !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
+      '| admin.apps.length:', admin.apps.length
+    );
     return NextResponse.json(
-      { error: 'Authentication service error. Please try again.' },
+      { error: `Authentication service error. Please try again. (code: ${err.code ?? 'unknown'})` },
       { status: 503 }
     );
   }
