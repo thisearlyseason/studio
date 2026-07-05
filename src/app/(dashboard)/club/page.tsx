@@ -658,7 +658,7 @@ export default function ClubManagementPage() {
   };
 
   return (
-    <div className="space-y-5 md:space-y-8 pb-24 animate-in fade-in duration-700 overflow-x-hidden w-full max-w-full">
+    <div className="space-y-5 md:space-y-8 pb-24 animate-in fade-in duration-700 w-full" style={{maxWidth:'100%', overflowX:'hidden'}}>
 
       {/* ── HERO CARD ── */}
       <Card className="bg-black text-white p-5 md:p-10 lg:p-14 rounded-[2rem] md:rounded-[3rem] shadow-2xl relative overflow-hidden group border-none hero-gradient">
@@ -909,8 +909,10 @@ export default function ClubManagementPage() {
 
       {/* ── TABS ── */}
       <Tabs defaultValue="squads" className="space-y-6">
-        <div className="overflow-x-auto -mx-4 px-4 pb-1 scrollbar-none">
-          <TabsList className="bg-muted/50 rounded-xl p-1 h-11 inline-flex border shadow-inner whitespace-nowrap min-w-max gap-0.5">
+        {/* Scrollable tab bar: use a wrapper that clips internally so negative margins
+            don't break the page-level overflow boundary on Android Chrome */}
+        <div className="w-full overflow-x-auto pb-1" style={{WebkitOverflowScrolling:'touch', scrollbarWidth:'none', msOverflowStyle:'none'}}>
+          <TabsList className="bg-muted/50 rounded-xl p-1 h-11 flex border shadow-inner whitespace-nowrap gap-0.5" style={{minWidth:'max-content'}}>
             <TabsTrigger value="squads" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-black data-[state=active]:text-white">{schoolHub ? 'Squads' : 'Squad Roster'}</TabsTrigger>
             {schoolHub && (
               <TabsTrigger value="coaches" className="rounded-lg font-black text-[10px] uppercase px-4 data-[state=active]:bg-primary data-[state=active]:text-white">Coaches</TabsTrigger>
@@ -1391,8 +1393,8 @@ export default function ClubManagementPage() {
                   <p className="text-xs font-black uppercase tracking-widest">No enrollment entries found</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[600px]">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="w-full text-left" style={{minWidth:'560px'}}>
                     <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b">
                       <tr>
                         <th className="px-4 py-3">Team / Applicant</th>
@@ -1469,8 +1471,8 @@ export default function ClubManagementPage() {
                     {campaign.donations.length === 0 ? (
                       <p className="px-5 py-5 text-[10px] font-bold text-muted-foreground uppercase opacity-40">No donations recorded yet.</p>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left min-w-[500px]">
+                      <div className="overflow-x-auto max-w-full">
+                        <table className="w-full text-left" style={{minWidth:'480px'}}>
                           <thead className="bg-muted/20 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b">
                             <tr>
                               <th className="px-4 py-2.5">Donor</th>
@@ -1535,8 +1537,8 @@ export default function ClubManagementPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[500px]">
+              <div className="overflow-x-auto max-w-full">
+                <table className="w-full text-left" style={{minWidth:'480px'}}>
                   <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b">
                     <tr>
                       <th className="px-4 md:px-6 py-3 md:py-4">Incident</th>
