@@ -368,7 +368,12 @@ export type Member = {
   removalReason?: string;
   removedAt?: string;
   division?: string; // Division assignment for league play
+  /** ISO date string (YYYY-MM-DD) — used to compute age for payment history access */
+  dateOfBirth?: string;
+  /** Explicitly mark a member as an adult (18+). Overrides dateOfBirth computation. */
+  isAdult?: boolean;
 };
+
 
 export interface Plan {
   id: string;

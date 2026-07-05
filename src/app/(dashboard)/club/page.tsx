@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTeam, Team, Member, TeamDocument, DocumentSignature, TeamIncident } from '@/components/providers/team-provider';
+import { HubStripeSettings } from '@/components/finance/HubStripeSettings';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1734,6 +1735,27 @@ export default function ClubManagementPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Payments / Stripe Settings (hub admin only) ── */}
+      {schoolHub?.id && user?.id && (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Badge className="bg-primary/5 text-primary border-none font-black uppercase text-[8px] h-5 px-2 tracking-widest">
+              {isSchoolMode ? 'School Hub' : 'Club Hub'}
+            </Badge>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Payment Settings</h2>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              Configure how Stripe online payments work across your {isSchoolMode ? 'school' : 'club'}
+            </p>
+          </div>
+          <HubStripeSettings
+            userId={user.id}
+            hubTeamId={schoolHub.id}
+            subSquads={schoolSquads.map(s => ({ id: s.id, name: s.name }))}
+            isSchoolMode={isSchoolMode}
+          />
+        </div>
+      )}
 
       {/* Decommission Alert */}
       <AlertDialog open={!!teamToDelete} onOpenChange={o => !o && setTeamToDelete(null)}>

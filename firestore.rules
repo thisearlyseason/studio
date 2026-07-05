@@ -162,6 +162,21 @@ service cloud.firestore {
         }
       }
 
+      // ─── Online Payment Items (coaches create payable line items) ──────────
+      match /paymentItems/{itemId} {
+        allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
+        allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
+      }
+
+      // ─── Payments (online + offline payment records) ────────────────────────
+      // Server-side (webhook, Admin SDK) writes bypass these rules.
+      // Coaches (team owners) can write offline records.
+      // All team members can read payment records.
+      match /payments/{paymentId} {
+        allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
+        allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
+      }
+
       // FIX #1: isDemo bypass added for batch race condition on demo seeding
       // where team doc may not yet be committed when subcollection writes are evaluated.
       match /{subCollection}/{docId} {

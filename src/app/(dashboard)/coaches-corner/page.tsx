@@ -71,10 +71,12 @@ import {
   LayoutGrid,
   Check,
   Calendar as CalendarIcon,
-  AlertCircle as AlertHorizontal
+  AlertCircle as AlertHorizontal,
+  Banknote,
+  CreditCard
 } from 'lucide-react';
 import { generateBrandedPDF } from '@/lib/pdf-utils';
-import { collection, query, orderBy, doc, getDoc, updateDoc, collectionGroup, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, doc, getDoc, updateDoc, collectionGroup, where, getDocs, addDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,6 +117,10 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { FundraisingManager } from '@/components/coaches-corner/FundraisingManager';
+import { StripeConnectSetup } from '@/components/finance/StripeConnectSetup';
+import { PaymentItemsManager } from '@/components/finance/PaymentItemsManager';
+import { getAuthToken, authHeader } from '@/lib/client-auth';
+import { useAuth } from '@/firebase';
 
 const DEFAULT_PROTOCOLS = [
   { id: 'default_medical', title: 'Medical Clearance', type: 'waiver' },
@@ -4900,10 +4906,25 @@ export default function CoachesCornerPage() {
 }
 
 function SquadFinancialHub() {
-  const { db, activeTeam, members, isPro } = useTeam();
+  const { db, activeTeam, members, isPro, user } = useTeam();
+  const auth = useAuth();
   const [searchQ, setSearchQ] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [stripeChargesEnabled, setStripeChargesEnabled] = useState(false);
+
+  // ── Offline payment recording dialog state ───────────────────────────────────
+  const [isOfflineDialogOpen, setIsOfflineDialogOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [offlineForm, setOfflineForm] = useState({
+    payer_name: '',
+    payer_email: '',
+    paymentItemName: '',
+    amountDollars: '',
+    notes: '',
+  });
+
+  // ── Firestore queries (existing — unchanged) ─────────────────────────────────
 
   // Enrollment registrations
   const regRef = useMemoFirebase(() => db && activeTeam?.id
@@ -4917,17 +4938,54 @@ function SquadFinancialHub() {
     : null, [db, activeTeam?.id]);
   const { data: donations } = useCollection<any>(donRef);
 
+  // ── NEW: unified payments collection (online + offline) ──────────────────────
+  const paymentsRef = useMemoFirebase(() => db && activeTeam?.id
+    ? query(collection(db, 'teams', activeTeam.id, 'payments'), orderBy('createdAt', 'desc'))
+    : null, [db, activeTeam?.id]);
+  const { data: payments } = useCollection<any>(paymentsRef);
+
+  // ── Merge all transaction sources ────────────────────────────────────────────
   const allTx = useMemo(() => {
+    // Existing: enrollment registrations
     const regs = (registrations || []).map((r: any) => ({
-      id: r.id, type: 'enrollment', label: r.memberName || r.playerId || 'Member',
-      amount: r.feePaid || r.amount || 0, date: r.createdAt || r.date || '', email: r.email || '',
+      id: r.id,
+      type: 'enrollment' as const,
+      payment_method: 'offline' as const,
+      label: r.memberName || r.playerId || 'Member',
+      amount: r.feePaid || r.amount || 0,
+      date: r.createdAt || r.date || '',
+      email: r.email || '',
+      stripe_receipt_url: undefined as string | undefined,
     }));
+
+    // Existing: donations
     const dons = (donations || []).map((d: any) => ({
-      id: d.id, type: 'donation', label: d.donorName || 'Donor',
-      amount: d.amount || 0, date: d.createdAt || d.date || '', email: d.donorEmail || '',
+      id: d.id,
+      type: 'donation' as const,
+      payment_method: 'offline' as const,
+      label: d.donorName || 'Donor',
+      amount: d.amount || 0,
+      date: d.createdAt || d.date || '',
+      email: d.donorEmail || '',
+      stripe_receipt_url: undefined as string | undefined,
     }));
-    return [...regs, ...dons].sort((a, b) => (b.date > a.date ? 1 : -1));
-  }, [registrations, donations]);
+
+    // New: unified payments (online + offline)
+    const pays = (payments || []).map((p: any) => ({
+      id: p.id,
+      type: 'payment' as const,
+      payment_method: (p.payment_method || 'offline') as 'online' | 'offline',
+      label: p.payer_name || p.payer_email || 'Payer',
+      amount: Math.round((p.amount || 0) / 100), // stored in cents; display in dollars
+      date: p.createdAt || '',
+      email: p.payer_email || '',
+      stripe_receipt_url: p.stripe_receipt_url as string | undefined,
+      paymentItemName: p.paymentItemName || '',
+      status: p.status || 'paid',
+    }));
+
+    return [...regs, ...dons, ...pays].sort((a, b) => (b.date > a.date ? 1 : -1));
+  }, [registrations, donations, payments]);
 
   const filtered = useMemo(() => allTx.filter(tx => {
     const q = searchQ.toLowerCase();
@@ -4937,38 +4995,106 @@ function SquadFinancialHub() {
     return matchQ && matchFrom && matchTo;
   }), [allTx, searchQ, dateFrom, dateTo]);
 
+  // KPI aggregates
   const totalRevenue = filtered.reduce((s, t) => s + (t.amount || 0), 0);
   const totalEnrollment = filtered.filter(t => t.type === 'enrollment').reduce((s, t) => s + t.amount, 0);
   const totalDonations = filtered.filter(t => t.type === 'donation').reduce((s, t) => s + t.amount, 0);
+  const totalOnline = filtered.filter(t => t.type === 'payment' && (t as any).payment_method === 'online').reduce((s, t) => s + t.amount, 0);
+
+  // ── Record offline payment ───────────────────────────────────────────────────
+  const handleRecordOfflinePayment = async () => {
+    if (!offlineForm.payer_name.trim() || !offlineForm.paymentItemName.trim()) {
+      toast({ title: 'Name and description are required', variant: 'destructive' });
+      return;
+    }
+    const amount = parseFloat(offlineForm.amountDollars);
+    if (!isFinite(amount) || amount < 0) {
+      toast({ title: 'Invalid amount', variant: 'destructive' });
+      return;
+    }
+    setIsRecording(true);
+    try {
+      const now = new Date().toISOString();
+      await addDoc(collection(db, 'teams', activeTeam!.id, 'payments'), {
+        teamId: activeTeam!.id,
+        paymentItemName: offlineForm.paymentItemName.trim(),
+        payer_name: offlineForm.payer_name.trim(),
+        payer_email: offlineForm.payer_email.trim().toLowerCase(),
+        amount: Math.round(amount * 100), // store in cents
+        currency: 'usd',
+        payment_method: 'offline',
+        status: 'paid',
+        notes: offlineForm.notes.trim() || '',
+        recorded_by: user?.id || '',
+        createdAt: now,
+        updatedAt: now,
+      });
+      toast({ title: '✓ Payment Recorded', description: `Offline payment from ${offlineForm.payer_name} saved.` });
+      setOfflineForm({ payer_name: '', payer_email: '', paymentItemName: '', amountDollars: '', notes: '' });
+      setIsOfflineDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsRecording(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
+      {/* ── Section header ── */}
       <div className="space-y-1">
         <Badge className="bg-primary/5 text-primary border-none font-black uppercase text-[8px] h-5 px-2 tracking-widest">Squad Financials</Badge>
         <h2 className="text-3xl font-black uppercase tracking-tight">Fiscal Pulse</h2>
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Squad-level enrollment fees & donation overview</p>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Squad-level enrollment fees, donations & online payments</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-8 relative overflow-hidden">
-          <DollarSign className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10" />
+      {/* ── Stripe Connect Setup (Pro only — free/starter never reach here) ── */}
+      {user?.id && (
+        <StripeConnectSetup
+          userId={user.id}
+          onConnected={() => setStripeChargesEnabled(true)}
+        />
+      )}
+
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-black text-white p-6 relative overflow-hidden">
+          <DollarSign className="absolute -right-4 -bottom-4 h-20 w-20 opacity-10" />
           <p className="text-[10px] font-black uppercase opacity-60">Total Revenue</p>
-          <p className="text-4xl font-black mt-1">${totalRevenue.toLocaleString()}</p>
+          <p className="text-3xl font-black mt-1">${totalRevenue.toLocaleString()}</p>
         </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-8 relative overflow-hidden">
-          <Users className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10" />
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-primary text-white p-6 relative overflow-hidden">
+          <Users className="absolute -right-4 -bottom-4 h-20 w-20 opacity-10" />
           <p className="text-[10px] font-black uppercase opacity-60">Enrollment Fees</p>
-          <p className="text-4xl font-black mt-1">${totalEnrollment.toLocaleString()}</p>
+          <p className="text-3xl font-black mt-1">${totalEnrollment.toLocaleString()}</p>
         </Card>
-        <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-8 ring-1 ring-black/5 relative overflow-hidden">
-          <Heart className="absolute -right-4 -bottom-4 h-24 w-24 opacity-5 text-primary" />
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-white p-6 ring-1 ring-black/5 relative overflow-hidden">
+          <Heart className="absolute -right-4 -bottom-4 h-20 w-20 opacity-5 text-primary" />
           <p className="text-[10px] font-black uppercase text-muted-foreground">Donations</p>
-          <p className="text-4xl font-black mt-1 text-primary">${totalDonations.toLocaleString()}</p>
+          <p className="text-3xl font-black mt-1 text-primary">${totalDonations.toLocaleString()}</p>
+        </Card>
+        <Card className="rounded-[2.5rem] border-none shadow-md bg-emerald-50 ring-1 ring-emerald-100 p-6 relative overflow-hidden">
+          <CreditCard className="absolute -right-4 -bottom-4 h-20 w-20 opacity-10 text-emerald-500" />
+          <p className="text-[10px] font-black uppercase text-emerald-600">Online Payments</p>
+          <p className="text-3xl font-black mt-1 text-emerald-700">${totalOnline.toLocaleString()}</p>
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* ── Payment Items Manager (Stripe connected users only) ── */}
+      {user?.id && activeTeam?.id && (
+        <div className="space-y-4">
+          <PaymentItemsManager
+            userId={user.id}
+            teamId={activeTeam.id}
+            stripeChargesEnabled={stripeChargesEnabled}
+          />
+        </div>
+      )}
+
+      {/* ── Divider ── */}
+      <div className="border-t border-dashed" />
+
+      {/* ── Filters + Add Offline Payment ── */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -4976,44 +5102,174 @@ function SquadFinancialHub() {
         </div>
         <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-12 rounded-2xl border-2 font-bold w-auto" />
         <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-12 rounded-2xl border-2 font-bold w-auto" />
+        <Button
+          onClick={() => setIsOfflineDialogOpen(true)}
+          variant="outline"
+          className="h-12 px-5 rounded-2xl font-black text-[9px] uppercase tracking-widest border-2 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 shrink-0 transition-all"
+        >
+          <Plus className="h-4 w-4 mr-2" /> Offline Payment
+        </Button>
       </div>
 
-      {/* Transactions */}
+      {/* ── Unified Transaction Ledger ── */}
       <Card className="rounded-[3rem] border-none shadow-xl overflow-hidden bg-white ring-1 ring-black/5">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-muted/30 text-[9px] font-black uppercase tracking-widest text-muted-foreground border-b">
               <tr>
-                <th className="px-8 py-5">Name</th>
-                <th className="px-4 py-5">Type</th>
+                <th className="px-6 py-5">Name</th>
+                <th className="px-4 py-5">Description</th>
+                <th className="px-4 py-5">Method</th>
                 <th className="px-4 py-5">Email</th>
-                <th className="px-8 py-5 text-right">Amount</th>
-                <th className="px-8 py-5 text-right">Date</th>
+                <th className="px-6 py-5 text-right">Amount</th>
+                <th className="px-6 py-5 text-right">Date</th>
+                <th className="px-4 py-5"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.slice(0, 50).map(tx => (
-                <tr key={tx.id} className="hover:bg-primary/5 transition-colors">
-                  <td className="px-8 py-5 font-black text-sm uppercase tracking-tight">{tx.label}</td>
-                  <td className="px-4 py-5">
-                    <Badge className={cn("border-none font-black text-[8px] uppercase",
-                      tx.type === 'enrollment' ? "bg-primary/10 text-primary" : "bg-green-100 text-green-700"
-                    )}>{tx.type === 'enrollment' ? 'Enrollment' : 'Donation'}</Badge>
-                  </td>
-                  <td className="px-4 py-5 text-xs text-muted-foreground font-bold">{tx.email || '—'}</td>
-                  <td className="px-8 py-5 text-right font-black text-sm text-primary">${(tx.amount || 0).toLocaleString()}</td>
-                  <td className="px-8 py-5 text-right text-xs font-bold text-muted-foreground">
-                    {tx.date ? (() => { try { return format(new Date(tx.date), 'MMM d, yyyy'); } catch { return tx.date; } })() : '—'}
-                  </td>
-                </tr>
-              ))}
+              {filtered.slice(0, 100).map(tx => {
+                const isOnline = (tx as any).payment_method === 'online';
+                const isPayment = tx.type === 'payment';
+                return (
+                  <tr key={tx.id} className="hover:bg-primary/5 transition-colors">
+                    <td className="px-6 py-4 font-black text-sm uppercase tracking-tight">{tx.label}</td>
+                    <td className="px-4 py-4 text-[10px] font-bold text-muted-foreground max-w-[140px] truncate">
+                      {(tx as any).paymentItemName || (tx.type === 'enrollment' ? 'Enrollment' : tx.type === 'donation' ? 'Donation' : '—')}
+                    </td>
+                    <td className="px-4 py-4">
+                      {isPayment ? (
+                        <Badge className={cn(
+                          'border-none font-black text-[7px] uppercase px-2 h-4',
+                          isOnline ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                        )}>
+                          {isOnline ? 'Online' : 'Offline'}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-muted text-muted-foreground border-none font-black text-[7px] uppercase px-2 h-4">
+                          {tx.type === 'enrollment' ? 'Enrollment' : 'Donation'}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-xs text-muted-foreground font-bold">{tx.email || '—'}</td>
+                    <td className="px-6 py-4 text-right font-black text-sm text-primary">${(tx.amount || 0).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right text-xs font-bold text-muted-foreground">
+                      {tx.date ? (() => { try { return format(new Date(tx.date), 'MMM d, yyyy'); } catch { return tx.date; } })() : '—'}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      {isOnline && (tx as any).stripe_receipt_url && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => window.open((tx as any).stripe_receipt_url, '_blank')}
+                          className="h-7 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" /> Receipt
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="py-20 text-center opacity-30 italic text-xs uppercase font-black">No financial records found.</td></tr>
+                <tr><td colSpan={7} className="py-20 text-center opacity-30 italic text-xs uppercase font-black">No financial records found.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {/* ── Add Offline Payment Dialog ── */}
+      <Dialog open={isOfflineDialogOpen} onOpenChange={o => { if (!isRecording) setIsOfflineDialogOpen(o); }}>
+        <DialogContent className="rounded-[3rem] sm:max-w-lg p-0 border-none shadow-2xl overflow-hidden bg-white text-foreground">
+          <div className="h-2 bg-amber-500 w-full" />
+          <div className="p-8 space-y-5">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-100 p-3 rounded-2xl text-amber-600">
+                  <Banknote className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-black uppercase tracking-tight">Record Offline Payment</DialogTitle>
+                  <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                    Cash, check, or other offline method
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Payer Name *</Label>
+                  <Input
+                    placeholder="Full name"
+                    value={offlineForm.payer_name}
+                    onChange={e => setOfflineForm(f => ({ ...f, payer_name: e.target.value }))}
+                    className="h-11 rounded-2xl border-2 font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Email (optional)</Label>
+                  <Input
+                    type="email"
+                    placeholder="payer@email.com"
+                    value={offlineForm.payer_email}
+                    onChange={e => setOfflineForm(f => ({ ...f, payer_email: e.target.value }))}
+                    className="h-11 rounded-2xl border-2 font-bold"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Description *</Label>
+                  <Input
+                    placeholder="League fee, equipment..."
+                    value={offlineForm.paymentItemName}
+                    onChange={e => setOfflineForm(f => ({ ...f, paymentItemName: e.target.value }))}
+                    className="h-11 rounded-2xl border-2 font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Amount (USD)</Label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-muted-foreground">$</span>
+                    <Input
+                      type="number" min="0" step="0.01" placeholder="0.00"
+                      value={offlineForm.amountDollars}
+                      onChange={e => setOfflineForm(f => ({ ...f, amountDollars: e.target.value }))}
+                      className="h-11 rounded-2xl border-2 font-bold pl-8"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Notes (optional)</Label>
+                <Textarea
+                  placeholder="Reference number, cash envelope, check #..."
+                  value={offlineForm.notes}
+                  onChange={e => setOfflineForm(f => ({ ...f, notes: e.target.value }))}
+                  className="rounded-2xl border-2 font-bold resize-none"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                className="w-full h-14 rounded-[2rem] font-black text-base shadow-lg active:scale-[0.98] transition-all"
+                onClick={handleRecordOfflinePayment}
+                disabled={isRecording}
+              >
+                {isRecording ? (
+                  <><Loader2 className="h-5 w-5 animate-spin mr-2" /> Saving...</>
+                ) : (
+                  <><Save className="h-5 w-5 mr-2" /> Record Payment</>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
