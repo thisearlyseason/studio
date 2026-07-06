@@ -237,21 +237,26 @@ export async function GET(req: NextRequest) {
 
     if (!teamId) return NextResponse.json({ error: 'Missing teamId.' }, { status: 400 });
 
-    // Verify the user is a member or owner of this team
-    const memberSnap = await adminDb
-      .collection('teams').doc(teamId)
-      .collection('members').doc(auth.uid)
-      .get();
     const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-
     if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-    const isOwner = teamSnap.data()!.ownerUserId === auth.uid;
-    const isMember = memberSnap.exists;
-    const userSnap = await adminDb.collection('users').doc(auth.uid).get();
-    const isSuperAdmin = userSnap.data()?.role === 'superadmin';
 
-    if (!isOwner && !isMember && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+    const teamData = teamSnap.data()!;
+    const isOwner = teamData.ownerUserId === auth.uid;
+    const isDemo = teamData.isDemo === true;
+
+    // Demo teams are publicly readable — skip the member check
+    if (!isOwner && !isDemo) {
+      const memberSnap = await adminDb
+        .collection('teams').doc(teamId)
+        .collection('members').doc(auth.uid)
+        .get();
+      const userSnap = await adminDb.collection('users').doc(auth.uid).get();
+      const isSuperAdmin = userSnap.data()?.role === 'superadmin';
+      const isMember = memberSnap.exists;
+
+      if (!isMember && !isSuperAdmin) {
+        return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+      }
     }
 
     const itemsSnap = await adminDb
@@ -268,6 +273,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 
 // ── DELETE — deactivate a payment item ───────────────────────────────────────
 export async function DELETE(req: NextRequest) {

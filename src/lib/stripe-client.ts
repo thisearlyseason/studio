@@ -13,10 +13,12 @@ export function getStripe(): Stripe {
   if (!key || key === 'sk_test_dummy') {
     throw new Error(
       '[Stripe] STRIPE_SECRET_KEY is not configured. ' +
-      'Set it in your environment variables before processing payments.'
+      'Set it in your Vercel environment variables.'
     );
   }
 
-  _stripe = new Stripe(key, { apiVersion: '2026-04-22.dahlia' });
+  // Do NOT hardcode apiVersion — let the installed stripe package use its own
+  // supported default. Hardcoding an unsupported version causes 500 errors.
+  _stripe = new Stripe(key);
   return _stripe;
 }
