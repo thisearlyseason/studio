@@ -89,6 +89,14 @@ function getDb(): admin.firestore.Firestore {
 }
 
 /**
+ * Explicitly initializes the Firebase Admin SDK.
+ * Call this before using admin.auth() in API routes that don't touch adminDb first.
+ */
+export function ensureAdminInit(): void {
+  initAdminApp();
+}
+
+/**
  * Lazily-initialized Firestore Admin instance.
  * Accessing any property triggers initialization on first use, not at build time.
  */

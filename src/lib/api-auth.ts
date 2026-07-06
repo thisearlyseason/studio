@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
-import { adminDb } from '@/lib/firebase-admin'; // Ensures admin is initialized
+import { adminDb, ensureAdminInit } from '@/lib/firebase-admin';
 
 interface DecodedToken {
   uid: string;
@@ -43,9 +43,9 @@ export async function verifyFirebaseToken(
   const idToken = authHeader.slice(7); // Remove "Bearer "
 
   try {
-    // Access adminDb to trigger lazy initialization of the Firebase Admin app
-    // before calling admin.auth() to ensure the app is always initialized first.
-    void adminDb; // side-effect: initializes admin app
+    // Explicitly initialize the Admin SDK before calling admin.auth().
+    // NOTE: `void adminDb` does NOT trigger the Proxy getter — must call ensureAdminInit().
+    ensureAdminInit();
 
     // Cryptographically verify the JWT signature and expiry.
     // This is the ONLY correct way to verify Firebase ID tokens server-side.
