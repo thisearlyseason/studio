@@ -400,9 +400,12 @@ export function HubStripeSettings({
 }: HubStripeSettingsProps) {
   const db = useFirestore();
 
-  // Real-time listener on the hub team doc
-  const hubDocRef = useMemo(() => doc(db, 'teams', hubTeamId), [db, hubTeamId]);
-  const { data: hubTeamData, isLoading: isHubLoading } = useDoc<TeamDoc>(hubDocRef);
+  // Real-time listener on the hub team doc — guard against db not ready or missing hubTeamId
+  const hubDocRef = useMemo(
+    () => (db && hubTeamId ? doc(db, 'teams', hubTeamId) : null),
+    [db, hubTeamId]
+  );
+  const { data: hubTeamData, isLoading: isHubLoading } = useDoc<TeamDoc>(hubDocRef as any);
 
   const currentMode: 'shared' | 'per_squad' = hubTeamData?.stripeConnectMode ?? 'shared';
   const isPerSquad = currentMode === 'per_squad';
@@ -410,6 +413,7 @@ export function HubStripeSettings({
   const [isSavingMode, setIsSavingMode] = useState(false);
 
   const handleModeToggle = async (checked: boolean) => {
+    if (!db || !hubTeamId) return;
     const newMode: 'shared' | 'per_squad' = checked ? 'per_squad' : 'shared';
     setIsSavingMode(true);
     try {
