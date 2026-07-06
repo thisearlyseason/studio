@@ -155,11 +155,13 @@ function HubConnectCard({ userId, hubTeamId }: HubConnectCardProps) {
   const [status, setStatus] = useState<HubConnectStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
+    setFetchError(null);
     try {
       const idToken = await getAuthToken(auth);
-      if (!idToken) return;
+      if (!idToken) { setIsLoading(false); return; }
       const res = await fetch(
         `/api/stripe/connect/status?userId=${userId}&teamId=${hubTeamId}&mode=hub`,
         { headers: authHeader(idToken) }
@@ -167,9 +169,15 @@ function HubConnectCard({ userId, hubTeamId }: HubConnectCardProps) {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+      } else if (res.status === 404) {
+        setStatus({ connected: false });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setFetchError(err.error || 'Failed to check Stripe status.');
       }
     } catch (err) {
       console.error('[HubConnectCard] fetchStatus error:', err);
+      setFetchError('Unable to reach server.');
     } finally {
       setIsLoading(false);
     }
@@ -225,6 +233,27 @@ function HubConnectCard({ userId, hubTeamId }: HubConnectCardProps) {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Checking hub Stripe connection...
           </p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <Card className="rounded-[2rem] border-none shadow-md bg-red-50 ring-1 ring-red-100 p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
+            <p className="text-xs font-black uppercase text-red-700">{fetchError}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => { setIsLoading(true); fetchStatus(); }}
+            className="h-8 rounded-xl font-black text-[9px] uppercase tracking-widest text-red-600 hover:bg-red-100"
+          >
+            <RefreshCw className="h-3 w-3 mr-1.5" /> Retry
+          </Button>
         </div>
       </Card>
     );
