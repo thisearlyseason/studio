@@ -99,8 +99,11 @@ export function StripeConnectSetup({ userId, onConnected }: StripeConnectSetupPr
     }
   }, [fetchStatus]);
 
+  const [platformProfileError, setPlatformProfileError] = useState(false);
+
   const handleConnect = async () => {
     setIsConnecting(true);
+    setPlatformProfileError(false);
     try {
       const idToken = await getAuthToken(auth);
       if (!idToken) throw new Error('Not authenticated');
@@ -110,7 +113,15 @@ export function StripeConnectSetup({ userId, onConnected }: StripeConnectSetupPr
         body: JSON.stringify({ userId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to start Stripe onboarding');
+      if (!res.ok) {
+        // Detect the specific "platform profile not complete" Stripe error
+        if (data.error?.toLowerCase().includes('responsibilities') || data.error?.toLowerCase().includes('platform profile')) {
+          setPlatformProfileError(true);
+          setIsConnecting(false);
+          return;
+        }
+        throw new Error(data.error || 'Failed to start Stripe onboarding');
+      }
       if (data.url) {
         window.location.href = data.url;
       }
@@ -119,6 +130,52 @@ export function StripeConnectSetup({ userId, onConnected }: StripeConnectSetupPr
       setIsConnecting(false);
     }
   };
+
+
+  if (platformProfileError) {
+    return (
+      <Card className="rounded-[2rem] border-none shadow-md overflow-hidden">
+        <CardContent className="p-6 flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <div className="bg-amber-100 p-2.5 rounded-xl shrink-0">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-foreground">
+                One-Time Stripe Setup Required
+              </p>
+              <p className="text-[10px] font-bold text-muted-foreground mt-1 leading-relaxed">
+                Your Stripe platform profile needs to be completed before coaches can connect.
+                This is a one-time step required by Stripe for Connect platforms.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              asChild
+              className="h-9 rounded-xl font-black text-[9px] uppercase tracking-widest bg-[#635bff] hover:bg-[#5a52e8] text-white border-none shadow-md"
+            >
+              <a href="https://dashboard.stripe.com/settings/connect/platform-profile" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                Complete Platform Profile on Stripe
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPlatformProfileError(false)}
+              className="h-9 rounded-xl font-black text-[9px] uppercase tracking-widest"
+            >
+              Try Again
+            </Button>
+          </div>
+          <p className="text-[9px] text-muted-foreground font-bold">
+            After completing on Stripe: 1) Return here  2) Click "Try Again"
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
