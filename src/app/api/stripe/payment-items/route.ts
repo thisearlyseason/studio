@@ -259,14 +259,33 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const itemsSnap = await adminDb
-      .collection('teams').doc(teamId)
-      .collection('paymentItems')
-      .where('isActive', '==', true)
-      .orderBy('createdAt', 'desc')
-      .get();
+    // Query with composite index (isActive + createdAt). Falls back to simple
+    // query without orderBy if the index isn't built yet.
+    let items: FirebaseFirestore.DocumentData[] = [];
+    try {
+      const itemsSnap = await adminDb
+        .collection('teams').doc(teamId)
+        .collection('paymentItems')
+        .where('isActive', '==', true)
+        .orderBy('createdAt', 'desc')
+        .get();
+      items = itemsSnap.docs.map(d => d.data());
+    } catch (indexErr: any) {
+      if (indexErr.code === 9 || indexErr.message?.includes('index')) {
+        // Index not yet built — fall back to unordered query
+        console.warn('[stripe/payment-items GET] Index not ready, falling back:', indexErr.message?.slice(0, 120));
+        const fallbackSnap = await adminDb
+          .collection('teams').doc(teamId)
+          .collection('paymentItems')
+          .where('isActive', '==', true)
+          .get();
+        items = fallbackSnap.docs.map(d => d.data())
+          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      } else {
+        throw indexErr;
+      }
+    }
 
-    const items = itemsSnap.docs.map(d => d.data());
     return NextResponse.json({ items });
   } catch (err: any) {
     console.error('[stripe/payment-items GET] Error:', err.message);

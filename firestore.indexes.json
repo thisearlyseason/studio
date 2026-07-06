@@ -15,6 +15,22 @@
         { "fieldPath": "ownerUserId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "paymentItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "donations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
