@@ -12,7 +12,7 @@ import {
   Building2,
   ArrowRight,
 } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,23 +54,23 @@ interface SquadStatusMap {
 
 function SquadStatusList({ subSquads }: { subSquads: { id: string; name: string }[] }) {
   const db = useFirestore();
-
-  // We listen to each squad doc individually; memoize refs to avoid re-subscribing
-  // For a large number of squads this would be optimised with a collection query,
-  // but hubs typically have <20 squads so individual docs are fine.
   const [squadStatuses, setSquadStatuses] = useState<SquadStatusMap>({});
 
-  useEffect(() => {
-    if (!subSquads.length) return;
+  // Stable squad ID string — prevents useEffect from re-running on every render
+  // when the parent passes a new array reference with the same contents.
+  const squadIdsKey = useMemo(() => subSquads.map(s => s.id).join(','), [subSquads]);
 
-    const { onSnapshot, doc } = require('firebase/firestore') as typeof import('firebase/firestore');
+  useEffect(() => {
+    if (!db || !squadIdsKey) return;
+
     const unsubs: (() => void)[] = [];
 
     subSquads.forEach(({ id }) => {
+      if (!id) return;
       const ref = doc(db, 'teams', id);
       const unsub = onSnapshot(
         ref,
-        (snap: import('firebase/firestore').DocumentSnapshot) => {
+        (snap) => {
           const data = snap.data() as TeamDoc | undefined;
           setSquadStatuses((prev) => ({
             ...prev,
@@ -85,7 +85,8 @@ function SquadStatusList({ subSquads }: { subSquads: { id: string; name: string 
     });
 
     return () => unsubs.forEach((u) => u());
-  }, [db, subSquads]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, squadIdsKey]); // subSquads intentionally excluded — use squadIdsKey for stability
 
   if (!subSquads.length) {
     return (
