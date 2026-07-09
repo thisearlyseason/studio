@@ -1134,6 +1134,20 @@ export default function LandingPage() {
                 items: ['Digital Signatures', 'Performance Export'],
                 accent: 'from-emerald-500/10 to-transparent',
               },
+              {
+                Icon: CreditCard,
+                title: 'Online Payments',
+                desc: <>Accept dues, fees, and donations directly through Stripe. Coaches connect their own account in minutes — <strong>money goes straight to them</strong>, no platform cut.</>,
+                items: ['Stripe Connect', 'Instant Payouts'],
+                accent: 'from-orange-500/10 to-transparent',
+              },
+              {
+                Icon: ShieldCheck,
+                title: 'Global Waiver Compliance',
+                desc: <>Hub admins deploy signed waivers to all coaches instantly. <strong>Real-time notification and tracking</strong> ensures 100% staff compliance.</>,
+                items: ['Instant Deploy', '100% Compliance'],
+                accent: 'from-teal-500/10 to-transparent',
+              },
             ].map(({ Icon, title, desc, items, accent }, i) => (
               <motion.div
                 key={i}
@@ -1340,7 +1354,8 @@ export default function LandingPage() {
                       {[
                         { label: 'Coach Ramirez posted new drill film', time: '2m ago', active: false },
                         { label: 'Bracket auto-generated: Semifinals', time: 'Live', active: true },
-                        { label: '4 athletes signed waiver', time: '8m ago', active: false },
+                        { label: 'Coach signed global liability waiver', time: '2m ago', active: true },
+                        { label: 'Stripe payment link shared — $45 fee', time: '5m ago', active: false },
                       ].map((item, i) => (
                         <motion.div
                           key={i}
@@ -1417,7 +1432,7 @@ export default function LandingPage() {
 
           <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
-              { Icon: Trophy, title: 'Coaches & Managers',  desc: 'Full command of the roster, scheduling, and tactical playbooks. Launch broadcasts, auto-generate brackets, and track personnel performance.', color: 'from-primary/15 via-transparent', num: '01' },
+              { Icon: Trophy, title: 'Coaches & Managers',  desc: 'Full command of the roster, scheduling, and tactical playbooks. Accept payments via Stripe Connect, sign global waivers in one tap, and track personnel performance.', color: 'from-primary/15 via-transparent', num: '01' },
               { Icon: Baby,   title: 'Guardian Hub',        desc: 'Manage multiple children from one unified Household Hub. Track consolidated dues, verify digital waivers, and manage volunteer assignments globally.', color: 'from-blue-500/10 via-transparent', num: '02' },
               { Icon: User,   title: 'Athlete Performance', desc: 'A personal dashboard. Sign waivers, watch study film, track match results, and manage your Professional Recruiting Portfolio.', color: 'from-emerald-500/10 via-transparent', num: '03' },
             ].map(({ Icon, title, desc, color, num }, i) => (
@@ -1573,6 +1588,7 @@ export default function LandingPage() {
                         <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/80"><Sparkles className="h-3.5 w-3.5 text-primary" /> 75% Watch Rule</li>
                         <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/80"><Sparkles className="h-3.5 w-3.5 text-primary" /> Auto-Brackets</li>
                         <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/80"><Sparkles className="h-3.5 w-3.5 text-primary" /> Digital Waivers</li>
+                        <li className="flex items-center gap-2 text-[10px] font-bold uppercase text-white/80"><Sparkles className="h-3.5 w-3.5 text-primary" /> Online Payments via Stripe Connect</li>
                       </ul>
                     </div>
                   </CardContent>

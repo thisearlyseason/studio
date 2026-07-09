@@ -312,6 +312,42 @@ export default function HowToGuidePage() {
     ]
   };
 
+  const BLOCK_STRIPE_PAYMENTS = {
+    title: "Online Payments & Stripe Connect",
+    icon: CreditCard,
+    badge: "Pro Feature",
+    steps: [
+      { step: "Connect Your Stripe Account", detail: <>From <strong>Coaches Corner → Finance tab</strong>, find the black <em>"Connect Stripe to Accept Payments"</em> card. Click <strong>"Connect Stripe."</strong> You'll be redirected to Stripe to create or link a free Stripe Express account. Once complete, you're redirected back to The Squad automatically.</> },
+      { step: "Create a Payment Item", detail: <>Once connected, use the <strong>"+ New Payment Item"</strong> button to create a named payable line item: e.g., <em>"Spring Tournament Registration Fee — $45."</em> Give it a name, amount, and optional description.</> },
+      { step: "Share a Payment Link", detail: <>Each payment item generates a unique Stripe-hosted payment link. Share the link in the squad Feed, Tactical Chat, or by text. Players or parents click it and pay securely directly to your Stripe account.</> },
+      { step: "Track Payments", detail: <>Payment records appear in the <strong>Finance tab ledger</strong> in real-time. See who has paid, amounts received, and outstanding balances — all without leaving the app.</> },
+      { step: "Hub Payment Routing (Elite/Org)", detail: <>In <strong>Club Hub → Finance tab</strong>, choose between <strong>Shared Hub Account</strong> (all squad payments route to one hub Stripe account) or <strong>Per-Squad Accounts</strong> (each squad connects their own Stripe). Toggle the mode and connect at the appropriate level.</> }
+    ]
+  };
+
+  const BLOCK_ANNUAL_SUBSCRIPTION = {
+    title: "Annual Subscription & Billing",
+    icon: DollarSign,
+    steps: [
+      { step: "Switch to Annual Billing", detail: <>On the pricing page or in <strong>Settings → Subscription Intelligence</strong>, toggle from <strong>Monthly</strong> to <strong>Annual</strong> billing. Annual plans are billed once per year at a discounted rate.</> },
+      { step: "Annual Savings", detail: <>Switching to annual saves <strong>15–20%</strong> compared to monthly billing. The discounted rate displays as a <em>'per month' equivalent</em> so you can compare easily.</> },
+      { step: "Billing Management", detail: <>Visit <strong>Settings → Subscription Intelligence</strong> and tap <strong>"Manage Elite Seat"</strong> to view invoices, update your payment method, or change your billing cycle at any time via the Stripe billing portal.</> }
+    ]
+  };
+
+  const BLOCK_GLOBAL_WAIVERS = {
+    title: "Global Waivers & Coach Compliance",
+    icon: ShieldCheck,
+    badge: "Elite/Org Feature",
+    steps: [
+      { step: "Deploy a Global Waiver (Hub Admin)", detail: <>In <strong>Club Hub → Waivers tab</strong>, click <strong>"+ New Waiver."</strong> Write or paste your waiver content (e.g., a liability release, code of conduct). Click <strong>"Save & Deploy Waiver."</strong> The waiver is instantly pushed to every squad in your organization.</> },
+      { step: "Coach Notification", detail: <>When a global waiver is deployed, every coach that opens Coaches Corner immediately sees an <strong>amber notification banner</strong> at the top: <em>"[N] Global Waiver(s) Require Your Signature."</em> The <strong>"Legal Docs"</strong> tab also shows a red badge dot.</> },
+      { step: "Coaches Sign the Waiver", detail: <>Coaches click <strong>"Review & Sign"</strong> on the banner or go to the <strong>Legal Docs tab → Hub Global Waivers</strong> section. They can read the full waiver content, then click <strong>"I Agree & Sign."</strong> Their signature (name + timestamp) is permanently recorded.</> },
+      { step: "Monitor Compliance", detail: <>In <strong>Club Hub → Waivers tab</strong>, the <strong>"Institutional Vault"</strong> shows a real-time signature count per squad. Each waiver card shows how many coaches have signed.</> },
+      { step: "Waiver Library Audit Trail", detail: <>Signed coach waivers appear in the <strong>Waiver Library tab (Vault Archives)</strong> alongside member signatures, with a <em>'Coach' role tag</em>. All signatures include the signatory's name and date for legal compliance.</> }
+    ]
+  };
+
   // ─── INSTITUTIONAL / ADMIN BLOCKS ─────────────────────────────────────────
 
   const BLOCK_FISCAL_AUDIT = {
@@ -457,7 +493,7 @@ export default function HowToGuidePage() {
     pro: {
       label: "Squad Pro",
       desc: "Exhaustive coordination for serious squads with advanced compliance and analytics.",
-      highlights: ["75% Film Compliance", "Practice Builder & PDF Export", "AI Scouting", "Volunteer & Fundraising Hubs", "Squad Feed", "Broadcast Alerts", "Module Visibility"],
+      highlights: ["75% Film Compliance", "Practice Builder & PDF Export", "AI Scouting", "Volunteer & Fundraising Hubs", "Squad Feed", "Broadcast Alerts", "Module Visibility", "Stripe Online Payments", "Annual Billing"],
       sections: [
         BLOCK_DEPLOYMENT,
         BLOCK_SCHEDULING,
@@ -476,13 +512,15 @@ export default function HowToGuidePage() {
         BLOCK_FILM_COMPLIANCE,
         BLOCK_BRIEFING_UNIT,
         BLOCK_HIGH_PRIORITY,
-        BLOCK_AI_SCOUTING
+        BLOCK_AI_SCOUTING,
+        BLOCK_STRIPE_PAYMENTS,
+        BLOCK_ANNUAL_SUBSCRIPTION
       ]
     },
     elite: {
       label: "Elite Org (Team/League)",
       desc: "Master institutional infrastructure for organizations, clubs, and leagues.",
-      highlights: ["Club Hub", "Institutional Fiscal Pulse", "Public Recruitment Portal", "Institutional Mandates", "Facility Conflict Detection", "Full Module Visibility Controls"],
+      highlights: ["Club Hub", "Institutional Fiscal Pulse", "Public Recruitment Portal", "Institutional Mandates", "Facility Conflict Detection", "Full Module Visibility Controls", "Stripe Online Payments", "Hub Payment Routing", "Global Waiver Signing"],
       sections: [
         BLOCK_DEPLOYMENT,
         BLOCK_SCHEDULING,
@@ -506,13 +544,16 @@ export default function HowToGuidePage() {
         BLOCK_CLUB_HUB,
         BLOCK_INSTITUTIONAL_PROTOCOLS,
         BLOCK_RECRUITMENT_PORTAL,
-        BLOCK_FLEET_LOGISTICS
+        BLOCK_FLEET_LOGISTICS,
+        BLOCK_STRIPE_PAYMENTS,
+        BLOCK_ANNUAL_SUBSCRIPTION,
+        BLOCK_GLOBAL_WAIVERS
       ]
     },
     school: {
       label: "School District (K-12)",
       desc: "Full K-12 athletic department hub for district-wide coordination.",
-      highlights: ["District Dashboard", "Athletic Director Controls", "Academic Eligibility", "Physical Clearance Tracking", "College Recruiting", "District-Wide Compliance"],
+      highlights: ["District Dashboard", "Athletic Director Controls", "Academic Eligibility", "Physical Clearance Tracking", "College Recruiting", "District-Wide Compliance", "Global Waiver Coach Signing", "Online Payments"],
       sections: [
         BLOCK_DEPLOYMENT,
         BLOCK_SCHEDULING,
@@ -537,7 +578,9 @@ export default function HowToGuidePage() {
         BLOCK_FLEET_LOGISTICS,
         BLOCK_SCHOOL_HUB,
         BLOCK_SCHOOL_COMPLIANCE,
-        BLOCK_SCHOOL_RECRUITING
+        BLOCK_SCHOOL_RECRUITING,
+        BLOCK_GLOBAL_WAIVERS,
+        BLOCK_STRIPE_PAYMENTS
       ]
     },
     player: {
