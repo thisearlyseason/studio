@@ -962,6 +962,9 @@ interface TeamContextType {
   deleteTeam: (teamId: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   markMediaAsViewed: (fileId: string) => Promise<void>;
+  /** Signs a global (hub-deployed) waiver AS THE COACH/STAFF. Stores signature
+   * in teams/{teamId}/coachWaiverSignatures/{waiverDocId} and archives it. */
+  signGlobalWaiverAsCoach: (waiverDocId: string, waiverTitle: string) => Promise<boolean>;
   removeMember: (memberId: string, reason?: string) => Promise<void>;
   reinstateMember: (memberId: string) => Promise<void>;
   upgradeChildToLogin: (childId: string) => Promise<void>;
@@ -3414,6 +3417,60 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if(db) await deleteDoc(doc(db, 'teams', tid)); 
   }, [db, isPrimaryClubAuthority, isSuperAdmin]);
 
+  /**
+   * Signs a hub-deployed global waiver on behalf of the current coach/staff member.
+   * Writes to:
+   *   - teams/{teamId}/coachWaiverSignatures/{waiverDocId}  (primary record)
+   *   - teams/{teamId}/archived_waivers/{archId}            (audit trail)
+   */
+  const signGlobalWaiverAsCoach = useCallback(async (waiverDocId: string, waiverTitle: string): Promise<boolean> => {
+    if (!db || !firebaseUser || !activeTeam?.id) return false;
+    const now = new Date().toISOString();
+    const coachName = firebaseUser.displayName || firebaseUser.email || 'Coach';
+    try {
+      const batch = writeBatch(db);
+      // Primary: coachWaiverSignatures/{waiverDocId} — one doc per waiver per team
+      batch.set(
+        doc(db, 'teams', activeTeam.id, 'coachWaiverSignatures', waiverDocId),
+        {
+          waiverDocId,
+          waiverTitle,
+          signedBy: firebaseUser.uid,
+          signedByName: coachName,
+          signedAt: now,
+          isGlobal: true,
+          isClubMaster: true,
+          teamId: activeTeam.id,
+        }
+      );
+      // Archive: for the audit trail in Waiver Library
+      const archId = `global_coach_${waiverDocId}_${firebaseUser.uid}`;
+      batch.set(
+        doc(db, 'teams', activeTeam.id, 'archived_waivers', archId),
+        {
+          id: archId,
+          documentId: waiverDocId,
+          title: waiverTitle,
+          type: 'waiver',
+          signerName: coachName,
+          signerUserId: firebaseUser.uid,
+          signerRole: 'coach',
+          signedAt: now,
+          isGlobal: true,
+          isClubMaster: true,
+          teamId: activeTeam.id,
+        }
+      );
+      await batch.commit();
+      toast({ title: '✅ Waiver Signed', description: `You have acknowledged: ${waiverTitle}` });
+      return true;
+    } catch (e: any) {
+      console.error('[signGlobalWaiverAsCoach] Error:', e.message);
+      toast({ title: 'Signing Failed', description: e.message, variant: 'destructive' });
+      return false;
+    }
+  }, [db, firebaseUser, activeTeam?.id]);
+
   const deleteAccount = useCallback(async () => {
     if (!firebaseUser || !db) return;
     try {
@@ -3842,6 +3899,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     assignEquipment, returnEquipment,
     formatTime, manageSubscription, resolveQuota, exportAttendanceCSV, exportTournamentStandingsCSV, markMediaAsViewed,
     addRegistration, addLeaguePayment, updateLeagueGlobalFees,
+    signGlobalWaiverAsCoach,
 
     getMember, firebaseUser, getTeamByCode, deleteMessage, getLeagueMembers, storage,
     checkCodeUniqueness, updateTeamCode, propagateLogoToLeagues,
@@ -3884,7 +3942,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     addRegistration, purchasePro, addLeaguePayment, updateLeagueGlobalFees,
     getMember, getTeamByCode, deleteMessage, getLeagueMembers,
     removeMember, reinstateMember,
-    checkCodeUniqueness, updateTeamCode, propagateLogoToLeagues
+    checkCodeUniqueness, updateTeamCode, propagateLogoToLeagues,
+    signGlobalWaiverAsCoach,
   ]);
 
   return <TeamContext.Provider value={contextValue}>{children}</TeamContext.Provider>;

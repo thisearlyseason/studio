@@ -177,6 +177,18 @@ service cloud.firestore {
         allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
       }
 
+      // ─── Coach Waiver Signatures (hub-deployed global waivers for staff) ────
+      // Any team member (coach, assistant, staff) can write their own signature.
+      // Only the team owner can read all signatures for compliance auditing.
+      match /coachWaiverSignatures/{waiverDocId} {
+        allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
+        // A member can create/update only their OWN signature record
+        allow write: if isSuperAdmin() || (isSignedIn() && (
+          isTeamMember(teamId) &&
+          request.resource.data.signedBy == request.auth.uid
+        ) || isTeamOwner(teamId));
+      }
+
       // FIX #1: isDemo bypass added for batch race condition on demo seeding
       // where team doc may not yet be committed when subcollection writes are evaluated.
       match /{subCollection}/{docId} {

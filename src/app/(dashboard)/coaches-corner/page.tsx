@@ -4366,7 +4366,7 @@ function StaffEvalPanel({
 
 export default function CoachesCornerPage() {
   const router = useRouter();
-  const { activeTeam, isStaff, isPro, isStarter, createTeamDocument, updateTeamDocument, deleteTeamDocument, db, members, createAlert, isSchoolMode, user, teams, getLeagueMembers, updateMember } = useTeam();
+  const { activeTeam, isStaff, isPro, isStarter, createTeamDocument, updateTeamDocument, deleteTeamDocument, db, members, createAlert, isSchoolMode, user, teams, getLeagueMembers, updateMember, signGlobalWaiverAsCoach } = useTeam();
 
   const handleUpdateMemberField = async (memberId: string, field: string, value: any) => {
     await updateMember(memberId, { [field]: value });
@@ -4413,10 +4413,50 @@ export default function CoachesCornerPage() {
 
   const docsQuery = useMemoFirebase(() => (activeTeam && db) ? query(collection(db, 'teams', activeTeam.id, 'documents'), orderBy('createdAt', 'desc')) : null, [activeTeam?.id, db]);
   const { data: allDocuments } = useCollection<TeamDocument>(docsQuery);
-  
+
+  // ── Global waivers (hub-deployed) requiring COACH signature ──────────────────
+  // These are docs pushed by the hub admin with isClubMaster: true.
+  // The coach must sign them separately from members — coaches are not athletes.
+  const globalWaivers = useMemo(
+    () => allDocuments?.filter(d => d.isClubMaster === true && d.isActive !== false) ?? [],
+    [allDocuments]
+  );
+
+  // Query existing coach signatures for this team
+  const coachSigsRef = useMemoFirebase(
+    () => (db && activeTeam?.id && user?.id)
+      ? query(collection(db, 'teams', activeTeam.id, 'coachWaiverSignatures'))
+      : null,
+    [db, activeTeam?.id, user?.id]
+  );
+  const { data: coachSigDocs } = useCollection<{ waiverDocId: string; signedBy: string; signedAt: string }>(coachSigsRef);
+
+  // Which global waivers has THIS coach already signed?
+  const signedGlobalWaiverIds = useMemo(
+    () => new Set((coachSigDocs ?? []).filter(s => s.signedBy === user?.id).map(s => s.waiverDocId)),
+    [coachSigDocs, user?.id]
+  );
+
+  const unsignedGlobalWaivers = useMemo(
+    () => globalWaivers.filter(w => !signedGlobalWaiverIds.has(w.id)),
+    [globalWaivers, signedGlobalWaiverIds]
+  );
+
+  // Modal state for signing a specific waiver
+  const [signingWaiver, setSigningWaiver] = useState<TeamDocument | null>(null);
+  const [isSigning, setIsSigning] = useState(false);
+
+  const handleSignGlobalWaiver = async (waiver: TeamDocument) => {
+    setIsSigning(true);
+    await signGlobalWaiverAsCoach(waiver.id, waiver.title);
+    setIsSigning(false);
+    setSigningWaiver(null);
+  };
+
   const teamProtocols = useMemo(() => allDocuments?.filter(d => DEFAULT_PROTOCOLS.some(p => p.id === d.id)) || [], [allDocuments]);
   const defaultDocIds = useMemo(() => DEFAULT_PROTOCOLS.map(p => p.id), []);
-  const customProtocols = useMemo(() => allDocuments?.filter(d => !defaultDocIds.includes(d.id) && d.type === 'waiver') || [], [allDocuments, defaultDocIds]);
+  // Custom protocols: non-default, non-hub waivers created by THIS coach
+  const customProtocols = useMemo(() => allDocuments?.filter(d => !defaultDocIds.includes(d.id) && d.type === 'waiver' && !d.isClubMaster) || [], [allDocuments, defaultDocIds]);
 
   const selectedMember = useMemo(() => members.find(m => m.id === selectedMemberId), [members, selectedMemberId]);
 
@@ -4459,6 +4499,60 @@ export default function CoachesCornerPage() {
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-500">
+
+      {/* ── Global Waiver Notification Banner ────────────────────────────── */}
+      {unsignedGlobalWaivers.length > 0 && (
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-400 rounded-xl p-2 shrink-0">
+              <AlertCircle className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-amber-900">
+                {unsignedGlobalWaivers.length} Global Waiver{unsignedGlobalWaivers.length > 1 ? 's' : ''} Require{unsignedGlobalWaivers.length === 1 ? 's' : ''} Your Signature
+              </p>
+              <p className="text-[10px] font-bold text-amber-700 mt-0.5">
+                Your hub admin has deployed waiver(s) that staff must sign. Review and sign below.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setActiveTab('compliance')}
+            className="h-8 px-4 rounded-xl font-black text-[9px] uppercase tracking-widest bg-amber-500 hover:bg-amber-600 text-white border-none shadow-sm shrink-0"
+          >
+            Review & Sign →
+          </Button>
+        </div>
+      )}
+
+      {/* ── Global Waiver Signing Modal ───────────────────────────────────── */}
+      <Dialog open={!!signingWaiver} onOpenChange={(o) => !o && setSigningWaiver(null)}>
+        <DialogContent className="max-w-lg rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-black uppercase tracking-tight text-lg">{signingWaiver?.title}</DialogTitle>
+            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Global Waiver · Hub Deployed · Requires Staff Acknowledgement
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-64 overflow-y-auto rounded-2xl bg-muted/30 p-4 text-xs leading-relaxed text-muted-foreground border">
+            {signingWaiver?.content || 'No waiver content provided.'}
+          </div>
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
+            <Button variant="ghost" onClick={() => setSigningWaiver(null)} className="rounded-xl font-black text-[9px] uppercase">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => signingWaiver && handleSignGlobalWaiver(signingWaiver)}
+              disabled={isSigning}
+              className="rounded-xl font-black text-[9px] uppercase bg-primary text-white shadow-lg shadow-primary/20 border-none"
+            >
+              {isSigning ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Signing...</> : <><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> I Agree & Sign</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] h-6 px-3 tracking-widest">Command Hub</Badge>
@@ -4498,7 +4592,12 @@ export default function CoachesCornerPage() {
             )}
             <TabsTrigger value="tracking" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Tracking</TabsTrigger>
             <TabsTrigger value="volunteers" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Volunteers</TabsTrigger>
-            <TabsTrigger value="compliance" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Legal Docs</TabsTrigger>
+            <TabsTrigger value="compliance" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white relative">
+              Legal Docs
+              {unsignedGlobalWaivers.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 border-2 border-background" />
+              )}
+            </TabsTrigger>
             <TabsTrigger value="archives" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Waiver Library</TabsTrigger>
             <TabsTrigger value="fundraising" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Fundraising</TabsTrigger>
             {isPro && <TabsTrigger value="finances" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Finances</TabsTrigger>}
@@ -4702,6 +4801,81 @@ export default function CoachesCornerPage() {
         <TabsContent value="compliance" className="space-y-10 mt-0">
           {!isPro ? <AccessRestricted type="feature" /> : (
             <section className="space-y-6 pt-4">
+
+              {/* ── Global Waivers (Hub-Deployed) — Coach Must Sign ────────── */}
+              {globalWaivers.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 px-2">
+                    <ShieldCheck className="h-5 w-5 text-amber-500" />
+                    <div>
+                      <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground">Hub Global Waivers</h2>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Deployed by your hub admin · Requires your signature</p>
+                    </div>
+                    {unsignedGlobalWaivers.length > 0 && (
+                      <Badge className="ml-auto bg-red-500 text-white border-none font-black text-[8px] uppercase tracking-widest h-5 px-2">
+                        {unsignedGlobalWaivers.length} Pending
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {globalWaivers.map(waiver => {
+                      const isSigned = signedGlobalWaiverIds.has(waiver.id);
+                      const sigRecord = (coachSigDocs ?? []).find(s => s.waiverDocId === waiver.id && s.signedBy === user?.id);
+                      return (
+                        <Card key={waiver.id} className={cn(
+                          "rounded-3xl border-none shadow-sm p-6 flex flex-col justify-between transition-all",
+                          isSigned ? "bg-emerald-50 ring-1 ring-emerald-200" : "bg-amber-50 ring-2 ring-amber-300 animate-pulse-subtle"
+                        )}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className={cn("p-2.5 rounded-xl", isSigned ? "bg-emerald-100" : "bg-amber-100")}>
+                              {isSigned
+                                ? <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                : <AlertCircle className="h-5 w-5 text-amber-600" />
+                              }
+                            </div>
+                            <Badge className={cn(
+                              "font-black text-[8px] h-5 px-2 uppercase tracking-widest border-none",
+                              isSigned ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
+                            )}>
+                              {isSigned ? 'Signed' : 'Pending'}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1 mb-4 flex-1">
+                            <p className="font-black text-sm uppercase text-foreground">{waiver.title}</p>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Hub Global Waiver</p>
+                            {isSigned && sigRecord && (
+                              <p className="text-[9px] text-emerald-600 font-bold mt-1">
+                                ✓ Signed {new Date(sigRecord.signedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                          {!isSigned ? (
+                            <Button
+                              size="sm"
+                              onClick={() => setSigningWaiver(waiver)}
+                              className="h-8 rounded-xl font-black text-[9px] uppercase tracking-widest bg-amber-500 hover:bg-amber-600 text-white border-none w-full"
+                            >
+                              <Edit3 className="h-3 w-3 mr-1.5" /> Review & Sign
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSigningWaiver(waiver)}
+                              className="h-8 rounded-xl font-black text-[9px] uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 w-full"
+                            >
+                              View Waiver
+                            </Button>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                  <hr className="border-border" />
+                </div>
+              )}
+
+              {/* ── Institutional Protocols (Standard Waivers for Members) ── */}
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-3">
                   <Shield className="h-5 w-5 text-primary" />
