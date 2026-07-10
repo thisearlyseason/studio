@@ -30,21 +30,21 @@ const FEATURED_STORIES = [
   },
   {
     id: '3',
-    title: 'Mental Performance: Training the Mind Like the Body',
-    excerpt: 'Visualization, mindfulness, and pressure inoculation — the mental skills curriculum used by elite programs worldwide is now accessible to every coach and program, regardless of budget or level.',
+    title: 'Mental Performance Coaching for Youth Athletes: A Practical Guide',
+    excerpt: 'Mental skills are learnable — and they may matter more than physical talent at the youth level. Here is how to actually teach them.',
     category: 'Mental Performance',
     author: 'Dr. Amanda Lee',
     readingTime: 11,
-    slug: 'mental-performance-training',
+    slug: 'mental-performance-youth-athletes',
     isCoverStory: false,
   },
 ];
 
 const EDITORS_PICKS = [
-  { id: '4', title: 'Youth Coaching Philosophy: Developing the Whole Athlete', category: 'Youth Coaching', readingTime: 10, slug: 'youth-coaching-philosophy' },
+  { id: '4', title: 'Youth Athlete Development: The Long-Term Framework Every Coach Needs', category: 'Youth Sports', readingTime: 10, slug: 'youth-athlete-development' },
   { id: '5', title: 'Sports Nutrition Basics Every Coach Needs to Know', category: 'Nutrition', readingTime: 10, slug: 'sports-nutrition-for-coaches' },
-  { id: '6', title: 'Volunteer Program Guide: Recruit, Organize, and Retain', category: 'Team Management', readingTime: 8, slug: 'volunteer-program-guide' },
-  { id: '7', title: 'Recovery Protocols That Actually Speed Up Performance', category: 'Recovery', readingTime: 6, slug: 'recovery-protocols-performance' },
+  { id: '6', title: 'Volunteer Recruitment and Retention for Youth Sports Programs', category: 'Team Management', readingTime: 8, slug: 'volunteer-recruitment-retention' },
+  { id: '7', title: 'Recovery Science: What the Research Actually Says About Athlete Recovery', category: 'Sports Science', readingTime: 6, slug: 'recovery-science-athletes' },
 ];
 
 const fadeUp = {

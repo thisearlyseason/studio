@@ -10,10 +10,10 @@ import { SearchBar } from './SearchBar';
 
 export function HeroBanner() {
   const stats = [
-    { icon: Newspaper, label: 'Articles', value: '500+' },
-    { icon: BookOpen, label: 'Resources', value: '100+' },
-    { icon: Trophy, label: 'Categories', value: '16' },
-    { icon: Zap, label: 'Updated', value: 'Daily' },
+    { icon: Newspaper, label: 'Articles', value: '100+' },
+    { icon: BookOpen, label: 'Resources', value: '30+' },
+    { icon: Trophy, label: 'Categories', value: '8' },
+    { icon: Zap, label: 'Updated', value: 'Weekly' },
   ];
 
   return (
@@ -36,7 +36,7 @@ export function HeroBanner() {
             <span className="text-white/60">for Serious Coaches</span>
           </h1>
           <p className="text-white/70 font-medium text-base md:text-lg max-w-2xl mb-8 leading-relaxed">
-            Articles, drills, resources, and industry news — everything your program needs to stay ahead. Built for coaches, organizers, and athletes.
+            Original articles, free resources, and coaching tools — everything your program needs to stay ahead. Built for coaches, organizers, and athletes.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-10">
