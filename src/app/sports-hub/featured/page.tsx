@@ -33,7 +33,7 @@ const FEATURED_STORIES = [
     title: 'Mental Performance Coaching for Youth Athletes: A Practical Guide',
     excerpt: 'Mental skills are learnable — and they may matter more than physical talent at the youth level. Here is how to actually teach them.',
     category: 'Mental Performance',
-    author: 'Dr. Amanda Lee',
+    author: 'Amanda Lee',
     readingTime: 11,
     slug: 'mental-performance-youth-athletes',
     isCoverStory: false,

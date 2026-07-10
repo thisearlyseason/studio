@@ -293,15 +293,14 @@ export default async function ArticlePage({ params }: Params) {
           </div>
         )}
 
-        {/* Author Bio */}
-        <div className="bg-card border rounded-2xl p-6 mb-12 flex gap-5">
-          <div className="h-14 w-14 rounded-full hero-gradient flex items-center justify-center text-white font-black text-xl shrink-0">
+        {/* Author */}
+        <div className="bg-card border rounded-2xl p-5 mb-12 flex items-center gap-4">
+          <div className="h-11 w-11 rounded-full hero-gradient flex items-center justify-center text-white font-black text-base shrink-0">
             {article.author.name[0]}
           </div>
           <div>
-            <p className="font-black tracking-tight mb-0.5">{article.author.name}</p>
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-2">{article.author.title}</p>
-            <p className="text-sm text-muted-foreground font-medium leading-relaxed">{article.author.bio}</p>
+            <p className="font-black tracking-tight text-sm">{article.author.name}</p>
+            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{article.author.title}</p>
           </div>
         </div>
 

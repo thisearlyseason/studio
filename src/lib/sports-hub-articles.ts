@@ -5,7 +5,7 @@ export interface Article {
   excerpt: string;
   categories: string[];
   tags: string[];
-  author: { name: string; title: string; bio: string };
+  author: { name: string; title: string };
   readingTime: number;
   publishedAt: string;
   seoTitle?: string;
@@ -21,27 +21,22 @@ const AUTHORS = {
   squad: {
     name: 'The Squad Team',
     title: 'Sports Management Experts',
-    bio: 'The Squad Team brings together experienced coaches, league administrators, and sports technology specialists to help organizations operate at their best.',
   },
   marcus: {
     name: 'Coach Marcus Rivera',
     title: 'Head Coach & Leadership Consultant',
-    bio: 'Coach Rivera spent 15 years coaching high school and college sports before founding a sports leadership consultancy. He helps coaches at all levels build championship cultures.',
   },
   sarah: {
     name: 'Sarah Mitchell',
-    title: 'Sports Administrator & Author',
-    bio: 'Sarah has run youth sports leagues for over a decade, managing hundreds of teams and thousands of players. She specializes in operations, communication, and volunteer management.',
+    title: 'Sports Administrator',
   },
   james: {
-    name: 'Dr. James Chen',
+    name: 'James Chen',
     title: 'Sports Science & Performance Coach',
-    bio: 'Dr. Chen holds a PhD in Exercise Science and has worked with Olympic athletes and youth programs. He bridges the gap between research and practical coaching.',
   },
   dana: {
     name: 'Coach Dana Williams',
     title: 'Youth Development Specialist',
-    bio: 'Coach Williams is a certified youth development specialist with 20 years of experience in youth sports programs.',
   },
 };
 
