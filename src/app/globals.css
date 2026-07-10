@@ -70,6 +70,26 @@
   .hero-gradient {
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
   }
+  /* Only buttons and links get the hover-to-black treatment — not decorative elements */
+  button.hero-gradient,
+  a.hero-gradient {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  button.hero-gradient:hover,
+  a.hero-gradient:hover,
+  button.hero-gradient:focus-visible,
+  a.hero-gradient:focus-visible {
+    background: hsl(var(--secondary));
+    background-image: none;
+    color: #ffffff;
+  }
+  button.hero-gradient:active,
+  a.hero-gradient:active {
+    background: hsl(var(--secondary));
+    background-image: none;
+    color: #ffffff;
+    opacity: 0.88;
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }

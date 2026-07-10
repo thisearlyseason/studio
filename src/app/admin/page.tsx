@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper } from 'lucide-react';
+import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper, BookOpen, Rss, PenLine, ToggleLeft, ToggleRight, Globe, Star } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:    { label: 'Free',          color: 'bg-gray-100 text-gray-700' },
@@ -59,7 +59,7 @@ export default function AdminPortalPage() {
   const db = useFirestore();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs' | 'users' | 'newsletters'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs' | 'users' | 'newsletters' | 'sports-hub'>('accounts');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,7 +109,22 @@ export default function AdminPortalPage() {
   const [loadingNewsletters, setLoadingNewsletters] = useState(false);
   const [newsletterSearch, setNewsletterSearch] = useState('');
 
-  // ── Login activity summary ──────────────────────────────────────────────────
+  // ── Sports Hub admin state ───────────────────────────────────────────────────
+  const [shFeeds, setShFeeds] = useState<any[]>([]);
+  const [shArticles, setShArticles] = useState<any[]>([]);
+  const [shNewsletters, setShNewsletters] = useState<any[]>([]);
+  const [loadingSH, setLoadingSH] = useState(false);
+  const [shSection, setShSection] = useState<'overview' | 'rss' | 'subscribers' | 'compose'>('overview');
+  const [shFeedUrl, setShFeedUrl] = useState('');
+  const [shFeedName, setShFeedName] = useState('');
+  const [shFeedCategory, setShFeedCategory] = useState('General');
+  const [addingFeed, setAddingFeed] = useState(false);
+  const [refreshingFeed, setRefreshingFeed] = useState<string | null>(null);
+  const [shComposeTitle, setShComposeTitle] = useState('');
+  const [shComposeExcerpt, setShComposeExcerpt] = useState('');
+  const [shComposeSection, setShComposeSection] = useState('news');
+  const [shComposeCategory, setShComposeCategory] = useState('Coaching');
+  const [publishingArticle, setPublishingArticle] = useState(false);
   const [loginSummary, setLoginSummary] = useState<{
     newNewsletters: number;
     newBetaApps: number;
@@ -192,6 +207,7 @@ export default function AdminPortalPage() {
     if (activeTab === 'bugs') fetchBugs();
     if (activeTab === 'users') fetchAllUsers();
     if (activeTab === 'newsletters') fetchNewsletters();
+    if (activeTab === 'sports-hub') fetchSportsHubData();
   }, [activeTab, isSuperAdmin, db]);
 
   const fetchBetaApps = async () => {
@@ -244,6 +260,132 @@ export default function AdminPortalPage() {
       toast({ title: 'Failed to load newsletters', description: e.message, variant: 'destructive' });
     } finally {
       setLoadingNewsletters(false);
+    }
+  };
+
+  // ── Sports Hub Firestore helpers ─────────────────────────────────────────────
+  const fetchSportsHubData = async () => {
+    if (!db) return;
+    setLoadingSH(true);
+    try {
+      const [feedsSnap, articlesSnap, nlSnap] = await Promise.all([
+        getDocs(query(collection(db, 'sports_hub_rss_feeds'), orderBy('createdAt', 'desc'), limit(50))),
+        getDocs(query(collection(db, 'sports_hub_articles'), orderBy('publishedAt', 'desc'), limit(20))),
+        getDocs(query(collection(db, 'sports_hub_newsletter_subscribers'), orderBy('subscribedAt', 'desc'), limit(200))),
+      ]);
+      setShFeeds(feedsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setShArticles(articlesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setShNewsletters(nlSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e: any) {
+      // Collections may not exist yet — show empty state gracefully
+      setShFeeds([]);
+      setShArticles([]);
+      setShNewsletters([]);
+    } finally {
+      setLoadingSH(false);
+    }
+  };
+
+  const addRSSFeed = async () => {
+    if (!db || !shFeedUrl.trim() || !shFeedName.trim()) return;
+    setAddingFeed(true);
+    try {
+      await addDoc(collection(db, 'sports_hub_rss_feeds'), {
+        url: shFeedUrl.trim(),
+        name: shFeedName.trim(),
+        category: shFeedCategory,
+        isEnabled: true,
+        refreshIntervalMinutes: 60,
+        articleCount: 0,
+        createdAt: serverTimestamp(),
+        lastSyncStatus: 'pending',
+      });
+      setShFeedUrl('');
+      setShFeedName('');
+      toast({ title: '✅ Feed Added', description: `"${shFeedName}" is now being monitored.` });
+      await fetchSportsHubData();
+    } catch (e: any) {
+      toast({ title: 'Failed to add feed', description: e.message, variant: 'destructive' });
+    } finally {
+      setAddingFeed(false);
+    }
+  };
+
+  const triggerRSSRefresh = async (feedId: string, feedUrl: string) => {
+    setRefreshingFeed(feedId);
+    try {
+      const res = await fetch('/api/sports-hub/rss-refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${await firebaseUser?.getIdToken()}` },
+        body: JSON.stringify({ feedUrl, feedId, category: shFeedCategory }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: `✅ Refreshed — ${data.totalImported} articles imported`, description: `${data.rejected} rejected by content filter` });
+      await updateDoc(doc(db, 'sports_hub_rss_feeds', feedId), { lastSyncAt: serverTimestamp(), lastSyncStatus: 'success', articleCount: data.totalImported });
+      await fetchSportsHubData();
+    } catch (e: any) {
+      toast({ title: 'Refresh failed', description: e.message, variant: 'destructive' });
+      await updateDoc(doc(db, 'sports_hub_rss_feeds', feedId), { lastSyncStatus: 'error' });
+    } finally {
+      setRefreshingFeed(null);
+    }
+  };
+
+  const toggleFeedEnabled = async (feedId: string, current: boolean) => {
+    try {
+      await updateDoc(doc(db, 'sports_hub_rss_feeds', feedId), { isEnabled: !current });
+      setShFeeds(prev => prev.map(f => f.id === feedId ? { ...f, isEnabled: !current } : f));
+    } catch (e: any) {
+      toast({ title: 'Update failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const deleteFeed = async (feedId: string) => {
+    try {
+      await deleteDoc(doc(db, 'sports_hub_rss_feeds', feedId));
+      setShFeeds(prev => prev.filter(f => f.id !== feedId));
+      toast({ title: 'Feed removed' });
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const publishHubArticle = async () => {
+    if (!db || !shComposeTitle.trim() || !shComposeExcerpt.trim()) return;
+    setPublishingArticle(true);
+    try {
+      const slug = shComposeTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      await addDoc(collection(db, 'sports_hub_articles'), {
+        title: shComposeTitle.trim(),
+        excerpt: shComposeExcerpt.trim(),
+        slug,
+        section: shComposeSection,
+        categories: [shComposeCategory],
+        author: { name: user?.name || user?.email || 'The Squad Team' },
+        isDraft: false,
+        isFeatured: false,
+        isProductUpdate: false,
+        viewCount: 0,
+        bookmarkCount: 0,
+        readingTime: Math.ceil(shComposeExcerpt.split(' ').length / 200) || 3,
+        publishedAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        tableOfContents: [],
+        reactionCounts: {},
+        tags: [],
+        content: shComposeExcerpt,
+      });
+      setShComposeTitle('');
+      setShComposeExcerpt('');
+      toast({ title: '✅ Article Published', description: `"${shComposeTitle}" is now live in the Sports Hub.` });
+      setShSection('overview');
+      await fetchSportsHubData();
+    } catch (e: any) {
+      toast({ title: 'Publish failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setPublishingArticle(false);
     }
   };
 
@@ -751,7 +893,14 @@ export default function AdminPortalPage() {
           >
             <Newspaper className="w-4 h-4" /> Newsletters
           </button>
+          <button 
+            onClick={() => setActiveTab('sports-hub')} 
+            className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'sports-hub' ? 'bg-primary text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
+          >
+            <BookOpen className="w-4 h-4" /> Sports Hub
+          </button>
         </div>
+
 
         {/* ══════════ USERS DIRECTORY TAB ══════════ */}
         {activeTab === 'users' && (() => {
@@ -1882,6 +2031,390 @@ export default function AdminPortalPage() {
                         <span className="text-[10px] text-gray-400 dark:text-white/30 font-mono whitespace-nowrap pl-3">{lead.createdAt?.toDate ? lead.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+
+        {/* ══════════ SPORTS HUB TAB ══════════ */}
+        {activeTab === 'sports-hub' && (() => {
+          const SH_SECTIONS = [
+            { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'rss', label: 'RSS Feeds', icon: Rss },
+            { id: 'subscribers', label: 'Subscribers', icon: Mail },
+            { id: 'compose', label: 'Quick Compose', icon: PenLine },
+          ] as const;
+
+          const HUB_CATEGORIES = [
+            'Coaching', 'Player Development', 'Team Management', 'Tournament Management',
+            'League Management', 'Sports Technology', 'Sports Science', 'Nutrition',
+            'Recovery', 'Volunteer Management', 'Parent Resources', 'Rule Changes',
+            'Youth Sports', 'Mental Performance', 'Strength & Conditioning', 'Product Updates',
+          ];
+
+          const syncStatusColor: Record<string, string> = {
+            success: 'text-emerald-500 bg-emerald-500/10',
+            error: 'text-red-500 bg-red-500/10',
+            pending: 'text-amber-500 bg-amber-500/10',
+          };
+
+          return (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Sports Hub</h1>
+                    <p className="text-gray-400 dark:text-white/30 text-[9px] font-black uppercase tracking-widest mt-0.5">Content Management System</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={fetchSportsHubData}
+                    disabled={loadingSH}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-black uppercase tracking-widest text-xs transition-colors"
+                  >
+                    {loadingSH ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    Refresh
+                  </button>
+                  <a href="/sports-hub" target="_blank" rel="noopener noreferrer">
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 font-black uppercase tracking-widest text-xs transition-colors">
+                      <ExternalLink className="w-3.5 h-3.5" /> View Hub
+                    </button>
+                  </a>
+                </div>
+              </div>
+
+              {/* Sub-nav */}
+              <div className="flex gap-2 flex-wrap">
+                {SH_SECTIONS.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setShSection(id as any)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                      shSection === id ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />{label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Overview ── */}
+              {shSection === 'overview' && (
+                <div className="space-y-6">
+                  {/* KPI Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: 'RSS Feeds', value: shFeeds.length, sub: `${shFeeds.filter(f => f.isEnabled).length} active`, icon: Rss, color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+                      { label: 'Articles', value: shArticles.length, sub: 'Published', icon: FileText, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+                      { label: 'Subscribers', value: shNewsletters.length, sub: 'Hub newsletter', icon: Mail, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                      { label: 'Last Sync', value: shFeeds.filter(f => f.lastSyncStatus === 'success').length, sub: 'feeds OK', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/20' },
+                    ].map(card => (
+                      <div key={card.label} className={`rounded-2xl border-2 ${card.border} bg-white dark:bg-white/5 p-5 space-y-3`}>
+                        <div className={`w-9 h-9 rounded-xl ${card.bg} flex items-center justify-center`}>
+                          <card.icon className={`w-4 h-4 ${card.color}`} />
+                        </div>
+                        <div>
+                          <p className={`text-2xl font-black ${card.color}`}>{loadingSH ? '—' : card.value}</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 mt-0.5">{card.label}</p>
+                          <p className="text-[8px] text-gray-400 dark:text-white/20 font-bold uppercase tracking-wider">{card.sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Content Policy Notice */}
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5 flex gap-4">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Content Policy Enforced Automatically</p>
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-300/70 leading-relaxed">
+                        RSS imports are filtered for: betting, fantasy sports, gambling, politics, celebrity news, transfer rumors, clickbait, and AI spam. Articles older than 30 days are automatically rejected. RSS content never exceeds 50% of any section.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Recent Articles */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 dark:text-white/30">Recent Articles</p>
+                      <button onClick={() => setShSection('compose')} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-primary hover:opacity-70 transition-opacity">
+                        <PenLine className="w-3 h-3" />New Article
+                      </button>
+                    </div>
+                    {loadingSH ? (
+                      <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                    ) : shArticles.length === 0 ? (
+                      <div className="text-center py-10 text-gray-400 dark:text-white/30 font-bold uppercase tracking-widest text-xs">
+                        No articles published yet. Use Quick Compose to get started.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {shArticles.map(article => (
+                          <div key={article.id} className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl px-5 py-4 flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap gap-2 mb-1">
+                                {(article.categories || []).slice(0, 1).map((cat: string) => (
+                                  <span key={cat} className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-primary/10 text-primary">{cat}</span>
+                                ))}
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40">{article.section || 'hub'}</span>
+                              </div>
+                              <p className="text-sm font-black text-gray-900 dark:text-white truncate">{article.title}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-white/30 font-mono mt-0.5">{article.publishedAt ? new Date(article.publishedAt).toLocaleDateString() : '—'} · {article.readingTime || '?'} min read</p>
+                            </div>
+                            <a href={`/sports-hub/articles/${article.slug}`} target="_blank" rel="noopener noreferrer">
+                              <button className="text-gray-400 hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-primary/5">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── RSS Feeds Manager ── */}
+              {shSection === 'rss' && (
+                <div className="space-y-6">
+                  {/* Add Feed Form */}
+                  <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-6 space-y-4">
+                    <p className="text-xs font-black uppercase tracking-[0.3em] text-gray-400 dark:text-white/30">Add New RSS Feed</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="md:col-span-1">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Feed Name</Label>
+                        <Input
+                          placeholder="e.g. Sports Science Weekly"
+                          value={shFeedName}
+                          onChange={e => setShFeedName(e.target.value)}
+                          className="h-10 rounded-xl bg-gray-50 dark:bg-white/5 font-medium"
+                        />
+                      </div>
+                      <div className="md:col-span-1">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Feed URL</Label>
+                        <Input
+                          placeholder="https://example.com/rss"
+                          value={shFeedUrl}
+                          onChange={e => setShFeedUrl(e.target.value)}
+                          className="h-10 rounded-xl bg-gray-50 dark:bg-white/5 font-medium"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 block">Category</Label>
+                        <select
+                          value={shFeedCategory}
+                          onChange={e => setShFeedCategory(e.target.value)}
+                          className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm font-bold"
+                        >
+                          {HUB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2 flex items-center gap-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 flex-1">
+                        <Globe className="w-3.5 h-3.5 shrink-0" />
+                        Content filter runs automatically on import. Betting, politics, fantasy sports, and clickbait are rejected.
+                      </div>
+                      <button
+                        onClick={addRSSFeed}
+                        disabled={addingFeed || !shFeedUrl.trim() || !shFeedName.trim()}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 disabled:opacity-50 shrink-0"
+                      >
+                        {addingFeed ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rss className="w-3.5 h-3.5" />}
+                        Add Feed
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Feeds Table */}
+                  {loadingSH ? (
+                    <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                  ) : shFeeds.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400 dark:text-white/30 font-bold uppercase tracking-widest text-xs">
+                      No RSS feeds configured yet. Add one above.
+                    </div>
+                  ) : (
+                    <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-0 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 px-6 py-3 border-b border-gray-100 dark:border-white/10">
+                        <span>Feed</span><span>Category</span><span>Status</span><span>Actions</span>
+                      </div>
+                      <div className="divide-y divide-gray-100 dark:divide-white/10">
+                        {shFeeds.map(feed => (
+                          <div key={feed.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-0 px-6 py-4 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                            <div className="min-w-0 pr-4">
+                              <p className="text-sm font-black text-gray-900 dark:text-white truncate">{feed.name}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-white/30 font-mono truncate">{feed.url}</p>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 w-fit">
+                              {feed.category || 'General'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full w-fit ${syncStatusColor[feed.lastSyncStatus || 'pending']}`}>
+                                {feed.lastSyncStatus || 'pending'}
+                              </span>
+                              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${feed.isEnabled ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/30'}`}>
+                                {feed.isEnabled ? 'On' : 'Off'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 pl-4">
+                              <button
+                                onClick={() => triggerRSSRefresh(feed.id, feed.url)}
+                                disabled={refreshingFeed === feed.id}
+                                title="Refresh now"
+                                className="p-2 rounded-lg hover:bg-sky-500/10 text-sky-500 transition-colors"
+                              >
+                                {refreshingFeed === feed.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                              </button>
+                              <button
+                                onClick={() => toggleFeedEnabled(feed.id, feed.isEnabled)}
+                                title={feed.isEnabled ? 'Disable feed' : 'Enable feed'}
+                                className={`p-2 rounded-lg transition-colors ${feed.isEnabled ? 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400' : 'hover:bg-emerald-500/10 text-emerald-500'}`}
+                              >
+                                {feed.isEnabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                              </button>
+                              <button
+                                onClick={() => deleteFeed(feed.id)}
+                                title="Remove feed"
+                                className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Subscribers ── */}
+              {shSection === 'subscribers' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {[
+                      { label: 'Total Subscribers', value: shNewsletters.length, icon: Mail, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                      { label: 'This Month', value: shNewsletters.filter(n => { if (!n.subscribedAt) return false; return new Date(n.subscribedAt) > new Date(Date.now() - 30 * 86400000); }).length, icon: TrendingUp, color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+                      { label: 'Active', value: shNewsletters.filter(n => n.isActive !== false).length, icon: CheckCircle, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+                    ].map(card => (
+                      <div key={card.label} className={`rounded-2xl border-2 ${card.border} bg-white dark:bg-white/5 p-5 space-y-3`}>
+                        <div className={`w-9 h-9 rounded-xl ${card.bg} flex items-center justify-center`}>
+                          <card.icon className={`w-4 h-4 ${card.color}`} />
+                        </div>
+                        <div>
+                          <p className={`text-2xl font-black ${card.color}`}>{card.value}</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 mt-0.5">{card.label}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {loadingSH ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                  ) : shNewsletters.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400 dark:text-white/30 font-bold uppercase tracking-widest text-xs">
+                      No Hub newsletter subscribers yet.
+                    </div>
+                  ) : (
+                    <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <div className="grid grid-cols-[2fr_2fr_1fr_auto] gap-0 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30 px-6 py-3 border-b border-gray-100 dark:border-white/10">
+                        <span>Email</span><span>Sports</span><span>Status</span><span>Date</span>
+                      </div>
+                      <div className="divide-y divide-gray-100 dark:divide-white/10">
+                        {shNewsletters.slice(0, 100).map((sub, i) => (
+                          <div key={sub.id || i} className="grid grid-cols-[2fr_2fr_1fr_auto] gap-0 px-6 py-3 items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                            <span className="text-sm text-gray-700 dark:text-white/70 font-mono truncate pr-4">{sub.email}</span>
+                            <span className="text-[10px] text-gray-400 dark:text-white/30 font-medium truncate pr-4">{(sub.sports || []).join(', ') || '—'}</span>
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full w-fit ${sub.isActive !== false ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 text-gray-400'}`}>
+                              {sub.isActive !== false ? 'Active' : 'Inactive'}
+                            </span>
+                            <span className="text-[10px] text-gray-400 dark:text-white/30 font-mono whitespace-nowrap pl-4">
+                              {sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Quick Compose ── */}
+              {shSection === 'compose' && (
+                <div className="space-y-5 max-w-2xl">
+                  <div className="bg-sky-500/10 border border-sky-500/20 rounded-2xl p-4 flex gap-3 text-xs font-medium text-sky-700 dark:text-sky-300">
+                    <Star className="w-4 h-4 shrink-0 mt-0.5 text-sky-500" />
+                    Quick Compose creates a published article stub in Firestore. For full rich-text editing, open the article in the Sports Hub CMS and use the article editor.
+                  </div>
+                  <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-6 space-y-5">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 dark:text-white/30">New Sports Hub Article</p>
+                    <div>
+                      <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">Title</Label>
+                      <Input
+                        placeholder="Building Championship Culture: Leadership Strategies…"
+                        value={shComposeTitle}
+                        onChange={e => setShComposeTitle(e.target.value)}
+                        className="h-12 rounded-xl bg-gray-50 dark:bg-white/5 font-bold text-base"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">Section</Label>
+                        <select
+                          value={shComposeSection}
+                          onChange={e => setShComposeSection(e.target.value)}
+                          className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm font-bold"
+                        >
+                          {['news', 'coaching', 'team-management', 'tournaments', 'resources', 'featured'].map(s => (
+                            <option key={s} value={s}>{s.replace('-', ' ')}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">Category</Label>
+                        <select
+                          value={shComposeCategory}
+                          onChange={e => setShComposeCategory(e.target.value)}
+                          className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm font-bold"
+                        >
+                          {HUB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">Excerpt / Intro Paragraph</Label>
+                      <Textarea
+                        placeholder="Discover the proven leadership frameworks that elite coaches use to build cultures of excellence, accountability, and sustained performance…"
+                        value={shComposeExcerpt}
+                        onChange={e => setShComposeExcerpt(e.target.value)}
+                        rows={5}
+                        className="rounded-xl bg-gray-50 dark:bg-white/5 font-medium resize-none"
+                      />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={publishHubArticle}
+                        disabled={publishingArticle || !shComposeTitle.trim() || !shComposeExcerpt.trim()}
+                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {publishingArticle ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
+                        Publish Article
+                      </button>
+                      <button
+                        onClick={() => { setShComposeTitle(''); setShComposeExcerpt(''); }}
+                        className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

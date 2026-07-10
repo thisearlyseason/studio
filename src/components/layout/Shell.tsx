@@ -833,6 +833,21 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </div>
               )}
 
+              {/* Sports Hub Link */}
+              <Link href="/sports-hub" className="w-full block group">
+                <div className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-primary/15 bg-primary/5 hover:bg-primary/10 active:scale-95 transition-all">
+                  <div className="p-2 rounded-xl hero-gradient text-white shrink-0 shadow-md shadow-primary/10 group-hover:scale-105 transition-transform">
+                    <BookOpen className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary leading-none">Sports Hub</span>
+                    <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tight mt-1 truncate">
+                      Articles, drills &amp; resources
+                    </span>
+                  </div>
+                </div>
+              </Link>
+
               {/* PWA Install Button */}
               {showInstallBtn && (
                 <div className="relative group/install">
