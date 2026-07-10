@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { BookOpen, Video, Filter, Search, Star, Eye, Play, FileText, Calendar, Dumbbell, CheckSquare, Users, AlertCircle, Plane, List, DollarSign, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -113,8 +114,10 @@ function ResourceCard({ resource }: { resource: Resource }) {
   );
 }
 
-export default function PlaybookPage() {
-  const [typeFilter, setTypeFilter] = useState('all');
+function PlaybookContent() {
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get('type') || 'all';
+  const [typeFilter, setTypeFilter] = useState(initialType);
   const [sportFilter, setSportFilter] = useState('all');
   const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -290,3 +293,12 @@ export default function PlaybookPage() {
     </div>
   );
 }
+
+export default function PlaybookPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-muted-foreground font-medium">Loading playbook...</div>}>
+      <PlaybookContent />
+    </Suspense>
+  );
+}
+
