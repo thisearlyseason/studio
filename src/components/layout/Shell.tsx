@@ -539,9 +539,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       ? [
           { name: 'Leagues', href: '/competition', icon: Medal },
           { name: 'Facilities', href: '/facilities', icon: MapPin },
+          { name: 'Hub', href: '/sports-hub', icon: BookOpen },
         ]
       : isSchoolInstitutionMode || isEliteHubMode
-      ? [] // hide all operational shortcuts until a squad is selected
+      ? [{ name: 'Hub', href: '/sports-hub', icon: BookOpen }] // always show sports hub even in hub mode
       : [
           // Show Home/dashboard only when a squad is active (ADs in hub mode use /club instead)
           ...(!isSchoolInstitutionMode && !isEliteHubMode
@@ -550,6 +551,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           { name: 'Schedule', href: '/events', icon: CalendarDays },
           ...(activeTeam?.features?.feed !== false ? [{ name: 'Feed', href: '/feed', icon: LayoutDashboard, gate: () => hasFeature?.('live_feed_read') }] : []),
           ...(activeTeam?.features?.tacticalChat !== false ? [{ name: 'Tactical Chat', href: '/chats', icon: MessageCircle }] : []),
+          { name: 'Hub', href: '/sports-hub', icon: BookOpen },
         ]
   );
 
@@ -1256,6 +1258,33 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                             </div>
                           </div>
                         )}
+
+
+                        {/* ── SPORTS HUB ──────────────────────────────────────────────────── */}
+                        <div className="space-y-2">
+                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground px-2">Resources</p>
+                          <Link
+                            href="/sports-hub"
+                            onClick={() => setIsMoreMenuOpen(false)}
+                            className={cn(
+                              "flex items-center justify-between p-4 rounded-2xl border transition-all active:scale-[0.98]",
+                              pathname.startsWith('/sports-hub')
+                                ? "bg-primary/5 border-primary shadow-sm"
+                                : "bg-muted/30 border-transparent hover:bg-white hover:border-primary/20"
+                            )}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={cn("p-2 rounded-xl transition-colors", pathname.startsWith('/sports-hub') ? "bg-primary text-white" : "bg-primary/10 text-primary")}>
+                                <BookOpen className="h-5 w-5" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className={cn("text-xs font-black uppercase tracking-widest", pathname.startsWith('/sports-hub') ? "text-primary" : "text-foreground")}>Sports Hub</span>
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase">Articles &amp; Resources</span>
+                              </div>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
+                          </Link>
+                        </div>
 
                         <div className="space-y-3">
                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2">Account Management</p>
