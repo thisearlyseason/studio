@@ -34,7 +34,9 @@ export interface Resource {
   isFeatured: boolean;
   isVideo: boolean;
   videoUrl?: string;
-  /** Internal viewer slug \u2014 all non-video resources use /sports-hub/resources/[id] */
+  /** YouTube channel or creator credit shown on video resources */
+  videoCredit?: string;
+  /** Internal viewer slug — all non-video resources use /sports-hub/resources/[id] */
   content: ResourceContent;
   tags: string[];
   createdAt: string;
@@ -1882,127 +1884,573 @@ Send parents this information at least 1 week before travel:
     },
   },
 
+
   // ─── VIDEOS ───────────────────────────────────────────────────────────────
+
+  // Soccer: midfielder training — 7mlc channel
   {
     id: 'vid-1',
-    title: 'How to Run a Warm-Up That Actually Works',
-    description: 'A guide to dynamic warm-up protocols used by elite programs. Covers activation sequences, movement prep, and sport-specific primers.',
+    title: 'Midfielder Training Session: Scanning, First Touch & Decision Making',
+    description: 'A full individual training session built around the technical and cognitive demands placed on midfielders — scanning, first touch under pressure, and split-second decisions.',
     type: 'video',
-    sport: 'General',
-    difficulty: 'beginner',
-    downloadCount: 498,
-    isFeatured: false,
+    sport: 'Soccer',
+    difficulty: 'intermediate',
+    downloadCount: 1240,
+    isFeatured: true,
     isVideo: true,
-    videoUrl: 'https://www.youtube.com/embed/HH8CTkRpvM8',
-    tags: ['warm-up', 'injury-prevention', 'dynamic', 'activation'],
-    createdAt: '2026-04-01',
+    videoUrl: 'https://www.youtube.com/embed/SM9ECNPk1sA',
+    videoCredit: '7mlc',
+    tags: ['soccer', 'midfielder', 'scanning', 'first touch', 'decision making', 'training session'],
+    createdAt: '2026-03-15',
     content: {
-      overview: 'Learn the science behind dynamic warm-ups and how to run one that prepares athletes for peak performance.',
-      body: `## How to Run a Warm-Up That Actually Works
+      overview: 'A complete individual midfielder training session covering scanning habits, first-touch mechanics, and faster decision making under simulated match pressure.',
+      body: `## Midfielder Training: Scanning, First Touch & Decision Making
 
-*Static stretching before exercise is outdated science. Here\u2019s what elite programs do instead.*
-
----
-
-### The 3-Phase Warm-Up Model
-
-**Phase 1: General Movement (3\u20135 min)**
-- Light jog, side shuffle, skip
-- Gradually elevate heart rate
-- No ball yet
-
-**Phase 2: Dynamic Stretching (5\u20137 min)**
-- Leg swings (front/back, side/side)
-- Hip circles
-- Walking lunges with rotation
-- High knees and butt kicks
-- Inchworm + push-up
-
-**Phase 3: Sport-Specific Activation (5 min)**
-- Introduce the ball or equipment
-- Short sprints at increasing intensity
-- Sport-specific movements (cut, jump, throw)
+*The most important thing a midfielder can improve is not technical — it's the information they gather before the ball arrives.*
 
 ---
 
-### Why NOT Static Stretching Before Exercise
+### Why Scanning Changes Everything
 
-Research shows that static stretching (holding a position 30+ seconds) before exercise:
-- Reduces power output by 5\u201310%
-- Decreases sprint speed
-- Has minimal injury prevention benefit when done pre-exercise
+Elite midfielders scan an average of 0.67 times per second when off the ball. This means that by the time the ball arrives at their feet, they already know:
+- Where the pressure is coming from
+- Which teammates are available
+- Which direction to play
 
-*Save static stretching for the cool-down.*
+The scanning habit is a coachable skill. It just requires deliberate repetition.
 
 ---
 
-### Sample 15-Minute Dynamic Warm-Up
+### Session Structure (60 Minutes)
 
-| Exercise | Duration/Reps | Notes |
-|----------|--------------|-------|
-| Easy jog | 2 min | Establish breathing rhythm |
-| High knees | 20 yards x2 | Drive arms |
-| Butt kicks | 20 yards x2 | Stay on toes |
-| Leg swings (F/B) | 10 each leg | Hold wall if needed |
-| Leg swings (L/R) | 10 each leg | |
-| Walking lunges | 10 each leg | Add rotation at bottom |
-| Lateral shuffle | 20 yards x2 | Stay low |
-| Carioca | 20 yards x2 | Cross feet cleanly |
-| Sprint build-ups | 3 x 40 yards | 50%, 75%, 90% |`,
+**Warm-Up (10 min)**
+- Dynamic movement: hip circles, lateral shuffles, carioca
+- Ball activation: passing against a rebounder, moving after every touch
+- Scanning trigger: call out a number after each touch (builds the habit)
+
+**Technical Block: First Touch Under Pressure (20 min)**
+- Rebounder work: receive and redirect in one motion
+- Each touch should move the ball in a predetermined direction
+- Progress: open body → disguised redirect → blind-side redirect
+
+**Tactical Block: Chaos Drills (20 min)**
+- Create drills that simulate match environments (multiple balls, multiple directions)
+- The goal: players must make technical decisions at match speed
+- Processing speed is the limiting factor at elite level
+
+**Finishing Block (10 min)**
+- Transition from midfield receipt → forward pass → support run → finish
+- Simulate the link between technical and tactical
+
+---
+
+### The Key Coaching Cue
+
+> "Where are your eyes before the ball arrives?"
+
+If a player receives the ball and *then* looks up, they are already 1-2 seconds behind play. If they arrive with information, the technical execution becomes simple.
+
+---
+
+### Training Frequency
+
+For meaningful improvement in scanning habits:
+- Minimum 3 sessions per week
+- 15 minutes of scan-trigger practice per session
+- Video review of themselves playing (even phone recordings)`,
     },
   },
+
+  // Soccer: leg power & speed — 7mlc channel
   {
     id: 'vid-2',
-    title: 'Youth Coaching Masterclass: Building Your First Practice',
-    description: 'Step-by-step video guide for first-year coaches. Learn how to plan, organize, and execute an effective youth sports practice.',
+    title: 'Leg Workout for Footballers: Build Speed & Explosive Power',
+    description: 'A full leg workout designed specifically for football (soccer) players to increase first-step speed, explosive power, and injury resilience — no gym membership required.',
     type: 'video',
-    sport: 'General',
-    difficulty: 'beginner',
-    downloadCount: 634,
+    sport: 'Soccer',
+    difficulty: 'intermediate',
+    downloadCount: 874,
     isFeatured: false,
     isVideo: true,
-    videoUrl: 'https://www.youtube.com/embed/Ks-_Mh1QhMc',
-    tags: ['coaching', 'youth', 'first-year', 'practice-planning'],
-    createdAt: '2026-05-01',
+    videoUrl: 'https://www.youtube.com/embed/HHVF4K2aFTA',
+    videoCredit: '7mlc',
+    tags: ['soccer', 'football', 'speed', 'leg workout', 'explosive power', 'conditioning'],
+    createdAt: '2026-04-01',
     content: {
-      overview: 'Everything a first-year coach needs to know about running an effective youth practice.',
-      body: `## Youth Coaching Masterclass: Building Your First Practice
+      overview: 'A leg strength and power session tailored for footballers — covering explosive jumps, lateral strength, and sport-specific movement patterns.',
+      body: `## Leg Workout for Footballers: Build Speed & Explosive Power
 
-*Great coaches are made, not born. Start here.*
-
----
-
-### The Golden Rule of Youth Practice
-
-> Maximize **time-on-task** \u2014 the amount of time each player is actively practicing a skill, not standing in line or listening to long explanations.
-
-If you have 20 players and only one ball in play at a time, 19 players are doing nothing. Break into groups. More stations = more reps = faster improvement.
+*Every elite sprinting action starts from the ground up. Build the engine first.*
 
 ---
 
-### Practice Planning Framework
+### Why Leg Power Is Different for Footballers
 
-**Before practice:**
-1. Write your plan (even a simple one)
-2. Prepare all equipment in advance
-3. Arrive 15 minutes early
+Footballers don't need maximal strength — they need **reactive strength** and **lateral power**. A deadlift won't replicate a first-step burst. A squat won't replicate a sharp change of direction.
 
-**The 5-Block Structure:**
-1. **Warm-Up:** 10 min \u2014 physical and mental activation
-2. **Technical Block:** 15 min \u2014 individual skill work
-3. **Tactical Block:** 15 min \u2014 small-group application
-4. **Scrimmage:** 15 min \u2014 competitive game environment
-5. **Cool-Down + Debrief:** 5 min \u2014 reflection and connection
+This session uses compound movements and sport-specific patterns that transfer directly to match performance.
 
 ---
 
-### Common First-Year Coaching Mistakes
+### Session Structure
 
-1. **Talking too much** \u2014 keep instructions under 60 seconds
-2. **Too few repetitions** \u2014 more reps, less explanation
-3. **No plan** \u2014 even a rough plan is better than none
-4. **Ignoring the quiet players** \u2014 they need coaching too
-5. **Making it about winning** \u2014 at youth level, development > results`,
+**Activation (5–8 min)**
+- Glute bridges: 3 × 15 (activate before loading)
+- Lateral band walks: 2 × 10 each direction
+- Single-leg Romanian deadlift (bodyweight): 2 × 8 each leg
+
+**Explosive Block (15–20 min)**
+
+| Exercise | Sets | Reps | Rest |
+|----------|------|------|------|
+| Jump squats | 4 | 6 | 90s |
+| Box jumps | 4 | 5 | 90s |
+| Lateral bounds | 3 | 8 each | 60s |
+| Sprint starts (10m) | 4 | 3 | Full |
+
+**Strength Block (15–20 min)**
+- Bulgarian split squats: 3 × 8 each leg
+- Nordic hamstring curls: 3 × 6 (essential for hamstring injury prevention)
+- Step-ups with knee drive: 3 × 10 each leg
+
+**Speed Block (10 min)**
+- Agility ladder: 3 patterns × 3 reps each
+- Cone slalom (ball at feet): 4 runs
+
+---
+
+### Key Principle: Quality Over Quantity
+
+Every explosive rep should be maximum effort. If quality drops, stop the set. Half-speed training produces half-speed athletes.
+
+---
+
+### Programming Note
+
+Run this session 2× per week in pre-season, dropping to 1× in-season to maintain rather than build. Allow 48 hours minimum between sessions.`,
+    },
+  },
+
+  // Soccer: dribbling one-v-ones — 7mlc channel
+  {
+    id: 'vid-3',
+    title: 'How to Dominate 1v1s: Three Keys to Elite Dribbling',
+    description: 'Three simple, high-leverage principles that separate elite dribblers from average ones — and how to train them into your game through deliberate solo sessions.',
+    type: 'video',
+    sport: 'Soccer',
+    difficulty: 'intermediate',
+    downloadCount: 2130,
+    isFeatured: false,
+    isVideo: true,
+    videoUrl: 'https://www.youtube.com/embed/6Px5YfwvpkM',
+    videoCredit: '7mlc',
+    tags: ['soccer', 'dribbling', 'one v one', '1v1', 'individual training', 'skill development'],
+    createdAt: '2026-02-20',
+    content: {
+      overview: 'Mastering 1v1 situations requires a small number of well-practiced principles applied consistently. This session breaks them down and shows you how to train them.',
+      body: `## How to Dominate 1v1s: Three Keys to Elite Dribbling
+
+*You don't need 30 moves. You need 3 moves that you own completely.*
+
+---
+
+### The 1v1 Reality Check
+
+Watch any elite dribbler and you'll notice they use a small repertoire of moves — but they execute them perfectly, at full speed, in both directions, under pressure. Breadth of skill is less important than depth of execution.
+
+---
+
+### Key 1: Body Shape Before the Move
+
+Before you perform any dribbling technique, your body position sends a signal to the defender about where you're going. Elite dribblers use an **open body shape** to create ambiguity:
+- Hips at 45°, not fully square
+- Ball slightly out of reach
+- Eyes scanning — not fixed on the ball
+
+**Drill:** Practice receiving every pass with an open body shape. Do this 50 times per session until it's automatic.
+
+---
+
+### Key 2: Timing the Defender's Weight
+
+The best moment to beat a defender is the split second their weight is shifting the wrong way. This means:
+1. Draw them forward (fake a pass or look away)
+2. Wait for the weight shift
+3. Explode past in the space they've vacated
+
+You cannot rush this. The dribble itself is not the skill — **reading the defender is the skill.**
+
+---
+
+### Key 3: First Touch After the Move
+
+Where you put the ball after the move determines whether you escape or get tackled from behind. The touch after the move should:
+- Be ahead (2–3 yards) into open space
+- Angle you toward goal or toward open teammates
+- Allow you to accelerate without breaking stride
+
+**Drill:** Cone → dummy → touch forward → sprint 10 yards. Repeat 15 times each side.
+
+---
+
+### Solo Training Application
+
+You can train all three keys without a partner:
+1. Rebounder receives → practice open body receive
+2. Cone slalom with weight transfer at each gate
+3. Full speed run-through with finishing touch`,
+    },
+  },
+
+  // Volleyball: blocking footwork — AoCVB (Art of Coaching Volleyball)
+  {
+    id: 'vid-4',
+    title: 'Middle Blocker Footwork: The Two-Step Blocking Technique',
+    description: 'Volleyball coach Jim Stone breaks down the two-step crossover blocking footwork for middle blockers facing fast sets — from the turn step through to the single-leg jump.',
+    type: 'video',
+    sport: 'Volleyball',
+    difficulty: 'advanced',
+    downloadCount: 688,
+    isFeatured: false,
+    isVideo: true,
+    videoUrl: 'https://www.youtube.com/embed/BodeaYnXKbU',
+    videoCredit: 'The Art of Coaching Volleyball',
+    tags: ['volleyball', 'blocking', 'middle blocker', 'footwork', 'technique', 'advanced'],
+    createdAt: '2026-01-10',
+    content: {
+      overview: 'The two-step blocking approach is used by advanced middle blockers when a fast set leaves insufficient time for a full crossover. Learn the mechanics, jump timing, and hand shaping.',
+      body: `## Middle Blocker Footwork: The Two-Step Blocking Technique
+
+*When the set is fast, every step counts. Here's how elite middles still get there.*
+
+---
+
+### When to Use the Two-Step Approach
+
+Standard blocking footwork (3-step crossover) works well on medium and slow sets. Against a fast set to the quick or slide, the middle blocker is often late and needs a shorter, more direct path.
+
+The two-step approach sacrifices some coverage for speed. Used correctly, the blocker arrives on time with proper hand position.
+
+---
+
+### The Mechanics
+
+**Step 1: Turn Step**
+- Plant the outside foot
+- Turn the hips toward the target
+- This step covers lateral distance quickly
+
+**Step 2: Crossover**
+- Bring the inside leg across the body
+- Stay low — don't rise on this step
+- Eyes on the setter's hands
+
+**Jump: Single-Leg Takeoff**
+- Because the blocker is late, the approach is short
+- Jump from the crossover leg
+- Drive the arms up and forward aggressively
+
+---
+
+### Hand Positioning on the Fast Set
+
+Because the blocker arrives late:
+- Hands must push slightly outside the body line to reach the ball
+- Turn hands inward — this is "shaping" the ball
+- Curvature directs the block back to the center of the court
+
+If hands are flat (perpendicular to the net), the ball deflects out of bounds. Shaped hands keep the ball in play.
+
+---
+
+### Coaching the Technique
+
+**Common mistakes:**
+1. Taking too big a turn step (loses lateral speed)
+2. Rising on the crossover (reduces control at jump)
+3. Flat hands (block goes out)
+
+**Progression:**
+1. Slow walk-through with verbal cues
+2. Half-speed with shadowing (no ball)
+3. Full speed with a tossed ball
+4. Live practice against the setter`,
+    },
+  },
+
+  // Volleyball: warmup drill — AoCVB
+  {
+    id: 'vid-5',
+    title: 'Dynamic Warm-Up Drill: 6v6 With Hot Hitter',
+    description: 'A game-like team warm-up drill from coach Tod Mattox that focuses on middle transition, passing, and competitive readiness — a smarter alternative to static stretching and passive passing lines.',
+    type: 'video',
+    sport: 'Volleyball',
+    difficulty: 'intermediate',
+    downloadCount: 540,
+    isFeatured: false,
+    isVideo: true,
+    videoUrl: 'https://www.youtube.com/embed/-nspljeyz68',
+    videoCredit: 'The Art of Coaching Volleyball',
+    tags: ['volleyball', 'warm-up', 'team drill', 'transition', '6v6', 'middle', 'practice'],
+    createdAt: '2026-02-05',
+    content: {
+      overview: 'Replace passive warm-up routines with this active 6v6 game-like drill that gets players physically and mentally ready for practice while training transition and decision-making.',
+      body: `## Dynamic Warm-Up Drill: 6v6 With Hot Hitter
+
+*A warm-up should prepare athletes to compete — not just elevate their heart rate.*
+
+---
+
+### Why This Drill Works
+
+Traditional warm-ups (passing lines, static stretching, tossed balls) don't prepare players for the chaotic, decision-heavy environment of a game. This drill from coach Tod Mattox solves that by placing players in a live game structure from the first minute of practice.
+
+The result: players arrive at the technical portion of practice already dialed in — not still waking up.
+
+---
+
+### Setup
+
+- Two full teams of 6
+- One team has a designated **hot hitter** — a middle who is the only player allowed to take a full swing
+- Coach enters the ball from the sideline
+
+---
+
+### How It Works
+
+**Round 1: Team with Hot Hitter Receives**
+1. Coach tosses ball to the hot-hitter side
+2. They pass, set, and the middle swings
+3. The opposing team's only goal: get the ball back in play with a controlled pass
+
+**Defending Team Rules**
+- No blocking (keeps the drill moving)
+- Immediate transition after receiving the hit
+- They work on reading the attack angle and moving quickly
+
+**Scoring**
+- Rotate the hot hitter role every 3 minutes
+- Play to 7 points, winner serves
+
+---
+
+### Coaching Focus Points
+
+- **Passers:** Are they reading the middle's approach and moving early?
+- **Setter:** Is the set consistent enough to be attacked at full speed?
+- **Middle:** Is the approach clean, even in warm-up conditions?
+
+---
+
+### Variation: Rotate Hot Hitter
+
+Instead of one player being the permanent hot hitter, rotate by position on each play. This trains all players to be ready to attack off a quick first ball.`,
+    },
+  },
+
+  // Basketball: top 10 drills solo — One Up Basketball
+  {
+    id: 'vid-6',
+    title: 'Top 10 Basketball Drills to Do By Yourself',
+    description: 'If you could only pick 10 drills to do alone, these are the ones — efficient combo drills focusing on the skills that happen most often in games. Ideal for players who want to improve fast with limited time.',
+    type: 'video',
+    sport: 'Basketball',
+    difficulty: 'beginner',
+    downloadCount: 3120,
+    isFeatured: true,
+    isVideo: true,
+    videoUrl: 'https://www.youtube.com/embed/HLHhVyiOExA',
+    videoCredit: 'One Up Basketball',
+    tags: ['basketball', 'solo drills', 'ball handling', 'individual training', 'beginner', 'youth'],
+    createdAt: '2026-01-20',
+    content: {
+      overview: 'A focused selection of the 10 most effective basketball drills for solo practice — combining efficiency with game-realistic skill development.',
+      body: `## Top 10 Basketball Drills to Do By Yourself
+
+*If you want to improve fast in a short amount of time, you need to prioritize drills that train the skills that happen most often in games.*
+
+---
+
+### The Solo Practice Principle
+
+Too many players spend time on flashy moves they'll never use. Elite players focus their solo work on:
+1. **Ball handling** — because you need it every possession
+2. **Finishing** — because you'll attack the rim on every drive
+3. **Shooting** — because every offensive play ends with a shot attempt
+
+These 10 drills cover all three categories with combinations that replicate game scenarios.
+
+---
+
+### The 10 Drills
+
+**Ball Handling**
+1. **Two-ball dribble series** — pound, alternate, crossover, through-legs (2 min)
+2. **Figure-8 with speed variation** — slow, medium, then max speed (90 sec)
+3. **Cone slalom** — dribble through 5 cones with a change of direction at each (3 × 3)
+
+**Finishing**
+4. **Mikan drill** — continuous layup alternating hands (2 min)
+5. **Euro step layup** — from the wing, full speed, both sides (10 each)
+6. **Floater series** — mid-range from both sides of the lane (15 each)
+
+**Shooting**
+7. **Catch-and-shoot spots** — 5 spots around the arc, 3 shots each (without moving)
+8. **Off-the-dribble pull-up** — one dribble, pull-up jumper (10 each side)
+9. **Corner three after sprint** — sprint the baseline, catch, shoot (10 each)
+
+**Combo (Game-Realistic)**
+10. **Drive → Kick → Relocate → Shoot** — simulate the most common offensive sequence
+
+---
+
+### Tips for Solo Practice
+
+- **Eyes up** at all times during ball handling
+- **Pound the ball hard** — lazy dribbles create lazy habits
+- **Full speed** on every finishing drill
+- Set a timer, not a rep count — this forces consistent pace`,
+    },
+  },
+
+  // Basketball: skills coaches look for — One Up Basketball
+  {
+    id: 'vid-7',
+    title: 'The 11 Most Important Basketball Skills Coaches Look For',
+    description: 'What skills do coaches actually prioritize when selecting teams and starting lineups? Understanding exactly what coaches look for will guide your training and give you the best chance to earn playing time.',
+    type: 'video',
+    sport: 'Basketball',
+    difficulty: 'beginner',
+    downloadCount: 1890,
+    isFeatured: false,
+    isVideo: true,
+    videoUrl: 'https://www.youtube.com/embed/U9RS9D69_9M',
+    videoCredit: 'One Up Basketball',
+    tags: ['basketball', 'coaching', 'player development', 'youth', 'skills', 'tryouts'],
+    createdAt: '2026-03-10',
+    content: {
+      overview: "Knowing what coaches look for changes how players train. These 11 skills are what decide who makes teams, who starts, and who gets consistent playing time.",
+      body: `## The 11 Basketball Skills Coaches Look For
+
+*Training without knowing what coaches value is like studying the wrong chapters for a test.*
+
+---
+
+### Why This Matters for Coaches
+
+As a coach, you can use this list as a **player evaluation rubric** during tryouts, as a development framework during the season, and as feedback language when talking with players and parents.
+
+When players understand what earns playing time, they practice with more purpose.
+
+---
+
+### The 11 Skills
+
+**1. Coachability**
+Do they listen on the first instruction? Adjust their behavior based on feedback? This is the non-negotiable skill every coach values above all others.
+
+**2. Effort and Consistency**
+Players who sprint every play — regardless of score or fatigue — are invaluable. Inconsistent effort is the fastest way off the court.
+
+**3. On-Ball Defense**
+Can they stay in front of their player? Are their hands active without fouling? Defense is the quickest way to earn trust from a coach.
+
+**4. Communication**
+Do they talk on defense? Call out screens? Direct teammates? Quiet players are often overlooked even when they're skilled.
+
+**5. Ball Handling Under Pressure**
+Not fancy dribbles — sound ball protection when pressed or guarded closely. Turnover-prone players cannot be trusted in close games.
+
+**6. Basketball IQ**
+Do they cut when their defender ball-watches? Do they know where to be without being told? High IQ players make their teammates better.
+
+**7. Finishing at the Rim**
+Can they complete drives with contact, both hands, from multiple angles?
+
+**8. Mid-Range Game**
+The pull-up jumper and floater are essential tools for scoring inside-out.
+
+**9. Catch-and-Shoot Efficiency**
+Open threes. No dribbles. Clean release. If a player can't hit open shots, defenses ignore them.
+
+**10. Rebounding Effort**
+Box out every possession. Pursue every loose ball. This is effort-based and immediately visible to coaches.
+
+**11. Unselfish Play**
+Do they take good shots or any shots? Do they pass to the open player? Selfishness breaks team chemistry and is spotted immediately.
+
+---
+
+### For Coaches: Evaluation Sheet
+
+During tryouts, rate each player 1–5 on the top 6 skills. You'll find the evaluation process becomes much faster and more consistent.`,
+    },
+  },
+
+  // Basketball: ball handling passing drills — One Up Basketball
+  {
+    id: 'vid-8',
+    title: '7 Challenging Ball Handling & Passing Drills You Can Do Alone',
+    description: 'Seven progressive solo drills combining ball handling and passing skills — done at full speed to build the handles and passing fundamentals that show up in real games.',
+    type: 'video',
+    sport: 'Basketball',
+    difficulty: 'intermediate',
+    downloadCount: 1540,
+    isFeatured: false,
+    isVideo: true,
+    videoUrl: 'https://www.youtube.com/embed/3ckHPv9ufn0',
+    videoCredit: 'One Up Basketball',
+    tags: ['basketball', 'ball handling', 'passing', 'solo drills', 'handles', 'fundamentals'],
+    createdAt: '2026-04-15',
+    content: {
+      overview: 'A progressive set of 7 solo drills combining dribbling and passing fundamentals — designed to be done at full speed so the skills transfer directly to game situations.',
+      body: `## 7 Challenging Ball Handling & Passing Drills You Can Do Alone
+
+*Mistakes are OK — that's how you get better. Challenge yourself with these drills.*
+
+---
+
+### The Ground Rules
+
+Before you start:
+- **Eyes up** at all times — no looking at the ball
+- **Pound the ball hard** — weak dribbles create weak habits
+- **Cross the ball as fast as you can** — speed builds speed
+- **Full speed** — if you slow down to get through the drill, you're training the wrong speed
+
+These drills are challenging. You're supposed to struggle at first.
+
+---
+
+### The 7-Drill Sequence
+
+**Drill 1 — Pound & Pass** *(10 reps each hand)*
+Pound the ball with your right hand, then fire a pass to the wall or rebounder. Receive, switch hands, repeat.
+
+**Drill 2 — Pound, Cross, Pass** *(10 reps each hand)*
+Add a crossover before the pass. Stay low on the cross.
+
+**Drill 3 — Pound, Through Legs, Pass** *(10 reps each hand)*
+Through-legs dribble, then a sharp pass. The through-legs move must be quick, not slow.
+
+**Drill 4 — Behind Back, Pass** *(10 reps each hand)*
+Behind-the-back dribble into a pass. This replicates a real game action — using a behind-back to create a better passing angle.
+
+**Drill 5 — Speed Dribble, Stop, Pass** *(4 reps each direction)*
+Full-speed dribble for 10 feet, hard stop, chest pass. This trains the ability to stop under control and make a clean pass.
+
+**Drill 6 — Combo: Cross → Through → Behind → Pass**
+All three moves before the pass. This is the hardest drill. 5 reps each starting hand.
+
+**Drill 7 — Eyes-Up Freestyle** *(2 minutes)*
+Free dribble — any moves — but your eyes must be fixed on the wall or on a target you pick. Never look down.
+
+---
+
+### Progression
+
+Start at comfortable speed and increase over 2–3 weeks. Once you can complete the sequence without looking down, you've built the foundation for game-speed handle.`,
     },
   },
 ];

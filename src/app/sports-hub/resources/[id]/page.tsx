@@ -283,6 +283,11 @@ export default async function ResourceViewerPage({ params }: Params) {
       {resource.isVideo && resource.videoUrl && (
         <div className="mb-10">
           <VideoEmbed url={resource.videoUrl} title={resource.title} />
+          {resource.videoCredit && (
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2 text-right">
+              Video by <span className="text-foreground">{resource.videoCredit}</span> on YouTube
+            </p>
+          )}
         </div>
       )}
 
