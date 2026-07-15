@@ -1,5 +1,5 @@
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getOrInitializeFirebaseApp } from '@/firebase/config';
+import { FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { 
@@ -22,14 +22,7 @@ export function initializeFirebase() {
   if (isClient && globalSdks.firebaseSdks) return globalSdks.firebaseSdks;
   if (cachedSdks) return cachedSdks;
 
-  const apps = getApps();
-  let firebaseApp;
-
-  if (!apps.length) {
-    firebaseApp = initializeApp(firebaseConfig);
-  } else {
-    firebaseApp = getApp();
-  }
+  const firebaseApp = getOrInitializeFirebaseApp();
 
   cachedSdks = getSdks(firebaseApp);
   if (isClient) {

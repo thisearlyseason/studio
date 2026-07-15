@@ -5,6 +5,7 @@ import { useTeam } from '@/components/providers/team-provider';
 import { useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy, limit, deleteDoc, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import { getApp } from 'firebase/app';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -431,8 +432,9 @@ export default function AdminPortalPage() {
     setProcessingBeta(true);
     try {
       // Attempt to create user via Firebase Auth REST API
-      const { firebaseConfig } = await import('@/firebase/config');
-      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
+      const apiKey = getApp().options.apiKey;
+      if (!apiKey) throw new Error('Firebase web configuration is unavailable.');
+      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
