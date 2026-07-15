@@ -3,8 +3,13 @@ import { Resend } from 'resend';
 import { verifyFirebaseToken } from '@/lib/api-auth';
 import { adminDb } from '@/lib/firebase-admin';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
+
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY env var not set');
+  return new Resend(apiKey);
+}
 
 export interface SendEmailPayload {
   teamId: string;
@@ -54,7 +59,7 @@ export async function POST(req: NextRequest) {
     });
     if (!to.length) return NextResponse.json({ error: 'No recipient email addresses are available.' }, { status: 400 });
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM,
       to,
       subject,

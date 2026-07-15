@@ -711,11 +711,16 @@ export const cleanupAnonymousUsers = onSchedule('every 15 minutes', async (_even
               await db.recursiveDelete(db.collection('users').doc(uid));
 
               // Delete all teams owned by this user
-              const teamsSnap = await db.collection('teams')
-                .where('ownerUserId', '==', uid).get();
+              const [ownedTeamsSnap, demoTeamsSnap] = await Promise.all([
+                db.collection('teams').where('ownerUserId', '==', uid).get(),
+                db.collection('teams').where('demoSessionOwnerId', '==', uid).get(),
+              ]);
+              const teams = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+              ownedTeamsSnap.docs.forEach((team) => teams.set(team.id, team));
+              demoTeamsSnap.docs.forEach((team) => teams.set(team.id, team));
               
               await Promise.allSettled(
-                teamsSnap.docs.map(teamDoc => db.recursiveDelete(teamDoc.ref))
+                [...teams.values()].map(teamDoc => db.recursiveDelete(teamDoc.ref))
               );
             } catch (err: any) {
               console.error(`[cleanup] Failed to delete data for uid ${uid}:`, err.message);

@@ -33,9 +33,10 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupAnonymousUsers = exports.getCalendarFeed = exports.connectGoogleCalendar = exports.onEventDelete = exports.onEventUpdate = exports.onEventCreate = exports.redeemLeagueInvite = exports.onTeamMemberDeleted = exports.onTeamMemberCreated = exports.onLeagueDeleted = exports.onLeagueAccessChanged = exports.onLeagueCreated = void 0;
+exports.cleanupAnonymousUsers = exports.purgeExpiredDeletionRequests = exports.getCalendarFeed = exports.connectGoogleCalendar = exports.onEventDelete = exports.onEventUpdate = exports.onEventCreate = exports.redeemLeagueInvite = exports.onTeamMemberDeleted = exports.onTeamMemberCreated = exports.onLeagueDeleted = exports.onLeagueAccessChanged = exports.onLeagueCreated = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const https_1 = require("firebase-functions/v2/https");
+const scheduler_1 = require("firebase-functions/v2/scheduler");
 const admin = __importStar(require("firebase-admin"));
 const googleapis_1 = require("googleapis");
 admin.initializeApp();
@@ -561,14 +562,67 @@ exports.getCalendarFeed = (0, https_1.onRequest)({ cors: true }, async (req, res
     }
 });
 /**
- * TRIGGER 5: cleanupAnonymousUsers (Scheduled)
- * Automatically sweeps and deletes anonymous Firebase accounts that are older than 24 hours,
- * preventing database bloat from demo users.
+ * Removes live accounts whose seven-day deletion period has elapsed. The
+ * request is stored separately from the profile so retries remain possible if
+ * Auth deletion temporarily fails. Organization owners are intentionally
+ * skipped: deleting them would orphan teams or leagues.
  */
-const scheduler_1 = require("firebase-functions/v2/scheduler");
-exports.cleanupAnonymousUsers = (0, scheduler_1.onSchedule)('every 24 hours', async (_event) => {
+exports.purgeExpiredDeletionRequests = (0, scheduler_1.onSchedule)('every 24 hours', async () => {
+    const now = admin.firestore.Timestamp.now();
+    const requests = await db.collection('accountDeletionRequests')
+        .where('purgeAt', '<=', now)
+        .limit(100)
+        .get();
+    let purged = 0;
+    for (const request of requests.docs) {
+        const uid = request.id;
+        try {
+            const [user, ownedTeams, ownedLeagues, memberships] = await Promise.all([
+                db.collection('users').doc(uid).get(),
+                db.collection('teams').where('ownerUserId', '==', uid).limit(1).get(),
+                db.collection('leagues').where('creatorId', '==', uid).limit(1).get(),
+                db.collectionGroup('members').where('userId', '==', uid).get(),
+            ]);
+            if (!ownedTeams.empty || !ownedLeagues.empty) {
+                await Promise.all([
+                    request.ref.update({ status: 'blocked', blockedAt: admin.firestore.FieldValue.serverTimestamp() }),
+                    user.ref.set({ deletionStatus: 'blocked' }, { merge: true }),
+                ]);
+                console.error(`[account-deletion] Skipped ${uid}: account still owns an organization.`);
+                continue;
+            }
+            const membershipRefs = memberships.docs.map((membership) => membership.ref);
+            for (let start = 0; start < membershipRefs.length; start += 450) {
+                const batch = db.batch();
+                membershipRefs.slice(start, start + 450).forEach((membershipRef) => batch.delete(membershipRef));
+                await batch.commit();
+            }
+            if (user.exists)
+                await db.recursiveDelete(user.ref);
+            try {
+                await admin.auth().deleteUser(uid);
+            }
+            catch (error) {
+                if (error.code !== 'auth/user-not-found')
+                    throw error;
+            }
+            await request.ref.delete();
+            purged += 1;
+        }
+        catch (error) {
+            console.error(`[account-deletion] Failed to purge ${uid}:`, error.message);
+        }
+    }
+    console.log(`[account-deletion] Purged ${purged} expired account deletion request(s).`);
+});
+/**
+ * TRIGGER 5: cleanupAnonymousUsers (Scheduled)
+ * Sweeps anonymous demo accounts after 15 minutes. Live accounts are never
+ * handled here; they follow the separate seven-day deletion-request lifecycle.
+ */
+exports.cleanupAnonymousUsers = (0, scheduler_1.onSchedule)('every 15 minutes', async (_event) => {
     const auth = admin.auth();
-    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const DEMO_LIFETIME_MS = 15 * 60 * 1000;
     const now = Date.now();
     let pageToken = undefined;
     let deletedCount = 0;
@@ -580,7 +634,7 @@ exports.cleanupAnonymousUsers = (0, scheduler_1.onSchedule)('every 24 hours', as
                 // Only target anonymous users (no providerData attached)
                 if (userRecord.providerData.length === 0) {
                     const creationTime = Date.parse(userRecord.metadata.creationTime);
-                    if (now - creationTime > ONE_DAY_MS) {
+                    if (now - creationTime > DEMO_LIFETIME_MS) {
                         usersToDelete.push(userRecord.uid);
                     }
                 }
@@ -595,9 +649,14 @@ exports.cleanupAnonymousUsers = (0, scheduler_1.onSchedule)('every 24 hours', as
                         // Delete user doc + all subcollections recursively
                         await db.recursiveDelete(db.collection('users').doc(uid));
                         // Delete all teams owned by this user
-                        const teamsSnap = await db.collection('teams')
-                            .where('ownerUserId', '==', uid).get();
-                        await Promise.allSettled(teamsSnap.docs.map(teamDoc => db.recursiveDelete(teamDoc.ref)));
+                        const [ownedTeamsSnap, demoTeamsSnap] = await Promise.all([
+                            db.collection('teams').where('ownerUserId', '==', uid).get(),
+                            db.collection('teams').where('demoSessionOwnerId', '==', uid).get(),
+                        ]);
+                        const teams = new Map();
+                        ownedTeamsSnap.docs.forEach((team) => teams.set(team.id, team));
+                        demoTeamsSnap.docs.forEach((team) => teams.set(team.id, team));
+                        await Promise.allSettled([...teams.values()].map(teamDoc => db.recursiveDelete(teamDoc.ref)));
                     }
                     catch (err) {
                         console.error(`[cleanup] Failed to delete data for uid ${uid}:`, err.message);

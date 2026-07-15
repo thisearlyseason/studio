@@ -13,7 +13,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return request.auth != null &&
-        request.auth.token.role == 'superadmin';
+        request.auth.token.get('role', '') == 'superadmin';
     }
 
     function isTeamMember(teamId) {
@@ -24,7 +24,14 @@ service cloud.firestore {
     function isTeamOwner(teamId) {
       return isSignedIn() &&
         exists(/databases/$(database)/documents/teams/$(teamId)) &&
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid;
+        (
+          get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+          (
+            request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'anonymous' &&
+            get(/databases/$(database)/documents/teams/$(teamId)).data.get('isDemo', false) == true &&
+            get(/databases/$(database)/documents/teams/$(teamId)).data.get('demoSessionOwnerId', '') == request.auth.uid
+          )
+        );
     }
 
     function isTeamCoachOfPlayer(playerId) {
@@ -35,7 +42,7 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/players/$(playerId)) &&
         tId != '' &&
         exists(/databases/$(database)/documents/teams/$(tId)) &&
-        get(/databases/$(database)/documents/teams/$(tId)).data.ownerUserId == request.auth.uid;
+        isTeamOwner(tId);
     }
 
     function isLeagueMember(leagueId) {
@@ -107,12 +114,15 @@ service cloud.firestore {
       // updates cannot transfer ownership or alter paid plan state.
       allow update: if isSuperAdmin() || (isSignedIn() && (
         resource != null &&
-        resource.data.ownerUserId == request.auth.uid &&
+        isTeamOwner(teamId) &&
         request.resource.data.ownerUserId == resource.data.ownerUserId &&
         request.resource.data.get('isPro', false) == resource.data.get('isPro', false) &&
-        request.resource.data.get('planId', 'free') == resource.data.get('planId', 'free')
+        request.resource.data.get('planId', 'free') == resource.data.get('planId', 'free') &&
+        request.resource.data.get('plan', 'free') == resource.data.get('plan', 'free') &&
+        request.resource.data.get('isDemo', false) == resource.data.get('isDemo', false) &&
+        request.resource.data.get('demoSessionOwnerId', '') == resource.data.get('demoSessionOwnerId', '')
       ));
-      allow delete: if isSuperAdmin() || (isSignedIn() && resource != null && resource.data.ownerUserId == request.auth.uid);
+      allow delete: if isSuperAdmin() || (isSignedIn() && resource != null && isTeamOwner(teamId));
 
       match /members/{memberId} {
         allow read: if isSuperAdmin() || (isSignedIn() && (
@@ -242,7 +252,9 @@ service cloud.firestore {
 
       allow create: if isSignedIn() && (
         request.resource.data.get('userId', '') == request.auth.uid ||
-        request.resource.data.get('parentId', '') == request.auth.uid
+        request.resource.data.get('parentId', '') == request.auth.uid ||
+        (request.resource.data.get('updatedByTeamId', '') != '' &&
+         isTeamOwner(request.resource.data.updatedByTeamId))
       );
 
       // Coaches can update top-level player doc (e.g. toggleRecruitingProfile).
@@ -253,7 +265,7 @@ service cloud.firestore {
         isTeamCoachOfPlayer(playerId) ||
         (request.resource.data.get('updatedByTeamId', '') != '' &&
          exists(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)) &&
-         get(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)).data.ownerUserId == request.auth.uid)
+         isTeamOwner(request.resource.data.updatedByTeamId))
       ));
 
       allow delete: if isSuperAdmin() || (isSignedIn() && (
@@ -274,12 +286,12 @@ service cloud.firestore {
         // request.resource.data is available for create and update.
         // Coaches include updatedByTeamId in written data; rule verifies ownership.
         allow create, update: if isSuperAdmin() || (isSignedIn() && (
-          get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
-          isTeamCoachOfPlayer(playerId) ||
-          playerId == request.auth.uid ||
           (request.resource.data.get('updatedByTeamId', '') != '' &&
            exists(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)) &&
-           get(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)).data.ownerUserId == request.auth.uid)
+           isTeamOwner(request.resource.data.updatedByTeamId)) ||
+          get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
+          isTeamCoachOfPlayer(playerId) ||
+          playerId == request.auth.uid
         ));
 
         // ── DELETE ───────────────────────────────────────────────────────────
@@ -292,14 +304,19 @@ service cloud.firestore {
           playerId == request.auth.uid ||
           (resource.data.get('updatedByTeamId', '') != '' &&
            exists(/databases/$(database)/documents/teams/$(resource.data.updatedByTeamId)) &&
-           get(/databases/$(database)/documents/teams/$(resource.data.updatedByTeamId)).data.ownerUserId == request.auth.uid)
+           isTeamOwner(resource.data.updatedByTeamId))
         ));
       }
     }
 
     // ─── Leagues ────────────────────────────────────────────────────────────
     match /leagues/{leagueId} {
-      allow read: if isSuperAdmin() || isLeagueMember(leagueId);
+      // Use the document being evaluated so creator-scoped collection queries
+      // can be proven by Firestore without a separate get() returning null.
+      allow read: if isSuperAdmin() || (isSignedIn() && (
+        resource.data.get('creatorId', '') == request.auth.uid ||
+        resource.data.get('memberUserIds', []).hasAny([request.auth.uid])
+      ));
       // Browser-created leagues start with their organizer only. Cloud Functions
       // later expand memberUserIds from enrolled team memberships.
       allow create: if isSuperAdmin() || (isSignedIn() &&

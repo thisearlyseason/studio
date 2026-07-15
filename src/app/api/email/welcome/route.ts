@@ -3,8 +3,13 @@ import { Resend } from 'resend';
 import { welcomeEmail } from '@/lib/email-templates';
 import { verifyFirebaseToken } from '@/lib/api-auth';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
+
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY env var not set');
+  return new Resend(apiKey);
+}
 
 /**
  * POST /api/email/welcome
@@ -34,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     const { subject, html } = welcomeEmail({ name, email, password, planType });
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM,
       to: [email],
       subject,

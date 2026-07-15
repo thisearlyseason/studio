@@ -94,21 +94,19 @@ function DemoSeedWrapper({
       try {
         if (!auth.currentUser) throw new Error('No authenticated user');
 
-        // Always run the full client-side seeder — it seeds hundreds of documents
-        // (players, events, games, chats, drills, fundraising, equipment, etc.).
-        // The server-side /api/demo/seed was only a skeleton; the full seeder must be primary.
-        const primaryId = await seedGuestDemoTeam(db, user.uid, demoPlanId);
+        // Server establishes the protected profile and approved team shells.
+        // The rich client blueprint may only fill those server-approved demos.
+        const idToken = await getAuthToken(auth);
+        if (!idToken) throw new Error('Demo session expired. Please start the demo again.');
+        const bootstrapResponse = await fetch('/api/demo/seed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ planId: demoPlanId }),
+        });
+        const bootstrapPayload = await bootstrapResponse.json();
+        if (!bootstrapResponse.ok) throw new Error(bootstrapPayload.error || 'Unable to initialize the demo.');
 
-        // Log a diagnostic ping to the server-side route (non-blocking, for monitoring)
-        getAuthToken(auth).then(idToken => {
-          if (idToken) {
-            fetch('/api/demo/seed', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-              body: JSON.stringify({ planId: demoPlanId }),
-            }).catch(() => {}); // fire-and-forget
-          }
-        }).catch(() => {});
+        const primaryId = await seedGuestDemoTeam(db, user.uid, demoPlanId);
 
         if (primaryId) {
           localStorage.setItem('sf_session_team_id', primaryId);
@@ -193,6 +191,7 @@ function BetaDemoSeeder({
   setIsSeedingDemo: (v: boolean) => void;
 }) {
   const db = useFirestore();
+  const auth = useAuth();
   const seederFiredRef = useRef(false);
 
   useEffect(() => {
@@ -228,13 +227,24 @@ function BetaDemoSeeder({
 
     const seed = async (attempt = 1) => {
       try {
+        const idToken = await getAuthToken(auth);
+        if (!idToken) throw new Error('Beta session expired. Please sign in again.');
+        const bootstrap = await fetch('/api/demo/seed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ planId }),
+        });
+        if (!bootstrap.ok) throw new Error((await bootstrap.json()).error || 'Unable to initialize beta workspace.');
+
         const primaryId = await seedGuestDemoTeam(db, user.uid, planId, true /* isBetaTester */);
         if (primaryId) {
           localStorage.setItem('sf_session_team_id', primaryId);
         }
-        // Mark as seeded in Firestore so we never re-seed across devices/sessions
-        const { updateDoc, doc: fsDoc } = await import('firebase/firestore');
-        await updateDoc(fsDoc(db, 'users', user.uid), { betaDemoSeeded: true });
+        const complete = await fetch('/api/demo/seed', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        });
+        if (!complete.ok) throw new Error((await complete.json()).error || 'Unable to finalize beta workspace.');
 
         toast({ title: '🎮 Beta Environment Ready', description: 'Your demo workspace has been set up.' });
         setTimeout(() => window.location.replace('/dashboard'), 1500);
@@ -251,7 +261,7 @@ function BetaDemoSeeder({
       }
     };
     seed();
-  }, [user, userProfile, isTeamsLoading, teamsCount, isDemoInitializing, db, setIsDemoInitializing, setIsSeedingDemo]);
+  }, [user, userProfile, isTeamsLoading, teamsCount, isDemoInitializing, db, auth, setIsDemoInitializing, setIsSeedingDemo]);
 
   return null;
 }

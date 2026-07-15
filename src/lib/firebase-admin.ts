@@ -28,8 +28,14 @@ function initAdminApp(): admin.app.App {
   }
 
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const isEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST);
 
-  if (serviceAccountJson) {
+  if (isEmulator) {
+    _app = admin.initializeApp({
+      projectId: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'demo-the-squad-audit',
+    });
+    console.info('[firebase-admin] Initialized for the local Firebase emulators.');
+  } else if (serviceAccountJson) {
     let serviceAccount: object | undefined;
 
     // Attempt 1: parse as-is (the happy path — raw JSON pasted into Vercel)

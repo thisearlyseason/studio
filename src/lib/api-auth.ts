@@ -19,6 +19,7 @@ interface DecodedToken {
   email?: string;
   role?: string;
   authTime?: number;
+  signInProvider?: string;
 }
 
 /**
@@ -59,6 +60,7 @@ export async function verifyFirebaseToken(
       email: decodedToken.email,
       role,
       authTime: decodedToken.auth_time,
+      signInProvider: (decodedToken.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider,
     };
   } catch (err: any) {
     // verifyIdToken throws for expired tokens, invalid signatures, revoked tokens, etc.

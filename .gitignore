@@ -44,6 +44,7 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 functions/node_modules/
+/.local-tools/
 
 # backups and admin scripts
 /create_user.js
