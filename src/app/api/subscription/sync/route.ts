@@ -72,16 +72,18 @@ export async function POST(req: NextRequest) {
       last_webhook_sync: new Date().toISOString(),
     });
 
-    // CASCADE: Update all teams owned by this user (chunked to stay under Firestore's 500-op batch limit)
+    // Sync the plan label only to teams that were already allocated a Pro slot.
+    // New subscriptions must not silently grant every owned team paid access.
     try {
       const teamsSnap = await adminDb
         .collection('teams')
         .where('ownerUserId', '==', userId)
         .get();
-      if (!teamsSnap.empty) {
+      const allocatedTeams = teamsSnap.docs.filter(teamDoc => teamDoc.data().isPro === true);
+      if (allocatedTeams.length > 0) {
         const CHUNK = 400;
-        for (let i = 0; i < teamsSnap.docs.length; i += CHUNK) {
-          const chunk = teamsSnap.docs.slice(i, i + CHUNK);
+        for (let i = 0; i < allocatedTeams.length; i += CHUNK) {
+          const chunk = allocatedTeams.slice(i, i + CHUNK);
           const batch = adminDb.batch();
           chunk.forEach(teamDoc => {
             batch.update(teamDoc.ref, {

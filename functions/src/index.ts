@@ -1,9 +1,175 @@
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
 
 admin.initializeApp();
 const db = admin.firestore();
+
+/**
+ * League documents cache the user IDs entitled to read them. This field is
+ * maintained by trusted server code, never by the browser. It includes the
+ * organizer and all user-backed memberships of each enrolled team.
+ */
+async function syncLeagueMemberUsers(leagueId: string): Promise<void> {
+  const leagueRef = db.collection("leagues").doc(leagueId);
+  const leagueSnap = await leagueRef.get();
+  if (!leagueSnap.exists) return;
+
+  const league = leagueSnap.data() || {};
+  const userIds = new Set<string>();
+  if (typeof league.creatorId === "string" && league.creatorId) userIds.add(league.creatorId);
+
+  const teamIds = Array.isArray(league.memberTeamIds) ? league.memberTeamIds : [];
+  await Promise.all(teamIds
+    .filter((teamId: unknown): teamId is string =>
+      typeof teamId === "string" && !teamId.startsWith("manual_") && !teamId.startsWith("recruit_"))
+    .map(async (teamId) => {
+      const members = await db.collection("teams").doc(teamId).collection("members").get();
+      members.forEach((member) => {
+        const userId = member.data().userId;
+        if (typeof userId === "string" && userId) userIds.add(userId);
+      });
+    }));
+
+  const next = [...userIds].sort();
+  const current = Array.isArray(league.memberUserIds)
+    ? league.memberUserIds.filter((userId: unknown): userId is string => typeof userId === "string").sort()
+    : [];
+  if (next.length === current.length && next.every((userId, index) => userId === current[index])) return;
+
+  await leagueRef.update({ memberUserIds: next });
+}
+
+async function syncLeaguesForTeam(teamId: string): Promise<void> {
+  const leagues = await db.collection("leagues")
+    .where("memberTeamIds", "array-contains", teamId)
+    .get();
+  await Promise.all(leagues.docs.map((league) => syncLeagueMemberUsers(league.id)));
+}
+
+/** Publishes only spectator-safe league fields; private league records stay private. */
+async function syncPublicLeagueView(leagueId: string): Promise<void> {
+  const leagueSnap = await db.collection("leagues").doc(leagueId).get();
+  const publicRef = db.collection("publicLeagueViews").doc(leagueId);
+  if (!leagueSnap.exists) {
+    await publicRef.delete();
+    return;
+  }
+
+  const league = leagueSnap.data() || {};
+  const teams = Object.fromEntries(Object.entries(league.teams || {}).map(([teamId, team]: [string, any]) => [teamId, {
+    teamName: team.teamName || "",
+    teamLogoUrl: team.teamLogoUrl || "",
+    wins: Number(team.wins || 0),
+    losses: Number(team.losses || 0),
+    ties: Number(team.ties || 0),
+    points: Number(team.points || 0),
+  }]));
+  const schedule = Array.isArray(league.schedule) ? league.schedule.map((game: any) => ({
+    id: game.id || "",
+    team1: game.team1 || "",
+    team1Id: game.team1Id || "",
+    team2: game.team2 || "",
+    team2Id: game.team2Id || "",
+    date: game.date || "",
+    time: game.time || "",
+    location: game.location || "",
+    status: game.status || "scheduled",
+    isCompleted: Boolean(game.isCompleted),
+    score1: Number(game.score1 || 0),
+    score2: Number(game.score2 || 0),
+  })) : [];
+
+  await publicRef.set({
+    id: leagueId,
+    name: league.name || "",
+    sport: league.sport || "",
+    divisionTitle: league.divisionTitle || "",
+    teams,
+    schedule,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+export const onLeagueCreated = onDocumentCreated("leagues/{leagueId}", async (event) => {
+  await Promise.all([
+    syncLeagueMemberUsers(event.params.leagueId),
+    syncPublicLeagueView(event.params.leagueId),
+  ]);
+});
+
+export const onLeagueAccessChanged = onDocumentUpdated("leagues/{leagueId}", async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  if (!before || !after) return;
+  await syncPublicLeagueView(event.params.leagueId);
+  if (before.creatorId !== after.creatorId || JSON.stringify(before.memberTeamIds || []) !== JSON.stringify(after.memberTeamIds || [])) {
+    await syncLeagueMemberUsers(event.params.leagueId);
+  }
+});
+
+export const onLeagueDeleted = onDocumentDeleted("leagues/{leagueId}", async (event) => {
+  await db.collection("publicLeagueViews").doc(event.params.leagueId).delete();
+});
+
+export const onTeamMemberCreated = onDocumentCreated("teams/{teamId}/members/{memberId}", async (event) => {
+  await syncLeaguesForTeam(event.params.teamId);
+});
+
+export const onTeamMemberDeleted = onDocumentDeleted("teams/{teamId}/members/{memberId}", async (event) => {
+  await syncLeaguesForTeam(event.params.teamId);
+});
+
+/**
+ * Redeems a league invite code for the signed-in user. The client never reads
+ * the league collection to validate codes and cannot grant itself access.
+ */
+export const redeemLeagueInvite = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in before joining a league.");
+  }
+
+  const inviteCode = typeof request.data?.inviteCode === "string"
+    ? request.data.inviteCode.trim().toUpperCase()
+    : "";
+  if (!/^[A-Z0-9_-]{3,64}$/.test(inviteCode)) {
+    throw new HttpsError("invalid-argument", "Enter a valid league invite code.");
+  }
+
+  const match = await db.collection("leagues")
+    .where("inviteCode", "==", inviteCode)
+    .limit(1)
+    .get();
+
+  let leagueRef: admin.firestore.DocumentReference | undefined = match.docs[0]?.ref;
+  if (!leagueRef) {
+    // Backward-compatible organizer/member links may use a league document ID.
+    // They do not grant new access to someone who has not redeemed an invite.
+    const directRef = db.collection("leagues").doc(inviteCode);
+    const direct = await directRef.get();
+    const existingMembers = Array.isArray(direct.data()?.memberUserIds) ? direct.data()?.memberUserIds : [];
+    if (direct.exists && (direct.data()?.creatorId === request.auth.uid || existingMembers.includes(request.auth.uid))) {
+      leagueRef = directRef;
+    }
+  }
+
+  if (!leagueRef) {
+    throw new HttpsError("not-found", "That league invite code is not valid.");
+  }
+
+  await leagueRef.update({
+    memberUserIds: admin.firestore.FieldValue.arrayUnion(request.auth.uid),
+    lastInviteRedeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await leagueRef.collection("accessRedemptions").doc(request.auth.uid).set({
+    userId: request.auth.uid,
+    redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { leagueId: leagueRef.id };
+});
 
 /**
  * Helper to get Google OAuth2 Client for a specific user.
@@ -261,8 +427,6 @@ export const onEventDelete = onDocumentDeleted("teams/{teamId}/events/{eventId}"
  * Exchanges a code for tokens and saves them securely in Firestore.
  * This is the endpoint the frontend would call after doing the Google Redirect flow.
  */
-import { onRequest } from "firebase-functions/v2/https";
-
 export const connectGoogleCalendar = onRequest({ cors: true }, async (req, res) => {
   // Verify Firebase ID token from Authorization header
   const authHeader = req.headers.authorization;
@@ -453,15 +617,68 @@ export const getCalendarFeed = onRequest({ cors: true }, async (req, res) => {
 });
 
 /**
- * TRIGGER 5: cleanupAnonymousUsers (Scheduled)
- * Automatically sweeps and deletes anonymous Firebase accounts that are older than 24 hours,
- * preventing database bloat from demo users.
+ * Removes live accounts whose seven-day deletion period has elapsed. The
+ * request is stored separately from the profile so retries remain possible if
+ * Auth deletion temporarily fails. Organization owners are intentionally
+ * skipped: deleting them would orphan teams or leagues.
  */
-import { onSchedule } from "firebase-functions/v2/scheduler";
+export const purgeExpiredDeletionRequests = onSchedule('every 24 hours', async () => {
+  const now = admin.firestore.Timestamp.now();
+  const requests = await db.collection('accountDeletionRequests')
+    .where('purgeAt', '<=', now)
+    .limit(100)
+    .get();
 
-export const cleanupAnonymousUsers = onSchedule('every 24 hours', async (_event: any) => {
+  let purged = 0;
+  for (const request of requests.docs) {
+    const uid = request.id;
+    try {
+      const [user, ownedTeams, ownedLeagues, memberships] = await Promise.all([
+        db.collection('users').doc(uid).get(),
+        db.collection('teams').where('ownerUserId', '==', uid).limit(1).get(),
+        db.collection('leagues').where('creatorId', '==', uid).limit(1).get(),
+        db.collectionGroup('members').where('userId', '==', uid).get(),
+      ]);
+
+      if (!ownedTeams.empty || !ownedLeagues.empty) {
+        await Promise.all([
+          request.ref.update({ status: 'blocked', blockedAt: admin.firestore.FieldValue.serverTimestamp() }),
+          user.ref.set({ deletionStatus: 'blocked' }, { merge: true }),
+        ]);
+        console.error(`[account-deletion] Skipped ${uid}: account still owns an organization.`);
+        continue;
+      }
+
+      const membershipRefs = memberships.docs.map((membership) => membership.ref);
+      for (let start = 0; start < membershipRefs.length; start += 450) {
+        const batch = db.batch();
+        membershipRefs.slice(start, start + 450).forEach((membershipRef) => batch.delete(membershipRef));
+        await batch.commit();
+      }
+
+      if (user.exists) await db.recursiveDelete(user.ref);
+      try {
+        await admin.auth().deleteUser(uid);
+      } catch (error: any) {
+        if (error.code !== 'auth/user-not-found') throw error;
+      }
+      await request.ref.delete();
+      purged += 1;
+    } catch (error: any) {
+      console.error(`[account-deletion] Failed to purge ${uid}:`, error.message);
+    }
+  }
+  console.log(`[account-deletion] Purged ${purged} expired account deletion request(s).`);
+});
+
+/**
+ * TRIGGER 5: cleanupAnonymousUsers (Scheduled)
+ * Sweeps anonymous demo accounts after 15 minutes. Live accounts are never
+ * handled here; they follow the separate seven-day deletion-request lifecycle.
+ */
+export const cleanupAnonymousUsers = onSchedule('every 15 minutes', async (_event: any) => {
   const auth = admin.auth();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const DEMO_LIFETIME_MS = 15 * 60 * 1000;
   const now = Date.now();
   let pageToken: string | undefined = undefined;
   let deletedCount = 0;
@@ -475,7 +692,7 @@ export const cleanupAnonymousUsers = onSchedule('every 24 hours', async (_event:
         // Only target anonymous users (no providerData attached)
         if (userRecord.providerData.length === 0) {
           const creationTime = Date.parse(userRecord.metadata.creationTime);
-          if (now - creationTime > ONE_DAY_MS) {
+          if (now - creationTime > DEMO_LIFETIME_MS) {
             usersToDelete.push(userRecord.uid);
           }
         }

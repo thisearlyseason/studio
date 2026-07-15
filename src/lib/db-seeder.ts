@@ -727,6 +727,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             createdBy: userId,
             creatorId: userId,
             memberTeamIds: [strikerId, lakerId, 'hawks_id', 'tigers_id', 'eagles_id'],
+            memberUserIds: [userId],
             isDemo: true,
             status: 'active',
             teams: {
@@ -1088,6 +1089,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
             createdBy: userId,
             creatorId: userId,
             memberTeamIds,
+            memberUserIds: [userId],
             isDemo: true,
             status: 'active',
             createdAt: now,

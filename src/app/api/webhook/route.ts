@@ -104,6 +104,7 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
 
   const status = subscription.status;
   const isActive = status === 'active' || status === 'past_due' || status === 'trialing';
+  const selectedTeamId = subscription.metadata?.team_id;
   const userRef = adminDb.collection('users').doc(userId);
 
   // 3. Update user plan data
@@ -122,23 +123,36 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
     if (err.code === 5 /* NOT_FOUND in gRPC Admin SDK */) return;
   }
 
-  // 4. CASCADE: Update all teams owned by this user (chunked to stay under 500-op limit)
+  // 4. Update only teams that were already allocated a Pro slot. A new
+  // subscription never silently upgrades every team owned by an account.
   try {
     const teamsSnap = await adminDb
       .collection('teams')
       .where('ownerUserId', '==', userId)
       .get();
 
-    if (!teamsSnap.empty) {
+    const allocatedTeams = teamsSnap.docs.filter(teamDoc => teamDoc.data().isPro === true);
+    // A checkout that named a squad may allocate that exact squad after the
+    // subscription is confirmed, but never grants Pro to unrelated squads.
+    if (isActive && selectedTeamId && !allocatedTeams.some(teamDoc => teamDoc.id === selectedTeamId)) {
+      const selectedTeam = teamsSnap.docs.find(teamDoc => teamDoc.id === selectedTeamId);
+      const capacity = baseLimit + extraTeams;
+      if (selectedTeam?.data().ownerUserId === userId && allocatedTeams.length < capacity) {
+        allocatedTeams.push(selectedTeam);
+      } else {
+        console.warn(`[Webhook] Could not allocate Pro seat to team ${selectedTeamId} for user ${userId}`);
+      }
+    }
+    if (allocatedTeams.length > 0) {
       // Chunk into groups of 400 to stay well under Firestore's 500-op batch limit
       const CHUNK = 400;
-      for (let i = 0; i < teamsSnap.docs.length; i += CHUNK) {
-        const chunk = teamsSnap.docs.slice(i, i + CHUNK);
+      for (let i = 0; i < allocatedTeams.length; i += CHUNK) {
+        const chunk = allocatedTeams.slice(i, i + CHUNK);
         const batch = adminDb.batch();
         chunk.forEach(teamDoc => {
           batch.update(teamDoc.ref, {
             planId: isActive ? planType : 'free',
-            isPro: isActive && planType !== 'free',
+            isPro: isActive,
             last_plan_sync: new Date().toISOString(),
           });
         });
@@ -208,6 +222,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
+  // Stripe retries deliveries. Atomically claim each verified event before any
+  // subscription or notification side effect to prevent duplicate records.
+  const eventRef = adminDb.collection('stripeWebhookEvents').doc(event.id);
+  const duplicate = await adminDb.runTransaction(async transaction => {
+    const existing = await transaction.get(eventRef);
+    if (existing.exists) {
+      const previousStatus = existing.data()?.status;
+      // A failed attempt must remain eligible for Stripe's retry. Completed
+      // events and in-flight deliveries are safe to acknowledge idempotently.
+      if (previousStatus === 'completed' || previousStatus === 'processing') return true;
+      transaction.update(eventRef, {
+        status: 'processing',
+        retriedAt: new Date().toISOString(),
+      });
+      return false;
+    }
+    transaction.set(eventRef, {
+      type: event.type,
+      status: 'processing',
+      receivedAt: new Date().toISOString(),
+    });
+    return false;
+  });
+  if (duplicate) return NextResponse.json({ received: true, duplicate: true });
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -216,10 +255,14 @@ export async function POST(req: NextRequest) {
           const stripe = getStripe();
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           // Propagate firebase_uid from session metadata if not on subscription
-          if (!subscription.metadata?.firebase_uid && session.metadata?.firebase_uid) {
+          if (
+            (!subscription.metadata?.firebase_uid && session.metadata?.firebase_uid) ||
+            (!subscription.metadata?.team_id && session.metadata?.team_id)
+          ) {
             subscription.metadata = {
               ...subscription.metadata,
               firebase_uid: session.metadata.firebase_uid,
+              ...(session.metadata.team_id ? { team_id: session.metadata.team_id } : {}),
             };
           }
           await syncSubscriptionToFirestore(subscription);
@@ -363,9 +406,11 @@ export async function POST(req: NextRequest) {
         break;
     }
 
+    await eventRef.update({ status: 'completed', completedAt: new Date().toISOString() });
     return NextResponse.json({ received: true });
   } catch (err: any) {
     console.error('[Webhook] Processing error:', err.message);
+    await eventRef.update({ status: 'failed', failedAt: new Date().toISOString(), error: err.message }).catch(() => {});
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -46,8 +46,7 @@ export async function GET(req: NextRequest) {
       }
       // Hub admins only
       if (teamSnap.data()!.ownerUserId !== userId) {
-        const userSnap = await adminDb.collection('users').doc(userId).get();
-        if (userSnap.data()?.role !== 'superadmin') {
+        if (auth.role !== 'superadmin') {
           return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
         }
       }

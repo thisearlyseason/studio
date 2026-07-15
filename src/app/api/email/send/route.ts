@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { adminDb } from '@/lib/firebase-admin';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
 
 export interface SendEmailPayload {
-  to: string | string[];
+  teamId: string;
+  recipientUserIds: string[];
   subject: string;
   html: string;
   replyTo?: string;
@@ -17,7 +19,7 @@ export interface SendEmailPayload {
  * Generic authenticated email sender. All template construction happens
  * on the client side or in a parent route; this is the delivery layer.
  *
- * Body: { to, subject, html, replyTo? }
+ * Body: { teamId, recipientUserIds, subject, html, replyTo? }
  */
 export async function POST(req: NextRequest) {
   const authResult = await verifyFirebaseToken(req);
@@ -25,15 +27,36 @@ export async function POST(req: NextRequest) {
 
   try {
     const body: SendEmailPayload = await req.json();
-    const { to, subject, html, replyTo } = body;
+    const { teamId, recipientUserIds, subject, html, replyTo } = body;
 
-    if (!to || !subject || !html) {
-      return NextResponse.json({ error: 'Missing required fields: to, subject, html' }, { status: 400 });
+    if (!teamId || !Array.isArray(recipientUserIds) || !recipientUserIds.length || !subject || !html) {
+      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
+    if (recipientUserIds.length > 500) {
+      return NextResponse.json({ error: 'Too many recipients.' }, { status: 400 });
+    }
+
+    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
+    if (!teamSnap.exists || (authResult.role !== 'superadmin' && teamSnap.data()!.ownerUserId !== authResult.uid)) {
+      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+    }
+
+    const uniqueRecipients = [...new Set(recipientUserIds.filter((id): id is string => typeof id === 'string'))];
+    const memberSnaps = await Promise.all(uniqueRecipients.map(id =>
+      adminDb.collection('teams').doc(teamId).collection('members').doc(id).get()
+    ));
+    if (memberSnaps.some(member => !member.exists)) {
+      return NextResponse.json({ error: 'Recipients must be current team members.' }, { status: 403 });
+    }
+    const to = memberSnaps.flatMap(member => {
+      const email = member.data()?.email;
+      return typeof email === 'string' && email.includes('@') ? [email] : [];
+    });
+    if (!to.length) return NextResponse.json({ error: 'No recipient email addresses are available.' }, { status: 400 });
 
     const { data, error } = await resend.emails.send({
       from: FROM,
-      to: Array.isArray(to) ? to : [to],
+      to,
       subject,
       html,
       ...(replyTo ? { replyTo } : {}),

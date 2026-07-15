@@ -195,8 +195,6 @@ export default function SignupPage() {
         notificationsEnabled: true,
         createdAt: new Date().toISOString(),
         avatarUrl: `https://picsum.photos/seed/${user.uid}/150/150`,
-        activePlanId: 'starter_squad',
-        proTeamLimit: 0,
       });
 
       // Adult player: create matching player record
@@ -207,6 +205,7 @@ export default function SignupPage() {
           isMinor: false,
           userId: user.uid,
           hasLogin: true,
+          recruitingProfileEnabled: false,
           createdAt: new Date().toISOString(),
         });
       }
@@ -259,8 +258,8 @@ export default function SignupPage() {
           const effectivePlayerId = `p_${user.uid}`;
           await fetch('/api/teams/join', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: joinCode.trim().toUpperCase(), playerId: effectivePlayerId, role: 'Player' }),
+            headers: { 'Content-Type': 'application/json', ...authHeader(await getAuthToken(auth)) },
+            body: JSON.stringify({ code: joinCode.trim().toUpperCase(), playerId: effectivePlayerId }),
           });
         } catch (_) {
           // Non-critical — user can join from dashboard

@@ -19,7 +19,6 @@ async function dispatchNotification({
   url,
   emailSubject,
   emailHtml,
-  memberEmails,
 }: {
   idToken: string;
   db: any;
@@ -30,43 +29,29 @@ async function dispatchNotification({
   url?: string;
   emailSubject?: string;
   emailHtml?: string;
-  memberEmails?: string[];
 }) {
   try {
-    // 1. Collect FCM tokens from users/{uid}.fcmTokens
-    const { getDocs: _getDocs, collection: _col, doc: _doc, getDoc: _getDoc } = await import('firebase/firestore');
-    const tokens: string[] = [];
-    await Promise.all(
-      memberUserIds.map(async (uid) => {
-        try {
-          const snap = await _getDoc(_doc(db, 'users', uid));
-          const userTokens: string[] = snap.data()?.fcmTokens || [];
-          tokens.push(...userTokens);
-        } catch { /* skip missing user docs */ }
-      })
-    );
-
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${idToken}`,
     };
 
-    // 2. Send push notification
-    if (tokens.length) {
-      fetch('/api/notify', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ tokens, title, body, url }),
-      }).catch((e) => console.warn('[Push] dispatch error:', e));
-    }
+    // 1. The server resolves member device tokens so clients never need access
+    // to other users' notification data.
+    fetch('/api/notify', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ teamId, recipientUserIds: memberUserIds, title, body, url }),
+    }).catch((e) => console.warn('[Push] dispatch error:', e));
 
-    // 3. Send email notifications
-    if (emailSubject && emailHtml && memberEmails?.length) {
+    // 2. The server likewise resolves member email addresses from membership data.
+    if (emailSubject && emailHtml) {
       fetch('/api/email/send', {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          to: memberEmails,
+          teamId,
+          recipientUserIds: memberUserIds,
           subject: emailSubject,
           html: emailHtml,
         }),
@@ -606,6 +591,8 @@ export type League = {
     code?: string;
   }>;
   memberTeamIds?: string[];
+  /** Server-maintained user IDs allowed to access this league. */
+  memberUserIds?: string[];
   memberIndivIds?: string[];
   schedule?: any[];
   config?: any;
@@ -1068,8 +1055,10 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (snap.exists()) {
         const data = snap.data();
         
-        // Explicitly inject Elite League overrides for Superadmin into the global userProfile state
-        const isSuper = userRole === 'superadmin' || data.role === 'superadmin';
+        // Superadmin authority comes exclusively from the signed Firebase Auth
+        // token. A Firestore profile is user-readable data and must never grant
+        // global authority on its own.
+        const isSuper = userRole === 'superadmin';
         
         // For beta testers, always prefer Firebase Auth identity so the real
         // logged-in email/name shows instead of seeded demo placeholders
@@ -1371,24 +1360,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const isSuperAdmin = useMemo(() => {
     if (!firebaseUser?.uid) return false;
-    return userRole === 'superadmin' || userProfile?.role === 'superadmin';
-  }, [firebaseUser?.uid, userRole, userProfile?.role]);
+    return userRole === 'superadmin';
+  }, [firebaseUser?.uid, userRole]);
 
   const isStaff = useMemo(() => {
     if (!firebaseUser) return false;
     if (isSuperAdmin) return true;
     
-    // 1. Global Role Override: Users with global 'coach', 'admin', or 'league_creator' role have staff access to all teams
-    if (userProfile?.role === 'coach' || userProfile?.role === 'admin' || userProfile?.role === 'league_creator') return true; 
-
-    // 2. Team-Level Admin: Check if user is an Admin for the active team
+    // Team-level authority only: a profile role must not grant staff access to
+    // a team the user does not manage.
     if (activeTeam?.role === 'Admin') return true;
+    if (activeTeam?.ownerUserId === firebaseUser.uid) return true;
 
-    // 3. Position Check: Check specific staff positions within the active team
+    // Position Check: Check specific staff positions within the active team
     const currentMember = getMember(firebaseUser.uid);
     const staffPositions = ['Coach', 'Assistant Coach', 'Team Representative', 'Athletic Director', 'Staff', 'Manager', 'Squad Leader', 'Coach Guest'];
     return staffPositions.includes(currentMember?.position || '');
-  }, [activeTeam, firebaseUser, members, userProfile, isSuperAdmin]);
+  }, [activeTeam, firebaseUser, members, isSuperAdmin]);
 
   const isParent = useMemo(() => {
     const role = userProfile?.role?.toLowerCase();
@@ -1423,10 +1411,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const isPrimaryClubAuthority = useMemo(() => {
     if (isSuperAdmin) return true;
 
-    // 1. Direct field on user profile (explicitly granted or seeded)
-    if (userProfile?.isPrimaryClubAuthority) return true;
-
-    // 2. Determine Pro/Authority status (at user level or active team level)
+    // Determine Pro/Authority status (at user level or active team level).
+    // A profile field or global role alone is not organization authority.
     const authorityPlanIds = ['school', 'elite', 'league', 'team'];
     const hasUserAuthorityPlan = authorityPlanIds.includes(userProfile?.plan_type || '');
     const isActiveTeamAuthority = activeTeam?.isPro && authorityPlanIds.includes(activeTeam?.planId || '');
@@ -1435,11 +1421,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const isCurrentTeamAdmin = activeTeam?.role === 'Admin' || 
                               activeTeam?.ownerUserId === userProfile?.id || 
                               activeTeam?.ownerUserId === firebaseUser?.uid;
-    const isGlobalManagementRole = userProfile?.role === 'admin' || userProfile?.role === 'coach' || userProfile?.role === 'league_creator';
-
-    // 4. Authority by Plan + Role/Ownership
+    // Authority by plan plus ownership of the active organization.
     if (hasUserAuthorityPlan || isActiveTeamAuthority) {
-      if (isCurrentTeamAdmin || isGlobalManagementRole) return true;
+      if (isCurrentTeamAdmin) return true;
     }
 
     // 5. Fallback: Check all owned teams for any Elite/Pro status
@@ -1844,15 +1828,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const createNewTeam = useCallback(async (name: string, type: any, pos: string, description?: string, planId?: string, customWaiverTitle?: string, customWaiverContent?: string, schoolId?: string, coachName?: string, coachEmail?: string, overrideOwnerId?: string) => { 
     if (!firebaseUser || !db || !userProfile) return ''; 
 
-    // Enforce Pro Quota only if the requested plan is a paid/pro-tier plan and quota is exhausted.
-    // 'free' and 'starter_squad' are always allowed; all paid tiers require quota.
-    const freePlanIds = ['free', 'starter_squad', ''];
-    const isTargetPro = planId ? !freePlanIds.includes(planId) : false;
-    if (isTargetPro && proQuotaStatus.remaining <= 0) {
-      setIsPaywallOpen(true);
-      throw new Error("Pro team limit reached. Please upgrade or manage your billing.");
-    }
-    // Free (starter) teams are always allowed — no per-user cap on free squads
+    // New teams always begin on the free tier. Pro access is assigned later by
+    // the server after the owner upgrades and selects this existing team.
 
     const tid = `team_${Date.now()}`; 
     const batch = writeBatch(db); 
@@ -1883,7 +1860,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const schoolIdToUse = schoolId || (type === 'school_squad' && activeTeam?.id ? activeTeam.id : null);
     const resolvedOwnerId = overrideOwnerId || firebaseUser.uid;
 
-    const resolvedPlanId = planId || (isSchool ? 'school' : 'free');
+    const resolvedPlanId = 'free';
 
     batch.set(doc(db, 'teams', tid), clean({ 
       id: tid, 
@@ -1946,6 +1923,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     await batch.commit(); 
 
+    // Paid subscriptions may automatically allocate one available seat to a
+    // newly created squad. The API derives eligibility and capacity server-side.
+    const paidPlanTypes = new Set(['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo']);
+    if (paidPlanTypes.has((userProfile as any).plan_type) && proQuotaStatus.remaining > 0 && firebaseAuth) {
+      try {
+        const token = await getAuthToken(firebaseAuth);
+        const allocationResponse = await fetch('/api/teams/allocate-pro', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+          body: JSON.stringify({ teamId: tid }),
+        });
+        if (!allocationResponse.ok) {
+          const result = await allocationResponse.json();
+          console.warn('[Team creation] Pro seat was not allocated:', result.error);
+        }
+      } catch (err) {
+        console.warn('[Team creation] Pro seat allocation failed:', err);
+      }
+    }
+
 
     // Identity sweep: If the user has a name/avatar, update all their memberships to match
     try {
@@ -1966,150 +1963,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       console.warn("Identity sweep partial failure:", e);
     }
 
-    // Email-Match Auto-Enrollment: Scan leagues where coachEmail matches the registrant's email.
-    // When found, link the new teamId into the league so their matches auto-appear on their dashboard.
-    // Outside (non-school) teams are given Starter plan access only.
-    const registrantEmail = (coachEmail || firebaseUser.email || userProfile?.email || '').toLowerCase().trim();
-    if (registrantEmail && type !== 'school' && type !== 'school_squad') {
-      try {
-        // Search all leagues for a team slot with matching coachEmail
-        const leaguesSnap = await getDocs(collection(db, 'leagues'));
-        const emailLinkBatch = writeBatch(db);
-        let linkedCount = 0;
-
-        for (const leagueDoc of leaguesSnap.docs) {
-          const leagueData = leagueDoc.data();
-          const teamsMap = leagueData.teams || {};
-          const memberTeamIds: string[] = leagueData.memberTeamIds || [];
-
-          // Find any team slot in this league where coachEmail matches
-          let matched = false;
-          for (const [slotTeamId, slotTeamData] of Object.entries(teamsMap)) {
-            const slotEmail = ((slotTeamData as any).coachEmail || '').toLowerCase().trim();
-            if (slotEmail && slotEmail === registrantEmail && !memberTeamIds.includes(tid)) {
-              // Link: add the new real teamId to memberTeamIds and stamp the slot with registeredTeamId
-              emailLinkBatch.update(leagueDoc.ref, {
-                memberTeamIds: arrayUnion(tid),
-                [`teams.${slotTeamId}.registeredTeamId`]: tid,
-                [`teams.${slotTeamId}.status`]: 'registered',
-              });
-              // Ensure the new team gets Starter plan access (not Pro)
-              emailLinkBatch.update(doc(db, 'teams', tid), { planId: resolvedPlanId === 'free' ? 'free' : resolvedPlanId });
-              matched = true;
-              linkedCount++;
-              break;
-            }
-          }
-
-          // Also check tournamentTeamsData emails in events subcollection would require a separate pass
-          // We handle that in a separate sweep below (non-blocking)
-        }
-
-        if (linkedCount > 0) {
-          await emailLinkBatch.commit();
-          console.log(`[AutoSync] Linked new team ${tid} to ${linkedCount} league(s) via email match`);
-          toast({ title: "Auto-Enrolled!", description: `Your team was automatically added to ${linkedCount} league(s) based on your registration email.` });
-        }
-
-        // Non-blocking: check tournament events for email matches
-        // (tournaments store team email under tournamentTeamsData[].email)
-        getDocs(query(collectionGroup(db, 'events'), where('isTournament', '==', true))).then(async eventsSnap => {
-          const tournBatch = writeBatch(db);
-          let tLinked = 0;
-          for (const evDoc of eventsSnap.docs) {
-            const evData = evDoc.data();
-            const teamsData: any[] = evData.tournamentTeamsData || [];
-            const matched = teamsData.some(t => (t.email || '').toLowerCase().trim() === registrantEmail);
-            if (matched && !(evData.linkedTeamIds || []).includes(tid)) {
-              tournBatch.update(evDoc.ref, { linkedTeamIds: arrayUnion(tid) });
-              tLinked++;
-            }
-          }
-          if (tLinked > 0) await tournBatch.commit();
-        }).catch(e => console.warn("[AutoSync] Tournament email sweep failed:", e));
-      } catch (e) {
-        console.warn("[AutoSync] Email-match enrollment failed (non-blocking):", e);
-      }
-    }
-
     toast({ title: "Team Created Successfully!", description: `Your new ${type.replace('_', ' ')} "${name}" is ready.` });
     return tid; 
-  }, [firebaseUser, db, userProfile, proQuotaStatus, teamsRaw, setIsPaywallOpen, activeTeam]);
+  }, [firebaseUser, firebaseAuth, db, userProfile, proQuotaStatus, teamsRaw, setIsPaywallOpen, activeTeam]);
 
   const joinTeamWithCode = useCallback(async (code: string, playerId: string, position: string) => { 
-    if (!firebaseUser || !db || !userProfile) return false; 
-    const q = query(
-      collection(db, 'teams'), 
-      or(
-        where('teamCode', '==', code.toUpperCase()), 
-        where('code', '==', code.toUpperCase()),
-        where('inviteCode', '==', code.toUpperCase())
-      ), 
-      limit(1)
-    ); 
-    const snap = await getDocs(q); 
-    if (snap.empty) return false; 
-    const teamDoc = snap.docs[0]; 
-    const tid = teamDoc.id; 
-    const ownerId = teamDoc.data().ownerUserId;
-    const batch = writeBatch(db); 
-    const teamCodeValue = teamDoc.data().code || teamDoc.data().teamCode || teamDoc.data().inviteCode;
-
-    // Use playerId as the unique identifier for membership to support multi-child households
-    const isChild = playerId && !playerId.startsWith('p_');
-    const memberId = isChild ? playerId : firebaseUser.uid;
-    
-    // Resolve correct name and avatar for the member record
-    let memberName = firebaseUser.displayName || userProfile.name;
-    let memberAvatar = userProfile?.avatar || '';
-
-    if (isChild) {
-      const pSnap = await getDoc(doc(db, 'players', playerId));
-      if (pSnap.exists()) {
-        const pd = pSnap.data();
-        memberName = `${pd.firstName} ${pd.lastName}`;
-        memberAvatar = pd.photoURL || '';
-      }
-    }
-
-    // Record membership in user subcollection using a composite key to prevent overwrites
-    batch.set(doc(db, 'users', firebaseUser.uid, 'teamMemberships', `${tid}_${memberId}`), clean({ 
-      teamId: tid, 
-      playerId: memberId,
-      name: teamDoc.data().teamName, 
-      role: 'Member', 
-      code: teamCodeValue,
-      joinedAt: new Date().toISOString() 
-    })); 
-
-    // Write primary membership record to the team's directory
-    batch.set(doc(db, 'teams', tid, 'members', memberId), clean({ 
-      id: memberId, 
-      userId: firebaseUser.uid, 
-      playerId, 
-      parentId: firebaseUser.uid,
-      name: memberName, 
-      role: 'Member', 
-      position, 
-      joinedAt: new Date().toISOString(), 
-      avatar: memberAvatar, 
-      ownerUserId: ownerId, 
-      teamId: tid,
-      schoolId: teamDoc.data().schoolId || null,
-      email: userProfile.email || firebaseUser.email || null, 
-      parentEmail: isChild ? firebaseUser.email : null
-    })); 
-
-    // Always link the player doc to this team for Firestore rule lookups.
-    // isTeamCoachOfPlayer() uses players/{pid}.data.primaryTeamId to verify the coach.
-    // Without this, updateRecruitingProfile/metrics/contact all fail with permission-denied.
-    batch.update(doc(db, 'players', playerId), {
-      primaryTeamId: tid,
-      joinedTeamIds: arrayUnion(tid)
+    if (!firebaseUser || !firebaseAuth) return false;
+    const token = await getAuthToken(firebaseAuth);
+    const response = await fetch('/api/teams/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ code, playerId }),
     });
-
-    await batch.commit(); return true; 
-  }, [firebaseUser, db, userProfile]);
+    return response.ok;
+  }, [firebaseUser, firebaseAuth]);
 
 
   const updateUser = useCallback(async (u: any) => { if (firebaseUser) await updateDoc(doc(db, 'users', firebaseUser.uid), clean(u)); }, [db, firebaseUser]);
@@ -2135,11 +2002,18 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (activeTeam?.id) await updateDoc(doc(db, 'teams', activeTeam.id), { heroImageUrl: url }); 
   }, [db, activeTeam, isStaff]);
 
-  const updateTeamPlan = useCallback(async (tid: string, pid: string) => { 
-    if (!isSuperAdmin && !isPrimaryClubAuthority) return;
-    if(db) await updateDoc(doc(db, 'teams', tid), { planId: pid, isPro: pid !== 'free' }); 
-    toast({ title: 'Plan Assignment Updated' });
-  }, [db, isSuperAdmin, isPrimaryClubAuthority]);
+  const updateTeamPlan = useCallback(async (tid: string, pid: string) => {
+    if (!firebaseAuth) throw new Error('You must be signed in.');
+    const token = await getAuthToken(firebaseAuth);
+    const response = await fetch('/api/teams/allocate-pro', {
+      method: pid === 'free' ? 'DELETE' : 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ teamId: tid, ...(isSuperAdmin ? { planId: pid } : {}) }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to update this team plan.');
+    toast({ title: pid === 'free' ? 'Pro Slot Released' : 'Plan Assignment Updated' });
+  }, [firebaseAuth, isSuperAdmin]);
 
   const checkCodeUniqueness = useCallback(async (code: string) => {
     if (!db) return true;
@@ -2356,7 +2230,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const idToken = await currentUser.getIdToken();
           const { generalNotificationEmail: _genEmail } = await import('@/lib/email-templates');
           const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id && id !== currentUser.uid);
-          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e && e.toLowerCase().trim() !== currentUser.email?.toLowerCase().trim());
           const { subject: emailSubject, html: emailHtml } = _genEmail({
             recipientName: 'Team Member',
             title: `Document Requires Your Signature`,
@@ -2370,7 +2243,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             db,
             teamId: activeTeam.id,
             memberUserIds,
-            memberEmails,
             title: 'Document Added',
             body: `"${data.title}" — check for signature requirements.`,
             url: '/dashboard/team',
@@ -2410,7 +2282,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const idToken = await currentUser.getIdToken();
           const { eventNotificationEmail } = await import('@/lib/email-templates');
           const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id && id !== currentUser.uid);
-          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e && e.toLowerCase().trim() !== currentUser.email?.toLowerCase().trim());
           const eventTitle = data.title || data.name || 'New Event';
           const eventDate = data.date || data.startDate || '';
           const eventType = data.type || 'event';
@@ -2428,7 +2299,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             db,
             teamId: activeTeam.id,
             memberUserIds,
-            memberEmails,
             title: `${eventType === 'game' ? '⚽ Game Day' : eventType === 'practice' ? '🏃 Practice' : '📅 Event'}: ${eventTitle}`,
             body: `${eventDate}${data.time ? ' at ' + data.time : ''}${data.location ? ' · ' + data.location : ''}`,
             url: '/dashboard/team',
@@ -2542,23 +2412,20 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const hideChatForUser = useCallback(async (chatId: string) => { if (!firebaseUser || !db) return; await setDoc(doc(db, 'users', firebaseUser.uid, 'hiddenChats', chatId), { id: `${firebaseUser.uid}_${chatId}`, userId: firebaseUser.uid, chatId, hiddenAt: new Date().toISOString() }); }, [firebaseUser, db]);
   
   const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => { 
-    if (!activeTeam?.id || !firebaseUser || !db) return; 
-    const msgRef = doc(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages', messageId); 
-    const snap = await getDoc(msgRef); 
-    if (!snap.exists()) return; 
-    const poll = snap.data().poll; 
-    if (!poll || poll.isClosed) return; 
-    const currentVote = poll.voters?.[firebaseUser.uid]; 
-    const updates: any = { [`poll.voters.${firebaseUser.uid}`]: optionIdx }; 
-    if (currentVote === undefined) { 
-      updates[`poll.options.${optionIdx}.votes`] = increment(1); 
-      updates['poll.totalVotes'] = increment(1); 
-    } else if (currentVote !== optionIdx) { 
-      updates[`poll.options.${currentVote}.votes`] = increment(-1); 
-      updates[`poll.options.${optionIdx}.votes`] = increment(1); 
-    } 
-    await updateDoc(msgRef, updates); 
-  }, [activeTeam, firebaseUser, db]);
+    if (!activeTeam?.id || !firebaseAuth) return;
+    try {
+      const idToken = await getAuthToken(firebaseAuth);
+      if (!idToken) throw new Error('Your session has expired.');
+      const response = await fetch('/api/teams/chat/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+        body: JSON.stringify({ teamId: activeTeam.id, chatId, messageId, optionIdx }),
+      });
+      if (!response.ok) throw new Error((await response.json()).error || 'Unable to record your vote.');
+    } catch (error: any) {
+      toast({ title: 'Vote Not Recorded', description: error.message, variant: 'destructive' });
+    }
+  }, [activeTeam, firebaseAuth]);
 
   const updateChat = useCallback(async (chatId: string, data: any) => { if (activeTeam?.id && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', chatId), clean(data)); }, [activeTeam, db]);
 
@@ -2654,7 +2521,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
           const idToken = await currentUser.getIdToken();
           const { drillNotificationEmail } = await import('@/lib/email-templates');
           const memberUserIds = members.map(m => m.userId).filter((id): id is string => !!id && id !== currentUser.uid);
-          const memberEmails = members.map(m => m.email).filter((e): e is string => !!e && e.toLowerCase().trim() !== currentUser.email?.toLowerCase().trim());
           const { subject: emailSubject, html: emailHtml } = drillNotificationEmail({
             recipientName: 'Team Member',
             teamName: activeTeam.name,
@@ -2666,7 +2532,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             db,
             teamId: activeTeam.id,
             memberUserIds,
-            memberEmails,
             title: `New Drill: ${d.title || d.name || 'Playbook Update'}`,
             body: `${activeTeam.name} playbook has a new drill. Check it out.`,
             url: '/dashboard/team',
@@ -2808,6 +2673,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       sport: sport || activeTeam?.sport || 'General', 
       teams: initialTeams, 
       memberTeamIds: initialMemberTeamIds, 
+      memberUserIds: [firebaseUser.uid],
       finances: {}, 
       inviteCode: lid.slice(-6).toUpperCase(), 
       createdAt: new Date().toISOString() 
@@ -3294,6 +3160,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       isMinor: true, 
       parentId: firebaseUser.uid, 
       joinedTeamIds: [], 
+      recruitingProfileEnabled: false,
       pendingInviteEmail: email || null,
       createdAt: new Date().toISOString() 
     }));
@@ -3472,29 +3339,29 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [db, firebaseUser, activeTeam?.id]);
 
   const deleteAccount = useCallback(async () => {
-    if (!firebaseUser || !db) return;
+    if (!firebaseUser || !firebaseAuth) return;
     try {
-      // 1. Delete Firestore user document
-      await deleteDoc(doc(db, 'users', firebaseUser.uid));
-      
-      // 2. Delete Firebase Auth user
-      await firebaseUser.delete();
-      
-      toast({ title: "Account Deleted", description: "Your profile and data have been removed." });
+      const idToken = await getAuthToken(firebaseAuth);
+      if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+      const response = await fetch('/api/account/deletion-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to schedule account deletion.');
+
+      const { signOut } = await import('firebase/auth');
+      await signOut(firebaseAuth);
+      toast({
+        title: 'Account Deletion Scheduled',
+        description: `Your account will be permanently removed after ${new Date(payload.purgeAt).toLocaleDateString()}.`,
+      });
       window.location.href = '/login';
     } catch (error: any) {
       console.error("Delete Account Error:", error);
-      if (error.code === 'auth/requires-recent-login') {
-        toast({ 
-          title: "Security Verification Required", 
-          description: "Please sign out and back in to delete your account for security reasons.",
-          variant: "destructive" 
-        });
-      } else {
-        toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
-      }
+      toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
     }
-  }, [firebaseUser, db]);
+  }, [firebaseUser, firebaseAuth]);
 
   const markAlertAsSeen = useCallback(async (id: string) => { 
     console.log("DEBUG: markAlertAsSeen called for ID:", id);

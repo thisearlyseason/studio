@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const { priceId, userId, billingCycle = 'monthly', extraTeamQty = 0 } = await req.json();
+    const { priceId, userId, teamId, billingCycle = 'monthly', extraTeamQty = 0 } = await req.json();
 
     if (!userId || (!priceId && extraTeamQty === 0)) {
       return NextResponse.json(
@@ -20,6 +20,16 @@ export async function POST(req: NextRequest) {
 
     const ownerCheck = assertOwner(auth, userId);
     if (ownerCheck) return ownerCheck;
+
+    // A paid upgrade may target one existing squad. Resolve ownership on the
+    // server so Checkout metadata can never be used to upgrade another team.
+    if (teamId) {
+      if (typeof teamId !== 'string') return NextResponse.json({ error: 'Invalid teamId.' }, { status: 400 });
+      const teamSnap = await adminDb.collection('teams').doc(teamId).get();
+      if (!teamSnap.exists || teamSnap.data()!.ownerUserId !== auth.uid) {
+        return NextResponse.json({ error: 'Team not found or not owned by this account.' }, { status: 403 });
+      }
+    }
 
     // Validate priceId is a known Stripe price
     if (priceId && !ALL_KNOWN_PRICE_IDS.has(priceId)) {
@@ -51,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const origin =
-      req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
+      req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9001';
 
     const lineItems: any[] = [];
 
@@ -76,8 +86,8 @@ export async function POST(req: NextRequest) {
       line_items: lineItems,
       success_url: `${origin}/dashboard/billing?stripe_success=true`,
       cancel_url: `${origin}/dashboard/billing?stripe_canceled=true`,
-      metadata: { firebase_uid: userId },
-      subscription_data: { metadata: { firebase_uid: userId } },
+      metadata: { firebase_uid: userId, ...(teamId ? { team_id: teamId } : {}) },
+      subscription_data: { metadata: { firebase_uid: userId, ...(teamId ? { team_id: teamId } : {}) } },
       allow_promotion_codes: true,
     });
 

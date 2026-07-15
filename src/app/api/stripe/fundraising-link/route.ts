@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     if (!userSnap.exists) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
     const userData = userSnap.data()!;
     const isPaidPlan = PAID_PLAN_TYPES.has(userData.plan_type || '');
-    const isSuperAdmin = userData.role === 'superadmin';
+    const isSuperAdmin = auth.role === 'superadmin';
     if (!isPaidPlan && !isSuperAdmin) {
       return NextResponse.json({ error: 'Online payments require a paid plan.' }, { status: 403 });
     }
@@ -188,8 +188,7 @@ export async function DELETE(req: NextRequest) {
     const isOwner = teamSnap.data()!.ownerUserId === userId;
     const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
     const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const userSnap = await adminDb.collection('users').doc(userId).get();
-    const isSuperAdmin = userSnap.data()?.role === 'superadmin';
+    const isSuperAdmin = auth.role === 'superadmin';
     if (!isOwner && !isAdmin && !isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     }

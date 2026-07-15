@@ -22,11 +22,10 @@ import { verifyFirebaseToken } from '@/lib/api-auth';
 const PAID_PLAN_TYPES = new Set(['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo']);
 const VALID_CATEGORIES = new Set(['league', 'tournament', 'equipment', 'other', 'donation', 'fundraising']);
 
-async function assertProPlan(userId: string): Promise<NextResponse | null> {
+async function assertProPlan(userId: string, isSuperAdmin: boolean): Promise<NextResponse | null> {
   const userSnap = await adminDb.collection('users').doc(userId).get();
   if (!userSnap.exists) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
   const data = userSnap.data()!;
-  const isSuperAdmin = data.role === 'superadmin';
   if (!PAID_PLAN_TYPES.has(data.plan_type || '') && !isSuperAdmin) {
     return NextResponse.json(
       { error: 'Online payments require a paid plan.' },
@@ -112,7 +111,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Plan gate
-    const planError = await assertProPlan(userId);
+    const planError = await assertProPlan(userId, auth.role === 'superadmin');
     if (planError) return planError;
 
     // Verify the user is the team owner OR a team admin member
@@ -122,8 +121,7 @@ export async function POST(req: NextRequest) {
     const isOwner = teamSnap.data()!.ownerUserId === userId;
     const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
     const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const userSnap2 = await adminDb.collection('users').doc(userId).get();
-    const isSuperAdmin = userSnap2.data()?.role === 'superadmin';
+    const isSuperAdmin = auth.role === 'superadmin';
 
     if (!isOwner && !isAdmin && !isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden: must be team owner or admin.' }, { status: 403 });
@@ -250,8 +248,7 @@ export async function GET(req: NextRequest) {
         .collection('teams').doc(teamId)
         .collection('members').doc(auth.uid)
         .get();
-      const userSnap = await adminDb.collection('users').doc(auth.uid).get();
-      const isSuperAdmin = userSnap.data()?.role === 'superadmin';
+      const isSuperAdmin = auth.role === 'superadmin';
       const isMember = memberSnap.exists;
 
       if (!isMember && !isSuperAdmin) {
@@ -314,8 +311,7 @@ export async function DELETE(req: NextRequest) {
     const isOwner = teamSnap.data()!.ownerUserId === userId;
     const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
     const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const userSnap = await adminDb.collection('users').doc(userId).get();
-    const isSuperAdmin = userSnap.data()?.role === 'superadmin';
+    const isSuperAdmin = auth.role === 'superadmin';
 
     if (!isOwner && !isAdmin && !isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden: must be team owner or admin.' }, { status: 403 });

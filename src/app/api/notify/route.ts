@@ -22,18 +22,54 @@ import { adminDb } from '@/lib/firebase-admin'; // Ensures admin app is initiali
  * }
  */
 export async function POST(req: NextRequest) {
-  const authResult = await verifyFirebaseToken(req);
-  if (authResult instanceof NextResponse) return authResult;
-
   try {
     const body = await req.json();
-    const { tokens, topic, title, body: msgBody, url, imageUrl } = body;
+    const { recipientUserIds, topic, title, body: msgBody, url, imageUrl, teamId } = body;
+    const internalSecret = process.env.INTERNAL_API_SECRET;
+    const isInternal = !!internalSecret && req.headers.get('x-internal-secret') === internalSecret;
+    const authResult = isInternal ? null : await verifyFirebaseToken(req);
+    if (authResult instanceof NextResponse) return authResult;
 
     if (!title || !msgBody) {
       return NextResponse.json({ error: 'title and body are required' }, { status: 400 });
     }
-    if (!tokens?.length && !topic) {
+    if (!isInternal && (!teamId || !Array.isArray(recipientUserIds) || recipientUserIds.length === 0)) {
+      return NextResponse.json({ error: 'teamId and recipientUserIds are required' }, { status: 400 });
+    }
+    if (!isInternal && topic) {
+      return NextResponse.json({ error: 'Topic notifications are restricted to trusted server callers.' }, { status: 403 });
+    }
+
+    let tokens: string[] = [];
+    if (!isInternal) {
+      if (recipientUserIds.length > 500) return NextResponse.json({ error: 'Too many recipients.' }, { status: 400 });
+      const teamSnap = await adminDb.collection('teams').doc(teamId).get();
+      if (!teamSnap.exists || (authResult!.role !== 'superadmin' && teamSnap.data()!.ownerUserId !== authResult!.uid)) {
+        return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+      }
+
+      const uniqueRecipients: string[] = [...new Set(
+        (recipientUserIds as unknown[]).filter((id): id is string => typeof id === 'string')
+      )];
+      const memberSnaps = await Promise.all(uniqueRecipients.map(id =>
+        adminDb.collection('teams').doc(teamId).collection('members').doc(id).get()
+      ));
+      const allowedRecipients = uniqueRecipients.filter((_, index) => memberSnaps[index].exists);
+      if (allowedRecipients.length !== uniqueRecipients.length) {
+        return NextResponse.json({ error: 'Recipients must be current team members.' }, { status: 403 });
+      }
+      const userSnaps = await Promise.all(allowedRecipients.map(id => adminDb.collection('users').doc(id).get()));
+      tokens = userSnaps.flatMap(snap => {
+        const savedTokens = snap.data()?.fcmTokens;
+        return Array.isArray(savedTokens) ? savedTokens.filter((token: unknown): token is string => typeof token === 'string') : [];
+      });
+    }
+    if (isInternal && !topic && !Array.isArray(body.tokens)) {
       return NextResponse.json({ error: 'tokens[] or topic is required' }, { status: 400 });
+    }
+    if (isInternal && Array.isArray(body.tokens)) tokens = body.tokens.filter((token: unknown): token is string => typeof token === 'string');
+    if (!tokens.length && !topic) {
+      return NextResponse.json({ ok: true, successCount: 0, failureCount: 0 });
     }
 
     // Use shared admin instance (initialized in lib/firebase-admin.ts)
@@ -53,7 +89,7 @@ export async function POST(req: NextRequest) {
     };
 
     let result: Record<string, unknown>;
-    if (tokens?.length) {
+    if (tokens.length) {
       // Chunk into groups of 500 (FCM multicast limit)
       const chunks: string[][] = [];
       for (let i = 0; i < tokens.length; i += 500) {

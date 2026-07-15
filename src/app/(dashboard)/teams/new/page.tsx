@@ -24,7 +24,7 @@ function NewTeamForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tierParam = searchParams.get('tier'); // 'starter' | 'pro'
-  const { createNewTeam, proQuotaStatus, activeTeam, isSchoolAdmin, setIsPaywallOpen } = useTeam();
+  const { createNewTeam, proQuotaStatus, activeTeam, isSchoolAdmin, setActiveTeam } = useTeam();
   
   const [teamName, setTeamName] = useState('');
   const [description, setDescription] = useState('');
@@ -42,36 +42,30 @@ function NewTeamForm() {
       setType('school_squad');
       setSelectedPlan('team');
     }
-    // If landing with ?tier=pro and no quota available, immediately open paywall
-    if (tierParam === 'pro' && proQuotaStatus.remaining <= 0) {
-      setIsPaywallOpen(true);
-    }
-  }, [isSchoolAdmin, activeTeam, tierParam, proQuotaStatus.remaining, setIsPaywallOpen]);
+  }, [isSchoolAdmin, activeTeam]);
 
   const handleCreate = async () => {
     if (!teamName.trim()) return;
 
-    // Paid plan selected but quota exhausted → open paywall/Stripe
-    if (selectedPlan === 'team' && proQuotaStatus.remaining <= 0) {
-      setIsPaywallOpen(true);
-      return;
-    }
-
     setIsProcessing(true);
     try {
       let targetType = type;
-      let targetPlan = selectedPlan;
       let targetSchoolId = undefined;
 
-      // Logic: If creating a sub-squad, inherit the school ID and enforce Pro
+      // Logic: If creating a sub-squad, inherit the school ID. New teams still
+      // start free and can be upgraded after they exist.
       if (isSchoolAdmin && activeTeam?.type === 'school') {
         targetType = 'school_squad';
         targetSchoolId = activeTeam.id;
-        targetPlan = 'team';
       }
       
-      await createNewTeam(teamName, targetType, organizerPosition, description, targetPlan, customWaiverTitle, customWaiverContent, targetSchoolId);
-      router.push('/feed');
+      const teamId = await createNewTeam(teamName, targetType, organizerPosition, description, 'free', customWaiverTitle, customWaiverContent, targetSchoolId);
+      if (selectedPlan === 'team' && proQuotaStatus.remaining <= 0) {
+        setActiveTeam({ id: teamId } as any);
+        router.push('/dashboard/billing');
+      } else {
+        router.push('/feed');
+      }
     } catch (e: any) {
       console.error(e);
       setIsProcessing(false);
@@ -186,7 +180,7 @@ function NewTeamForm() {
               <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
                 <Zap className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider leading-relaxed">
-                  Clicking "Deploy" will redirect you to Stripe checkout. Your team will activate once payment is confirmed.
+                  The team will be created first. Upgrade it from Billing after creation.
                 </p>
               </div>
             )}
@@ -195,7 +189,7 @@ function NewTeamForm() {
           <Button className="w-full h-16 rounded-2xl text-lg font-black shadow-xl" onClick={handleCreate} disabled={isProcessing || !teamName.trim()}>
             {isProcessing ? <Loader2 className="h-6 w-6 animate-spin" /> : (
               selectedPlan === 'team' && proQuotaStatus.remaining <= 0
-                ? 'Continue to Payment →'
+                ? 'Create Then Upgrade →'
                 : 'Deploy Squad Hub'
             )}
           </Button>

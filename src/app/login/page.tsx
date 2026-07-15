@@ -43,7 +43,8 @@ export default function LoginPage() {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
-            if (data.role === 'superadmin' || user.email === 'thisearlyseason@gmail.com') {
+            const tokenResult = await user.getIdTokenResult();
+            if (tokenResult.claims.role === 'superadmin') {
               router.push('/admin');
             } else if (data.role === 'admin' || data.isSchoolAdmin) {
               router.push('/club');

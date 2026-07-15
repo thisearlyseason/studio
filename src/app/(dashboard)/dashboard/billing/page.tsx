@@ -71,6 +71,7 @@ export default function BillingDashboard() {
   const isStripeLinked = !!userProfile?.stripe_subscription_id;
   // Multi-team plans are those with a limit > 1 (Elite, League, Schools)
   const isMultiTeamPlan = (userProfile?.team_limit || 1) > 1;
+  const hasPaidPlan = ['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo'].includes(userProfile?.plan_type || '');
 
   // ─── Handlers ────────────────────────────────────────────────────────────
   const handleUpdatePlan = async (newPlan: Plan | null, initialAddons?: number) => {
@@ -95,6 +96,7 @@ export default function BillingDashboard() {
           headers: { 'Content-Type': 'application/json', ...authHeader(token) },
           body: JSON.stringify({
             userId: userProfile.id,
+            teamId: activeTeam?.id,
             priceId: newPlan ? (billingCycle === 'annual' ? newPlan.annualPriceId : newPlan.monthlyPriceId) : null,
             billingCycle,
             extraTeamQty: initialAddons || 0,
@@ -557,7 +559,7 @@ export default function BillingDashboard() {
       )}
 
       {/* ── Squad Pro Allocation — only meaningful for multi-team plans ── */}
-      {isMultiTeamPlan && teams && teams.filter(t => t.ownerUserId === userProfile.id).length > 0 && (
+      {hasPaidPlan && teams && teams.filter(t => t.ownerUserId === userProfile.id).length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black uppercase tracking-widest">Squad Pro Allocation</h2>

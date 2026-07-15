@@ -401,8 +401,8 @@ export default function PublicScoutPortalPage() {
     </div>
   );
 
-  // Only block if explicitly disabled — undefined means not yet set (treat as enabled)
-  if (!player || player.recruitingProfileEnabled === false) {
+  // Recruiting profiles are private until a player or authorized coach explicitly activates them.
+  if (!player || player.recruitingProfileEnabled !== true) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-muted/10">
         <Card className="max-w-md w-full text-center p-12 rounded-[3rem] border-none shadow-2xl bg-white">

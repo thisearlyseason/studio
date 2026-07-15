@@ -63,15 +63,17 @@ export async function POST(req: NextRequest) {
       last_webhook_sync: new Date().toISOString(),
     });
 
-    // CASCADE: Update all teams owned by this user
+    // Keep the selected Pro teams aligned with the subscription tier without
+    // granting Pro access to every team the account owns.
     try {
       const teamsSnap = await adminDb
         .collection('teams')
         .where('ownerUserId', '==', userId)
         .get();
-      if (!teamsSnap.empty) {
+      const allocatedTeams = teamsSnap.docs.filter(teamDoc => teamDoc.data().isPro === true);
+      if (allocatedTeams.length > 0) {
         const batch = adminDb.batch();
-        teamsSnap.docs.forEach(teamDoc => {
+        allocatedTeams.forEach(teamDoc => {
           batch.update(teamDoc.ref, {
             planId: resolvedPlan.id,
             isPro: true,

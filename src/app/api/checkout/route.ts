@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     const origin =
-      req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
+      req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9001';
 
     const successUrl = `${origin}/dashboard?success=true${newUser ? '&newUser=true' : ''}`;
 

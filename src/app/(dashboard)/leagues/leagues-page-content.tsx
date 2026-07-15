@@ -1282,7 +1282,7 @@ function ManualPlayerDialog({ league, isOpen, onOpenChange }: { league: League, 
 
 export function LeaguesPageContent({ embedded = false }: { embedded?: boolean }) {
   const { 
-    activeTeam, createLeague, isStaff, isPro, purchasePro, isStarter,
+    activeTeam, createLeague, isStaff, isSuperAdmin, isPro, purchasePro, isStarter,
     teams, removeTeamFromLeague, updateLeagueTeamDetails,
     isPrimaryClubAuthority, updateLeaguePin, isSchoolMode, updateLeague,
     updateLeagueSchedule
@@ -1445,30 +1445,17 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const leaguesQuery = useMemoFirebase(() => {
     if (!isAuthResolved || !db || !authUser?.uid) return null;
     
-    // For staff members, show both leagues they created OR leagues where their active team is a member
-    if (isStaff) {
-      const conditions = [where('creatorId', '==', authUser.uid)];
-      if (activeTeam?.id) {
-        conditions.push(where('memberTeamIds', 'array-contains', activeTeam.id));
-      }
-      return query(
-        collection(db, 'leagues'),
-        or(...conditions),
-        limit(50)
-      );
-    }
+    if (isSuperAdmin) return query(collection(db, 'leagues'), limit(50));
 
-    // For regular users, leagues where their active team is a member
-    if (activeTeam?.id) {
-      return query(
-        collection(db, 'leagues'), 
-        where('memberTeamIds', 'array-contains', activeTeam.id),
-        limit(20)
-      );
-    }
-    
-    return null;
-  }, [isAuthResolved, db, authUser?.uid, activeTeam?.id, isStaff]);
+    return query(
+      collection(db, 'leagues'),
+      or(
+        where('creatorId', '==', authUser.uid),
+        where('memberUserIds', 'array-contains', authUser.uid)
+      ),
+      limit(isStaff ? 50 : 20)
+    );
+  }, [isAuthResolved, db, authUser?.uid, isStaff, isSuperAdmin]);
 
   const { data: allLeagues, isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
@@ -1862,6 +1849,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
         individualRecruits: {},
         schedule: [],
         memberTeamIds: [],
+        memberUserIds: [authUser.uid],
         memberIndivIds: []
       };
       
@@ -2614,7 +2602,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   <h4 className="text-2xl font-black uppercase tracking-tight leading-none">Team Registration</h4>
                   <p className="text-xs text-white/80 font-medium leading-relaxed italic">Public portal for new squads to join the roster.</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.slug || activeLeague.id}?protocol=team_config`); toast({ title: "Portal Link Copied" }); }}>Copy Link <Share2 className="ml-2 h-3 w-3" /></Button>
+                    <Button variant="outline" className="flex-1 h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.inviteCode || activeLeague.id}?protocol=team_config`); toast({ title: "Portal Link Copied" }); }}>Copy Link <Share2 className="ml-2 h-3 w-3" /></Button>
                     <Button variant="outline" className="h-12 w-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => router.push(`/leagues/registration/${activeLeague.id}?protocol=team_config`)}><Settings className="h-4 w-4" /></Button>
                   </div>
                 </Card>
@@ -2624,7 +2612,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   <h4 className="text-2xl font-black uppercase tracking-tight leading-none">Athlete Pipeline</h4>
                   <p className="text-xs text-white/80 font-medium leading-relaxed italic">Public portal for athletes seeking squad placement.</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.slug || activeLeague.id}?protocol=player_config`); toast({ title: "Portal Link Copied" }); }}>Copy Link <Share2 className="ml-2 h-3 w-3" /></Button>
+                    <Button variant="outline" className="flex-1 h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.inviteCode || activeLeague.id}?protocol=player_config`); toast({ title: "Portal Link Copied" }); }}>Copy Link <Share2 className="ml-2 h-3 w-3" /></Button>
                    <Button variant="outline" className="h-12 w-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => router.push(`/leagues/registration/${activeLeague.id}?protocol=player_config`)}><Settings className="h-4 w-4" /></Button>
                   </div>
                 </Card>
@@ -2649,7 +2637,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
                   <h4 className="text-2xl font-black uppercase tracking-tight leading-none">Waiver Portal</h4>
                   <p className="text-xs text-white/80 font-medium leading-relaxed italic">Public portal for standalone liability and agreement signing.</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.slug || activeLeague.id}?protocol=waiver_config`); toast({ title: "Portal Link Copied" }); }}>Copy Link <Share2 className="ml-2 h-3 w-3" /></Button>
+                    <Button variant="outline" className="flex-1 h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register/league/${activeLeague.inviteCode || activeLeague.id}?protocol=waiver_config`); toast({ title: "Portal Link Copied" }); }}>Copy Link <Share2 className="ml-2 h-3 w-3" /></Button>
                     <Button variant="outline" className="h-12 w-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => router.push(`/leagues/registration/${activeLeague.id}?protocol=waiver_config`)}><Settings className="h-4 w-4" /></Button>
                   </div>
                 </Card>

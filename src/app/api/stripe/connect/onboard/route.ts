@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     // ── Plan gate ─────────────────────────────────────────────────────────────
     const isPaidPlan = PAID_PLAN_TYPES.has(userData.plan_type || '');
-    const isSuperAdmin = userData.role === 'superadmin';
+    const isSuperAdmin = auth.role === 'superadmin';
     if (!isPaidPlan && !isSuperAdmin) {
       return NextResponse.json(
         { error: 'Online payments require a paid plan. Please upgrade to connect Stripe.' },
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const origin = req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
+    const origin = req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9001';
 
     // Determine where the existing connect account ID is stored
     let connectAccountId: string | undefined;

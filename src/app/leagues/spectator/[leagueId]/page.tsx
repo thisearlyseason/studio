@@ -32,7 +32,9 @@ export default function PublicLeagueSpectatorHub() {
     to: addDays(startOfDay(new Date()), 14)
   });
 
-  const leagueRef = useMemoFirebase(() => (db && leagueId) ? doc(db, 'leagues', leagueId as string) : null, [db, leagueId]);
+  // This public route reads a server-produced, spectator-safe view. It never
+  // reads the private league document, which can contain registrations and finance data.
+  const leagueRef = useMemoFirebase(() => (db && leagueId) ? doc(db, 'publicLeagueViews', leagueId as string) : null, [db, leagueId]);
   const { data: league, isLoading } = useDoc<League>(leagueRef);
 
   const filteredSchedule = useMemo(() => {

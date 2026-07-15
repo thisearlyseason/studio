@@ -977,7 +977,7 @@ export default function PlaybookAndGamePlayPage() {
                                  const mediaUrl = typeof media === 'string' ? media : media.url;
                                  return (
                                    <div key={idx} className="aspect-video bg-neutral-900 rounded-[2.5rem] overflow-hidden shadow-2xl relative cursor-zoom-in group border-2 border-white/5 hover:border-primary/50 transition-all duration-500" onClick={() => setLightboxUrl(mediaUrl)}>
-                                     <img src={mediaUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                                     <img src={mediaUrl} alt={`Tactical asset ${idx + 1}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/60 backdrop-blur-sm transition-all duration-500">
                                        <Search className="h-10 w-10 text-white" />
                                      </div>
