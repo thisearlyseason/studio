@@ -1,4 +1,5 @@
-import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import type { FirebaseApp, FirebaseOptions } from 'firebase/app';
 
 // Local development fallback. Firebase App Hosting injects the correct
 // project-specific web configuration at build time, so hosted environments
@@ -13,15 +14,22 @@ export const firebaseConfig = {
   "messagingSenderId": "61782012212"
 };
 
+function getHostedFirebaseConfig(): FirebaseOptions | null {
+  const rawConfig = process.env.NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG;
+  if (!rawConfig) return null;
+
+  try {
+    const config = JSON.parse(rawConfig) as FirebaseOptions;
+    return config.projectId && config.apiKey && config.appId ? config : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getOrInitializeFirebaseApp(): FirebaseApp {
   if (getApps().length > 0) return getApp();
 
-  try {
-    // App Hosting's FIREBASE_WEBAPP_CONFIG is converted into Firebase SDK
-    // defaults during the build. This keeps staging and production isolated.
-    return initializeApp();
-  } catch {
-    // Outside App Hosting (local development), automatic defaults are absent.
-    return initializeApp(firebaseConfig);
-  }
+  // App Hosting supplies a project-specific public web configuration during
+  // its build. Outside App Hosting (local development), use the fallback.
+  return initializeApp(getHostedFirebaseConfig() ?? firebaseConfig);
 }

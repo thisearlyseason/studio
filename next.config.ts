@@ -45,6 +45,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // App Hosting provides FIREBASE_WEBAPP_CONFIG at build time. Expose only
+  // that public web-SDK configuration to the browser bundle so each backend
+  // connects to its own Firebase project instead of the local fallback.
+  env: {
+    NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG ?? '',
+  },
   typescript: {
     // Type checking is now enabled. Both project-level TS errors were fixed:
     // 1. games/page.tsx: added missing useToast import
