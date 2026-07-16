@@ -81,7 +81,6 @@ export function StripeConnectSetup({ userId, teamId, onConnected }: StripeConnec
     } finally {
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, userId, teamId]); // onConnected intentionally excluded — use ref instead
 
   useEffect(() => {

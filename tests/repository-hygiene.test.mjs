@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import test from 'node:test';
 
@@ -47,6 +47,7 @@ test('tracked repository does not contain retired QA credentials or identifiers'
 
   const violations = [];
   for (const file of repositoryFiles()) {
+    if (!existsSync(file)) continue;
     if (!TEXT_EXTENSIONS.has(extname(file))) continue;
 
     const contents = readFileSync(file, 'utf8');

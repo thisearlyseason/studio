@@ -52,10 +52,16 @@ import { format } from 'date-fns';
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
 export default function EquipmentPage() {
-  const { activeTeam, isStaff, isPro, members, addEquipmentItem, updateEquipmentItem, deleteEquipmentItem, assignEquipment, returnEquipment, createAlert } = useTeam();
-  
+  const { isStaff, isPro } = useTeam();
+
   if (!isStaff) return <AccessRestricted type="role" />;
   if (!isPro) return <AccessRestricted type="tier" />;
+
+  return <AuthorizedEquipmentPage />;
+}
+
+function AuthorizedEquipmentPage() {
+  const { activeTeam, isStaff, isPro, members, addEquipmentItem, updateEquipmentItem, deleteEquipmentItem, assignEquipment, returnEquipment, createAlert } = useTeam();
 
   const db = useFirestore();
   

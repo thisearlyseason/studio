@@ -1136,11 +1136,11 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
 
     for (let i = 0; i < teamVariants.length; i++) {
         const variant = teamVariants[i];
-        let teamId = `demo_${planId}_${userId.slice(-4)}_${(variant || 'main').toLowerCase().replace(/\s+/g, '')}`;
-        let name = isSchoolDemo ? `Springfield ${variant}` : (variant ? `Elite Squad - ${variant}` : (isProTier ? 'Apex Demo Squad' : 'Grassroots Demo'));
+        const teamId = `demo_${planId}_${userId.slice(-4)}_${(variant || 'main').toLowerCase().replace(/\s+/g, '')}`;
+        const name = isSchoolDemo ? `Springfield ${variant}` : (variant ? `Elite Squad - ${variant}` : (isProTier ? 'Apex Demo Squad' : 'Grassroots Demo'));
         // All school variants are squads — the institution is a separate record created above
-        let teamType = isSchoolDemo ? 'school_squad' : 'youth';
-        let schoolId = isSchoolDemo ? `demo_${planId}_${userId.slice(-4)}_institution` : undefined;
+        const teamType = isSchoolDemo ? 'school_squad' : 'youth';
+        const schoolId = isSchoolDemo ? `demo_${planId}_${userId.slice(-4)}_institution` : undefined;
 
 
         const uniqueCode = (h => Math.abs(h).toString(36).toUpperCase().padStart(8,'0'))(teamId.split('').reduce((h,c)=>(Math.imul(31,h)+c.charCodeAt(0))|0,0));

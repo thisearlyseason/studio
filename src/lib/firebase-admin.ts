@@ -110,6 +110,6 @@ export const adminDb = new Proxy({} as admin.firestore.Firestore, {
   get(_target, prop: PropertyKey) {
     const db = getDb();
     const value = (db as any)[prop];
-    return typeof value === 'function' ? (value as Function).bind(db) : value;
+    return typeof value === 'function' ? value.bind(db) : value;
   },
 });

@@ -352,9 +352,15 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
 }
 
 export default function FacilityManagementPage() {
-  const { isStaff, addFacility, deleteFacility, isSuperAdmin, firebaseUser } = useTeam();
-  
+  const { isStaff } = useTeam();
+
   if (!isStaff) return <AccessRestricted type="role" />;
+
+  return <AuthorizedFacilityManagementPage />;
+}
+
+function AuthorizedFacilityManagementPage() {
+  const { isStaff, addFacility, deleteFacility, isSuperAdmin, firebaseUser } = useTeam();
 
   const db = useFirestore();
   const [isAddOpen, setIsAddOpen] = useState(false);

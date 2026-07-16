@@ -475,7 +475,11 @@ export default function PlaybookAndGamePlayPage() {
               <div className="flex gap-2 shrink-0">
                 <Button onClick={() => {
                   setNewTitle(''); setNewUrl(''); setNewDesc('');
-                  viewMode === 'drills' ? setIsAddDrillOpen(true) : setIsUploadOpen(true);
+                  if (viewMode === 'drills') {
+                    setIsAddDrillOpen(true);
+                  } else {
+                    setIsUploadOpen(true);
+                  }
                 }} className="rounded-full h-14 px-8 font-black uppercase text-xs shadow-xl shadow-primary/20">
                   <Plus className="h-5 w-5 mr-2" /> Publish {viewMode === 'drills' ? 'Drill' : 'Film'}
                 </Button>

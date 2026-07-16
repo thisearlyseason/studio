@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
+import facilityRename from '../src/lib/facility-rename.ts';
+
+const {
   buildEventRenameUpdates,
   buildLeagueRenameUpdates,
   getFacilityFieldName,
-} from '../src/lib/facility-rename.ts';
+} = facilityRename;
 
 test('facility rename updates linked event and embedded tournament game names', () => {
   const updates = buildEventRenameUpdates(

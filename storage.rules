@@ -7,7 +7,8 @@ service firebase.storage {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && request.auth.token.role == 'superadmin';
+      return isSignedIn() &&
+        request.auth.token.get('role', '') == 'superadmin';
     }
 
     function playerDocument(playerId) {

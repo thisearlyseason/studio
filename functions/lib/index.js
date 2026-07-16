@@ -39,6 +39,7 @@ const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const admin = __importStar(require("firebase-admin"));
 const googleapis_1 = require("googleapis");
+const account_deletion_1 = require("./account-deletion");
 admin.initializeApp();
 const db = admin.firestore();
 /**
@@ -530,7 +531,7 @@ exports.getCalendarFeed = (0, https_1.onRequest)({ cors: true }, async (req, res
             return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
         };
         const escapeText = (str = '') => str.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n');
-        let icsLines = [
+        const icsLines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
             'PRODID:-//The Squad//Family Scheduler//EN',
@@ -577,11 +578,10 @@ exports.purgeExpiredDeletionRequests = (0, scheduler_1.onSchedule)('every 24 hou
     for (const request of requests.docs) {
         const uid = request.id;
         try {
-            const [user, ownedTeams, ownedLeagues, memberships] = await Promise.all([
+            const [user, ownedTeams, ownedLeagues] = await Promise.all([
                 db.collection('users').doc(uid).get(),
                 db.collection('teams').where('ownerUserId', '==', uid).limit(1).get(),
                 db.collection('leagues').where('creatorId', '==', uid).limit(1).get(),
-                db.collectionGroup('members').where('userId', '==', uid).get(),
             ]);
             if (!ownedTeams.empty || !ownedLeagues.empty) {
                 await Promise.all([
@@ -591,10 +591,78 @@ exports.purgeExpiredDeletionRequests = (0, scheduler_1.onSchedule)('every 24 hou
                 console.error(`[account-deletion] Skipped ${uid}: account still owns an organization.`);
                 continue;
             }
-            const membershipRefs = memberships.docs.map((membership) => membership.ref);
-            for (let start = 0; start < membershipRefs.length; start += 450) {
+            const deletionRefs = new Map();
+            for (const target of account_deletion_1.USER_DOCUMENT_TARGETS) {
+                const source = target.scope === 'collection'
+                    ? db.collection(target.collection)
+                    : db.collectionGroup(target.collection);
+                const snapshot = await source.where(target.field, '==', uid).get();
+                snapshot.docs.forEach((document) => deletionRefs.set(document.ref.path, document.ref));
+            }
+            const [ownedPlayerProfiles, dependentPlayerProfiles] = await Promise.all([
+                db.collection('players').where('userId', '==', uid).get(),
+                db.collection('players').where('parentId', '==', uid).get(),
+            ]);
+            const deletedPlayerIds = new Set();
+            ownedPlayerProfiles.docs.forEach((player) => {
+                deletedPlayerIds.add(player.id);
+            });
+            for (const player of dependentPlayerProfiles.docs) {
+                const linkedUserId = player.data().userId;
+                if (typeof linkedUserId !== 'string' || !linkedUserId || linkedUserId === uid) {
+                    deletedPlayerIds.add(player.id);
+                }
+                else {
+                    await player.ref.update({
+                        parentId: admin.firestore.FieldValue.delete(),
+                        parentEmail: admin.firestore.FieldValue.delete(),
+                        guardianEmail: admin.firestore.FieldValue.delete(),
+                    });
+                }
+            }
+            for (const playerId of deletedPlayerIds) {
+                const memberships = await db.collectionGroup('members')
+                    .where('playerId', '==', playerId)
+                    .get();
+                memberships.docs.forEach((membership) => deletionRefs.set(membership.ref.path, membership.ref));
+            }
+            for (const target of account_deletion_1.USER_ARRAY_TARGETS) {
+                const source = target.scope === 'collection'
+                    ? db.collection(target.collection)
+                    : db.collectionGroup(target.collection);
+                const snapshot = await source.where(target.field, 'array-contains', uid).get();
+                await Promise.all(snapshot.docs.map((document) => document.ref.update({
+                    [target.field]: admin.firestore.FieldValue.arrayRemove(uid),
+                })));
+            }
+            for (const target of account_deletion_1.USER_MAP_TARGETS) {
+                const userEntry = new admin.firestore.FieldPath(target.mapField, uid);
+                const snapshot = await db.collectionGroup(target.collectionGroup)
+                    .where(userEntry, '!=', null)
+                    .get();
+                await Promise.all(snapshot.docs.map(async (document) => {
+                    const entry = document.data()?.[target.mapField]?.[uid];
+                    if (target.restoreQuantityField && Number(entry?.quantity) > 0) {
+                        await document.ref.update(userEntry, admin.firestore.FieldValue.delete(), target.restoreQuantityField, admin.firestore.FieldValue.increment(Number(entry.quantity)));
+                    }
+                    else {
+                        await document.ref.update(userEntry, admin.firestore.FieldValue.delete());
+                    }
+                }));
+            }
+            const recursivePrefixes = new Set([
+                ...deletedPlayerIds,
+            ]);
+            const bucket = admin.storage().bucket();
+            await Promise.all([
+                bucket.file(`users/${uid}/avatar.jpg`).delete({ ignoreNotFound: true }),
+                ...[...recursivePrefixes].map((playerId) => bucket.deleteFiles({ prefix: `players/${playerId}/` })),
+            ]);
+            await Promise.all([...deletedPlayerIds].map((playerId) => db.recursiveDelete(db.collection('players').doc(playerId))));
+            const refs = [...deletionRefs.values()];
+            for (let start = 0; start < refs.length; start += 450) {
                 const batch = db.batch();
-                membershipRefs.slice(start, start + 450).forEach((membershipRef) => batch.delete(membershipRef));
+                refs.slice(start, start + 450).forEach((documentRef) => batch.delete(documentRef));
                 await batch.commit();
             }
             if (user.exists)

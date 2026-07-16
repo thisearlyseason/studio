@@ -43,19 +43,35 @@ export async function POST(req: NextRequest) {
     const purgeAt = admin.firestore.Timestamp.fromMillis(now + RETENTION_MS);
     const requestedAt = admin.firestore.Timestamp.fromMillis(now);
     const requestRef = adminDb.collection('accountDeletionRequests').doc(auth.uid);
-    await adminDb.runTransaction(async (transaction) => {
+    const effectivePurgeAt = await adminDb.runTransaction(async (transaction) => {
       const existing = await transaction.get(requestRef);
-      if (!existing.exists) {
-        transaction.set(requestRef, { uid: auth.uid, requestedAt, purgeAt, status: 'pending' });
+      const existingData = existing.data();
+      const existingPurgeAt = existingData?.purgeAt;
+      if (
+        existingData?.status === 'pending' &&
+        existingPurgeAt instanceof admin.firestore.Timestamp
+      ) {
+        transaction.set(userRef, {
+          deletionRequestedAt: existingData.requestedAt ?? requestedAt,
+          deletionPurgeAt: existingPurgeAt,
+          deletionStatus: 'pending',
+        }, { merge: true });
+        return existingPurgeAt;
       }
+
+      transaction.set(requestRef, { uid: auth.uid, requestedAt, purgeAt, status: 'pending' });
       transaction.set(userRef, {
         deletionRequestedAt: requestedAt,
         deletionPurgeAt: purgeAt,
         deletionStatus: 'pending',
       }, { merge: true });
+      return purgeAt;
     });
 
-    return NextResponse.json({ success: true, purgeAt: purgeAt.toDate().toISOString() });
+    return NextResponse.json({
+      success: true,
+      purgeAt: effectivePurgeAt.toDate().toISOString(),
+    });
   } catch (err: any) {
     console.error('[account/deletion-request] Error:', err.message);
     return NextResponse.json({ error: 'Unable to schedule account deletion. Please try again.' }, { status: 500 });
