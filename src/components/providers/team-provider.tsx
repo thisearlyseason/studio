@@ -3437,21 +3437,21 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, db, alerts, isStaff, isPlayer, isParent]);
   const createAlert = useCallback(async (t: string, m: string, a: TeamAlert['audience'], targetUserId?: string) => { 
-    if (!isStaff) {
-      toast({ title: "Broadcast Access Denied", description: "Only staff members can issue squad-wide intelligence alerts.", variant: "destructive" });
-      return;
+    if (!firebaseUser || !activeTeam?.id || !db) {
+      throw new Error('A signed-in squad and active team are required.');
     }
-    if (activeTeam?.id && db && firebaseUser) {
-      await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({ 
-        title: t, 
-        message: m, 
-        audience: a, 
-        targetUserId: targetUserId || null,
-        createdAt: new Date().toISOString(), 
-        createdBy: firebaseUser.uid 
-      })); 
+    if (!isSuperAdmin && activeTeam.ownerUserId !== firebaseUser.uid) {
+      throw new Error('Only the primary squad owner can dispatch broadcasts.');
     }
-  }, [activeTeam, db, firebaseUser, isStaff]);
+    await addDoc(collection(db, 'teams', activeTeam.id, 'alerts'), clean({
+      title: t,
+      message: m,
+      audience: a,
+      targetUserId: targetUserId || null,
+      createdAt: new Date().toISOString(),
+      createdBy: firebaseUser.uid
+    }));
+  }, [activeTeam, db, firebaseUser, isSuperAdmin]);
 
   const deleteAlert = useCallback(async (id: string) => { 
     if (!isStaff) return;

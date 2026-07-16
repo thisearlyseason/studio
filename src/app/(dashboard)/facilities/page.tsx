@@ -25,7 +25,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
 function FacilityFieldManager({ facility }: { facility: Facility }) {
-  const { addField, updateField, deleteField, isSuperAdmin, user } = useTeam();
+  const { addField, updateField, deleteField, isSuperAdmin, firebaseUser } = useTeam();
   const db = useFirestore();
   const [newFieldName, setNewFieldName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,15 +39,25 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
   }, [db, facility.id]);
 
   const { data: fields } = useCollection<Field>(fieldsQuery);
-  const canManage = facility.clubId === user?.id || isSuperAdmin;
+  const canManage = facility.clubId === firebaseUser?.uid || isSuperAdmin;
 
   const handleAddField = async () => {
-    if (!newFieldName.trim()) return;
+    const fieldName = newFieldName.trim();
+    if (!fieldName) return;
     setIsProcessing(true);
-    await addField(facility.id, newFieldName);
-    setNewFieldName('');
-    setIsProcessing(false);
-    toast({ title: "Field Enrolled", description: `${newFieldName} added to ${facility.name}.` });
+    try {
+      await addField(facility.id, fieldName);
+      setNewFieldName('');
+      toast({ title: "Field Enrolled", description: `${fieldName} added to ${facility.name}.` });
+    } catch (error: any) {
+      toast({
+        title: 'Resource Creation Failed',
+        description: error.message || 'Could not add this field or court.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const beginRename = (field: Field) => {
@@ -89,7 +99,14 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Fields/Courts</p>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Fields/Courts</p>
+          {canManage && (
+            <p className="mt-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground/70">
+              Select Edit to rename a resource
+            </p>
+          )}
+        </div>
         <Badge variant="outline" className="text-[8px] font-black">{fields?.length || 0} TOTAL</Badge>
       </div>
       <div className="grid grid-cols-1 gap-2">
@@ -122,7 +139,7 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-primary"
+                        className="h-10 w-10 text-primary"
                         onClick={() => handleRenameField(field)}
                         disabled={isSaving || !editingFieldName.trim()}
                         aria-label={`Save ${field.name} name`}
@@ -132,7 +149,7 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground"
+                        className="h-10 w-10 text-muted-foreground"
                         onClick={cancelRename}
                         disabled={isSaving}
                         aria-label="Cancel resource rename"
@@ -145,13 +162,14 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-primary opacity-70 group-hover:opacity-100"
+                            variant="outline"
+                            size="sm"
+                            className="h-10 rounded-xl px-3 text-[9px] font-black uppercase tracking-wider text-primary"
                             onClick={() => beginRename(field)}
                             aria-label={`Rename ${field.name}`}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                            Edit
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Rename Resource</TooltipContent>
@@ -161,7 +179,7 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-destructive opacity-70 group-hover:opacity-100"
+                            className="h-10 w-10 text-destructive opacity-70 group-hover:opacity-100"
                             onClick={() => deleteField(facility.id, field.id)}
                             aria-label={`Delete ${field.name}`}
                           >
@@ -193,6 +211,7 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
           onChange={e => setNewFieldName(e.target.value)} 
           onKeyDown={e => e.key === 'Enter' && handleAddField()}
           className="h-10 rounded-xl text-xs font-bold"
+          maxLength={120}
         />
         <Button size="sm" onClick={handleAddField} disabled={isProcessing || !newFieldName.trim()} className="h-10 rounded-xl px-4 font-black uppercase text-[10px]">
           Add Resource
@@ -303,7 +322,7 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
 }
 
 export default function FacilityManagementPage() {
-  const { activeTeam, isStaff, isPro, addFacility, deleteFacility, isSuperAdmin, user } = useTeam();
+  const { activeTeam, isStaff, isPro, addFacility, deleteFacility, isSuperAdmin, firebaseUser } = useTeam();
   
   if (!isStaff) return <AccessRestricted type="role" />;
 
@@ -313,9 +332,13 @@ export default function FacilityManagementPage() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const facilitiesQuery = useMemoFirebase(() => {
-    if (!db || !user?.id) return null;
-    return query(collection(db, 'facilities'), where('clubId', '==', user.id));
-  }, [db, user?.id]);
+    if (!db) return null;
+    if (isSuperAdmin) {
+      return query(collection(db, 'facilities'), orderBy('name', 'asc'));
+    }
+    if (!firebaseUser?.uid) return null;
+    return query(collection(db, 'facilities'), where('clubId', '==', firebaseUser.uid));
+  }, [db, firebaseUser?.uid, isSuperAdmin]);
 
   const { data: facilities, isLoading } = useCollection<Facility>(facilitiesQuery);
 
