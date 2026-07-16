@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseToken } from '@/lib/api-auth';
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase-admin'; // Ensures admin app is initialized
+import {
+  enforceUserRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
 /**
  * POST /api/notify
@@ -23,14 +28,30 @@ import { adminDb } from '@/lib/firebase-admin'; // Ensures admin app is initiali
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await readJsonBodyWithLimit<Record<string, any>>(req, 128_000);
     const { recipientUserIds, topic, title, body: msgBody, url, imageUrl, teamId } = body;
     const internalSecret = process.env.INTERNAL_API_SECRET;
     const isInternal = !!internalSecret && req.headers.get('x-internal-secret') === internalSecret;
     const authResult = isInternal ? null : await verifyFirebaseToken(req);
     if (authResult instanceof NextResponse) return authResult;
+    if (!isInternal) {
+      const rateLimit = await enforceUserRateLimit(
+        authResult!.uid,
+        'push-notify',
+        60,
+        60 * 60 * 1000
+      );
+      if (rateLimit) return rateLimit;
+    }
 
-    if (!title || !msgBody) {
+    if (
+      typeof title !== 'string' ||
+      typeof msgBody !== 'string' ||
+      !title.trim() ||
+      !msgBody.trim() ||
+      title.length > 160 ||
+      msgBody.length > 2_000
+    ) {
       return NextResponse.json({ error: 'title and body are required' }, { status: 400 });
     }
     if (!isInternal && (!teamId || !Array.isArray(recipientUserIds) || recipientUserIds.length === 0)) {
@@ -54,7 +75,12 @@ export async function POST(req: NextRequest) {
       const memberSnaps = await Promise.all(uniqueRecipients.map(id =>
         adminDb.collection('teams').doc(teamId).collection('members').doc(id).get()
       ));
-      const allowedRecipients = uniqueRecipients.filter((_, index) => memberSnaps[index].exists);
+      const allowedRecipients = uniqueRecipients.filter((_, index) => {
+        const member = memberSnaps[index];
+        return member.exists &&
+          member.data()?.status !== 'removed' &&
+          member.data()?.isDeleted !== true;
+      });
       if (allowedRecipients.length !== uniqueRecipients.length) {
         return NextResponse.json({ error: 'Recipients must be current team members.' }, { status: 403 });
       }
@@ -111,7 +137,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, ...result });
   } catch (err: any) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error('[FCM] Notify error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to send notification.' }, { status: 500 });
   }
 }

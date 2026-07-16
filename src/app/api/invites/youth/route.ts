@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { verifyFirebaseToken } from '@/lib/api-auth';
 import { adminDb, ensureAdminInit } from '@/lib/firebase-admin';
+import {
+  enforcePublicRateLimit,
+  enforceUserRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
 const TOKEN_PATTERN = /^[a-f0-9]{48}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,6 +31,14 @@ export async function GET(req: NextRequest) {
     if (!TOKEN_PATTERN.test(token)) {
       return NextResponse.json({ error: 'Invitation not found.' }, { status: 404 });
     }
+    const rateLimit = await enforcePublicRateLimit(
+      req,
+      'youth-invite-lookup',
+      30,
+      10 * 60 * 1000,
+      token
+    );
+    if (rateLimit) return rateLimit;
     const snapshot = await adminDb.collection('invites').doc(token).get();
     const data = snapshot.data() || {};
     if (!snapshot.exists || !inviteIsUsable(data)) {
@@ -50,7 +64,14 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const body = await req.json();
+    const rateLimit = await enforceUserRateLimit(
+      auth.uid,
+      'youth-invite-manage',
+      10,
+      60 * 60 * 1000
+    );
+    if (rateLimit) return rateLimit;
+    const body = await readJsonBodyWithLimit<Record<string, unknown>>(req, 16_000);
     const action = body.action;
     const childId = cleanChildId(body.childId);
     if (!childId || (action !== 'create' && action !== 'revoke')) {
@@ -124,6 +145,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, token, expiresAt });
   } catch (error: any) {
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('[invites/youth POST] Error:', error?.message || error);
     return NextResponse.json({ error: 'Unable to update this invitation.' }, { status: 500 });
   }
@@ -132,12 +156,20 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   let createdUid: string | null = null;
   try {
-    const body = await req.json();
+    const body = await readJsonBodyWithLimit<Record<string, unknown>>(req, 16_000);
     const token = typeof body.token === 'string' ? body.token : '';
     const password = typeof body.password === 'string' ? body.password : '';
     if (!TOKEN_PATTERN.test(token) || password.length < 8 || password.length > 128) {
       return NextResponse.json({ error: 'Invalid invitation or password.' }, { status: 400 });
     }
+    const rateLimit = await enforcePublicRateLimit(
+      req,
+      'youth-invite-redeem',
+      5,
+      60 * 60 * 1000,
+      token
+    );
+    if (rateLimit) return rateLimit;
 
     const inviteRef = adminDb.collection('invites').doc(token);
     const inviteSnapshot = await inviteRef.get();
@@ -209,6 +241,9 @@ export async function PUT(req: NextRequest) {
     if (createdUid) {
       ensureAdminInit();
       await admin.auth().deleteUser(createdUid).catch(() => {});
+    }
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     const conflict =
       error?.code === 'auth/email-already-exists' ||

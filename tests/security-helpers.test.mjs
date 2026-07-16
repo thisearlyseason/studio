@@ -19,6 +19,7 @@ import {
   PRICE_BILLING_CYCLE,
   priceMatchesBillingCycle,
 } from '../src/lib/stripe-price-map.ts';
+import { escapeHtml } from '../src/lib/html-escape.ts';
 
 test('private and special-use IPv4 ranges are rejected', () => {
   for (const address of [
@@ -155,5 +156,12 @@ test('authoritative prices enforce billing cycle and 15 school seats', () => {
   assert.equal(
     priceMatchesBillingCycle(priceId, cycle === 'monthly' ? 'annual' : 'monthly'),
     false
+  );
+});
+
+test('untrusted notification fields are escaped before HTML rendering', () => {
+  assert.equal(
+    escapeHtml('<img src=x onerror="alert(1)"> & hello'),
+    '&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; hello'
   );
 });

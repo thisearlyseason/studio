@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import {
+  enforcePublicRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
 const MAX_DONATION = 100_000;
 const MAX_NAME_LENGTH = 120;
@@ -50,6 +55,14 @@ async function getCampaign(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const rateLimit = await enforcePublicRateLimit(
+      req,
+      'fundraising-read',
+      60,
+      10 * 60 * 1000,
+      `${req.nextUrl.searchParams.get('teamId') || ''}:${req.nextUrl.searchParams.get('fundId') || ''}`
+    );
+    if (rateLimit) return rateLimit;
     const campaign = await getCampaign(req);
     if (!campaign) {
       return NextResponse.json(
@@ -71,6 +84,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimit = await enforcePublicRateLimit(
+      req,
+      'fundraising-submit',
+      10,
+      60 * 60 * 1000,
+      `${req.nextUrl.searchParams.get('teamId') || ''}:${req.nextUrl.searchParams.get('fundId') || ''}`
+    );
+    if (rateLimit) return rateLimit;
     const campaign = await getCampaign(req);
     if (!campaign) {
       return NextResponse.json(
@@ -79,7 +100,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const body = await readJsonBodyWithLimit<Record<string, unknown>>(req, 16_000);
     const donorName =
       typeof body.donorName === 'string'
         ? body.donorName.trim().slice(0, MAX_NAME_LENGTH)
@@ -128,6 +149,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, donationId });
   } catch (error: any) {
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('[public/fundraising POST] Error:', error?.message || error);
     return NextResponse.json(
       { error: 'Unable to record this donation intent.' },

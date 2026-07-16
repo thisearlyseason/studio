@@ -494,7 +494,6 @@ export default function AdminPortalPage() {
             body: JSON.stringify({
               name: selectedBetaApp.fullName || selectedBetaApp.name || 'Athlete',
               email: selectedBetaApp.email,
-              password: betaPassword,
               planType: betaPlanType,
             }),
           }).catch((err) => console.warn('[Welcome Email] Failed to send:', err));

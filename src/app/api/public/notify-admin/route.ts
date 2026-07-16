@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as admin from 'firebase-admin';
 import { Resend } from 'resend';
+import { adminDb, ensureAdminInit } from '@/lib/firebase-admin';
+import { escapeHtml } from '@/lib/html-escape';
+import {
+  enforcePublicRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
 
@@ -9,32 +17,41 @@ function getResend() {
   return new Resend(apiKey);
 }
 
-async function getFirebaseAdmin() {
-  const admin = await import('firebase-admin');
-  if (!admin.apps.length) {
-    const serviceAccountB64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!serviceAccountB64) throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON env var not set');
-    const serviceAccount = JSON.parse(
-      Buffer.from(serviceAccountB64, 'base64').toString('utf8')
-    );
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-  }
-  return admin;
+function cleanText(value: unknown, maxLength: number): string {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { type, name, email, role, organization, sports, scale, whyBeta } = body;
+    const body = await readJsonBodyWithLimit<Record<string, unknown>>(req, 32_000);
+    const type = body.type;
+    const name = cleanText(body.name, 120);
+    const email = cleanText(body.email, 254).toLowerCase();
+    const role = cleanText(body.role, 120);
+    const organization = cleanText(body.organization, 200);
+    const sports = Array.isArray(body.sports)
+      ? body.sports.map(value => cleanText(value, 80)).filter(Boolean).slice(0, 20).join(', ')
+      : cleanText(body.sports, 500);
+    const scale = cleanText(body.scale, 120);
+    const whyBeta = cleanText(body.whyBeta, 2_000);
 
-    if (!type || !email) {
+    if (
+      (type !== 'newsletter' && type !== 'beta') ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
       return NextResponse.json({ error: 'Missing required fields: type, email' }, { status: 400 });
     }
+    const rateLimit = await enforcePublicRateLimit(
+      req,
+      'notify-admin',
+      10,
+      15 * 60 * 1000,
+      email
+    );
+    if (rateLimit) return rateLimit;
 
-    const admin = await getFirebaseAdmin();
-    const db = admin.firestore();
+    ensureAdminInit();
+    const db = adminDb;
 
     const emailLower = email.trim().toLowerCase();
     const now = Date.now();
@@ -136,7 +153,7 @@ export async function POST(req: NextRequest) {
         <head>
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>${titleText}</title>
+          <title>${escapeHtml(titleText)}</title>
         </head>
         <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 16px;">
@@ -144,7 +161,7 @@ export async function POST(req: NextRequest) {
               <table width="100%" style="max-width:560px;">
                 <tr><td style="background:#6d28d9;border-radius:20px 20px 0 0;padding:32px 40px;text-align:center;">
                   <p style="margin:0;color:rgba(255,255,255,0.7);font-size:10px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;">THE SQUAD PRO</p>
-                  <h1 style="margin:8px 0 0;color:#fff;font-size:26px;font-weight:900;letter-spacing:-0.5px;">${titleText}</h1>
+                  <h1 style="margin:8px 0 0;color:#fff;font-size:26px;font-weight:900;letter-spacing:-0.5px;">${escapeHtml(titleText)}</h1>
                 </td></tr>
                 <tr><td style="background:#fff;padding:40px;border-radius:0 0 20px 20px;">
                   ${contentHtml}
@@ -162,14 +179,14 @@ export async function POST(req: NextRequest) {
 
       const fieldRow = (label: string, val: string) => `
         <tr>
-          <td style="padding:10px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.15em;color:#71717a;width:40%;">${label}</td>
-          <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#18181b;">${val}</td>
+          <td style="padding:10px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.15em;color:#71717a;width:40%;">${escapeHtml(label)}</td>
+          <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#18181b;">${escapeHtml(val)}</td>
         </tr>
       `;
 
-      const emailSubject = type === 'beta' 
-        ? `[Beta Application] ${name || 'New applicant'} applied` 
-        : `[Newsletter Signup] ${email}`;
+      const emailSubject = (type === 'beta'
+        ? `[Beta Application] ${name || 'New applicant'} applied`
+        : `[Newsletter Signup] ${email}`).replace(/[\r\n]/g, ' ');
 
       const emailHtml = type === 'beta' 
         ? htmlLayout('New Beta Application', `
@@ -232,7 +249,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, pushSent, emailSent });
 
   } catch (err: any) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error('[Notify Admin] Route error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to send notification.' }, { status: 500 });
   }
 }

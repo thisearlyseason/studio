@@ -1,3 +1,5 @@
+import { escapeHtml } from '@/lib/html-escape';
+
 /**
  * Email Templates — The Squad Pro
  * Pure HTML strings (no JSX deps) for maximum compatibility with Resend.
@@ -53,37 +55,36 @@ function btn(text: string, url: string): string {
 
 function field(label: string, value: string): string {
   return `<tr>
-    <td style="padding:10px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.15em;color:#71717a;width:40%;">${label}</td>
-    <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#18181b;">${value}</td>
+    <td style="padding:10px 16px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.15em;color:#71717a;width:40%;">${escapeHtml(label)}</td>
+    <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#18181b;">${escapeHtml(value)}</td>
   </tr>`;
 }
 
 // ── Template 1: Welcome / Beta Approved ─────────────────────────────────────
-export function welcomeEmail({ name, email, password, planType }: {
+export function welcomeEmail({ name, email, resetLink, planType }: {
   name: string;
   email: string;
-  password: string;
+  resetLink: string;
   planType: string;
 }): { subject: string; html: string } {
   const planLabel = planType === 'elite' ? 'Elite Club' : planType === 'school' ? 'School Hub' : planType === 'team' ? 'Pro Team' : 'Beta';
   return {
     subject: `Welcome to ${BRAND_NAME} — Your account is ready`,
     html: layout('Your Account is Ready', `
-      <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#18181b;">Welcome, ${name}! 🎉</p>
+      <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#18181b;">Welcome, ${escapeHtml(name)}! 🎉</p>
       <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.6;">
-        Your <strong>${planLabel}</strong> beta access has been approved. Here are your login credentials:
+        Your <strong>${escapeHtml(planLabel)}</strong> beta access has been approved. Set your private password to activate the account:
       </p>
 
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;border-radius:16px;overflow:hidden;margin-bottom:28px;">
         <tbody>
           ${field('Email', email)}
-          ${field('Password', `<code style="font-family:monospace;background:#e4e4e7;padding:3px 8px;border-radius:6px;">${password}</code>`)}
           ${field('Plan', planLabel)}
         </tbody>
       </table>
 
-      <p style="margin:0 0 4px;font-size:12px;color:#a1a1aa;text-align:center;">Log in and change your password immediately.</p>
-      ${btn('Log In to The Squad Pro', `${BASE_URL}/login`)}
+      <p style="margin:0 0 4px;font-size:12px;color:#a1a1aa;text-align:center;">This secure setup link expires automatically.</p>
+      ${btn('Set Your Password', resetLink)}
 
       <p style="margin:24px 0 0;font-size:13px;color:#71717a;line-height:1.7;">
         Need help getting started? Check out the <a href="${BASE_URL}/how-to" style="color:${BRAND_COLOR};font-weight:700;">User Manual</a> or reply to this email — we're here.

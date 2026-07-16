@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 export {
   readJsonBodyWithLimit,
@@ -45,4 +45,23 @@ export async function enforceUserRateLimit(
         { error: 'Too many requests. Please wait and try again.' },
         { status: 429, headers: { 'Retry-After': String(Math.ceil(windowMs / 1000)) } }
       );
+}
+
+export async function enforcePublicRateLimit(
+  request: NextRequest,
+  scope: string,
+  limit: number,
+  windowMs: number,
+  discriminator = ''
+): Promise<NextResponse | null> {
+  const forwardedFor = request.headers.get('x-forwarded-for') || '';
+  const clientAddress =
+    forwardedFor.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown';
+  const userAgent = request.headers.get('user-agent') || 'unknown';
+  const fingerprint = createHash('sha256')
+    .update(`${clientAddress}:${userAgent}:${discriminator}`)
+    .digest('hex');
+  return enforceUserRateLimit(fingerprint, `public-${scope}`, limit, windowMs);
 }

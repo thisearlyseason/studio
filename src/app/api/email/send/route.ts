@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { verifyFirebaseToken } from '@/lib/api-auth';
 import { adminDb } from '@/lib/firebase-admin';
+import {
+  enforceUserRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
 
@@ -31,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const body: SendEmailPayload = await req.json();
+    const body = await readJsonBodyWithLimit<SendEmailPayload>(req, 256_000);
     const { teamId, recipientUserIds, subject, html, replyTo } = body;
 
     if (!teamId || !Array.isArray(recipientUserIds) || !recipientUserIds.length || !subject || !html) {
@@ -40,6 +45,23 @@ export async function POST(req: NextRequest) {
     if (recipientUserIds.length > 500) {
       return NextResponse.json({ error: 'Too many recipients.' }, { status: 400 });
     }
+    if (
+      typeof subject !== 'string' ||
+      subject.length > 200 ||
+      /[\r\n]/.test(subject) ||
+      typeof html !== 'string' ||
+      html.length > 200_000 ||
+      (replyTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo))
+    ) {
+      return NextResponse.json({ error: 'Invalid email content.' }, { status: 400 });
+    }
+    const rateLimit = await enforceUserRateLimit(
+      authResult.uid,
+      'email-send',
+      30,
+      60 * 60 * 1000
+    );
+    if (rateLimit) return rateLimit;
 
     const teamSnap = await adminDb.collection('teams').doc(teamId).get();
     if (!teamSnap.exists || (authResult.role !== 'superadmin' && teamSnap.data()!.ownerUserId !== authResult.uid)) {
@@ -50,7 +72,11 @@ export async function POST(req: NextRequest) {
     const memberSnaps = await Promise.all(uniqueRecipients.map(id =>
       adminDb.collection('teams').doc(teamId).collection('members').doc(id).get()
     ));
-    if (memberSnaps.some(member => !member.exists)) {
+    if (memberSnaps.some(member =>
+      !member.exists ||
+      member.data()?.status === 'removed' ||
+      member.data()?.isDeleted === true
+    )) {
       return NextResponse.json({ error: 'Recipients must be current team members.' }, { status: 403 });
     }
     const to = memberSnaps.flatMap(member => {
@@ -69,12 +95,15 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[Resend] Send error:', error);
-      return NextResponse.json({ error: error.message }, { status: 502 });
+      return NextResponse.json({ error: 'Email delivery failed.' }, { status: 502 });
     }
 
     return NextResponse.json({ id: data?.id });
   } catch (err: any) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error('[Resend] Unexpected error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to send email.' }, { status: 500 });
   }
 }

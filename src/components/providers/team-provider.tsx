@@ -2353,11 +2353,25 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
     console.log(`[RSVP] Updating RSVP: Event ${eventId}, Status ${status}, Team ${tid}, User ${uid}`);
     if (tid && uid && db) {
-      await updateDoc(doc(db, 'teams', tid, 'events', eventId), { [`userRsvps.${uid}`]: status }); 
+      const token = await getAuthToken(firebaseAuth);
+      const response = await fetch('/api/teams/rsvp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+        body: JSON.stringify({
+          teamId: tid,
+          eventId,
+          participantId: uid,
+          status,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Unable to update RSVP.');
+      }
     } else {
       console.error(`[RSVP] Failed: tid=${tid}, uid=${uid}, db=${!!db}`);
     }
-  }, [db, activeTeam, firebaseUser, isParent, isStaff, myChildren]);
+  }, [db, activeTeam, firebaseUser, firebaseAuth, isParent, isStaff, myChildren]);
 
   const claimAssignment = useCallback(async (eventId: string, assignmentId: string) => {
     if (!activeTeam?.id || !firebaseUser || !db) return false;
