@@ -493,29 +493,42 @@ service cloud.firestore {
 
     // ─── Facilities ───────────────────────────────────────────────────────────
     match /facilities/{facilityId} {
-      allow read: if isSignedIn();
+      // Facility records can include private operational notes such as access
+      // instructions. Only the creator and the global superadmin may read them.
+      allow read: if isSuperAdmin() || (
+        isSignedIn() && resource.data.clubId == request.auth.uid
+      );
       allow create: if isSignedIn() &&
         request.resource.data.clubId == request.auth.uid;
-      // Allow update/delete if:
-      //   • superadmin
-      //   • original creator (clubId == uid)
-      //   • demo facility (isDemo bypass)
-      //   • any signed-in staff/coach (isPro team owner or admin role)
-      allow update, delete: if isSuperAdmin() || (isSignedIn() && (
-        resource.data.clubId == request.auth.uid ||
-        resource.data.isDemo == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isPrimaryClubAuthority', false) == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['coach', 'admin', 'athletic_director', 'league_creator']
-      ));
+      allow update: if isSuperAdmin() || (
+        isSignedIn() &&
+        resource.data.clubId == request.auth.uid &&
+        request.resource.data.clubId == resource.data.clubId &&
+        request.resource.data.get('isDemo', false) == resource.data.get('isDemo', false)
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.clubId == request.auth.uid
+      );
 
-      match /{subCollection}/{docId} {
-        allow read: if isSignedIn();
-        allow write: if isSuperAdmin() || (isSignedIn() && (
-          request.resource.data.isDemo == true ||
-          get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid ||
-          get(/databases/$(database)/documents/facilities/$(facilityId)).data.isDemo == true ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['coach', 'admin', 'athletic_director', 'league_creator']
-        ));
+      match /fields/{fieldId} {
+        function isFacilityOwner() {
+          return isSignedIn() &&
+            get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid;
+        }
+
+        allow read: if isSuperAdmin() || isFacilityOwner();
+        allow create: if isSuperAdmin() || (
+          isFacilityOwner() &&
+          request.resource.data.facilityId == facilityId
+        );
+        allow update: if isSuperAdmin() || (
+          isFacilityOwner() &&
+          request.resource.data.get('facilityId', facilityId) ==
+            resource.data.get('facilityId', facilityId) &&
+          request.resource.data.get('isDemo', false) ==
+            resource.data.get('isDemo', false)
+        );
+        allow delete: if isSuperAdmin() || isFacilityOwner();
       }
     }
 
