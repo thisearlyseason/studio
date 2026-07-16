@@ -1560,8 +1560,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       limit = Math.max(limit, 1);
     }
     
-    // Superadmin gets Elite League plan limits
-    if (rawData.email === 'thisearlyseason@gmail.com' || rawData.role === 'superadmin') {
+    // Superadmin access must come from the authenticated role, never an email match.
+    if (rawData.role === 'superadmin') {
       limit = Math.max(limit, 100);
     }
 
