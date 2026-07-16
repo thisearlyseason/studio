@@ -57,9 +57,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A valid facility ID is required.' }, { status: 400 });
     }
 
-    const requesterSnap = await adminDb.collection('users').doc(auth.uid).get();
-    const isSuperAdmin =
-      auth.role === 'superadmin' || requesterSnap.data()?.role === 'superadmin';
+    // Global superadmin authority must come from the verified token custom
+    // claim, never from a browser-writable profile document.
+    const isSuperAdmin = auth.role === 'superadmin';
 
     const result = await adminDb.runTransaction(async transaction => {
       const facilityRef = adminDb.collection('facilities').doc(facilityId);

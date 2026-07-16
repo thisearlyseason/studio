@@ -28,7 +28,10 @@ class BatchHelper {
   // Firestore rules allow only a small number of document lookups across one
   // atomic batch. Demo writes repeatedly verify their owning team, so keep
   // chunks deliberately small even though Firestore's write-count limit is 500.
-  private readonly CHUNK_SIZE = 10;
+  // Five writes keeps rules-engine document lookups comfortably below the
+  // multi-write access-call ceiling, including player/media writes that verify
+  // both the player and owning squad.
+  private readonly CHUNK_SIZE = 5;
   private chunkPaths: string[] = [];  // paths in current chunk for debugging
   private pendingChunks: Array<{ batch: WriteBatch; count: number; paths: string[] }> = [];
 
@@ -97,11 +100,31 @@ class BatchHelper {
 
   private async _commitChunk(chunk: { batch: WriteBatch; count: number; paths: string[] }) {
     console.log(`[Demo] Committing batch chunk (${chunk.count} ops). Paths sampled:`, chunk.paths);
-    try {
-      await chunk.batch.commit();
-    } catch (err: any) {
-      console.error('[Demo] Batch chunk FAILED. Paths in this chunk:', chunk.paths);
-      throw err;
+    const transientCodes = new Set([
+      'aborted',
+      'cancelled',
+      'deadline-exceeded',
+      'firestore/aborted',
+      'firestore/cancelled',
+      'firestore/deadline-exceeded',
+      'firestore/internal',
+      'firestore/unavailable',
+      'internal',
+      'unavailable',
+    ]);
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        await chunk.batch.commit();
+        return;
+      } catch (err: any) {
+        const code = typeof err?.code === 'string' ? err.code.toLowerCase() : '';
+        const canRetry = transientCodes.has(code) && attempt < 3;
+        if (!canRetry) {
+          console.error('[Demo] Batch chunk FAILED. Paths in this chunk:', chunk.paths);
+          throw err;
+        }
+        await new Promise(resolve => setTimeout(resolve, attempt * 500));
+      }
     }
   }
 }

@@ -568,7 +568,7 @@ exports.getCalendarFeed = (0, https_1.onRequest)({ cors: true }, async (req, res
  * Auth deletion temporarily fails. Organization owners are intentionally
  * skipped: deleting them would orphan teams or leagues.
  */
-exports.purgeExpiredDeletionRequests = (0, scheduler_1.onSchedule)('every 24 hours', async () => {
+exports.purgeExpiredDeletionRequests = (0, scheduler_1.onSchedule)('every 15 minutes', async () => {
     const now = admin.firestore.Timestamp.now();
     const requests = await db.collection('accountDeletionRequests')
         .where('purgeAt', '<=', now)

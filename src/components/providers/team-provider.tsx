@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useFirestore, useMemoFirebase, useUser, useCollection, useDoc, useStorage, useAuth } from '@/firebase';
 import { getAuthToken, authHeader } from '@/lib/client-auth';
+import { isBillableSquadSeat } from '@/lib/team-seat-policy';
 
 /**
  * Dispatch push + email notifications to all team members.
@@ -1539,7 +1540,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       return { current: 0, limit: 0, exceeded: false, remaining: 0 };
     }
 
-    const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro);
+    const ownedProTeams = teamsRaw.filter(
+      t => t.ownerUserId === userProfile.id && t.isPro && isBillableSquadSeat(t)
+    );
 
     // Determine Pro team limit from the user document.
     // Signup writes `proTeamLimit` (number); Stripe webhooks write `team_limit` (number).
@@ -3660,7 +3663,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     await updateDoc(doc(db, 'leagues', leagueId), { schedule }); 
   }, [db]);
 
-  const resolveQuota = useCallback(async (selectedTeamIds: string[]) => { if (!db || !userProfile?.id) return; const batch = writeBatch(db); const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro); ownedProTeams.forEach(t => { if (!selectedTeamIds.includes(t.id)) { batch.update(doc(db, 'teams', t.id), { isPro: false, planId: 'free' }); } }); await batch.commit(); }, [db, userProfile, teamsRaw]);
+  const resolveQuota = useCallback(async (selectedTeamIds: string[]) => { if (!db || !userProfile?.id) return; const batch = writeBatch(db); const ownedProTeams = teamsRaw.filter(t => t.ownerUserId === userProfile.id && t.isPro && isBillableSquadSeat(t)); ownedProTeams.forEach(t => { if (!selectedTeamIds.includes(t.id)) { batch.update(doc(db, 'teams', t.id), { isPro: false, planId: 'free' }); } }); await batch.commit(); }, [db, userProfile, teamsRaw]);
   const exportAttendanceCSV = useCallback(async (eventId: string) => { if (!db || !activeTeam?.id) return; const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'events', eventId)); if (!snap.exists()) return; const rsvps = snap.data().userRsvps || {}; const rows = [["Name", "Status"]]; members.forEach(m => { rows.push([m.name, rsvps[m.userId] || 'no_response']); }); const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `attendance_${eventId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam, members]);
   const exportTournamentStandingsCSV = useCallback(async (tournamentId: string) => { if (!db || !activeTeam?.id) return; const rows = [["Team", "Wins", "Losses", "Ties", "Points"]]; const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `standings_${tournamentId}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); }, [db, activeTeam]);
 

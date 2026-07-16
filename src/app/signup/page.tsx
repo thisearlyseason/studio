@@ -142,6 +142,17 @@ export default function SignupPage() {
   const db = useFirestore();
   const router = useRouter();
 
+  React.useEffect(() => {
+    const returnPath = sessionStorage.getItem('squad_return_path');
+    if (!returnPath?.startsWith('/teams/join?')) return;
+    const queryIndex = returnPath.indexOf('?');
+    const linkedCode = new URLSearchParams(returnPath.slice(queryIndex + 1))
+      .get('code')
+      ?.trim()
+      .toUpperCase();
+    if (linkedCode) setJoinCode(linkedCode);
+  }, []);
+
   const selectedOption = SIGNUP_OPTIONS.find(o => o.id === regTarget);
   const rolePlans = regTarget ? ROLE_PLANS[regTarget as string] ?? [] : [];
   const isPlanRequired = rolePlans.length > 0;

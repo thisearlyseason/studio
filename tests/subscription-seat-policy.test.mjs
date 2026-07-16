@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import seatPolicy from '../src/lib/subscription-seat-policy.ts';
+import teamSeatPolicy from '../src/lib/team-seat-policy.ts';
 
 const {
   chooseAuthoritativeSubscriptionId,
@@ -9,6 +10,21 @@ const {
   isActiveSubscriptionMutationLock,
   isEntitledSubscriptionStatus,
 } = seatPolicy;
+const { isBillableSquadSeat } = teamSeatPolicy;
+
+test('administrative organization hubs never consume paid squad seats', () => {
+  assert.equal(isBillableSquadSeat({ type: 'school', isPro: true }), false);
+  assert.equal(isBillableSquadSeat({ type: 'school_hub', isPro: true }), false);
+  assert.equal(isBillableSquadSeat({ type: 'league_hub', isPro: true }), false);
+  assert.equal(isBillableSquadSeat({ isOrganizationHub: true, isPro: true }), false);
+});
+
+test('playable and legacy squads consume paid squad seats', () => {
+  assert.equal(isBillableSquadSeat({ type: 'school_squad', isPro: true }), true);
+  assert.equal(isBillableSquadSeat({ type: 'youth', isPro: true }), true);
+  assert.equal(isBillableSquadSeat({ type: 'adult', isPro: true }), true);
+  assert.equal(isBillableSquadSeat({ isPro: true }), true);
+});
 
 test('paid seats are capped deterministically after a downgrade', () => {
   assert.deepEqual(

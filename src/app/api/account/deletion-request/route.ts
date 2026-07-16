@@ -68,6 +68,11 @@ export async function POST(req: NextRequest) {
       return purgeAt;
     });
 
+    // Retain the records for seven days, but immediately revoke application
+    // access so a deletion-pending account cannot continue using team data.
+    await admin.auth().revokeRefreshTokens(auth.uid);
+    await admin.auth().updateUser(auth.uid, { disabled: true });
+
     return NextResponse.json({
       success: true,
       purgeAt: effectivePurgeAt.toDate().toISOString(),

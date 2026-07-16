@@ -5,6 +5,7 @@ import {
   isEntitledSubscriptionStatus,
   isPaidPlanType,
 } from '@/lib/server-team-entitlements';
+import { isBillableSquadSeat } from '@/lib/team-seat-policy';
 
 const PAID_PLAN_TYPES = new Set(['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo']);
 
@@ -51,7 +52,12 @@ export async function POST(req: NextRequest) {
         }
 
         const teamLimit = Number(user?.team_limit ?? 1);
-        const allocatedCount = ownedTeams.docs.filter(doc => doc.id !== teamId && doc.data().isPro === true).length;
+        const allocatedCount = ownedTeams.docs.filter(
+          doc =>
+            doc.id !== teamId &&
+            doc.data().isPro === true &&
+            isBillableSquadSeat(doc.data())
+        ).length;
         if (allocatedCount >= teamLimit) throw new Error('NO_SEATS');
         resolvedPlanId = accountPlan;
       }

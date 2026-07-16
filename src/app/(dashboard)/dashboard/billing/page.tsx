@@ -35,6 +35,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { SquadIdentity } from '@/components/SquadIdentity';
+import { isBillableSquadSeat } from '@/lib/team-seat-policy';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,7 +75,10 @@ export default function BillingDashboard() {
   const currentPlan = PRICING_CONFIG.find(p => p.id === userProfile?.plan_type) || null;
   const paidSeatLimit = userProfile?.team_limit ?? 0;
   const ownedProTeamCount = (teams || []).filter(
-    team => team.ownerUserId === userProfile?.id && team.isPro === true
+    team =>
+      team.ownerUserId === userProfile?.id &&
+      team.isPro === true &&
+      isBillableSquadSeat(team)
   ).length;
   const isOverLimit = ownedProTeamCount > paidSeatLimit;
   const isStripeLinked = !!userProfile?.stripe_subscription_id;
@@ -210,7 +214,7 @@ export default function BillingDashboard() {
       const response = await fetch('/api/subscription/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-        body: JSON.stringify({ userId: userProfile.id }),
+        body: JSON.stringify({ userId: userProfile.id, operationId: crypto.randomUUID() }),
       });
       const data = await response.json();
       if (data.success) {
@@ -233,7 +237,7 @@ export default function BillingDashboard() {
       const res = await fetch('/api/stripe/customer-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-        body: JSON.stringify({ userId: userProfile.id }),
+        body: JSON.stringify({ userId: userProfile.id, operationId: crypto.randomUUID() }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;

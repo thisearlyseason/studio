@@ -2,21 +2,93 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import {
+  enforceUserRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
+
+function normalizeInviteCode(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toUpperCase() : '';
+}
+
+function isValidInviteCode(value: string): boolean {
+  return /^[A-Z0-9_-]{3,64}$/.test(value);
+}
+
+async function findTeamByInviteCode(inviteCode: string) {
+  const matches = await Promise.all(['inviteCode', 'teamCode', 'code'].map(field =>
+    adminDb.collection('teams').where(field, '==', inviteCode).limit(1).get()
+  ));
+  return [
+    ...new Map(
+      matches.flatMap(match => match.docs).map(team => [team.id, team])
+    ).values(),
+  ];
+}
+
+/** Resolve the squad name carried by an authenticated recruitment link. */
+export async function GET(req: NextRequest) {
+  const auth = await verifyFirebaseToken(req);
+  if (auth instanceof NextResponse) return auth;
+
+  try {
+    const rateLimit = await enforceUserRateLimit(
+      auth.uid,
+      'team-invite-preview',
+      30,
+      5 * 60 * 1000
+    );
+    if (rateLimit) return rateLimit;
+
+    const inviteCode = normalizeInviteCode(req.nextUrl.searchParams.get('code'));
+    if (!isValidInviteCode(inviteCode)) {
+      return NextResponse.json({ error: 'A valid invite code is required.' }, { status: 400 });
+    }
+    const teams = await findTeamByInviteCode(inviteCode);
+    if (teams.length !== 1) {
+      return NextResponse.json(
+        { error: teams.length ? 'Invite code is ambiguous.' : 'Invite code not found.' },
+        { status: 404 }
+      );
+    }
+    const team = teams[0].data();
+    return NextResponse.json({
+      teamId: teams[0].id,
+      teamName: team.name || team.teamName || 'Squad',
+    });
+  } catch (error) {
+    console.error('[teams/join] Invite lookup failed:', error);
+    return NextResponse.json({ error: 'Unable to verify this recruitment link.' }, { status: 500 });
+  }
+}
 
 /** Server-authorized team enrollment using an invite code. */
 export async function POST(req: NextRequest) {
   const auth = await verifyFirebaseToken(req);
   if (auth instanceof NextResponse) return auth;
   try {
-    const { code, playerId } = await req.json();
-    const inviteCode = typeof code === 'string' ? code.trim().toUpperCase() : '';
-    if (!/^[A-Z0-9_-]{3,64}$/.test(inviteCode) || typeof playerId !== 'string' || !playerId) {
+    const rateLimit = await enforceUserRateLimit(
+      auth.uid,
+      'team-invite-join',
+      10,
+      10 * 60 * 1000
+    );
+    if (rateLimit) return rateLimit;
+
+    const { code, playerId } = await readJsonBodyWithLimit<{
+      code?: unknown;
+      playerId?: unknown;
+    }>(req, 8_000);
+    const inviteCode = normalizeInviteCode(code);
+    if (
+      !isValidInviteCode(inviteCode) ||
+      typeof playerId !== 'string' ||
+      !/^[A-Za-z0-9_-]{1,200}$/.test(playerId)
+    ) {
       return NextResponse.json({ error: 'A valid invite code and player are required.' }, { status: 400 });
     }
-    const matches = await Promise.all(['inviteCode', 'teamCode', 'code'].map(field =>
-      adminDb.collection('teams').where(field, '==', inviteCode).limit(1).get()
-    ));
-    const teams = [...new Map(matches.flatMap(match => match.docs).map(team => [team.id, team])).values()];
+    const teams = await findTeamByInviteCode(inviteCode);
     if (teams.length !== 1) return NextResponse.json({ error: teams.length ? 'Invite code is ambiguous.' : 'Invite code not found.' }, { status: 404 });
 
     const playerRef = adminDb.collection('players').doc(playerId);
@@ -48,6 +120,9 @@ export async function POST(req: NextRequest) {
     await batch.commit();
     return NextResponse.json({ teamId: teamDoc.id });
   } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('[teams/join] Enrollment failed:', error);
     return NextResponse.json({ error: 'Unable to join this team.' }, { status: 500 });
   }

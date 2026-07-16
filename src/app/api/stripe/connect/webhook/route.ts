@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
+import { connectAccountOwnsTeam } from '@/lib/server-stripe-connect';
 
 /**
  * POST /api/stripe/connect/webhook
@@ -68,13 +69,13 @@ export async function POST(req: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentIntentSucceeded(pi);
+        await handlePaymentIntentSucceeded(pi, connectedAccountId);
         break;
       }
 
       case 'payment_intent.payment_failed': {
         const pi = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentIntentFailed(pi);
+        await handlePaymentIntentFailed(pi, connectedAccountId);
         break;
       }
 
@@ -106,6 +107,9 @@ async function handleCheckoutCompleted(
     // This checkout session was not created through our payment items system;
     // could be a subscription session. Skip silently.
     return;
+  }
+  if (!(await connectAccountOwnsTeam(teamId, connectedAccountId))) {
+    throw new Error('Connected account does not own the referenced team.');
   }
 
   const payerEmail = session.customer_details?.email ?? session.customer_email ?? '';
@@ -172,10 +176,14 @@ async function handleCheckoutCompleted(
  * that might not generate a checkout.session.completed event in all flows).
  */
 async function handlePaymentIntentSucceeded(
-  pi: Stripe.PaymentIntent
+  pi: Stripe.PaymentIntent,
+  connectedAccountId: string | undefined
 ) {
   const teamId: string | undefined = pi.metadata?.firebase_team_id;
   if (!teamId) return;
+  if (!(await connectAccountOwnsTeam(teamId, connectedAccountId))) {
+    throw new Error('Connected account does not own the referenced team.');
+  }
 
   // Only update — the checkout.session.completed handler is primary
   await adminDb
@@ -190,6 +198,7 @@ async function handlePaymentIntentSucceeded(
         amount: pi.amount_received,
         currency: pi.currency,
         stripe_payment_intent_id: pi.id,
+        stripe_connect_account_id: connectedAccountId,
         payer_email: pi.receipt_email ?? '',
         payer_name: '',
         paymentItemName: 'Online Payment',
@@ -204,10 +213,14 @@ async function handlePaymentIntentSucceeded(
  * Handles payment_intent.payment_failed — marks the payment record as failed.
  */
 async function handlePaymentIntentFailed(
-  pi: Stripe.PaymentIntent
+  pi: Stripe.PaymentIntent,
+  connectedAccountId: string | undefined
 ) {
   const teamId: string | undefined = pi.metadata?.firebase_team_id;
   if (!teamId) return;
+  if (!(await connectAccountOwnsTeam(teamId, connectedAccountId))) {
+    throw new Error('Connected account does not own the referenced team.');
+  }
 
   await adminDb
     .collection('teams').doc(teamId)
@@ -221,6 +234,7 @@ async function handlePaymentIntentFailed(
         amount: pi.amount,
         currency: pi.currency,
         stripe_payment_intent_id: pi.id,
+        stripe_connect_account_id: connectedAccountId,
         payer_email: pi.receipt_email ?? '',
         payer_name: '',
         paymentItemName: 'Online Payment',

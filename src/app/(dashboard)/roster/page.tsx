@@ -184,10 +184,8 @@ export default function RosterPage() {
 
   const recruitmentUrl = useMemo(() => {
     if (!activeTeam || typeof window === 'undefined') return '';
-    if (activeTeam.registrationProtocolId) {
-      return `${window.location.origin}/register/league/${activeTeam.id}?protocol=${activeTeam.registrationProtocolId}`;
-    }
-    return `${window.location.origin}/teams/join?code=${activeTeam.code}`;
+    const inviteCode = activeTeam.code || activeTeam.teamCode || activeTeam.inviteCode || '';
+    return `${window.location.origin}/teams/join?code=${encodeURIComponent(inviteCode)}`;
   }, [activeTeam, mounted]);
 
   const handleCopyRecruitmentUrl = async () => {

@@ -6,8 +6,10 @@ import {
   buildLeagueRenameUpdates,
   FacilityRenameContext,
 } from '@/lib/facility-rename';
+import { readJsonBodyWithLimit, RequestBodyError } from '@/lib/server-request-guards';
 
 const MAX_ATOMIC_WRITES = 450;
+const MAX_SCANNED_RECORDS = 2_500;
 const MAX_NAME_LENGTH = 120;
 const MAX_ADDRESS_LENGTH = 300;
 const MAX_NOTES_LENGTH = 1_000;
@@ -27,7 +29,16 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const body = await req.json();
+    const body = await readJsonBodyWithLimit<{
+      facilityId?: unknown;
+      fieldId?: unknown;
+      fieldName?: unknown;
+      facilityUpdates?: {
+        name?: unknown;
+        address?: unknown;
+        notes?: unknown;
+      } | null;
+    }>(req, 8_000);
     const facilityId = cleanText(body.facilityId, 200);
     const fieldId = cleanText(body.fieldId, 200);
     const fieldName = cleanText(body.fieldName, MAX_NAME_LENGTH);
@@ -44,18 +55,16 @@ export async function POST(req: NextRequest) {
     }
 
     const facilityRef = adminDb.collection('facilities').doc(facilityId);
-    const [facilitySnap, requesterSnap] = await Promise.all([
-      facilityRef.get(),
-      adminDb.collection('users').doc(auth.uid).get(),
-    ]);
+    const facilitySnap = await facilityRef.get();
 
     if (!facilitySnap.exists) {
       return NextResponse.json({ error: 'Facility not found.' }, { status: 404 });
     }
 
     const facility = facilitySnap.data() || {};
-    const isSuperAdmin =
-      auth.role === 'superadmin' || requesterSnap.data()?.role === 'superadmin';
+    // Global superadmin authority must come from the verified token custom
+    // claim, never from a browser-writable profile document.
+    const isSuperAdmin = auth.role === 'superadmin';
     if (!isSuperAdmin && facility.clubId !== auth.uid) {
       return NextResponse.json(
         { error: 'Only the facility owner can change this facility or its resources.' },
@@ -97,11 +106,6 @@ export async function POST(req: NextRequest) {
       addWrite(facilityRef, facilityUpdates);
     }
 
-    const eventDocs = new Map<string, any>();
-    const collectEvents = (snapshot: any) => {
-      snapshot.docs.forEach((eventDoc: any) => eventDocs.set(eventDoc.ref.path, eventDoc));
-    };
-
     let context: FacilityRenameContext = {
       facilityId,
       oldFacilityName,
@@ -110,22 +114,6 @@ export async function POST(req: NextRequest) {
     const newFacilityName = facilityUpdates.name;
     if (newFacilityName && newFacilityName !== oldFacilityName) {
       context = { ...context, newFacilityName };
-
-      const [directEvents, fieldsSnap] = await Promise.all([
-        adminDb.collectionGroup('events').where('facilityId', '==', facilityId).get(),
-        facilityRef.collection('fields').get(),
-      ]);
-      collectEvents(directEvents);
-
-      for (const fieldDoc of fieldsSnap.docs) {
-        const existingFieldName = cleanText(fieldDoc.data().name, MAX_NAME_LENGTH);
-        if (!existingFieldName) continue;
-        const selectedEvents = await adminDb
-          .collectionGroup('events')
-          .where('selectedFields', 'array-contains', `${facilityId}:${existingFieldName}`)
-          .get();
-        collectEvents(selectedEvents);
-      }
     }
 
     if (fieldId) {
@@ -159,34 +147,61 @@ export async function POST(req: NextRequest) {
           newFieldName: fieldName,
         };
         addWrite(fieldRef, { name: fieldName });
-
-        const selectedEvents = await adminDb
-          .collectionGroup('events')
-          .where('selectedFields', 'array-contains', `${facilityId}:${oldFieldName}`)
-          .get();
-        collectEvents(selectedEvents);
-
-        const leaguesSnap = await adminDb
-          .collection('leagues')
-          .where('creatorId', '==', facility.clubId)
-          .get();
-
-        for (const leagueDoc of leaguesSnap.docs) {
-          const leagueUpdates = buildLeagueRenameUpdates(leagueDoc.data(), context);
-          if (Object.keys(leagueUpdates).length === 0) continue;
-          addWrite(leagueDoc.ref, leagueUpdates);
-
-          const leagueEvents = await adminDb
-            .collectionGroup('events')
-            .where('leagueId', '==', leagueDoc.id)
-            .get();
-          collectEvents(leagueEvents);
-        }
       }
     }
 
-    for (const eventDoc of eventDocs.values()) {
-      addWrite(eventDoc.ref, buildEventRenameUpdates(eventDoc.data(), context));
+    const isRename =
+      Boolean(context.newFacilityName && context.newFacilityName !== context.oldFacilityName) ||
+      Boolean(context.oldFieldName && context.newFieldName !== context.oldFieldName);
+
+    if (isRename) {
+      const facilityOwnerId = cleanText(facility.clubId, 200);
+      if (!facilityOwnerId) {
+        return NextResponse.json(
+          { error: 'This facility has invalid legacy ownership data and cannot be renamed safely.' },
+          { status: 409 }
+        );
+      }
+
+      // Scan only the facility owner's organization. This covers legacy records
+      // that store a display location without facilityId/selectedFields and
+      // avoids requiring collection-group indexes during a rename.
+      const [ownedTeams, schoolTeams, clubTeams, leaguesSnap] = await Promise.all([
+        adminDb.collection('teams').where('ownerUserId', '==', facilityOwnerId).get(),
+        adminDb.collection('teams').where('schoolAdminIds', 'array-contains', facilityOwnerId).get(),
+        adminDb.collection('teams').where('clubId', '==', facilityOwnerId).get(),
+        adminDb.collection('leagues').where('creatorId', '==', facilityOwnerId).get(),
+      ]);
+
+      const teamDocs = new Map<string, any>();
+      [ownedTeams, schoolTeams, clubTeams].forEach(snapshot => {
+        snapshot.docs.forEach(teamDoc => teamDocs.set(teamDoc.ref.path, teamDoc));
+      });
+
+      const eventSnapshots = await Promise.all(
+        [...teamDocs.values()].map(teamDoc => teamDoc.ref.collection('events').get())
+      );
+      const eventDocs = new Map<string, any>();
+      eventSnapshots.forEach(snapshot => {
+        snapshot.docs.forEach((eventDoc: any) => eventDocs.set(eventDoc.ref.path, eventDoc));
+      });
+
+      if (eventDocs.size + leaguesSnap.size > MAX_SCANNED_RECORDS) {
+        return NextResponse.json(
+          {
+            error:
+              'This organization has too many schedules to rename safely in one operation. No records were changed.',
+          },
+          { status: 409 }
+        );
+      }
+
+      for (const eventDoc of eventDocs.values()) {
+        addWrite(eventDoc.ref, buildEventRenameUpdates(eventDoc.data(), context));
+      }
+      for (const leagueDoc of leaguesSnap.docs) {
+        addWrite(leagueDoc.ref, buildLeagueRenameUpdates(leagueDoc.data(), context));
+      }
     }
 
     if (pendingWrites.size === 0) {
@@ -213,6 +228,9 @@ export async function POST(req: NextRequest) {
       fieldName: fieldId ? fieldName : undefined,
     });
   } catch (error: any) {
+    if (error instanceof RequestBodyError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('[facilities/update] Error:', error?.message || error);
     return NextResponse.json(
       { error: 'Unable to update the facility and its linked records.' },

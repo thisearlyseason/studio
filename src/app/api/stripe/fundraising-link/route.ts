@@ -3,6 +3,15 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken } from '@/lib/api-auth';
 import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
+import { resolveTeamConnectAccount } from '@/lib/server-stripe-connect';
+import {
+  enforceUserRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
+
+const SAFE_ID = /^[A-Za-z0-9_-]{1,200}$/;
+const SAFE_OPERATION_ID = /^[A-Za-z0-9_-]{16,100}$/;
 
 /**
  * POST /api/stripe/fundraising-link
@@ -19,34 +28,44 @@ import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
  * Returns: { paymentLinkUrl, paymentLinkId }
  */
 
-async function resolveConnectAccount(teamId: string, userId: string): Promise<string | null> {
-  const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-  const teamData = teamSnap.data();
-
-  const hubTeamId: string | null = teamData?.schoolId || teamData?.clubId || null;
-  if (hubTeamId) {
-    const hubSnap = await adminDb.collection('teams').doc(hubTeamId).get();
-    const hubData = hubSnap.data();
-    if (hubData?.stripeConnectMode === 'shared' && hubData?.stripeConnectAccountId) {
-      return hubData.stripeConnectAccountId;
-    }
-  }
-
-  // Fall back to user's personal connected account
-  const userSnap = await adminDb.collection('users').doc(userId).get();
-  return userSnap.data()?.stripe_connect_account_id ?? null;
-}
-
 export async function POST(req: NextRequest) {
   const auth = await verifyFirebaseToken(req);
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const { userId, teamId, campaignId, campaignTitle, campaignDescription } = await req.json();
+    const {
+      userId,
+      teamId,
+      campaignId,
+      campaignTitle,
+      campaignDescription,
+      operationId,
+    } = await readJsonBodyWithLimit<{
+      userId?: unknown;
+      teamId?: unknown;
+      campaignId?: unknown;
+      campaignTitle?: unknown;
+      campaignDescription?: unknown;
+      operationId?: unknown;
+    }>(req, 16_000);
 
-    if (!userId || !teamId || !campaignId || !campaignTitle) {
+    if (
+      typeof userId !== 'string' ||
+      typeof teamId !== 'string' ||
+      typeof campaignId !== 'string' ||
+      typeof campaignTitle !== 'string' ||
+      typeof operationId !== 'string' ||
+      !SAFE_ID.test(userId) ||
+      !SAFE_ID.test(teamId) ||
+      !SAFE_ID.test(campaignId) ||
+      !SAFE_OPERATION_ID.test(operationId) ||
+      !campaignTitle.trim() ||
+      campaignTitle.trim().length > 120 ||
+      (campaignDescription !== undefined &&
+        (typeof campaignDescription !== 'string' || campaignDescription.length > 1_000))
+    ) {
       return NextResponse.json(
-        { error: 'Missing required fields: userId, teamId, campaignId, campaignTitle.' },
+        { error: 'Invalid fundraising link request.' },
         { status: 400 }
       );
     }
@@ -54,6 +73,13 @@ export async function POST(req: NextRequest) {
     if (auth.uid !== userId) {
       return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     }
+    const rateLimit = await enforceUserRateLimit(
+      auth.uid,
+      'stripe-fundraising-link-create',
+      10,
+      60 * 60 * 1000
+    );
+    if (rateLimit) return rateLimit;
 
     const access = await getTeamFinanceAccess(
       userId,
@@ -71,9 +97,17 @@ export async function POST(req: NextRequest) {
     if (!campaignSnap.exists) {
       return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
     }
+    const existingCampaign = campaignSnap.data() || {};
+    if (existingCampaign.stripeEnabled === true && existingCampaign.stripePaymentLinkUrl) {
+      return NextResponse.json({
+        paymentLinkUrl: existingCampaign.stripePaymentLinkUrl,
+        paymentLinkId: existingCampaign.stripePaymentLinkId,
+        duplicate: true,
+      });
+    }
 
     // Resolve Stripe account (hub shared or per-squad)
-    const connectAccountId = await resolveConnectAccount(teamId, userId);
+    const { connectAccountId } = await resolveTeamConnectAccount(teamId);
     if (!connectAccountId) {
       return NextResponse.json(
         { error: 'No Stripe account connected. Connect Stripe from the Finance tab first.' },
@@ -87,7 +121,7 @@ export async function POST(req: NextRequest) {
     // 1. Create a Product for the fundraising campaign
     const product = await stripe.products.create(
       {
-        name: campaignTitle,
+        name: campaignTitle.trim(),
         description: campaignDescription || `Fundraising campaign for ${teamName}`,
         metadata: {
           firebase_team_id: teamId,
@@ -96,7 +130,7 @@ export async function POST(req: NextRequest) {
           type: 'fundraising',
         },
       },
-      { stripeAccount: connectAccountId }
+      { stripeAccount: connectAccountId, idempotencyKey: `fundraising:${operationId}:product` }
     );
 
     // 2. Create a Price with custom_unit_amount (donor sets their own amount)
@@ -110,7 +144,7 @@ export async function POST(req: NextRequest) {
           preset: 2500,   // $25.00 suggested default
         },
       },
-      { stripeAccount: connectAccountId }
+      { stripeAccount: connectAccountId, idempotencyKey: `fundraising:${operationId}:price` }
     );
 
     // 3. Create the Payment Link
@@ -131,7 +165,7 @@ export async function POST(req: NextRequest) {
         },
         invoice_creation: { enabled: true },
       },
-      { stripeAccount: connectAccountId }
+      { stripeAccount: connectAccountId, idempotencyKey: `fundraising:${operationId}:link` }
     );
 
     // 4. Save the payment link to the campaign document
@@ -150,6 +184,9 @@ export async function POST(req: NextRequest) {
       paymentLinkId: paymentLink.id,
     }, { status: 201 });
   } catch (err: any) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error('[stripe/fundraising-link POST] Error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

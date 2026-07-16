@@ -39,6 +39,12 @@ export default function LoginPage() {
   React.useEffect(() => {
     if (!isUserLoading && user) {
       const fetchRole = async () => {
+        const returnPath = sessionStorage.getItem('squad_return_path');
+        if (returnPath?.startsWith('/') && !returnPath.startsWith('//')) {
+          sessionStorage.removeItem('squad_return_path');
+          router.push(returnPath);
+          return;
+        }
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {

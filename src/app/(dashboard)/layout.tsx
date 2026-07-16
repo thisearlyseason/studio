@@ -300,6 +300,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted || !isAuthResolved || isDemoInitializing) return;
     if (!user && !pathname.includes('seed_demo')) {
+      const query = searchParams.toString();
+      const returnPath = `${pathname}${query ? `?${query}` : ''}`;
+      if (returnPath.startsWith('/') && !returnPath.startsWith('//')) {
+        sessionStorage.setItem('squad_return_path', returnPath);
+      }
       router.push('/login');
     }
 
@@ -343,7 +348,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         return;
       }
     }
-  }, [user, isAuthResolved, router, mounted, isDemoInitializing, pathname, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent, activeTeam]);
+  }, [user, isAuthResolved, router, mounted, isDemoInitializing, pathname, searchParams, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent, activeTeam]);
 
   useEffect(() => {
     if (!mounted || isSeedingDemo || isTeamsLoading || !user || isDemoInitializing) return;
@@ -425,7 +430,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           await fetch('/api/subscription/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-            body: JSON.stringify({ userId: user.uid }),
+            body: JSON.stringify({ userId: user.uid, operationId: crypto.randomUUID() }),
           });
           
           if (auth.currentUser) {

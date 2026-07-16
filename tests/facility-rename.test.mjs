@@ -99,3 +99,20 @@ test('qualified field labels preserve colons inside the field name', () => {
   assert.equal(getFacilityFieldName('facility-1:Court 1: North'), 'Court 1: North');
   assert.equal(getFacilityFieldName('Legacy Field'), 'Legacy Field');
 });
+
+test('legacy schedule labels are renamed without a facility ID', () => {
+  const updates = buildEventRenameUpdates(
+    {
+      location: 'Home Training Center - Main Arena',
+      tournamentGames: [{ id: 'g1', location: 'Home Training Center' }],
+    },
+    {
+      facilityId: 'facility-1',
+      oldFacilityName: 'Home Training Center',
+      newFacilityName: 'North Training Centre',
+    }
+  );
+
+  assert.equal(updates.location, 'North Training Centre - Main Arena');
+  assert.equal(updates.tournamentGames[0].location, 'North Training Centre');
+});

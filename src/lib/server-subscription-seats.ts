@@ -4,6 +4,7 @@ import {
   choosePaidTeamIds,
   isActiveSubscriptionMutationLock,
 } from '@/lib/subscription-seat-policy';
+import { isBillableSquadSeat } from '@/lib/team-seat-policy';
 
 const MAX_RECONCILED_TEAMS = 200;
 
@@ -46,8 +47,12 @@ export async function reconcilePaidTeamSeats(input: {
       throw new Error('SUBSCRIPTION_MUTATION_IN_PROGRESS');
     }
 
-    const ownedTeams = new Map(teamsSnapshot.docs.map(teamDoc => [teamDoc.id, teamDoc]));
-    const allocatedTeamIds = teamsSnapshot.docs
+    const allOwnedTeams = new Map(teamsSnapshot.docs.map(teamDoc => [teamDoc.id, teamDoc]));
+    const billableTeams = teamsSnapshot.docs.filter(teamDoc =>
+      isBillableSquadSeat(teamDoc.data())
+    );
+    const ownedTeams = new Map(billableTeams.map(teamDoc => [teamDoc.id, teamDoc]));
+    const allocatedTeamIds = billableTeams
       .filter(teamDoc => teamDoc.data().isPro === true)
       .map(teamDoc => teamDoc.id);
     const selectedTeamId =
@@ -63,8 +68,11 @@ export async function reconcilePaidTeamSeats(input: {
     const paidTeamIdSet = new Set(paidTeamIds);
     const candidateIds = new Set(allocatedTeamIds);
     if (selectedTeamId) candidateIds.add(selectedTeamId);
+    teamsSnapshot.docs
+      .filter(teamDoc => !isBillableSquadSeat(teamDoc.data()))
+      .forEach(teamDoc => candidateIds.add(teamDoc.id));
     const updates = [...candidateIds]
-      .map(teamId => ownedTeams.get(teamId))
+      .map(teamId => allOwnedTeams.get(teamId))
       .filter((teamDoc): teamDoc is FirebaseFirestore.QueryDocumentSnapshot => Boolean(teamDoc));
 
     if (updates.length > MAX_RECONCILED_TEAMS) {
@@ -79,8 +87,10 @@ export async function reconcilePaidTeamSeats(input: {
         : {}),
     });
     updates.forEach(teamDoc => {
-      const keepPaid = paidTeamIdSet.has(teamDoc.id);
       const team = teamDoc.data();
+      const keepPaid = isBillableSquadSeat(team)
+        ? paidTeamIdSet.has(teamDoc.id)
+        : input.entitled;
       const planId = keepPaid ? input.planType : 'free';
       transaction.update(teamDoc.ref, {
         planId,

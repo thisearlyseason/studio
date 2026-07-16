@@ -27,6 +27,7 @@ const OWNER_FCM_TOKEN = process.env.OWNER_FCM_TOKEN; // optional — push to own
 
 /** Max body size: 512KB. Stripe events are typically <64KB. */
 const MAX_BODY_SIZE = 512_000;
+const WEBHOOK_PROCESSING_LEASE_MS = 10 * 60 * 1000;
 
 /**
  * Sends a push notification to the platform owner's device (fire-and-forget).
@@ -263,13 +264,26 @@ export async function POST(req: NextRequest) {
   const eventRef = adminDb.collection('stripeWebhookEvents').doc(event.id);
   const duplicate = await adminDb.runTransaction(async transaction => {
     const existing = await transaction.get(eventRef);
+    const processingStartedAt = new Date().toISOString();
     if (existing.exists) {
-      const previousStatus = existing.data()?.status;
+      const existingData = existing.data() || {};
+      const previousStatus = existingData.status;
       // A failed attempt must remain eligible for Stripe's retry. Completed
-      // events and in-flight deliveries are safe to acknowledge idempotently.
-      if (previousStatus === 'completed' || previousStatus === 'processing') return true;
+      // events and actively leased deliveries are safe to acknowledge. A stale
+      // processing lease is reclaimed after a crash so the event is not lost.
+      if (previousStatus === 'completed') return true;
+      if (previousStatus === 'processing') {
+        const leaseStarted = Date.parse(
+          existingData.processingStartedAt || existingData.receivedAt || ''
+        );
+        if (Number.isFinite(leaseStarted) && Date.now() - leaseStarted < WEBHOOK_PROCESSING_LEASE_MS) {
+          return true;
+        }
+      }
       transaction.update(eventRef, {
         status: 'processing',
+        processingStartedAt,
+        attempt: Number(existingData.attempt || 1) + 1,
         retriedAt: new Date().toISOString(),
       });
       return false;
@@ -277,6 +291,8 @@ export async function POST(req: NextRequest) {
     transaction.set(eventRef, {
       type: event.type,
       status: 'processing',
+      processingStartedAt,
+      attempt: 1,
       receivedAt: new Date().toISOString(),
     });
     return false;
