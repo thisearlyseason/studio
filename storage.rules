@@ -2,49 +2,94 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // ── Players media ──────────────────────────────────────────────────────
-    // Public read for scout portals and recruiting pages.
-    // Write: only the player's linked user account may upload.
-    // The playerId in storage must correspond to a player doc whose userId
-    // matches the authenticated user. Superadmin bypasses via custom claim.
-    match /players/{playerId}/{allPaths=**} {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.role == 'superadmin';
+    }
+
+    function playerData(playerId) {
+      return firestore.get(/databases/(default)/documents/players/$(playerId)).data;
+    }
+
+    function canManagePlayer(playerId) {
+      let player = playerData(playerId);
+      let teamId = player.get('primaryTeamId', player.get('teamId', ''));
+      return isSuperAdmin() || (isSignedIn() && (
+        player.get('userId', '') == request.auth.uid ||
+        player.get('parentId', '') == request.auth.uid ||
+        (
+          teamId != '' &&
+          firestore.get(/databases/(default)/documents/teams/$(teamId))
+            .data.ownerUserId == request.auth.uid
+        )
+      ));
+    }
+
+    function hasSafeImageUpload() {
+      return request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+    }
+
+    function hasSafeVideoUpload() {
+      return request.resource.size <= 500 * 1024 * 1024 &&
+        request.resource.contentType.matches('video/(mp4|webm|quicktime|x-m4v)');
+    }
+
+    // Recruiting media is public only while the athlete explicitly enables
+    // their scout profile. Family and the primary squad owner retain access.
+    match /players/{playerId}/thumbnails/{fileName} {
+      allow read: if playerData(playerId).get('recruitingProfileEnabled', false) == true ||
+        canManagePlayer(playerId);
+      allow create, update: if canManagePlayer(playerId) && hasSafeImageUpload();
+      allow delete: if canManagePlayer(playerId);
+    }
+
+    match /players/{playerId}/avatar/{fileName} {
+      allow read: if playerData(playerId).get('recruitingProfileEnabled', false) == true ||
+        canManagePlayer(playerId);
+      allow create, update: if canManagePlayer(playerId) && hasSafeImageUpload();
+      allow delete: if canManagePlayer(playerId);
+    }
+
+    match /players/{playerId}/videos/{fileName} {
+      allow read: if playerData(playerId).get('recruitingProfileEnabled', false) == true ||
+        canManagePlayer(playerId);
+      allow create, update: if canManagePlayer(playerId) && hasSafeVideoUpload();
+      allow delete: if canManagePlayer(playerId);
+    }
+
+    // Only explicitly branded team assets are public.
+    match /teams/{teamId}/branding/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && (
-        request.auth.token.role == 'superadmin' ||
-        firestore.get(/databases/(default)/documents/players/$(playerId)).data.userId == request.auth.uid
+      allow create, update: if (
+        isSuperAdmin() ||
+        (
+          isSignedIn() &&
+          firestore.get(/databases/(default)/documents/teams/$(teamId))
+            .data.ownerUserId == request.auth.uid
+        )
+      ) && hasSafeImageUpload();
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() &&
+        firestore.get(/databases/(default)/documents/teams/$(teamId))
+          .data.ownerUserId == request.auth.uid
       );
     }
 
-    // ── Team logos and branding ────────────────────────────────────────────
-    // Public read (logos shown on public-facing pages).
-    // Write: only team members may upload to a team's storage path.
-    // Uses a Firestore member doc check (same pattern as isTeamMember in Firestore rules).
-    match /teams/{teamId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null && (
-        request.auth.token.role == 'superadmin' ||
-        firestore.exists(/databases/(default)/documents/teams/$(teamId)/members/$(request.auth.uid)) ||
-        firestore.get(/databases/(default)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid
-      );
+    match /users/{userId}/avatar.jpg {
+      allow read: if isSignedIn();
+      allow create, update: if (
+        isSuperAdmin() || (isSignedIn() && request.auth.uid == userId)
+      ) && hasSafeImageUpload();
+      allow delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
     }
 
-    // ── User profile media ─────────────────────────────────────────────────
-    // Authenticated read (profile images shown within app).
-    // Write: owner only.
-    match /users/{userId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (
-        request.auth.token.role == 'superadmin' ||
-        request.auth.uid == userId
-      );
-    }
-
-    // ── Catch-all ──────────────────────────────────────────────────────────
-    // Any path not matched above: read allowed for public assets,
-    // write locked to superadmin only (removes the open authenticated write).
+    // No implicit public bucket. Every supported asset path is declared above.
     match /{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.token.role == 'superadmin';
+      allow read, write: if false;
     }
   }
 }

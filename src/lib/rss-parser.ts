@@ -1,4 +1,5 @@
 import { RSSArticle, RSSFeed, RSS_FILTER_BLOCKLIST } from './sports-hub-types';
+import { assertSafeExternalUrl } from './safe-external-url';
 
 export interface ParsedRSSItem {
   title: string;
@@ -9,25 +10,88 @@ export interface ParsedRSSItem {
   source: string;
 }
 
+const MAX_FEED_BYTES = 2 * 1024 * 1024;
+const MAX_REDIRECTS = 3;
+const FETCH_TIMEOUT_MS = 10_000;
+
+async function readBodyWithLimit(response: Response): Promise<string> {
+  const declaredLength = Number(response.headers.get('content-length') || 0);
+  if (declaredLength > MAX_FEED_BYTES) {
+    throw new Error('Feed response is too large.');
+  }
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_FEED_BYTES) {
+      await reader.cancel();
+      throw new Error('Feed response is too large.');
+    }
+    chunks.push(value);
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
+
+async function fetchSafeFeed(feedUrl: string): Promise<{
+  body: string;
+  contentType: string;
+  finalUrl: string;
+}> {
+  let current = await assertSafeExternalUrl(feedUrl);
+
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    const response = await fetch(current, {
+      headers: {
+        'User-Agent': 'TheSquad-SportsHub/1.0',
+        Accept: 'application/rss+xml, application/xml, application/json, text/xml',
+      },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (!location || redirectCount === MAX_REDIRECTS) {
+        throw new Error('Feed redirected too many times.');
+      }
+      current = await assertSafeExternalUrl(new URL(location, current).toString());
+      continue;
+    }
+
+    if (!response.ok) throw new Error(`Feed fetch failed: ${response.status}`);
+    return {
+      body: await readBodyWithLimit(response),
+      contentType: response.headers.get('content-type') || '',
+      finalUrl: current.toString(),
+    };
+  }
+
+  throw new Error('Feed redirected too many times.');
+}
+
 // Normalize any feed format (RSS 2.0, Atom, JSON Feed) into ParsedRSSItem[]
 export async function fetchAndParseRSSFeed(feedUrl: string): Promise<ParsedRSSItem[]> {
-  const response = await fetch(feedUrl, {
-    headers: { 'User-Agent': 'TheSquad-SportsHub/1.0', 'Accept': 'application/rss+xml, application/xml, application/json, text/xml' },
-    next: { revalidate: 3600 } // Cache for 1 hour
-  });
-
-  if (!response.ok) throw new Error(`Feed fetch failed: ${response.status}`);
-
-  const contentType = response.headers.get('content-type') || '';
+  const response = await fetchSafeFeed(feedUrl);
   
-  if (contentType.includes('json')) {
+  if (response.contentType.includes('json')) {
     // JSON Feed
-    const json = await response.json();
-    return parseJSONFeed(json, feedUrl);
+    const json = JSON.parse(response.body);
+    return parseJSONFeed(json, response.finalUrl);
   } else {
     // XML (RSS or Atom)
-    const text = await response.text();
-    return parseXMLFeed(text, feedUrl);
+    return parseXMLFeed(response.body, response.finalUrl);
   }
 }
 

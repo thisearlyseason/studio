@@ -3172,61 +3172,45 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [db]);
 
   const revokeChildInvite = useCallback(async (childId: string) => {
-    if (!db) return;
+    if (!firebaseAuth) return;
     try {
-      const playerDoc = await getDoc(doc(db, 'players', childId));
-      if (playerDoc.exists()) {
-        const data = playerDoc.data();
-        if (data.inviteToken) {
-          await deleteDoc(doc(db, 'invites', data.inviteToken));
-        }
-        await updateDoc(doc(db, 'players', childId), {
-          pendingInviteEmail: deleteField(),
-          inviteToken: deleteField(),
-          inviteSentAt: deleteField(),
-          inviteExpiresAt: deleteField()
-        });
-        toast({ title: "Invite Revoked", description: "The invitation has been canceled." });
-      }
+      const idToken = await getAuthToken(firebaseAuth);
+      if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+      const response = await fetch('/api/invites/youth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+        body: JSON.stringify({ action: 'revoke', childId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to revoke invitation.');
+      toast({ title: "Invite Revoked", description: "The invitation has been canceled." });
     } catch (err) {
       console.error('[YouthInvite] Failed to revoke invite:', err);
       toast({ title: "Error", description: "Failed to revoke invitation.", variant: "destructive" });
     }
-  }, [db]);
+  }, [firebaseAuth]);
 
   const sendChildInvite = useCallback(async (child: PlayerProfile, email: string): Promise<string | null> => {
-    if (!db || !firebaseUser) return null;
+    if (!firebaseAuth || !firebaseUser) return null;
     
     // Diagnostic logging to catch permission mismatches
     console.log('[YouthInvite] Initiating invite for child:', child.id);
 
-    const token = Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2, '0')).join('');
-    const sentAt = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
     try {
-      // 1. Attempt to write to invites collection
-      await setDoc(doc(db, 'invites', token), {
-        token,
-        childId: child.id,
-        childFirstName: child.firstName,
-        childLastName: child.lastName,
-        parentId: firebaseUser.uid,
-        email: email,
-        expiresAt: expiresAt,
-        used: false,
-        createdAt: serverTimestamp()
+      const idToken = await getAuthToken(firebaseAuth);
+      if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+      const response = await fetch('/api/invites/youth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+        body: JSON.stringify({
+          action: 'create',
+          childId: child.id,
+          email,
+        }),
       });
-
-      // 2. Attempt to update players record
-      await updateDoc(doc(db, 'players', child.id), { 
-        pendingInviteEmail: email, 
-        inviteToken: token,
-        inviteSentAt: sentAt,
-        inviteExpiresAt: expiresAt
-      });
-
-      const signupUrl = `${window.location.origin}/signup/youth?token=${token}`;
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to create invitation.');
+      const signupUrl = `${window.location.origin}/signup/youth?token=${payload.token}`;
       return signupUrl;
     } catch (err: any) {
       console.error('[YouthInvite] Error during invite flow:', err);
@@ -3237,7 +3221,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       });
       return null;
     }
-  }, [db, firebaseUser]);
+  }, [firebaseAuth, firebaseUser]);
   const assignManualPlan = useCallback(async (uid: string, planId: string, limit: number) => { if (db) await updateDoc(doc(db, 'users', uid), { activePlanId: planId, proTeamLimit: limit, planSource: 'manual' }); }, [db]);
 
   const addIncident = useCallback(async (data: any) => { if (activeTeam?.id && db && firebaseUser) await addDoc(collection(db, 'teams', activeTeam.id, 'incidents'), clean({ ...data, teamId: activeTeam.id, ownerUserId: activeTeam.ownerUserId, teamName: activeTeam.name, reportedBy: firebaseUser.uid, createdAt: new Date().toISOString() })); }, [db, firebaseUser, activeTeam]);

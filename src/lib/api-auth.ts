@@ -51,7 +51,7 @@ export async function verifyFirebaseToken(
 
     // Cryptographically verify the JWT signature and expiry.
     // This is the ONLY correct way to verify Firebase ID tokens server-side.
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await admin.auth().verifyIdToken(idToken, true);
 
     const role = (decodedToken as any).role as string | undefined;
 

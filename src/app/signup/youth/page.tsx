@@ -7,15 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/firebase';
-import { initializeFirebase } from '@/firebase';
-import {
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-  createUserWithEmailAndPassword,
-  updateProfile,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import BrandLogo from '@/components/BrandLogo';
 import {
@@ -34,7 +25,6 @@ import {
 function YouthSignupContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const auth = useAuth();
 
   const token = searchParams.get('token');
   const [invite, setInvite] = useState<any>(null);
@@ -55,30 +45,23 @@ function YouthSignupContent() {
       return;
     }
 
-    const { firestore } = initializeFirebase();
-    getDoc(doc(firestore, 'invites', token)).then((snap) => {
-      if (!snap.exists()) {
-        setInviteError('This invitation link is invalid or has already been used.');
-        setIsLoadingInvite(false);
-        return;
-      }
-      const data = snap.data();
-      if (data.used) {
-        setInviteError('This invitation has already been used. Please ask your parent to send a new one.');
-        setIsLoadingInvite(false);
-        return;
-      }
-      if (new Date(data.expiresAt) < new Date()) {
-        setInviteError('This invitation has expired. Please ask your parent to send a new one.');
-        setIsLoadingInvite(false);
-        return;
-      }
-      setInvite(data);
-      setIsLoadingInvite(false);
-    }).catch(() => {
-      setInviteError('Unable to verify invitation. Please try again.');
-      setIsLoadingInvite(false);
-    });
+    const controller = new AbortController();
+    fetch(`/api/invites/youth?token=${encodeURIComponent(token)}`, {
+      signal: controller.signal,
+    })
+      .then(async response => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Invitation unavailable.');
+        setInvite(payload.invite);
+        setInviteError(null);
+      })
+      .catch(error => {
+        if (error.name !== 'AbortError') {
+          setInviteError('This invitation is invalid, expired, or has already been used.');
+        }
+      })
+      .finally(() => setIsLoadingInvite(false));
+    return () => controller.abort();
   }, [token]);
 
   // ── 2. Handle account creation ──
@@ -97,44 +80,20 @@ function YouthSignupContent() {
 
     setIsSubmitting(true);
     try {
-      const { firestore } = initializeFirebase();
-
-      // Create Firebase Auth account
-      const credential = await createUserWithEmailAndPassword(auth, invite.email, password);
-      const uid = credential.user.uid;
-      const displayName = `${invite.childFirstName} ${invite.childLastName}`;
-      await updateProfile(credential.user, { displayName });
-
-      // Write user profile
-      await setDoc(doc(firestore, 'users', uid), {
-        id: uid,
-        fullName: displayName,
-        email: invite.email,
-        role: 'youth_player',
-        linkedPlayerId: invite.childId,
-        parentId: invite.parentId,
-        createdAt: new Date().toISOString(),
-        avatarUrl: `https://picsum.photos/seed/${uid}/150/150`,
-        activePlanId: null,
-        notificationsEnabled: true,
+      const response = await fetch('/api/invites/youth', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
       });
-
-      // Link UID back to the player doc
-      await updateDoc(doc(firestore, 'players', invite.childId), {
-        hasLogin: true,
-        userId: uid,
-        loginEmail: invite.email,
-      });
-
-      // Mark invite as used
-      await updateDoc(doc(firestore, 'invites', token), { used: true, usedAt: new Date().toISOString() });
-
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to create account.');
+      setInvite((current: any) => ({
+        ...current,
+        childFirstName: payload.childFirstName || current?.childFirstName,
+      }));
       setIsDone(true);
     } catch (error: any) {
-      const msg = error.code === 'auth/email-already-in-use'
-        ? 'An account with this email already exists. Try logging in instead.'
-        : error.message;
-      toast({ title: 'Account Creation Failed', description: msg, variant: 'destructive' });
+      toast({ title: 'Account Creation Failed', description: error.message, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
