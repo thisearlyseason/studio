@@ -108,6 +108,7 @@ export type UserProfile = {
   team_limit?: number | null;
   extra_teams?: number | null;
   subscription_status?: string | null;
+  billing_cycle?: 'monthly' | 'annual' | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
   seenAlertIds?: string[];

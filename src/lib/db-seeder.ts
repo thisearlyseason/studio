@@ -612,7 +612,7 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
     'team': 1,
     'elite': 8,
     'league': 15,
-    'school': 10
+    'school': 15
   };
   const team_limit = teamLimitMap[plan_type] || 1;
 

@@ -234,7 +234,6 @@ export default function SignupPage() {
               priceId: resolvedPriceId,
               userId: user.uid,
               billingCycle,
-              trialDays: 5,
               newUser: true,
             }),
           });

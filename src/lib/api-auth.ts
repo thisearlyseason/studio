@@ -14,12 +14,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { adminDb, ensureAdminInit } from '@/lib/firebase-admin';
 
-interface DecodedToken {
+export interface DecodedToken {
   uid: string;
   email?: string;
   role?: string;
   authTime?: number;
   signInProvider?: string;
+}
+
+export function assertNonAnonymous(authResult: DecodedToken): NextResponse | null {
+  if (authResult.signInProvider === 'anonymous') {
+    return NextResponse.json(
+      { error: 'This operation requires a registered account.' },
+      { status: 403 }
+    );
+  }
+  return null;
 }
 
 /**

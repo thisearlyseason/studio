@@ -43,8 +43,8 @@ export const PLAN_PRICE_MAP: Record<string, { id: string; teamLimit: number }> =
   [priceLeagueMonthly]: { id: 'league', teamLimit: 18 },
   [priceLeagueAnnual]:  { id: 'league', teamLimit: 18 },
   // Schools Plan — Monthly & Annual
-  [priceSchoolMonthly]: { id: 'school', teamLimit: 10 },
-  [priceSchoolAnnual]:  { id: 'school', teamLimit: 10 },
+  [priceSchoolMonthly]: { id: 'school', teamLimit: 15 },
+  [priceSchoolAnnual]:  { id: 'school', teamLimit: 15 },
 };
 
 // Extra Team add-on price IDs
@@ -59,3 +59,23 @@ export const ALL_KNOWN_PRICE_IDS = new Set<string>([
   EXTRA_TEAM_PRICE_IDS.monthly,
   EXTRA_TEAM_PRICE_IDS.annual,
 ]);
+
+export const PRICE_BILLING_CYCLE: Record<string, 'monthly' | 'annual'> = {
+  [priceTeamMonthly]: 'monthly',
+  [priceTeamAnnual]: 'annual',
+  [priceEliteMonthly]: 'monthly',
+  [priceEliteAnnual]: 'annual',
+  [priceLeagueMonthly]: 'monthly',
+  [priceLeagueAnnual]: 'annual',
+  [priceSchoolMonthly]: 'monthly',
+  [priceSchoolAnnual]: 'annual',
+  [EXTRA_TEAM_PRICE_IDS.monthly]: 'monthly',
+  [EXTRA_TEAM_PRICE_IDS.annual]: 'annual',
+};
+
+export function priceMatchesBillingCycle(
+  priceId: string,
+  billingCycle: 'monthly' | 'annual'
+): boolean {
+  return PRICE_BILLING_CYCLE[priceId] === billingCycle;
+}

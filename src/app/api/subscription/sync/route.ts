@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken, assertOwner } from '@/lib/api-auth';
-import { PLAN_PRICE_MAP, EXTRA_TEAM_PRICE_IDS } from '@/lib/stripe-price-map';
+import {
+  PLAN_PRICE_MAP,
+  EXTRA_TEAM_PRICE_IDS,
+  PRICE_BILLING_CYCLE,
+} from '@/lib/stripe-price-map';
 import { isEntitledSubscriptionStatus } from '@/lib/server-team-entitlements';
 
 export async function POST(req: NextRequest) {
@@ -46,6 +50,7 @@ export async function POST(req: NextRequest) {
     let planType = 'free';
     let baseTeamLimit = 0;
     let extraTeams = 0;
+    let billingCycle: 'monthly' | 'annual' | null = null;
 
     if (activeSub) {
       for (const item of activeSub.items.data) {
@@ -53,6 +58,7 @@ export async function POST(req: NextRequest) {
         if (resolved) {
           planType = resolved.id;
           baseTeamLimit = resolved.teamLimit;
+          billingCycle = PRICE_BILLING_CYCLE[item.price.id] || null;
         } else if (
           item.price.id === EXTRA_TEAM_PRICE_IDS.monthly ||
           item.price.id === EXTRA_TEAM_PRICE_IDS.annual
@@ -68,6 +74,7 @@ export async function POST(req: NextRequest) {
     await userRef.update({
       stripe_subscription_id: activeSub?.id || null,
       subscription_status: subscriptionStatus,
+      billing_cycle: billingCycle,
       plan_type: hasPaidEntitlement ? planType : 'free',
       team_limit: totalTeamLimit,
       extra_teams: hasPaidEntitlement ? extraTeams : 0,

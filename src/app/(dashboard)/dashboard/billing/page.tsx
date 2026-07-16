@@ -55,12 +55,17 @@ export default function BillingDashboard() {
   const [pendingSync, setPendingSync] = useState(false);
   const [addonQty, setAddonQty] = useState(userProfile?.extra_teams || 0);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(
-    userProfile?.subscription_status?.includes('annual') ? 'annual' : 'monthly'
+    userProfile?.billing_cycle || 'monthly'
   );
 
   useEffect(() => {
     setAddonQty(userProfile?.extra_teams || 0);
   }, [userProfile?.extra_teams]);
+  useEffect(() => {
+    if (userProfile?.billing_cycle) {
+      setBillingCycle(userProfile.billing_cycle);
+    }
+  }, [userProfile?.billing_cycle]);
 
   // Demo detection: team IDs starting with 'demo_' or isDemo flag on team/user
   const isDemo = !!(activeTeam?.isDemo || (userProfile as any)?.isDemo ||
@@ -125,12 +130,21 @@ export default function BillingDashboard() {
       const response = await fetch('/api/subscription/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-        body: JSON.stringify({ userId: userProfile.id, newPriceId }),
+        body: JSON.stringify({
+          userId: userProfile.id,
+          newPriceId,
+          operationId: crypto.randomUUID(),
+        }),
       });
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Plan Changed!', description: `Switched to ${newPlan.name}. Reloading...` });
         setTimeout(() => { window.location.href = '/dashboard/billing'; }, 1200);
+      } else if (data.pending) {
+        toast({
+          title: 'Payment Pending',
+          description: data.message,
+        });
       } else {
         throw new Error(data.error);
       }
@@ -164,13 +178,18 @@ export default function BillingDashboard() {
         body: JSON.stringify({
           userId: userProfile.id,
           quantity: qty,
-          billingCycle: userProfile.subscription_status?.includes('annual') ? 'annual' : 'monthly',
+          operationId: crypto.randomUUID(),
         }),
       });
       const data = await response.json();
       if (data.success) {
         toast({ title: 'Quota Updated', description: 'Extra team capacity has been adjusted.' });
         setAddonQty(qty);
+      } else if (data.pending) {
+        toast({
+          title: 'Payment Pending',
+          description: data.message,
+        });
       } else {
         throw new Error(data.error);
       }
@@ -530,18 +549,8 @@ export default function BillingDashboard() {
                     if (addonQty > currentQty) {
                       const diff = addonQty - currentQty;
                       const price = billingCycle === 'annual' ? EXTRA_TEAM_CONFIG.annualPrice : EXTRA_TEAM_CONFIG.monthlyPrice;
-                      if (!confirm(`Add ${diff} extra squad seat${diff > 1 ? 's' : ''} for ${price}/squad per ${billingCycle === 'annual' ? 'year' : 'month'}? You will be taken to Stripe to complete payment.`)) return;
-                      setLoading('addon_init');
-                      getAuthToken(auth).then(token =>
-                        fetch('/api/stripe/create-checkout', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-                          body: JSON.stringify({ userId: userProfile.id, priceId: null, billingCycle, extraTeamQty: diff }),
-                        })
-                      ).then(r => r.json()).then(data => {
-                        if (data.url) { window.location.href = data.url; }
-                        else { toast({ title: 'Checkout Error', description: data.error, variant: 'destructive' }); setLoading(null); }
-                      }).catch(e => { toast({ title: 'Checkout Error', description: e.message, variant: 'destructive' }); setLoading(null); });
+                      if (!confirm(`Add ${diff} extra squad seat${diff > 1 ? 's' : ''} for ${price}/squad per ${billingCycle === 'annual' ? 'year' : 'month'}? Your Stripe subscription will be updated immediately.`)) return;
+                      void handleUpdateAddon(addonQty);
                     } else {
                       handleUpdateAddon(addonQty);
                     }

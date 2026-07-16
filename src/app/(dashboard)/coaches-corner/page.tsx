@@ -842,9 +842,10 @@ function RecruitingProfileManager({ member }: { member: Member }) {
     updateAthleticMetrics, getPlayerStats, addPlayerStat, deletePlayerStat,
     getEvaluations, addEvaluation, getRecruitingContact, updateRecruitingContact,
     getPlayerVideos, addPlayerVideo, updatePlayerVideo, deletePlayerVideo, toggleRecruitingProfile,
-    updatePlayerStat, getStaffEvaluation, storage, updateMember
+    updatePlayerStat, getStaffEvaluation, storage, updateMember,
+    activeTeam: currentSquad, user
   } = useTeam();
-  const { user } = useTeam();
+  const auth = useAuth();
   const [skillInput, setSkillInput] = useState('');
   const [achievementInput, setAchievementInput] = useState('');
 
@@ -1214,9 +1215,16 @@ function RecruitingProfileManager({ member }: { member: Member }) {
 
   const handleGenerateAI = async () => {
     if (!aiSelectedVideoUrl || !aiVideoPrompt) return;
+    if (!currentSquad?.id) {
+      toast({
+        title: 'Squad Required',
+        description: 'Select a squad before running highlight analysis.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsAiProcessing(true);
     setFfmpegPhase('extracting');
-    const uploadedFramePaths: string[] = []; // track for cleanup
     
     // Safety timeout: Reset processing state if anything hangs for more than 2 minutes
     const safetyTimeoutId = setTimeout(() => {
@@ -1233,6 +1241,12 @@ function RecruitingProfileManager({ member }: { member: Member }) {
     }, 120000); // 120s max for everything
 
     try {
+      const authToken = await getAuthToken(auth);
+      if (!authToken) throw new Error('Your session expired. Please sign in again.');
+      const securedHeaders = {
+        'Content-Type': 'application/json',
+        ...authHeader(authToken),
+      };
       let res: Response;
 
       if (aiSourceFile && aiSourceDuration) {
@@ -1256,43 +1270,8 @@ function RecruitingProfileManager({ member }: { member: Member }) {
           throw new Error('Could not extract any frames from the video. Try a different format (MP4 recommended).');
         }
 
-        // ── Step 2: Upload frames SEQUENTIALLY → get HTTPS URLs ──────────
-        // Sequential upload prevents network choking and server rate-limiting.
-        let frameUrls: Array<{ timestamp: number; url: string }> = [];
-
-        if (member.playerId) {
-          setFfmpegPhase('uploading');
-          toast({ title: 'Syncing Frames', description: `Uploading ${frames.length} markers to Straico cloud...` });
-          setFfmpegProgress(0);
-
-          // PARALLEL UPLOAD: Fire all frame uploads simultaneously for 10x speed boost.
-          // This prevents minute-long videos from hanging in the sequential loop.
-          const uploadPromises = frames.map(async (frame, i) => {
-            try {
-              const uploadRes = await fetch('/api/highlights/upload-frame', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ base64: frame.base64 }),
-              });
-
-              if (!uploadRes.ok) return null;
-              const { url } = await uploadRes.json();
-              return { timestamp: frame.timestamp, url };
-            } catch (err) {
-              return null;
-            }
-          });
-
-          const results = await Promise.all(uploadPromises);
-          frameUrls = results.filter((r): r is { timestamp: number; url: string } => r !== null);
-          
-          if (frameUrls.length === 0) {
-            console.warn(`[Vision] All frame uploads failed — falling back to text-only mode`);
-          }
-          setFfmpegProgress(0);
-        }
-
-        // ── Step 3: Send frame URLs (or base64 fallback) to analyze route ─
+        // Send extracted frames directly to the authenticated analysis route.
+        // Frames are never published to a permanent third-party image host.
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -1302,12 +1281,12 @@ function RecruitingProfileManager({ member }: { member: Member }) {
         try {
           res = await fetch('/api/highlights/analyze', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: securedHeaders,
             body: JSON.stringify({
-              frameUrls: frameUrls.length > 0 ? frameUrls : undefined,
-              frames: frameUrls.length === 0 ? frames : undefined,
+              frames,
               prompt: aiVideoPrompt,
               videoDuration: aiSourceDuration,
+              teamId: currentSquad.id,
             }),
             signal: controller.signal,
           });
@@ -1323,14 +1302,6 @@ function RecruitingProfileManager({ member }: { member: Member }) {
           if (abortControllerRef.current === controller) abortControllerRef.current = null;
         }
 
-        // ── Step 4: Cleanup temp frames from Storage (fire-and-forget) ───
-        if (storage && uploadedFramePaths.length > 0) {
-          Promise.all(
-            uploadedFramePaths.map(path =>
-              deleteObject(ref(storage, path)).catch(() => {})
-            )
-          );
-        }
       } else {
         // ⚠️ TEXT-ONLY FALLBACK — URL only, no video file uploaded
         toast({
@@ -1340,8 +1311,13 @@ function RecruitingProfileManager({ member }: { member: Member }) {
         });
         res = await fetch('/api/highlights/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoUrl: aiSelectedVideoUrl, prompt: aiVideoPrompt, videoDuration: aiSourceDuration }),
+          headers: securedHeaders,
+          body: JSON.stringify({
+            videoUrl: aiSelectedVideoUrl,
+            prompt: aiVideoPrompt,
+            videoDuration: aiSourceDuration,
+            teamId: currentSquad.id,
+          }),
         });
       }
 

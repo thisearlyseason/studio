@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
-import { PLAN_PRICE_MAP, EXTRA_TEAM_PRICE_IDS } from '@/lib/stripe-price-map';
+import {
+  PLAN_PRICE_MAP,
+  EXTRA_TEAM_PRICE_IDS,
+  PRICE_BILLING_CYCLE,
+} from '@/lib/stripe-price-map';
 import {
   ownerNewRegistrationEmail,
   ownerPaymentReceivedEmail,
@@ -85,6 +89,7 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
   let planType = 'free';
   let baseLimit = 1;
   let extraTeams = 0;
+  let billingCycle: 'monthly' | 'annual' | null = null;
 
   for (const item of subscription.items.data) {
     const priceId = item.price.id;
@@ -92,6 +97,7 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
     if (resolved) {
       planType = resolved.id;
       baseLimit = resolved.teamLimit;
+      billingCycle = PRICE_BILLING_CYCLE[priceId] || null;
     } else if (
       priceId === EXTRA_TEAM_PRICE_IDS.monthly ||
       priceId === EXTRA_TEAM_PRICE_IDS.annual
@@ -113,6 +119,7 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
       stripe_subscription_id: subscription.id,
       stripe_customer_id: customerId,
       subscription_status: status,
+      billing_cycle: billingCycle,
       plan_type: isActive ? planType : 'free',
       team_limit: isActive ? baseLimit + extraTeams : 1,
       extra_teams: extraTeams,
@@ -171,6 +178,7 @@ async function syncSubscriptionToFirestore(subscription: Stripe.Subscription) {
         customerId,
         status,
         planType,
+        billingCycle,
         teamLimit: baseLimit + extraTeams,
         extraTeams,
         // current_period_end may be on subscription.items in newer Stripe API versions

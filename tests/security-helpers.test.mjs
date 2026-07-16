@@ -4,6 +4,21 @@ import {
   assertSafeExternalUrl,
   isPrivateNetworkAddress,
 } from '../src/lib/safe-external-url.ts';
+import {
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '../src/lib/bounded-json.ts';
+import {
+  buildCheckoutIdempotencyKey,
+  calculateSignupTrialDays,
+  hasBlockingSubscription,
+  SIGNUP_TRIAL_DAYS,
+} from '../src/lib/checkout-policy.ts';
+import {
+  PLAN_PRICE_MAP,
+  PRICE_BILLING_CYCLE,
+  priceMatchesBillingCycle,
+} from '../src/lib/stripe-price-map.ts';
 
 test('private and special-use IPv4 ranges are rejected', () => {
   for (const address of [
@@ -36,4 +51,109 @@ test('unsafe RSS URL forms are rejected before a request is made', async () => {
   await assert.rejects(() => assertSafeExternalUrl('https://[::1]/feed'));
   await assert.rejects(() => assertSafeExternalUrl('https://user:pass@example.com/feed'));
   await assert.rejects(() => assertSafeExternalUrl('https://example.com:8443/feed'));
+});
+
+test('bounded JSON accepts a valid request within the actual byte limit', async () => {
+  const request = new Request('https://example.com/api', {
+    method: 'POST',
+    body: JSON.stringify({ teamId: 'team-1' }),
+  });
+  assert.deepEqual(await readJsonBodyWithLimit(request, 1_024), { teamId: 'team-1' });
+});
+
+test('bounded JSON rejects oversized streamed bodies without trusting content-length', async () => {
+  const request = new Request('https://example.com/api', {
+    method: 'POST',
+    body: JSON.stringify({ payload: 'x'.repeat(2_000) }),
+  });
+  await assert.rejects(
+    () => readJsonBodyWithLimit(request, 100),
+    error => error instanceof RequestBodyError && error.status === 413
+  );
+});
+
+test('bounded JSON rejects malformed input with a safe client error', async () => {
+  const request = new Request('https://example.com/api', {
+    method: 'POST',
+    body: '{not-json',
+  });
+  await assert.rejects(
+    () => readJsonBodyWithLimit(request, 100),
+    error => error instanceof RequestBodyError && error.status === 400
+  );
+});
+
+test('signup trial policy is server-derived and limited to new accounts', () => {
+  const now = Date.now();
+  assert.equal(calculateSignupTrialDays({
+    accountCreatedAt: now - 60_000,
+    now,
+    hasStripeSubscriptionId: false,
+    priorSubscriptionCount: 0,
+  }), SIGNUP_TRIAL_DAYS);
+  assert.equal(calculateSignupTrialDays({
+    accountCreatedAt: now - 24 * 60 * 60 * 1000,
+    now,
+    hasStripeSubscriptionId: false,
+    priorSubscriptionCount: 0,
+  }), 0);
+});
+
+test('signup trial policy denies repeat subscriptions', () => {
+  const now = Date.now();
+  assert.equal(calculateSignupTrialDays({
+    accountCreatedAt: now - 60_000,
+    now,
+    hasStripeSubscriptionId: true,
+    priorSubscriptionCount: 0,
+  }), 0);
+  assert.equal(calculateSignupTrialDays({
+    accountCreatedAt: now - 60_000,
+    now,
+    hasStripeSubscriptionId: false,
+    priorSubscriptionCount: 1,
+  }), 0);
+});
+
+test('checkout idempotency fingerprints all material checkout choices', () => {
+  const base = {
+    route: 'stripe-create-checkout',
+    userId: 'user-1',
+    priceId: 'price-monthly',
+    billingCycle: 'monthly',
+    quantity: 1,
+    teamId: 'team-1',
+    operationId: 'operation-0000001',
+    now: 1_800_000,
+  };
+  const key = buildCheckoutIdempotencyKey(base);
+  assert.equal(buildCheckoutIdempotencyKey({ ...base }), key);
+  assert.notEqual(buildCheckoutIdempotencyKey({ ...base, route: 'legacy-checkout' }), key);
+  assert.notEqual(buildCheckoutIdempotencyKey({ ...base, quantity: 2 }), key);
+  assert.notEqual(buildCheckoutIdempotencyKey({ ...base, teamId: 'team-2' }), key);
+  assert.notEqual(
+    buildCheckoutIdempotencyKey({ ...base, operationId: 'operation-0000002' }),
+    key
+  );
+});
+
+test('active and unresolved subscriptions block duplicate base checkout', () => {
+  assert.equal(hasBlockingSubscription(['canceled']), false);
+  assert.equal(hasBlockingSubscription(['incomplete_expired']), false);
+  assert.equal(hasBlockingSubscription(['active']), true);
+  assert.equal(hasBlockingSubscription(['past_due']), true);
+});
+
+test('authoritative prices enforce billing cycle and 15 school seats', () => {
+  const schoolPrice = Object.entries(PLAN_PRICE_MAP)
+    .find(([, plan]) => plan.id === 'school' && plan.teamLimit === 15);
+  assert.ok(schoolPrice);
+  const [priceId] = schoolPrice;
+  const cycle = PRICE_BILLING_CYCLE[priceId];
+  assert.ok(cycle === 'monthly' || cycle === 'annual');
+  assert.equal(priceMatchesBillingCycle(priceId, cycle), true);
+  assert.equal(
+    priceMatchesBillingCycle(priceId, cycle === 'monthly' ? 'annual' : 'monthly'),
+    false
+  );
 });
