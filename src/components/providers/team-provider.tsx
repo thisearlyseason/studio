@@ -3380,10 +3380,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       // Hardening: Use a batch or at least verify the ID is valid
       if (!id) throw new Error("No alert ID provided to archive");
 
-      await setDoc(userRef, { 
+      await setDoc(userRef, {
         seenAlertIds: arrayUnion(id),
-        lastAlertArchivedAt: new Date().toISOString() // Diagnostic field
-      }, { merge: true }); 
+      }, { merge: true });
       
       console.log("DEBUG: markAlertAsSeen Firestore write successful for ID:", id);
     } catch (error) {
@@ -3421,10 +3420,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
       if (userRelevantIds.length > 0) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        await setDoc(userRef, { 
+        await setDoc(userRef, {
           seenAlertIds: arrayUnion(...userRelevantIds),
-          lastBulkArchiveAt: new Date().toISOString() // Diagnostic field
-        }, { merge: true }); 
+        }, { merge: true });
         console.log("DEBUG: Bulk archive Firestore write successful.");
       } else {
         console.log("DEBUG: No relevant unread alerts for this user's role.");
