@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken, assertOwner } from '@/lib/api-auth';
 import { PLAN_PRICE_MAP, EXTRA_TEAM_PRICE_IDS } from '@/lib/stripe-price-map';
+import { isEntitledSubscriptionStatus } from '@/lib/server-team-entitlements';
 
 export async function POST(req: NextRequest) {
   // Authenticate caller
@@ -38,57 +39,63 @@ export async function POST(req: NextRequest) {
       limit: 5,
     });
 
-    if (subscriptions.data.length === 0) {
-      return NextResponse.json({ message: 'No subscriptions found in Stripe.' });
-    }
+    const activeSub = subscriptions.data.find(subscription =>
+      isEntitledSubscriptionStatus(subscription.status)
+    );
 
-    const activeSub =
-      subscriptions.data.find(s => ['active', 'trialing', 'incomplete'].includes(s.status)) ||
-      subscriptions.data[0];
-
-    let planType = userData.plan_type || 'free';
-    let teamLimit = userData.team_limit || 1;
+    let planType = 'free';
+    let baseTeamLimit = 0;
     let extraTeams = 0;
 
-    for (const item of activeSub.items.data) {
-      const resolved = PLAN_PRICE_MAP[item.price.id];
-      if (resolved) {
-        planType = resolved.id;
-        teamLimit = resolved.teamLimit;
-      } else if (
-        item.price.id === EXTRA_TEAM_PRICE_IDS.monthly ||
-        item.price.id === EXTRA_TEAM_PRICE_IDS.annual
-      ) {
-        extraTeams = item.quantity || 0;
+    if (activeSub) {
+      for (const item of activeSub.items.data) {
+        const resolved = PLAN_PRICE_MAP[item.price.id];
+        if (resolved) {
+          planType = resolved.id;
+          baseTeamLimit = resolved.teamLimit;
+        } else if (
+          item.price.id === EXTRA_TEAM_PRICE_IDS.monthly ||
+          item.price.id === EXTRA_TEAM_PRICE_IDS.annual
+        ) {
+          extraTeams = item.quantity || 0;
+        }
       }
     }
+    const hasPaidEntitlement = Boolean(activeSub && planType !== 'free');
+    const totalTeamLimit = hasPaidEntitlement ? baseTeamLimit + extraTeams : 0;
+    const subscriptionStatus = activeSub?.status || 'inactive';
 
     await userRef.update({
-      stripe_subscription_id: activeSub.id,
-      subscription_status: activeSub.status,
-      plan_type: planType,
-      team_limit: teamLimit + extraTeams,
-      extra_teams: extraTeams,
+      stripe_subscription_id: activeSub?.id || null,
+      subscription_status: subscriptionStatus,
+      plan_type: hasPaidEntitlement ? planType : 'free',
+      team_limit: totalTeamLimit,
+      extra_teams: hasPaidEntitlement ? extraTeams : 0,
       last_webhook_sync: new Date().toISOString(),
     });
 
-    // Sync the plan label only to teams that were already allocated a Pro slot.
-    // New subscriptions must not silently grant every owned team paid access.
+    // Keep only already-allocated squads within the current paid seat capacity.
+    // Missing, canceled, incomplete, or unknown subscriptions revoke all seats.
     try {
       const teamsSnap = await adminDb
         .collection('teams')
         .where('ownerUserId', '==', userId)
         .get();
-      const allocatedTeams = teamsSnap.docs.filter(teamDoc => teamDoc.data().isPro === true);
+      const allocatedTeams = teamsSnap.docs
+        .filter(teamDoc => teamDoc.data().isPro === true)
+        .sort((a, b) => a.id.localeCompare(b.id));
       if (allocatedTeams.length > 0) {
         const CHUNK = 400;
         for (let i = 0; i < allocatedTeams.length; i += CHUNK) {
           const chunk = allocatedTeams.slice(i, i + CHUNK);
           const batch = adminDb.batch();
-          chunk.forEach(teamDoc => {
+          chunk.forEach((teamDoc, chunkIndex) => {
+            const allocationIndex = i + chunkIndex;
+            const keepPaid =
+              hasPaidEntitlement && allocationIndex < totalTeamLimit;
             batch.update(teamDoc.ref, {
-              planId: planType,
-              isPro: planType !== 'free',
+              planId: keepPaid ? planType : 'free',
+              isPro: keepPaid,
               last_plan_sync: new Date().toISOString(),
             });
           });
@@ -99,7 +106,13 @@ export async function POST(req: NextRequest) {
       console.error('[subscription/sync] Team cascade error:', cascadeErr.message);
     }
 
-    return NextResponse.json({ success: true, subscriptionId: activeSub.id });
+    return NextResponse.json({
+      success: true,
+      subscriptionId: activeSub?.id || null,
+      subscriptionStatus,
+      planType: hasPaidEntitlement ? planType : 'free',
+      teamLimit: totalTeamLimit,
+    });
   } catch (err: any) {
     console.error('[subscription/sync] Error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });

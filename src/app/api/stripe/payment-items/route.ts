@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
 
 /**
  * Payment Items API — manages payable items that coaches/organizers create for
@@ -19,21 +20,7 @@ import { verifyFirebaseToken } from '@/lib/api-auth';
  *   teams/{teamId}/paymentItems/{itemId}
  */
 
-const PAID_PLAN_TYPES = new Set(['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo']);
 const VALID_CATEGORIES = new Set(['league', 'tournament', 'equipment', 'other', 'donation', 'fundraising']);
-
-async function assertProPlan(userId: string, isSuperAdmin: boolean): Promise<NextResponse | null> {
-  const userSnap = await adminDb.collection('users').doc(userId).get();
-  if (!userSnap.exists) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
-  const data = userSnap.data()!;
-  if (!PAID_PLAN_TYPES.has(data.plan_type || '') && !isSuperAdmin) {
-    return NextResponse.json(
-      { error: 'Online payments require a paid plan.' },
-      { status: 403 }
-    );
-  }
-  return null;
-}
 
 /**
  * Resolves which Stripe connected account to use for a given team.
@@ -110,21 +97,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Amount must be at least $0.50.' }, { status: 400 });
     }
 
-    // Plan gate
-    const planError = await assertProPlan(userId, auth.role === 'superadmin');
-    if (planError) return planError;
-
-    // Verify the user is the team owner OR a team admin member
-    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-    if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-
-    const isOwner = teamSnap.data()!.ownerUserId === userId;
-    const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
-    const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const isSuperAdmin = auth.role === 'superadmin';
-
-    if (!isOwner && !isAdmin && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden: must be team owner or admin.' }, { status: 403 });
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      true
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     // Resolve which Stripe account to use (shared hub or per-squad)
@@ -137,7 +117,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const teamName = teamSnap.data()!.name || 'the team';
+    const teamName = access.team?.name || 'the team';
     const stripe = getStripe();
 
     // Build metadata — include squad info when routing through hub account
@@ -240,10 +220,7 @@ export async function GET(req: NextRequest) {
 
     const teamData = teamSnap.data()!;
     const isOwner = teamData.ownerUserId === auth.uid;
-    const isDemo = teamData.isDemo === true;
-
-    // Demo teams are publicly readable — skip the member check
-    if (!isOwner && !isDemo) {
+    if (!isOwner) {
       const memberSnap = await adminDb
         .collection('teams').doc(teamId)
         .collection('members').doc(auth.uid)
@@ -305,16 +282,14 @@ export async function DELETE(req: NextRequest) {
 
     if (auth.uid !== userId) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
-    // Verify team ownership or admin
-    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-    if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-    const isOwner = teamSnap.data()!.ownerUserId === userId;
-    const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
-    const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const isSuperAdmin = auth.role === 'superadmin';
-
-    if (!isOwner && !isAdmin && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden: must be team owner or admin.' }, { status: 403 });
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      false
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     const itemRef = adminDb.collection('teams').doc(teamId).collection('paymentItems').doc(itemId);

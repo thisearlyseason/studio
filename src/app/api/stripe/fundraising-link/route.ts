@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
 
 /**
  * POST /api/stripe/fundraising-link
@@ -17,8 +18,6 @@ import { verifyFirebaseToken } from '@/lib/api-auth';
  *
  * Returns: { paymentLinkUrl, paymentLinkId }
  */
-
-const PAID_PLAN_TYPES = new Set(['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo']);
 
 async function resolveConnectAccount(teamId: string, userId: string): Promise<string | null> {
   const teamSnap = await adminDb.collection('teams').doc(teamId).get();
@@ -56,24 +55,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     }
 
-    // Plan gate
-    const userSnap = await adminDb.collection('users').doc(userId).get();
-    if (!userSnap.exists) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
-    const userData = userSnap.data()!;
-    const isPaidPlan = PAID_PLAN_TYPES.has(userData.plan_type || '');
-    const isSuperAdmin = auth.role === 'superadmin';
-    if (!isPaidPlan && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Online payments require a paid plan.' }, { status: 403 });
-    }
-
-    // Verify team access
-    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-    if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-    const isOwner = teamSnap.data()!.ownerUserId === userId;
-    const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
-    const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    if (!isOwner && !isAdmin && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden: must be team owner or admin.' }, { status: 403 });
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      true
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     // Verify the campaign exists
@@ -93,7 +82,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const teamName = teamSnap.data()!.name || 'the team';
+    const teamName = access.team?.name || 'the team';
 
     // 1. Create a Product for the fundraising campaign
     const product = await stripe.products.create(
@@ -183,14 +172,14 @@ export async function DELETE(req: NextRequest) {
     }
     if (auth.uid !== userId) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
-    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-    if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-    const isOwner = teamSnap.data()!.ownerUserId === userId;
-    const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
-    const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const isSuperAdmin = auth.role === 'superadmin';
-    if (!isOwner && !isAdmin && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      false
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     const campaignRef = adminDb.collection('teams').doc(teamId).collection('fundraising').doc(campaignId);

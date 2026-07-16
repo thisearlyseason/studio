@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
 
 /**
  * GET /api/stripe/connect/status
@@ -33,13 +34,23 @@ export async function GET(req: NextRequest) {
     if (auth.uid !== userId) {
       return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     }
+    if (!teamId) {
+      return NextResponse.json({ error: 'Missing teamId.' }, { status: 400 });
+    }
+
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      true
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
 
     let connectAccountId: string | undefined;
 
     if (mode === 'hub') {
-      if (!teamId) {
-        return NextResponse.json({ error: 'teamId required for hub mode.' }, { status: 400 });
-      }
       const teamSnap = await adminDb.collection('teams').doc(teamId).get();
       if (!teamSnap.exists) {
         return NextResponse.json({ error: 'Team not found.' }, { status: 404 });

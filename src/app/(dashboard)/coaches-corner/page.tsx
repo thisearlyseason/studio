@@ -5223,9 +5223,10 @@ function SquadFinancialHub() {
       </div>
 
       {/* ── Stripe Connect Setup (Pro only — free/starter never reach here) ── */}
-      {user?.id && (
+      {user?.id && activeTeam?.id && (
         <StripeConnectSetup
           userId={user.id}
+          teamId={activeTeam.id}
           onConnected={() => setStripeChargesEnabled(true)}
         />
       )}
@@ -5604,5 +5605,3 @@ function WaiverArchive() {
     </div>
   );
 }
-
-

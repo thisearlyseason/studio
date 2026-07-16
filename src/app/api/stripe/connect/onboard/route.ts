@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
 
 /**
  * POST /api/stripe/connect/onboard
@@ -18,8 +19,6 @@ import { verifyFirebaseToken } from '@/lib/api-auth';
  *
  * Body: { userId, teamId?, mode?: 'user' | 'hub' }
  */
-
-const PAID_PLAN_TYPES = new Set(['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo']);
 
 export async function POST(req: NextRequest) {
   const auth = await verifyFirebaseToken(req);
@@ -41,29 +40,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found.' }, { status: 404 });
     }
     const userData = userSnap.data()!;
-
-    // ── Plan gate ─────────────────────────────────────────────────────────────
-    const isPaidPlan = PAID_PLAN_TYPES.has(userData.plan_type || '');
     const isSuperAdmin = auth.role === 'superadmin';
-    if (!isPaidPlan && !isSuperAdmin) {
+    if (!teamId || typeof teamId !== 'string') {
       return NextResponse.json(
-        { error: 'Online payments require a paid plan. Please upgrade to connect Stripe.' },
-        { status: 403 }
+        { error: 'A paid squad is required to connect Stripe.' },
+        { status: 400 }
       );
     }
 
-    // ── Hub mode: verify the user is the hub team owner ───────────────────────
-    if (mode === 'hub') {
-      if (!teamId) {
-        return NextResponse.json({ error: 'teamId is required for hub mode.' }, { status: 400 });
-      }
-      const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-      if (!teamSnap.exists) {
-        return NextResponse.json({ error: 'Hub team not found.' }, { status: 404 });
-      }
-      if (teamSnap.data()!.ownerUserId !== userId && !isSuperAdmin) {
-        return NextResponse.json({ error: 'Forbidden: must be hub team owner.' }, { status: 403 });
-      }
+    const access = await getTeamFinanceAccess(userId, teamId, isSuperAdmin, true);
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     const stripe = getStripe();
