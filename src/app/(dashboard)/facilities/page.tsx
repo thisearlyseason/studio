@@ -32,6 +32,7 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingFieldName, setEditingFieldName] = useState('');
   const [savingFieldId, setSavingFieldId] = useState<string | null>(null);
+  const [deletingFieldId, setDeletingFieldId] = useState<string | null>(null);
 
   const fieldsQuery = useMemoFirebase(() => {
     if (!db || !facility.id) return null;
@@ -93,6 +94,30 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
       });
     } finally {
       setSavingFieldId(null);
+    }
+  };
+
+  const handleDeleteField = async (field: Field) => {
+    const confirmed = window.confirm(
+      `Delete "${field.name}" from ${facility.name}? This will only continue if it is not used by any event, tournament, or league schedule.`
+    );
+    if (!confirmed) return;
+
+    setDeletingFieldId(field.id);
+    try {
+      await deleteField(facility.id, field.id);
+      toast({
+        title: 'Resource Deleted',
+        description: `${field.name} was removed from ${facility.name}.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Resource Still In Use',
+        description: error.message || 'Could not safely delete this facility resource.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingFieldId(null);
     }
   };
 
@@ -180,10 +205,15 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
                             variant="ghost"
                             size="icon"
                             className="h-10 w-10 text-destructive opacity-70 group-hover:opacity-100"
-                            onClick={() => deleteField(facility.id, field.id)}
+                            onClick={() => handleDeleteField(field)}
+                            disabled={deletingFieldId === field.id}
                             aria-label={`Delete ${field.name}`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            {deletingFieldId === field.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Destroy Resource</TooltipContent>
@@ -222,7 +252,7 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
 }
 
 function EditFacilityDialog({ facility }: { facility: Facility }) {
-  const { updateFacility, isStaff, user } = useTeam();
+  const { updateFacility, isStaff } = useTeam();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: facility.name, address: facility.address || '', notes: facility.notes || '' });
   const [saving, setSaving] = useState(false);
@@ -322,7 +352,7 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
 }
 
 export default function FacilityManagementPage() {
-  const { activeTeam, isStaff, isPro, addFacility, deleteFacility, isSuperAdmin, firebaseUser } = useTeam();
+  const { isStaff, addFacility, deleteFacility, isSuperAdmin, firebaseUser } = useTeam();
   
   if (!isStaff) return <AccessRestricted type="role" />;
 
@@ -330,6 +360,7 @@ export default function FacilityManagementPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newFac, setNewFac] = useState({ name: '', address: '', notes: '' });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [deletingFacilityId, setDeletingFacilityId] = useState<string | null>(null);
 
   const facilitiesQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -350,6 +381,30 @@ export default function FacilityManagementPage() {
     setIsAddOpen(false);
     setIsProcessing(false);
     toast({ title: "Facility Established", description: `${newFac.name} is now live.` });
+  };
+
+  const handleDeleteFacility = async (facility: Facility) => {
+    const confirmed = window.confirm(
+      `Decommission "${facility.name}"? Its fields and courts will also be deleted. This will only continue if none are used by an event, tournament, or league schedule.`
+    );
+    if (!confirmed) return;
+
+    setDeletingFacilityId(facility.id);
+    try {
+      await deleteFacility(facility.id);
+      toast({
+        title: 'Facility Decommissioned',
+        description: `${facility.name} and its unlinked resources were removed.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Facility Still In Use',
+        description: error.message || 'Could not safely delete this facility.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingFacilityId(null);
+    }
   };
 
   if (isLoading) {
@@ -443,8 +498,19 @@ export default function FacilityManagementPage() {
                     <EditFacilityDialog facility={facility} />
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/5 rounded-xl h-10 w-10" onClick={() => deleteFacility(facility.id)}>
-                          <Trash2 className="h-5 w-5" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/5 rounded-xl h-10 w-10"
+                          onClick={() => handleDeleteFacility(facility)}
+                          disabled={deletingFacilityId === facility.id}
+                          aria-label={`Decommission ${facility.name}`}
+                        >
+                          {deletingFacilityId === facility.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-5 w-5" />
+                          )}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Decommission Facility</TooltipContent>

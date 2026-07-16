@@ -532,9 +532,9 @@ service cloud.firestore {
         request.resource.data.clubId == resource.data.clubId &&
         request.resource.data.get('isDemo', false) == resource.data.get('isDemo', false)
       );
-      allow delete: if isSuperAdmin() || (
-        isSignedIn() && resource.data.clubId == request.auth.uid
-      );
+      // Deletion must use the authenticated server endpoint so linked schedules
+      // are checked and nested resources are removed atomically.
+      allow delete: if false;
 
       match /fields/{fieldId} {
         function isFacilityOwner() {
@@ -554,7 +554,7 @@ service cloud.firestore {
           request.resource.data.get('isDemo', false) ==
             resource.data.get('isDemo', false)
         );
-        allow delete: if isSuperAdmin() || isFacilityOwner();
+        allow delete: if false;
       }
     }
 

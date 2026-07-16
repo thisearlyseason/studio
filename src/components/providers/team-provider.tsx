@@ -2632,7 +2632,26 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     if (!response.ok) throw new Error(payload.error || 'Unable to update the facility.');
   }, [firebaseAuth]);
 
-  const deleteFacility = useCallback(async (id: string) => { if(db) await deleteDoc(doc(db, 'facilities', id)); }, [db]);
+  const deleteFacility = useCallback(async (id: string) => {
+    if (!firebaseAuth) throw new Error('Authentication is unavailable.');
+    const idToken = await getAuthToken(firebaseAuth);
+    if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+    const response = await fetch('/api/facilities/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+      body: JSON.stringify({ facilityId: id }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      const counts = payload.dependencies;
+      const details = counts
+        ? ` Linked records: ${counts.events} event(s) and ${counts.leagues} league(s)${
+            counts.examples?.length ? `, including ${counts.examples.join(', ')}` : ''
+          }.`
+        : '';
+      throw new Error(`${payload.error || 'Unable to delete the facility.'}${details}`);
+    }
+  }, [firebaseAuth]);
   const addField = useCallback(async (fid: string, n: string) => { if(db) await addDoc(collection(db, 'facilities', fid, 'fields'), { name: n, facilityId: fid }); }, [db]);
   const updateFacilityField = useCallback(async (facilityId: string, fieldId: string, name: string) => {
     if (!firebaseAuth) throw new Error('Authentication is unavailable.');
@@ -2646,7 +2665,29 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Unable to rename the facility resource.');
   }, [firebaseAuth]);
-  const deleteFacilityField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
+  const deleteFacilityField = useCallback(async (facilityId: string, fieldId: string) => {
+    if (!fieldId) return;
+    if (!firebaseAuth) throw new Error('Authentication is unavailable.');
+    const idToken = await getAuthToken(firebaseAuth);
+    if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+    const response = await fetch('/api/facilities/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+      body: JSON.stringify({ facilityId, fieldId }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      const counts = payload.dependencies;
+      const details = counts
+        ? ` Linked records: ${counts.events} event(s) and ${counts.leagues} league(s)${
+            counts.examples?.length ? `, including ${counts.examples.join(', ')}` : ''
+          }.`
+        : '';
+      throw new Error(
+        `${payload.error || 'Unable to delete the facility resource.'}${details}`
+      );
+    }
+  }, [firebaseAuth]);
 
   const createLeague = useCallback(async (name: string, divisionTitle?: string, sport?: string) => { 
     if (!firebaseUser || !db) return ''; 
