@@ -25,10 +25,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
 function FacilityFieldManager({ facility }: { facility: Facility }) {
-  const { addField, deleteField, isSuperAdmin, user } = useTeam();
+  const { addField, updateField, deleteField, isSuperAdmin, user } = useTeam();
   const db = useFirestore();
   const [newFieldName, setNewFieldName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [editingFieldName, setEditingFieldName] = useState('');
+  const [savingFieldId, setSavingFieldId] = useState<string | null>(null);
 
   const fieldsQuery = useMemoFirebase(() => {
     if (!db || !facility.id) return null;
@@ -36,6 +39,7 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
   }, [db, facility.id]);
 
   const { data: fields } = useCollection<Field>(fieldsQuery);
+  const canManage = facility.clubId === user?.id || isSuperAdmin;
 
   const handleAddField = async () => {
     if (!newFieldName.trim()) return;
@@ -46,6 +50,42 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
     toast({ title: "Field Enrolled", description: `${newFieldName} added to ${facility.name}.` });
   };
 
+  const beginRename = (field: Field) => {
+    setEditingFieldId(field.id);
+    setEditingFieldName(field.name);
+  };
+
+  const cancelRename = () => {
+    setEditingFieldId(null);
+    setEditingFieldName('');
+  };
+
+  const handleRenameField = async (field: Field) => {
+    const nextName = editingFieldName.trim();
+    if (!nextName || nextName === field.name) {
+      cancelRename();
+      return;
+    }
+
+    setSavingFieldId(field.id);
+    try {
+      await updateField(facility.id, field.id, nextName);
+      toast({
+        title: 'Resource Renamed',
+        description: `${field.name} is now ${nextName} everywhere it is scheduled or displayed.`,
+      });
+      cancelRename();
+    } catch (error: any) {
+      toast({
+        title: 'Rename Failed',
+        description: error.message || 'Could not rename this facility resource.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingFieldId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
@@ -53,21 +93,90 @@ function FacilityFieldManager({ facility }: { facility: Facility }) {
         <Badge variant="outline" className="text-[8px] font-black">{fields?.length || 0} TOTAL</Badge>
       </div>
       <div className="grid grid-cols-1 gap-2">
-        {fields?.map(field => (
-          <div key={field.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-transparent hover:border-primary/10 transition-all group">
-            <span className="text-xs font-black uppercase truncate">{field.name}</span>
-            {(facility.clubId === user?.id || isSuperAdmin) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteField(facility.id, field.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Destroy Resource</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        ))}
+        {fields?.map(field => {
+          const isEditing = editingFieldId === field.id;
+          const isSaving = savingFieldId === field.id;
+          return (
+            <div key={field.id} className="flex items-center justify-between gap-2 p-3 bg-muted/30 rounded-xl border border-transparent hover:border-primary/10 transition-all group">
+              {isEditing ? (
+                <Input
+                  autoFocus
+                  value={editingFieldName}
+                  onChange={event => setEditingFieldName(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') handleRenameField(field);
+                    if (event.key === 'Escape') cancelRename();
+                  }}
+                  className="h-8 rounded-lg text-xs font-black uppercase"
+                  maxLength={120}
+                  aria-label={`Rename ${field.name}`}
+                />
+              ) : (
+                <span className="text-xs font-black uppercase truncate">{field.name}</span>
+              )}
+
+              {canManage && (
+                <div className="flex items-center shrink-0">
+                  {isEditing ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-primary"
+                        onClick={() => handleRenameField(field)}
+                        disabled={isSaving || !editingFieldName.trim()}
+                        aria-label={`Save ${field.name} name`}
+                      >
+                        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground"
+                        onClick={cancelRename}
+                        disabled={isSaving}
+                        aria-label="Cancel resource rename"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-primary opacity-70 group-hover:opacity-100"
+                            onClick={() => beginRename(field)}
+                            aria-label={`Rename ${field.name}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Rename Resource</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive opacity-70 group-hover:opacity-100"
+                            onClick={() => deleteField(facility.id, field.id)}
+                            aria-label={`Delete ${field.name}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Destroy Resource</TooltipContent>
+                      </Tooltip>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {(!fields || fields.length === 0) && (
           <div className="bg-amber-50 p-4 rounded-xl border-2 border-dashed border-amber-200 flex flex-col items-center gap-2">
             <AlertCircle className="h-5 w-5 text-amber-600" />
@@ -111,10 +220,27 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
   const handleSave = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
-    await updateFacility(facility.id, { name: form.name, address: form.address, notes: form.notes });
-    setSaving(false);
-    setOpen(false);
-    toast({ title: 'Facility Updated', description: `${form.name} details saved. Any events using this facility will reflect the new information.` });
+    const nextName = form.name.trim();
+    try {
+      await updateFacility(facility.id, {
+        name: nextName,
+        address: form.address.trim(),
+        notes: form.notes.trim(),
+      });
+      setOpen(false);
+      toast({
+        title: 'Facility Updated',
+        description: `${nextName} was updated everywhere this facility is linked or displayed.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Update Failed',
+        description: error.message || 'Could not update this facility.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

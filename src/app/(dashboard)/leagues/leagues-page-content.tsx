@@ -77,6 +77,7 @@ import { Select, SelectContent, SelectItem,  SelectTrigger,
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SquadIdentity } from '@/components/SquadIdentity';
+import { getFacilityFieldName } from '@/lib/facility-rename';
 
 const DAYS_OF_WEEK = [
   { id: 1, label: 'Mon' },
@@ -88,26 +89,31 @@ const DAYS_OF_WEEK = [
   { id: 0, label: 'Sun' },
 ];
 
-function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { facilityId: string, selectedFields: string[], onToggleField: (name: string) => void }) {
+function FacilityFieldLoader({ facilityId, selectedFields, onToggleField }: { facilityId: string, selectedFields: string[], onToggleField: (identifier: string, legacyName: string) => void }) {
   const db = useFirestore();
   const q = useMemoFirebase(() => db ? query(collection(db, 'facilities', facilityId, 'fields'), orderBy('name', 'asc')) : null, [db, facilityId]);
   const { data: fields } = useCollection<Field>(q);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
-      {fields?.map(field => (
-        <div 
-          key={field.id} 
-          className={cn(
-            "p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between group",
-            selectedFields.includes(`${field.name}`) ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:border-muted-foreground/20"
-          )}
-          onClick={() => onToggleField(`${field.name}`)}
-        >
-          <span className="text-[10px] font-black uppercase tracking-widest truncate">{field.name}</span>
-          {selectedFields.includes(`${field.name}`) ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <div className="h-3.5 w-3.5 rounded-full border-2 border-muted group-hover:border-muted-foreground/30" />}
-        </div>
-      ))}
+      {fields?.map(field => {
+        const identifier = `${facilityId}:${field.name}`;
+        const isSelected =
+          selectedFields.includes(identifier) || selectedFields.includes(field.name);
+        return (
+          <div
+            key={field.id}
+            className={cn(
+              "p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+              isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:border-muted-foreground/20"
+            )}
+            onClick={() => onToggleField(identifier, field.name)}
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest truncate">{field.name}</span>
+            {isSelected ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <div className="h-3.5 w-3.5 rounded-full border-2 border-muted group-hover:border-muted-foreground/30" />}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -280,10 +286,13 @@ function SeasonSchedulerDialog({ league, isOpen, onOpenChange }: { league: Leagu
     }));
   };
 
-  const toggleField = (fieldName: string) => {
+  const toggleField = (fieldIdentifier: string, legacyName: string) => {
     setConfig(p => ({
       ...p,
-      selectedFields: p.selectedFields.includes(fieldName) ? p.selectedFields.filter(f => f !== fieldName) : [...p.selectedFields, fieldName]
+      selectedFields:
+        p.selectedFields.includes(fieldIdentifier) || p.selectedFields.includes(legacyName)
+          ? p.selectedFields.filter(field => field !== fieldIdentifier && field !== legacyName)
+          : [...p.selectedFields, fieldIdentifier]
     }));
   };
 
@@ -717,7 +726,7 @@ function LeagueOverview({
                       <div className="flex flex-wrap gap-2">
                         {config.selectedFields.map((field: string) => (
                           <Badge key={field} variant="outline" className="bg-white border-muted font-bold text-[9px] uppercase px-2.5 h-6">
-                            {field}
+                            {getFacilityFieldName(field)}
                           </Badge>
                         ))}
                       </div>
@@ -1331,7 +1340,7 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
     try {
       const { games: scheduleGames, report } = generateIntelligentLeagueSchedule({
         teams: leagueTeams,
-        fields: config.selectedFields,
+        fields: config.selectedFields.map(getFacilityFieldName),
         startDate: config.startDate,
         endDate: config.endDate || undefined,
         startTime: config.startTime,

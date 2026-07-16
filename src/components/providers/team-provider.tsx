@@ -911,6 +911,7 @@ interface TeamContextType {
   updateFacility: (id: string, data: Partial<Facility>) => Promise<void>;
   deleteFacility: (id: string) => Promise<void>;
   addField: (facilityId: string, name: string) => Promise<void>;
+  updateField: (facilityId: string, fieldId: string, name: string) => Promise<void>;
   deleteField: (facilityId: string, fieldId: string) => Promise<void>;
   createLeague: (name: string, divisionTitle?: string, sport?: string) => Promise<string>;
   updateLeague: (leagueId: string, updates: Partial<League>) => Promise<void>;
@@ -2604,33 +2605,32 @@ export function TeamProvider({ children }: { children: ReactNode }) {
 
   const addFacility = useCallback(async (d: any) => { if (firebaseUser && db) await addDoc(collection(db, 'facilities'), clean({ ...d, clubId: firebaseUser.uid })); }, [db, firebaseUser]);
   const updateFacility = useCallback(async (id: string, d: Partial<Facility>) => {
-    if (!db) return;
-    // 1. Update the facility document itself
-    await updateDoc(doc(db, 'facilities', id), clean(d as any));
-    // 2. Sync all team events that reference this facility so location stays current
-    if (d.address !== undefined || d.name !== undefined) {
-      try {
-        const newLocation = d.address || d.name || '';
-        // Query across all teams the user is part of
-        const teamIds = teamsRaw.map((t: any) => t.id).filter(Boolean);
-        for (const teamId of teamIds) {
-          const evSnap = await getDocs(
-            query(collection(db, 'teams', teamId, 'events'), where('facilityId', '==', id))
-          );
-          const batch = writeBatch(db);
-          evSnap.forEach(evDoc => {
-            if (newLocation) batch.update(evDoc.ref, { location: newLocation });
-          });
-          if (!evSnap.empty) await batch.commit();
-        }
-      } catch (_) {
-        // Non-critical — facility doc already updated
-      }
-    }
-  }, [db, teamsRaw]);
+    if (!firebaseAuth) throw new Error('Authentication is unavailable.');
+    const idToken = await getAuthToken(firebaseAuth);
+    if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+    const response = await fetch('/api/facilities/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+      body: JSON.stringify({ facilityId: id, facilityUpdates: d }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Unable to update the facility.');
+  }, [firebaseAuth]);
 
   const deleteFacility = useCallback(async (id: string) => { if(db) await deleteDoc(doc(db, 'facilities', id)); }, [db]);
   const addField = useCallback(async (fid: string, n: string) => { if(db) await addDoc(collection(db, 'facilities', fid, 'fields'), { name: n, facilityId: fid }); }, [db]);
+  const updateFacilityField = useCallback(async (facilityId: string, fieldId: string, name: string) => {
+    if (!firebaseAuth) throw new Error('Authentication is unavailable.');
+    const idToken = await getAuthToken(firebaseAuth);
+    if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+    const response = await fetch('/api/facilities/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+      body: JSON.stringify({ facilityId, fieldId, fieldName: name }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Unable to rename the facility resource.');
+  }, [firebaseAuth]);
   const deleteFacilityField = useCallback(async (fid: string, id: string) => { if(id && db) await deleteDoc(doc(db, 'facilities', fid, 'fields', id)); }, [db]);
 
   const createLeague = useCallback(async (name: string, divisionTitle?: string, sport?: string) => { 
@@ -3760,7 +3760,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     createAlert, deleteAlert, addDrill, updateDrill, deleteDrill, assignDrillsToEvent,
     addPracticeTemplate, updatePracticeTemplate, deletePracticeTemplate,
     addFile, deleteFile, addFacility, updateFacility, deleteFacility,
-    addField, deleteField: deleteFacilityField, 
+    addField, updateField: updateFacilityField, deleteField: deleteFacilityField,
     assignEquipment, returnEquipment,
     formatTime, manageSubscription, resolveQuota, exportAttendanceCSV, exportTournamentStandingsCSV, markMediaAsViewed,
     addRegistration, addLeaguePayment, updateLeagueGlobalFees,
@@ -3801,7 +3801,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     createAlert, deleteAlert, addDrill, updateDrill, deleteDrill, assignDrillsToEvent, 
     addPracticeTemplate, updatePracticeTemplate, deletePracticeTemplate,
     addFile, deleteFile, addFacility, updateFacility, deleteFacility,
-    addField, deleteFacilityField, 
+    addField, updateFacilityField, deleteFacilityField,
     assignEquipment, returnEquipment,
     formatTime, manageSubscription, resolveQuota, exportAttendanceCSV, exportTournamentStandingsCSV, markMediaAsViewed,
     addRegistration, purchasePro, addLeaguePayment, updateLeagueGlobalFees,
