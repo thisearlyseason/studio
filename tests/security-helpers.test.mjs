@@ -1,25 +1,25 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  assertSafeExternalUrl,
-  isPrivateNetworkAddress,
-} from '../src/lib/safe-external-url.ts';
-import {
-  readJsonBodyWithLimit,
-  RequestBodyError,
-} from '../src/lib/bounded-json.ts';
-import {
+import safeExternalUrl from '../src/lib/safe-external-url.ts';
+import boundedJson from '../src/lib/bounded-json.ts';
+import checkoutPolicy from '../src/lib/checkout-policy.ts';
+import stripePriceMap from '../src/lib/stripe-price-map.ts';
+import htmlEscape from '../src/lib/html-escape.ts';
+
+const { assertSafeExternalUrl, isPrivateNetworkAddress } = safeExternalUrl;
+const { readJsonBodyWithLimit, RequestBodyError } = boundedJson;
+const {
   buildCheckoutIdempotencyKey,
   calculateSignupTrialDays,
   hasBlockingSubscription,
   SIGNUP_TRIAL_DAYS,
-} from '../src/lib/checkout-policy.ts';
-import {
+} = checkoutPolicy;
+const {
   PLAN_PRICE_MAP,
   PRICE_BILLING_CYCLE,
   priceMatchesBillingCycle,
-} from '../src/lib/stripe-price-map.ts';
-import { escapeHtml } from '../src/lib/html-escape.ts';
+} = stripePriceMap;
+const { escapeHtml } = htmlEscape;
 
 test('private and special-use IPv4 ranges are rejected', () => {
   for (const address of [
@@ -135,6 +135,24 @@ test('checkout idempotency fingerprints all material checkout choices', () => {
   assert.notEqual(
     buildCheckoutIdempotencyKey({ ...base, operationId: 'operation-0000002' }),
     key
+  );
+  assert.equal(
+    buildCheckoutIdempotencyKey({
+      ...base,
+      now: base.now + 31 * 60 * 1000,
+    }),
+    key
+  );
+  assert.notEqual(
+    buildCheckoutIdempotencyKey({
+      ...base,
+      operationId: null,
+      now: base.now + 31 * 60 * 1000,
+    }),
+    buildCheckoutIdempotencyKey({
+      ...base,
+      operationId: null,
+    })
   );
 });
 

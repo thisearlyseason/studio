@@ -14,6 +14,13 @@ import {
   RequestBodyError,
 } from '@/lib/server-request-guards';
 import { buildCheckoutIdempotencyKey } from '@/lib/checkout-policy';
+import { reconcilePaidTeamSeats } from '@/lib/server-subscription-seats';
+import { hasPendingSubscriptionUpdate } from '@/lib/subscription-seat-policy';
+import {
+  claimSubscriptionMutation,
+  releaseSubscriptionMutation,
+  SubscriptionMutationInProgressError,
+} from '@/lib/server-subscription-mutation-lock';
 
 export async function POST(req: NextRequest) {
   // Authenticate caller
@@ -21,6 +28,10 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const anonymousCheck = assertNonAnonymous(auth);
   if (anonymousCheck) return anonymousCheck;
+  let claimedMutation: {
+    userRef: FirebaseFirestore.DocumentReference;
+    key: string;
+  } | null = null;
 
   try {
     const { userId, newPriceId, operationId } = await readJsonBodyWithLimit<{
@@ -69,9 +80,21 @@ export async function POST(req: NextRequest) {
     if (!subscriptionId) {
       return NextResponse.json({ error: 'No active subscription found.' }, { status: 400 });
     }
+    const mutationKey = `plan:${operationId}:${newPriceId}`;
+    await claimSubscriptionMutation(userRef, mutationKey);
+    claimedMutation = { userRef, key: mutationKey };
 
     const stripe = getStripe();
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    if (hasPendingSubscriptionUpdate(subscription.pending_update)) {
+      return NextResponse.json(
+        {
+          error:
+            'A subscription payment is already pending. Complete or resolve it before changing plans.',
+        },
+        { status: 409 }
+      );
+    }
     if (!isEntitledSubscriptionStatus(subscription.status)) {
       return NextResponse.json(
         { error: 'The subscription is not active. Resolve billing before changing plans.' },
@@ -148,50 +171,48 @@ export async function POST(req: NextRequest) {
     }, 0);
     const totalTeamLimit = isEntitled ? resolvedPlan.teamLimit + extraTeams : 0;
 
-    // Stripe's returned status is authoritative. Failed or incomplete payment
-    // never grants paid features while the invoice is unresolved.
-    await userRef.update({
-      plan_type: isEntitled ? resolvedPlan.id : 'free',
-      team_limit: totalTeamLimit,
-      extra_teams: isEntitled ? extraTeams : 0,
-      subscription_status: updatedSubscription.status,
-      billing_cycle: billingCycle,
-      last_sync_method: 'direct_upgrade',
-      last_webhook_sync: new Date().toISOString(),
+    // Enforce the new capacity before the user entitlement record is advanced.
+    // Downgrades therefore fail closed if Firestore cannot release overflow seats.
+    await reconcilePaidTeamSeats({
+      userId,
+      planType: resolvedPlan.id,
+      entitled: isEntitled,
+      capacity: totalTeamLimit,
+      requiredMutationKey: claimedMutation?.key,
+      userUpdates: {
+        // Stripe's returned status is authoritative. Failed or incomplete
+        // payment never grants paid features while the invoice is unresolved.
+        plan_type: isEntitled ? resolvedPlan.id : 'free',
+        team_limit: totalTeamLimit,
+        extra_teams: isEntitled ? extraTeams : 0,
+        subscription_status: updatedSubscription.status,
+        billing_cycle: billingCycle,
+        last_sync_method: 'direct_upgrade',
+        last_webhook_sync: new Date().toISOString(),
+      },
     });
-
-    // Keep the selected Pro teams aligned with the subscription tier without
-    // granting Pro access to every team the account owns.
-    try {
-      const teamsSnap = await adminDb
-        .collection('teams')
-        .where('ownerUserId', '==', userId)
-        .get();
-      const allocatedTeams = teamsSnap.docs
-        .filter(teamDoc => teamDoc.data().isPro === true)
-        .sort((a, b) => a.id.localeCompare(b.id));
-      if (allocatedTeams.length > 0) {
-        const batch = adminDb.batch();
-        allocatedTeams.forEach((teamDoc, index) => {
-          const keepPaid = isEntitled && index < totalTeamLimit;
-          batch.update(teamDoc.ref, {
-            planId: keepPaid ? resolvedPlan.id : 'free',
-            isPro: keepPaid,
-            last_plan_sync: new Date().toISOString(),
-          });
-        });
-        await batch.commit();
-      }
-    } catch (cascadeErr: any) {
-      console.error('[subscription/update] Team cascade error:', cascadeErr.message);
-    }
 
     return NextResponse.json({ success: true, subscription: updatedSubscription });
   } catch (err: any) {
+    if (err instanceof SubscriptionMutationInProgressError) {
+      return NextResponse.json(
+        { error: 'Another subscription change is already being processed.' },
+        { status: 409 }
+      );
+    }
     if (err instanceof RequestBodyError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     console.error('[subscription/update] Error:', err.message);
     return NextResponse.json({ error: 'Unable to update the subscription.' }, { status: 500 });
+  } finally {
+    if (claimedMutation) {
+      await releaseSubscriptionMutation(
+        claimedMutation.userRef,
+        claimedMutation.key
+      ).catch(error => {
+        console.error('[subscription/update] Mutation lock release error:', error);
+      });
+    }
   }
 }

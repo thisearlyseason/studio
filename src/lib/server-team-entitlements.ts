@@ -1,4 +1,7 @@
 import { adminDb } from '@/lib/firebase-admin';
+import { isEntitledSubscriptionStatus } from '@/lib/subscription-seat-policy';
+
+export { isEntitledSubscriptionStatus } from '@/lib/subscription-seat-policy';
 
 const PAID_PLAN_TYPES = new Set([
   'team',
@@ -8,7 +11,6 @@ const PAID_PLAN_TYPES = new Set([
   'squad_pro',
   'squad_pro_demo',
 ]);
-const ENTITLED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
 
 export type TeamFinanceAccess = {
   allowed: boolean;
@@ -90,7 +92,7 @@ async function resolvePaidEntitlement(
     team.isPro === true &&
     PAID_PLAN_TYPES.has(team.planId || '') &&
     PAID_PLAN_TYPES.has(entitlementUser.plan_type || '') &&
-    ENTITLED_SUBSCRIPTION_STATUSES.has(entitlementUser.subscription_status || '')
+    isEntitledSubscriptionStatus(entitlementUser.subscription_status)
   );
 }
 
@@ -258,10 +260,6 @@ export async function getTeamFinanceAccess(
   }
 
   return { allowed: true, paid, status: 200, team, user };
-}
-
-export function isEntitledSubscriptionStatus(status: unknown): boolean {
-  return typeof status === 'string' && ENTITLED_SUBSCRIPTION_STATUSES.has(status);
 }
 
 export function isPaidPlanType(planType: unknown): boolean {

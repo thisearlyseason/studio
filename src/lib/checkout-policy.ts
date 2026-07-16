@@ -46,7 +46,8 @@ export function buildCheckoutIdempotencyKey(input: {
   operationId?: string | null;
   now: number;
 }): string {
-  const window = Math.floor(input.now / (30 * 60 * 1000));
+  const retryScope =
+    input.operationId || String(Math.floor(input.now / (30 * 60 * 1000)));
   const digest = createHash('sha256')
     .update([
       input.route,
@@ -56,7 +57,7 @@ export function buildCheckoutIdempotencyKey(input: {
       String(input.quantity),
       input.teamId || '',
       input.operationId || '',
-      String(window),
+      retryScope,
     ].join(':'))
     .digest('hex');
   return `checkout-${digest}`;

@@ -14,12 +14,23 @@ import {
   RequestBodyError,
 } from '@/lib/server-request-guards';
 import { buildCheckoutIdempotencyKey } from '@/lib/checkout-policy';
+import { reconcilePaidTeamSeats } from '@/lib/server-subscription-seats';
+import { hasPendingSubscriptionUpdate } from '@/lib/subscription-seat-policy';
+import {
+  claimSubscriptionMutation,
+  releaseSubscriptionMutation,
+  SubscriptionMutationInProgressError,
+} from '@/lib/server-subscription-mutation-lock';
 
 export async function POST(req: NextRequest) {
   const auth = await verifyFirebaseToken(req);
   if (auth instanceof NextResponse) return auth;
   const anonymousCheck = assertNonAnonymous(auth);
   if (anonymousCheck) return anonymousCheck;
+  let claimedMutation: {
+    userRef: FirebaseFirestore.DocumentReference;
+    key: string;
+  } | null = null;
 
   try {
     const { userId, quantity, operationId } = await readJsonBodyWithLimit<{
@@ -68,9 +79,21 @@ export async function POST(req: NextRequest) {
         error: 'No active subscription. You must be on a paid plan to add extra squads.',
       }, { status: 400 });
     }
+    const mutationKey = `addon:${operationId}:${quantity}`;
+    await claimSubscriptionMutation(userRef, mutationKey);
+    claimedMutation = { userRef, key: mutationKey };
 
     const stripe = getStripe();
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    if (hasPendingSubscriptionUpdate(subscription.pending_update)) {
+      return NextResponse.json(
+        {
+          error:
+            'A subscription payment is already pending. Complete or resolve it before changing seats.',
+        },
+        { status: 409 }
+      );
+    }
     if (!isEntitledSubscriptionStatus(subscription.status)) {
       return NextResponse.json(
         { error: 'The subscription is not active. Resolve billing before changing seats.' },
@@ -107,10 +130,6 @@ export async function POST(req: NextRequest) {
       items.push({ price: targetAddonPriceId, quantity });
     }
 
-    if (items.length === 0) {
-      return NextResponse.json({ message: 'No changes needed.' });
-    }
-
     const idempotencyKey = buildCheckoutIdempotencyKey({
       route: 'subscription-addon',
       userId,
@@ -120,13 +139,20 @@ export async function POST(req: NextRequest) {
       operationId,
       now: Date.now(),
     });
-    const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
-      items,
-      proration_behavior: 'always_invoice',
-      payment_behavior: 'pending_if_incomplete',
-    }, {
-      idempotencyKey,
-    });
+    const updatedSubscription =
+      items.length > 0
+        ? await stripe.subscriptions.update(
+            subscriptionId,
+            {
+              items,
+              proration_behavior: 'always_invoice',
+              payment_behavior: 'pending_if_incomplete',
+            },
+            {
+              idempotencyKey,
+            }
+          )
+        : subscription;
 
     if (updatedSubscription.pending_update) {
       return NextResponse.json(
@@ -138,15 +164,70 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sync extra_teams count to Firestore
-    await userRef.update({ extra_teams: quantity });
+    const updatedBaseItem = updatedSubscription.items.data.find(
+      item => PLAN_PRICE_MAP[item.price.id]
+    );
+    const resolvedPlan = updatedBaseItem
+      ? PLAN_PRICE_MAP[updatedBaseItem.price.id]
+      : null;
+    if (!resolvedPlan) {
+      return NextResponse.json(
+        { error: 'Could not determine the subscription plan after the seat update.' },
+        { status: 409 }
+      );
+    }
+    const hasPaidEntitlement = isEntitledSubscriptionStatus(updatedSubscription.status);
+    const confirmedExtraTeams = updatedSubscription.items.data.reduce((total, item) => {
+      if (
+        item.price.id === EXTRA_TEAM_PRICE_IDS.monthly ||
+        item.price.id === EXTRA_TEAM_PRICE_IDS.annual
+      ) {
+        return total + (item.quantity || 0);
+      }
+      return total;
+    }, 0);
+    const paidTeamLimit = hasPaidEntitlement
+      ? resolvedPlan.teamLimit + confirmedExtraTeams
+      : 0;
+
+    await reconcilePaidTeamSeats({
+      userId,
+      planType: resolvedPlan.id,
+      entitled: hasPaidEntitlement,
+      capacity: paidTeamLimit,
+      requiredMutationKey: claimedMutation?.key,
+      userUpdates: {
+        plan_type: hasPaidEntitlement ? resolvedPlan.id : 'free',
+        team_limit: paidTeamLimit,
+        extra_teams: hasPaidEntitlement ? confirmedExtraTeams : 0,
+        subscription_status: updatedSubscription.status,
+        billing_cycle: billingCycle,
+        last_sync_method: 'direct_addon_update',
+        last_webhook_sync: new Date().toISOString(),
+      },
+    });
 
     return NextResponse.json({ success: true, subscription: updatedSubscription });
   } catch (err: any) {
+    if (err instanceof SubscriptionMutationInProgressError) {
+      return NextResponse.json(
+        { error: 'Another subscription change is already being processed.' },
+        { status: 409 }
+      );
+    }
     if (err instanceof RequestBodyError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     console.error('[subscription/addon] Error:', err.message);
     return NextResponse.json({ error: 'Unable to update extra squad seats.' }, { status: 500 });
+  } finally {
+    if (claimedMutation) {
+      await releaseSubscriptionMutation(
+        claimedMutation.userRef,
+        claimedMutation.key
+      ).catch(error => {
+        console.error('[subscription/addon] Mutation lock release error:', error);
+      });
+    }
   }
 }

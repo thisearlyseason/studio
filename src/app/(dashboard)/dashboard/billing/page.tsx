@@ -72,10 +72,12 @@ export default function BillingDashboard() {
     teams?.some(t => t.id?.startsWith('demo_')));
 
   const currentPlan = PRICING_CONFIG.find(p => p.id === userProfile?.plan_type) || null;
-  const isOverLimit = (teams || []).length > (userProfile?.team_limit || 1);
+  const paidSeatLimit = userProfile?.team_limit ?? 0;
+  const ownedProTeamCount = (teams || []).filter(
+    team => team.ownerUserId === userProfile?.id && team.isPro === true
+  ).length;
+  const isOverLimit = ownedProTeamCount > paidSeatLimit;
   const isStripeLinked = !!userProfile?.stripe_subscription_id;
-  // Multi-team plans are those with a limit > 1 (Elite, League, Schools)
-  const isMultiTeamPlan = (userProfile?.team_limit || 1) > 1;
   const hasPaidPlan = ['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo'].includes(userProfile?.plan_type || '');
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -355,8 +357,8 @@ export default function BillingDashboard() {
           <div>
             <p className="font-black text-red-900 text-sm uppercase tracking-tight">Team Limit Exceeded</p>
             <p className="text-xs font-bold text-red-700 mt-1">
-              You are managing {(teams || []).length} teams but your plan allows {userProfile.team_limit || 1}.
-              Upgrade your plan to restore full access.
+              You have {ownedProTeamCount} Pro squads but your plan includes {paidSeatLimit} paid seats.
+              Release a Pro seat or upgrade your plan to restore paid features.
             </p>
           </div>
         </div>
@@ -384,8 +386,8 @@ export default function BillingDashboard() {
             </div>
             <div className="flex flex-wrap gap-4">
               <div className="bg-muted/40 px-5 py-3 rounded-2xl text-center">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Team Slots</p>
-                <p className="text-xl font-black">{userProfile.team_limit || 1}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Paid Seats</p>
+                <p className="text-xl font-black">{paidSeatLimit}</p>
               </div>
               <div className="bg-muted/40 px-5 py-3 rounded-2xl text-center">
                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Extra Squads</p>

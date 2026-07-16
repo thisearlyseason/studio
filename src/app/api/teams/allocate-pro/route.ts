@@ -61,6 +61,26 @@ export async function POST(req: NextRequest) {
         planId: resolvedPlanId,
         last_plan_sync: new Date().toISOString(),
       });
+      if (typeof team.ownerUserId === 'string' && team.ownerUserId) {
+        transaction.set(
+          adminDb
+            .collection('users')
+            .doc(team.ownerUserId)
+            .collection('teamMemberships')
+            .doc(teamId),
+          {
+            teamId,
+            name: team.name || team.teamName || 'Squad',
+            ownerUserId: team.ownerUserId,
+            ...(team.type ? { type: team.type } : {}),
+            ...(team.schoolId ? { schoolId: team.schoolId } : {}),
+            isPro: true,
+            planId: resolvedPlanId,
+            last_plan_sync: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      }
     });
     return NextResponse.json({ success: true, planId: resolvedPlanId });
   } catch (err: any) {
@@ -84,15 +104,44 @@ export async function DELETE(req: NextRequest) {
     }
 
     const teamRef = adminDb.collection('teams').doc(teamId);
-    const teamSnap = await teamRef.get();
-    if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-    if (auth.role !== 'superadmin' && teamSnap.data()!.ownerUserId !== auth.uid) {
-      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
-    }
-
-    await teamRef.update({ isPro: false, planId: 'free', last_plan_sync: new Date().toISOString() });
+    await adminDb.runTransaction(async transaction => {
+      const teamSnap = await transaction.get(teamRef);
+      if (!teamSnap.exists) throw new Error('TEAM_NOT_FOUND');
+      const team = teamSnap.data()!;
+      if (auth.role !== 'superadmin' && team.ownerUserId !== auth.uid) {
+        throw new Error('FORBIDDEN');
+      }
+      const updatedAt = new Date().toISOString();
+      transaction.update(teamRef, {
+        isPro: false,
+        planId: 'free',
+        last_plan_sync: updatedAt,
+      });
+      if (typeof team.ownerUserId === 'string' && team.ownerUserId) {
+        transaction.set(
+          adminDb
+            .collection('users')
+            .doc(team.ownerUserId)
+            .collection('teamMemberships')
+            .doc(teamId),
+          {
+            teamId,
+            name: team.name || team.teamName || 'Squad',
+            ownerUserId: team.ownerUserId,
+            ...(team.type ? { type: team.type } : {}),
+            ...(team.schoolId ? { schoolId: team.schoolId } : {}),
+            isPro: false,
+            planId: 'free',
+            last_plan_sync: updatedAt,
+          },
+          { merge: true }
+        );
+      }
+    });
     return NextResponse.json({ success: true });
   } catch (err: any) {
+    if (err.message === 'TEAM_NOT_FOUND') return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
+    if (err.message === 'FORBIDDEN') return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     console.error('[teams/allocate-pro DELETE] Error:', err.message);
     return NextResponse.json({ error: 'Unable to release this Pro team slot.' }, { status: 500 });
   }

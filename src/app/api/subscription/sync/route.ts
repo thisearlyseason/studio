@@ -8,6 +8,7 @@ import {
   PRICE_BILLING_CYCLE,
 } from '@/lib/stripe-price-map';
 import { isEntitledSubscriptionStatus } from '@/lib/server-team-entitlements';
+import { reconcilePaidTeamSeats } from '@/lib/server-subscription-seats';
 
 export async function POST(req: NextRequest) {
   // Authenticate caller
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: 'all',
-      limit: 5,
+      limit: 100,
     });
 
     const activeSub = subscriptions.data.find(subscription =>
@@ -71,47 +72,23 @@ export async function POST(req: NextRequest) {
     const totalTeamLimit = hasPaidEntitlement ? baseTeamLimit + extraTeams : 0;
     const subscriptionStatus = activeSub?.status || 'inactive';
 
-    await userRef.update({
-      stripe_subscription_id: activeSub?.id || null,
-      subscription_status: subscriptionStatus,
-      billing_cycle: billingCycle,
-      plan_type: hasPaidEntitlement ? planType : 'free',
-      team_limit: totalTeamLimit,
-      extra_teams: hasPaidEntitlement ? extraTeams : 0,
-      last_webhook_sync: new Date().toISOString(),
-    });
-
     // Keep only already-allocated squads within the current paid seat capacity.
     // Missing, canceled, incomplete, or unknown subscriptions revoke all seats.
-    try {
-      const teamsSnap = await adminDb
-        .collection('teams')
-        .where('ownerUserId', '==', userId)
-        .get();
-      const allocatedTeams = teamsSnap.docs
-        .filter(teamDoc => teamDoc.data().isPro === true)
-        .sort((a, b) => a.id.localeCompare(b.id));
-      if (allocatedTeams.length > 0) {
-        const CHUNK = 400;
-        for (let i = 0; i < allocatedTeams.length; i += CHUNK) {
-          const chunk = allocatedTeams.slice(i, i + CHUNK);
-          const batch = adminDb.batch();
-          chunk.forEach((teamDoc, chunkIndex) => {
-            const allocationIndex = i + chunkIndex;
-            const keepPaid =
-              hasPaidEntitlement && allocationIndex < totalTeamLimit;
-            batch.update(teamDoc.ref, {
-              planId: keepPaid ? planType : 'free',
-              isPro: keepPaid,
-              last_plan_sync: new Date().toISOString(),
-            });
-          });
-          await batch.commit();
-        }
-      }
-    } catch (cascadeErr: any) {
-      console.error('[subscription/sync] Team cascade error:', cascadeErr.message);
-    }
+    await reconcilePaidTeamSeats({
+      userId,
+      planType,
+      entitled: hasPaidEntitlement,
+      capacity: totalTeamLimit,
+      userUpdates: {
+        stripe_subscription_id: activeSub?.id || null,
+        subscription_status: subscriptionStatus,
+        billing_cycle: billingCycle,
+        plan_type: hasPaidEntitlement ? planType : 'free',
+        team_limit: totalTeamLimit,
+        extra_teams: hasPaidEntitlement ? extraTeams : 0,
+        last_webhook_sync: new Date().toISOString(),
+      },
+    });
 
     return NextResponse.json({
       success: true,
