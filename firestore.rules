@@ -103,7 +103,7 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if isSuperAdmin() || (isSignedIn() && (
         resource == null ||
-        resource.data.ownerUserId == request.auth.uid ||
+        isTeamOwner(teamId) ||
         isTeamMember(teamId)
       ));
       allow create: if isSuperAdmin() || (isSignedIn() && (

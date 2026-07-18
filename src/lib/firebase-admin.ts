@@ -78,11 +78,17 @@ function initAdminApp(): admin.app.App {
     console.info('[firebase-admin] Initialized with service account credentials.');
   } else {
     // Fallback: Application Default Credentials (GCP/Firebase App Hosting)
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
     console.warn(
       '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set — using Application Default Credentials.',
       'This will FAIL on Vercel unless you set the env var.'
     );
-    _app = admin.initializeApp();
+    // ADC can belong to a different default project than the environment being
+    // served (for example, local QA credentials with an isolated preview app).
+    // Pin the Admin app to the declared runtime project so Auth token
+    // verification and Firestore writes always target the same Firebase tenant
+    // as the browser client.
+    _app = admin.initializeApp(projectId ? { projectId } : undefined);
   }
 
   return _app;

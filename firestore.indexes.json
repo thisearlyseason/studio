@@ -35,6 +35,16 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "documents",
+      "fieldPath": "ownerUserId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
       "collectionGroup": "events",
       "fieldPath": "facilityId",
       "indexes": [

@@ -43,6 +43,13 @@ beforeEach(async () => {
         isPro: true,
         planId: 'team',
       }),
+      setDoc(doc(db, 'teams', 'demo-team'), {
+        ownerUserId: 'fictional-coach',
+        demoSessionOwnerId: 'demo-user',
+        isDemo: true,
+        isPro: true,
+        planId: 'team',
+      }),
       setDoc(doc(db, 'teams', 'team-a', 'members', 'member'), {
         userId: 'member',
         ownerUserId: 'owner',
@@ -124,6 +131,18 @@ test('browser team creation is free-only and tenant reads require membership', a
     isPro: true,
     planId: 'team',
   }));
+});
+
+test('anonymous demo sessions can read only their server-scoped demo teams', async () => {
+  const demoDb = authenticatedDb('demo-user', {
+    firebase: { sign_in_provider: 'anonymous' },
+  });
+  const otherDemoDb = authenticatedDb('other-demo-user', {
+    firebase: { sign_in_provider: 'anonymous' },
+  });
+
+  await assertSucceeds(getDoc(doc(demoDb, 'teams', 'demo-team')));
+  await assertFails(getDoc(doc(otherDemoDb, 'teams', 'demo-team')));
 });
 
 test('members cannot create or promote their own team membership', async () => {

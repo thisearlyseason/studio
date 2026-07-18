@@ -29,7 +29,15 @@ function getHostedFirebaseConfig(): FirebaseOptions | null {
 export function getOrInitializeFirebaseApp(): FirebaseApp {
   if (getApps().length > 0) return getApp();
 
+  const environmentConfig = getHostedFirebaseConfig();
+  if (process.env.NODE_ENV !== 'production' && !environmentConfig) {
+    throw new Error(
+      'Local Firebase configuration is missing. Set NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG to an isolated preview project.'
+    );
+  }
+
   // App Hosting supplies a project-specific public web configuration during
-  // its build. Outside App Hosting (local development), use the fallback.
-  return initializeApp(getHostedFirebaseConfig() ?? firebaseConfig);
+  // its build. The production fallback remains for legacy hosted deployments;
+  // development must always provide an explicit isolated project above.
+  return initializeApp(environmentConfig ?? firebaseConfig);
 }

@@ -84,8 +84,7 @@ import {
   serverTimestamp,
   deleteField,
   arrayRemove,
-  or,
-  documentId
+  or
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useRouter, usePathname } from 'next/navigation';
@@ -1199,40 +1198,12 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const [isHydrating, setIsHydrating] = useState(false);
 
   const hydrateEmails = useCallback(async (membersList: Member[]): Promise<Member[]> => {
-    if (!db || !membersList || membersList.length === 0) return membersList || [];
-    const userIdsToFetch = new Set<string>();
-    membersList.forEach(m => {
-      const uid = m.userId || m.id;
-      if (uid && uid.length > 10) userIdsToFetch.add(uid);
-      if (m.parentId) userIdsToFetch.add(m.parentId);
-    });
-    if (userIdsToFetch.size === 0) return membersList;
-    const ids = Array.from(userIdsToFetch).filter(Boolean);
-    const userMap: Record<string, string> = {};
-    try {
-      for (let i = 0; i < ids.length; i += 30) {
-         const batch = ids.slice(i, i + 30);
-        const q = query(collection(db, 'users'), where(documentId(), 'in', batch));
-        const snap = await getDocs(q);
-        snap.forEach(d => {
-          const ud = d.data();
-          if (ud.email) userMap[d.id] = ud.email;
-        });
-      }
-    } catch (e) {
-      console.warn("[TeamProvider] Hydration partial failure:", e);
-    }
-    return membersList.map(m => {
-      const uid = m.userId || m.id;
-      const loginEmail = uid ? userMap[uid] : null;
-      const pEmail = m.parentId ? userMap[m.parentId] : null;
-      return {
-        ...m,
-        email: loginEmail || m.email,
-        parentEmail: pEmail || m.parentEmail
-      };
-    });
-  }, [db]);
+    // Contact fields used by team staff belong on the team-scoped membership
+    // record. Firestore intentionally restricts /users/{uid} to that user (or
+    // a superadmin), so bulk-reading private user profiles here both violates
+    // the privacy boundary and always fails for normal coaches and players.
+    return membersList || [];
+  }, []);
 
   useEffect(() => {
     if (membersData) {

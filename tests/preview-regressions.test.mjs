@@ -38,3 +38,43 @@ test('demo batches stay below the rules-engine access-call ceiling', async () =>
   assert.match(source, /CHUNK_SIZE = 5/);
   assert.match(source, /transientCodes/);
 });
+
+test('local Firebase client and Admin SDK honor the isolated preview project', async () => {
+  const nextConfig = await readSource('../next.config.ts');
+  const clientConfig = await readSource('../src/firebase/config.ts');
+  const adminConfig = await readSource('../src/lib/firebase-admin.ts');
+
+  assert.match(nextConfig, /process\.env\.NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG/);
+  assert.match(clientConfig, /Local Firebase configuration is missing/);
+  assert.match(adminConfig, /process\.env\.GOOGLE_CLOUD_PROJECT \|\| process\.env\.GCLOUD_PROJECT/);
+  assert.match(adminConfig, /admin\.initializeApp\(projectId \? \{ projectId \} : undefined\)/);
+});
+
+test('school hub onboarding waits for profile hydration and permits the guarded hub route', async () => {
+  const layout = await readSource('../src/app/(dashboard)/layout.tsx');
+
+  assert.match(layout, /!user \|\| !userProfile \|\| isDemoInitializing/);
+  assert.match(layout, /pathname === '\/club'/);
+});
+
+test('team member hydration does not bulk-read private user profiles', async () => {
+  const provider = await readSource('../src/components/providers/team-provider.tsx');
+
+  assert.doesNotMatch(provider, /query\(collection\(db, 'users'\), where\(documentId\(\), 'in'/);
+  assert.doesNotMatch(provider, /Hydration partial failure/);
+});
+
+test('demo organization hubs do not call Stripe Connect', async () => {
+  const settings = await readSource('../src/components/finance/HubStripeSettings.tsx');
+  const club = await readSource('../src/app/(dashboard)/club/page.tsx');
+
+  assert.match(settings, /if \(isDemo\)/);
+  assert.match(settings, /Online Payments Disabled in Demo/);
+  assert.match(club, /isDemo=\{user\.isDemo === true\}/);
+});
+
+test('demo role selector has an accessible description', async () => {
+  const landing = await readSource('../src/app/page.tsx');
+
+  assert.match(landing, /Choose a demo role to open an isolated sample workspace/);
+});

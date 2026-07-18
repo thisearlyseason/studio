@@ -49,7 +49,10 @@ const nextConfig: NextConfig = {
   // that public web-SDK configuration to the browser bundle so each backend
   // connects to its own Firebase project instead of the local fallback.
   env: {
-    NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG ?? '',
+    NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG:
+      process.env.FIREBASE_WEBAPP_CONFIG ??
+      process.env.NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG ??
+      '',
   },
   typescript: {
     // Type checking is now enabled. Both project-level TS errors were fixed:

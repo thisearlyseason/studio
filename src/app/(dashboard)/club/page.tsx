@@ -1759,6 +1759,7 @@ function AuthorizedClubManagementPage() {
             hubTeamId={schoolHub.id}
             subSquads={schoolSquads.map(s => ({ id: s.id, name: s.name }))}
             isSchoolMode={isSchoolMode}
+            isDemo={user.isDemo === true}
           />
         </div>
       )}

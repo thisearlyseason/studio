@@ -351,7 +351,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }, [user, isAuthResolved, router, mounted, isDemoInitializing, pathname, searchParams, isPrimaryClubAuthority, isSchoolMode, isEliteClubMode, isParent, activeTeam]);
 
   useEffect(() => {
-    if (!mounted || isSeedingDemo || isTeamsLoading || !user || isDemoInitializing) return;
+    // Wait for both the profile and team hydration before deciding that the
+    // account needs onboarding. School/club demos can authenticate before
+    // their server-seeded profile is visible to the client; redirecting during
+    // that gap incorrectly sends an authorized administrator to /teams/join.
+    if (!mounted || isSeedingDemo || isTeamsLoading || !user || !userProfile || isDemoInitializing) return;
     const isSetupPage = pathname === '/dashboard' ||
                         pathname === '/dashboard/billing' ||
                         pathname === '/teams/new' || 
@@ -362,6 +366,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                         pathname === '/how-to' ||
                         pathname === '/leagues' ||
                         pathname === '/competition' ||
+                        pathname === '/club' ||
                         pathname === '/manage-tournaments' ||
                         pathname === '/facilities' ||
                         pathname === '/coaches-corner' ||
