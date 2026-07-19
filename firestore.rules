@@ -678,6 +678,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /newsletter_webhook_events/{eventId} {
+      allow read: if isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /newsletter_email_events/{eventId} {
+      allow read: if isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
     // ─── Contact Inquiries (enterprise contact form) ──────────────────────────
     // The rate-limited server endpoint owns all writes and email delivery.
     // Superadmin-only reads protect names, emails, and inquiry text.

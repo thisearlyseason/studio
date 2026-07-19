@@ -145,6 +145,26 @@ test('newsletter manager refreshes expired tokens and exposes rich text controls
   assert.match(manager, /Format as bullet list/);
 });
 
+test('Resend webhook verifies raw signed payloads and processes each delivery once', async () => {
+  const route = await readSource('../src/app/api/webhooks/resend/route.ts');
+  assert.match(route, /const payload = await request\.text\(\)/);
+  assert.match(route, /request\.headers\.get\('svix-id'\)/);
+  assert.match(route, /request\.headers\.get\('svix-timestamp'\)/);
+  assert.match(route, /request\.headers\.get\('svix-signature'\)/);
+  assert.match(route, /webhooks\.verify/);
+  assert.match(route, /RESEND_WEBHOOK_SECRET/);
+  assert.match(route, /runTransaction/);
+  assert.match(route, /status: 'processing'/);
+  assert.match(route, /status: 'completed'/);
+  assert.match(route, /updateSubscriberConsent/);
+  const adminRoute = await readSource('../src/app/api/admin/newsletter/route.ts');
+  const manager = await readSource('../src/components/admin/newsletter-manager.tsx');
+  assert.match(adminRoute, /deliveredCount/);
+  assert.match(adminRoute, /bouncedCount/);
+  assert.match(manager, /campaign\.openedCount/);
+  assert.match(manager, /campaign\.clickedCount/);
+});
+
 test('contact inquiries use a protected server delivery route', async () => {
   const landing = await readSource('../src/app/page.tsx');
   const route = await readSource('../src/app/api/contact/route.ts');

@@ -95,6 +95,14 @@ beforeEach(async () => {
         subject: 'Private campaign',
         status: 'sent',
       }),
+      setDoc(doc(db, 'newsletter_webhook_events', 'webhook-a'), {
+        eventType: 'email.delivered',
+        status: 'completed',
+      }),
+      setDoc(doc(db, 'newsletter_email_events', 'email-event-a'), {
+        emailId: 'email-a',
+        eventType: 'email.delivered',
+      }),
       setDoc(doc(db, 'contact_inquiries', 'inquiry-a'), {
         email: 'visitor@example.com',
         inquiry: 'Private inquiry',
@@ -256,8 +264,15 @@ test('newsletter consent and campaign records are server-controlled and superadm
   await assertFails(getDoc(doc(outsiderDb, 'newsletter_subscribers', 'subscriber-a')));
   await assertSucceeds(getDoc(doc(superAdminDb, 'newsletter_subscribers', 'subscriber-a')));
   await assertSucceeds(getDoc(doc(superAdminDb, 'newsletter_campaigns', 'campaign-a')));
+  await assertFails(getDoc(doc(outsiderDb, 'newsletter_webhook_events', 'webhook-a')));
+  await assertFails(getDoc(doc(outsiderDb, 'newsletter_email_events', 'email-event-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'newsletter_webhook_events', 'webhook-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'newsletter_email_events', 'email-event-a')));
   await assertFails(setDoc(doc(superAdminDb, 'newsletter_campaigns', 'forged-campaign'), {
     status: 'sent',
+  }));
+  await assertFails(setDoc(doc(superAdminDb, 'newsletter_webhook_events', 'forged-event'), {
+    status: 'completed',
   }));
 });
 

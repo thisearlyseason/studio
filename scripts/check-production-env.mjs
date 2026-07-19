@@ -15,6 +15,7 @@ const required = [
   'STRIPE_WEBHOOK_SECRET',
   'STRIPE_CONNECT_WEBHOOK_SECRET',
   'RESEND_API_KEY',
+  'RESEND_WEBHOOK_SECRET',
   'STRAICO_API_KEY',
   'GOOGLE_AI_API_KEY',
   'INTERNAL_API_SECRET',
@@ -73,6 +74,11 @@ for (const name of ['STRIPE_WEBHOOK_SECRET', 'STRIPE_CONNECT_WEBHOOK_SECRET']) {
   if (value && !value.startsWith('whsec_')) {
     invalid.push(`${name} has an unexpected format`);
   }
+}
+
+const resendWebhookSecret = process.env.RESEND_WEBHOOK_SECRET?.trim();
+if (resendWebhookSecret && !resendWebhookSecret.startsWith('whsec_')) {
+  invalid.push('RESEND_WEBHOOK_SECRET has an unexpected format');
 }
 
 for (const name of required.filter((key) => key.includes('STRIPE_PRICE_'))) {
