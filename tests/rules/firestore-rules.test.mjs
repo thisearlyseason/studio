@@ -95,6 +95,11 @@ beforeEach(async () => {
         subject: 'Private campaign',
         status: 'sent',
       }),
+      setDoc(doc(db, 'contact_inquiries', 'inquiry-a'), {
+        email: 'visitor@example.com',
+        inquiry: 'Private inquiry',
+        deliveryStatus: 'sent',
+      }),
     ]);
   });
 });
@@ -253,5 +258,21 @@ test('newsletter consent and campaign records are server-controlled and superadm
   await assertSucceeds(getDoc(doc(superAdminDb, 'newsletter_campaigns', 'campaign-a')));
   await assertFails(setDoc(doc(superAdminDb, 'newsletter_campaigns', 'forged-campaign'), {
     status: 'sent',
+  }));
+});
+
+test('contact inquiries are server-written and superadmin-readable only', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+  const outsiderDb = authenticatedDb('outsider');
+  const superAdminDb = authenticatedDb('global-admin', { role: 'superadmin' });
+
+  await assertFails(setDoc(doc(anonymousDb, 'contact_inquiries', 'forged'), {
+    email: 'visitor@example.com',
+    inquiry: 'Forged inquiry',
+  }));
+  await assertFails(getDoc(doc(outsiderDb, 'contact_inquiries', 'inquiry-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'contact_inquiries', 'inquiry-a')));
+  await assertFails(setDoc(doc(superAdminDb, 'contact_inquiries', 'inquiry-a'), {
+    deliveryStatus: 'sent',
   }));
 });

@@ -59,9 +59,8 @@ import { Badge } from '@/components/ui/badge';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { useUser, useAuth, useFirestore } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
 import { signInAnonymously, signOut } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { 
   Dialog, 
@@ -206,13 +205,14 @@ function PricingDisplay({ monthly, annual, annualMonthly, color, darkBg }: { mon
 }
 
 // ── Enterprise Contact Form ──────────────────────────────────────────────
-function ContactForm({ db }: { db: any }) {
+function ContactForm() {
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [org, setOrg] = React.useState('');
   const [inquiry, setInquiry] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
+  const submissionIdRef = React.useRef('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,24 +221,27 @@ function ContactForm({ db }: { db: any }) {
     }
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'contact_inquiries'), {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        organization: org.trim(),
-        inquiry: inquiry.trim(),
-        createdAt: serverTimestamp(),
-        source: 'landing_page_contact',
-        status: 'new',
-      });
-      setSubmitted(true);
-      // Notify admin asynchronously
-      fetch('/api/public/notify-admin', {
+      if (!submissionIdRef.current) submissionIdRef.current = crypto.randomUUID();
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'contact', name: name.trim(), email: email.trim(), organization: org.trim(), inquiry: inquiry.trim() }),
-      }).catch(() => {});
-    } catch (err: any) {
-      alert('Submission failed. Please email us at teams@thesquad.pro');
+        body: JSON.stringify({
+          submissionId: submissionIdRef.current,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          organization: org.trim(),
+          inquiry: inquiry.trim(),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to send your inquiry.');
+      setSubmitted(true);
+    } catch (err) {
+      toast({
+        title: 'Inquiry Not Sent',
+        description: err instanceof Error ? err.message : 'Please email us at team@thesquad.pro.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -336,7 +339,6 @@ export default function LandingPage() {
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
-  const db = useFirestore();
   const router = useRouter();
   const accountHref = user ? '/dashboard' : '/login';
   const accountLabel = user ? 'Dashboard' : 'Log In';
@@ -1737,7 +1739,7 @@ export default function LandingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                     <Mail className="h-5 w-5" />
                   </div>
-                  <span className="font-bold text-foreground">teams@thesquad.pro</span>
+                  <a href="mailto:team@thesquad.pro" className="font-bold text-foreground hover:text-primary transition-colors">team@thesquad.pro</a>
                 </div>
                 <div className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
@@ -1749,8 +1751,145 @@ export default function LandingPage() {
             </div>
 
             <Card className="border-none shadow-2xl rounded-[3rem] p-8 md:p-12 overflow-hidden ring-1 ring-black/5 bg-background">
-              <ContactForm db={db} />
+              <ContactForm />
             </Card>
+          </div>
+        </div>
+      </section>
+
+      <section id="built-for" className="relative overflow-hidden border-y bg-[#f6f5f2] py-24">
+        <div className="absolute inset-0 pointer-events-none opacity-60" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0,0,0,0.06) 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+        <div className="container relative z-10 mx-auto px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+            className="mx-auto max-w-6xl"
+          >
+            <div className="mb-12 grid grid-cols-1 items-end gap-6 lg:grid-cols-[1fr_auto]">
+              <div className="space-y-4">
+                <motion.p variants={fadeUp} className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Built for your organization</motion.p>
+                <motion.h2 variants={fadeUp} className="max-w-3xl text-4xl font-black uppercase leading-[0.95] tracking-tighter md:text-6xl">
+                  One platform. <span className="text-primary italic">Every level of play.</span>
+                </motion.h2>
+              </div>
+              <motion.p variants={fadeUp} className="max-w-md text-base font-medium leading-relaxed text-muted-foreground lg:text-right">
+                Start with the workspace that fits today, then keep your people and operations connected as your program grows.
+              </motion.p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              {[
+                {
+                  icon: Users,
+                  label: 'Squads',
+                  title: 'Run the team',
+                  description: 'Coordinate rosters, schedules, communication, payments, and day-to-day team operations.',
+                },
+                {
+                  icon: Trophy,
+                  label: 'Leagues & Tournaments',
+                  title: 'Manage competition',
+                  description: 'Organize registrations, schedules, brackets, scorekeeping, and spectator information.',
+                },
+                {
+                  icon: GraduationCap,
+                  label: 'Schools & Clubs',
+                  title: 'Lead the program',
+                  description: 'Oversee multiple squads from an organization-level hub while each team keeps its own workspace.',
+                },
+              ].map((item) => (
+                <motion.div
+                  key={item.label}
+                  variants={fadeUp}
+                  className="group rounded-[2rem] border border-black/5 bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:border-primary/20 hover:shadow-xl"
+                >
+                  <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                    <item.icon className="h-6 w-6" />
+                  </div>
+                  <p className="mb-2 text-[9px] font-black uppercase tracking-[0.22em] text-primary">{item.label}</p>
+                  <h3 className="mb-3 text-2xl font-black uppercase tracking-tight">{item.title}</h3>
+                  <p className="text-sm font-medium leading-relaxed text-muted-foreground">{item.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section id="newsletter" className="relative overflow-hidden bg-black py-24 text-white">
+        <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 15% 20%, rgba(239,68,68,0.7), transparent 34%), radial-gradient(circle at 85% 80%, rgba(255,255,255,0.18), transparent 30%)' }} />
+        <div className="container relative z-10 mx-auto px-6">
+          <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 rounded-[3rem] border border-white/10 bg-white/[0.05] p-8 shadow-2xl backdrop-blur-sm md:p-14 lg:grid-cols-[1.1fr_0.9fr]">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="inline-flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-primary">
+                <span className="h-2 w-2 rounded-full bg-primary" /> Stay in the game
+              </div>
+              <h2 className="text-5xl font-black uppercase leading-[0.9] tracking-tighter md:text-7xl">
+                Sign up for our <span className="text-primary italic">newsletter.</span>
+              </h2>
+              <p className="max-w-xl text-base font-medium leading-relaxed text-white/60 md:text-lg">
+                Product updates, practical team-management ideas, and sports operations resources—delivered directly to your inbox.
+              </p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/35">No spam · Unsubscribe anytime</p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ delay: 0.1 }}
+              className="rounded-[2rem] bg-white p-7 text-foreground shadow-2xl md:p-9"
+            >
+              {newsletterDone ? (
+                <div className="flex min-h-[260px] flex-col items-center justify-center gap-4 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                    <CheckCircle2 className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-black uppercase tracking-tight">You&apos;re subscribed</h3>
+                  <p className="text-sm font-medium text-muted-foreground">Watch your inbox for news from The Squad.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleNewsletterSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newsletter-name" className="text-[10px] font-black uppercase tracking-widest">Name</Label>
+                    <Input
+                      id="newsletter-name"
+                      value={newsletterName}
+                      onChange={(event) => setNewsletterName(event.target.value)}
+                      placeholder="Your name"
+                      autoComplete="name"
+                      className="h-13 rounded-xl bg-muted/50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newsletter-email" className="text-[10px] font-black uppercase tracking-widest">Email *</Label>
+                    <Input
+                      id="newsletter-email"
+                      type="email"
+                      required
+                      value={newsletterEmail}
+                      onChange={(event) => setNewsletterEmail(event.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      className="h-13 rounded-xl bg-muted/50"
+                    />
+                  </div>
+                  <Button type="submit" disabled={newsletterLoading} className="h-14 w-full rounded-xl font-black uppercase tracking-widest">
+                    {newsletterLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Mail className="mr-2 h-4 w-4" /> Subscribe</>}
+                  </Button>
+                  <p className="text-center text-[10px] font-medium leading-relaxed text-muted-foreground">
+                    By subscribing, you agree to receive The Squad newsletter. You can unsubscribe from any email.
+                  </p>
+                </form>
+              )}
+            </motion.div>
           </div>
         </div>
       </section>
