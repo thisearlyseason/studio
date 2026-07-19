@@ -338,6 +338,8 @@ export default function LandingPage() {
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
+  const accountHref = user ? '/dashboard' : '/login';
+  const accountLabel = user ? 'Dashboard' : 'Log In';
 
   // ── Hero intro: curtain splits open after mount ──
   const [heroRevealed, setHeroRevealed] = useState(false);
@@ -515,9 +517,9 @@ export default function LandingPage() {
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/login">
+            <Link href={accountHref}>
               <Button variant="ghost" className={cn("font-bold", isScrolled ? "text-foreground" : "text-white hover:bg-white/10")}>
-                Log In
+                {accountLabel}
               </Button>
             </Link>
             {BETA_MODE ? (
@@ -534,9 +536,9 @@ export default function LandingPage() {
 
           <div className="md:hidden flex items-center gap-2">
             {!isScrolled && (
-              <Link href="/login">
+              <Link href={accountHref}>
                 <Button variant="ghost" size="sm" className="font-bold text-white text-[10px] uppercase tracking-widest px-2 h-8">
-                  Log In
+                  {accountLabel}
                 </Button>
               </Link>
             )}
@@ -571,9 +573,9 @@ export default function LandingPage() {
                         <Button className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20">Join Now</Button>
                       </Link>
                     )}
-                    <Link href="/login" className="w-full">
+                    <Link href={accountHref} className="w-full">
                       <Button variant="outline" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-2">
-                        Log In
+                        {accountLabel}
                       </Button>
                     </Link>
                   </div>
