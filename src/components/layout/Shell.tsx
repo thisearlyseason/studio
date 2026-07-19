@@ -404,7 +404,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     activeTeam, setActiveTeam, teams, user, isPro, 
     isPrimaryClubAuthority, isStaff, isParent, isPlayer, hasFeature, alerts,
     unreadAlertsCount, purchasePro, isSchoolMode, isSchoolAdmin, isEliteAccount, isEliteClubMode,
-    deleteTeam, deleteAccount
+    deleteTeam, deleteAccount, isSuperAdmin
   } = useTeam();
   const auth = useAuth();
   const hasDemoBanner = !!user?.isDemo && !user?.isBetaTester;
@@ -957,6 +957,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     <DropdownMenuItem onClick={() => router.push('/settings')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
                       <User className="h-4 w-4 text-primary" /> Profile Settings
                     </DropdownMenuItem>
+
+                    {isSuperAdmin && (
+                      <DropdownMenuItem onClick={() => router.push('/admin')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest text-primary focus:text-primary">
+                        <ShieldCheck className="h-4 w-4" /> Go to Admin Page
+                      </DropdownMenuItem>
+                    )}
                     
                     <DropdownMenuItem onClick={() => router.push('/how-to')} className="p-3 cursor-pointer rounded-xl font-black text-xs gap-3 uppercase tracking-widest">
                       <BookOpen className="h-4 w-4 text-primary" /> Tactical Manual
@@ -1289,6 +1295,24 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         <div className="space-y-3">
                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2">Account Management</p>
                           <div className="grid grid-cols-1 gap-2">
+                            {isSuperAdmin && (
+                              <Link
+                                href="/admin"
+                                onClick={() => setIsMoreMenuOpen(false)}
+                                className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 p-4 transition-all active:scale-[0.98]"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
+                                    <ShieldCheck className="h-4 w-4" />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-black uppercase tracking-widest text-primary">Go to Admin Page</span>
+                                    <span className="text-[8px] font-bold uppercase text-muted-foreground">Superadmin controls</span>
+                                  </div>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-primary/40" />
+                              </Link>
+                            )}
                             {showInstallBtn && (
                               <div className="relative group/installmobile">
                                 <button

@@ -129,3 +129,43 @@ test('newsletter subscription and sending are handled by protected server routes
   assert.match(adminRoute, /broadcasts\.create/);
   assert.match(renderer, /RESEND_UNSUBSCRIBE_URL/);
 });
+
+test('contact inquiries use a protected server delivery route', async () => {
+  const landing = await readSource('../src/app/page.tsx');
+  const route = await readSource('../src/app/api/contact/route.ts');
+
+  assert.match(landing, /fetch\('\/api\/contact'/);
+  assert.doesNotMatch(landing, /addDoc\(collection\(db, 'contact_inquiries'/);
+  assert.match(route, /enforcePublicRateLimit/);
+  assert.match(route, /CONTACT_RECIPIENT = 'team@thesquad\.pro'/);
+  assert.match(route, /replyTo: email/);
+  assert.match(route, /escapeHtml\(inquiry\)/);
+  assert.match(route, /deliveryStatus: 'sent'/);
+  assert.match(route, /deliveryStatus: 'failed'/);
+});
+
+test('superadmin account controls link to the admin page without exposing it to other roles', async () => {
+  const shell = await readSource('../src/components/layout/Shell.tsx');
+
+  assert.equal((shell.match(/\{isSuperAdmin && \(/g) || []).length >= 2, true);
+  assert.equal((shell.match(/Go to Admin Page/g) || []).length, 2);
+  assert.match(shell, /href="\/admin"/);
+  assert.match(shell, /router\.push\('\/admin'\)/);
+});
+
+test('a product transition separates contact from the permanent newsletter signup', async () => {
+  const landing = await readSource('../src/app/page.tsx');
+  const contactIndex = landing.indexOf('<section id="contact"');
+  const transitionIndex = landing.indexOf('<section id="built-for"');
+  const newsletterIndex = landing.indexOf('<section id="newsletter"');
+  const footerIndex = landing.indexOf('<footer');
+
+  assert.ok(contactIndex >= 0);
+  assert.ok(transitionIndex > contactIndex);
+  assert.ok(newsletterIndex > transitionIndex);
+  assert.ok(footerIndex > newsletterIndex);
+  assert.match(landing, /One platform/);
+  assert.match(landing, /Leagues & Tournaments/);
+  assert.match(landing, /Sign up for our/);
+  assert.match(landing, /Unsubscribe anytime/);
+});

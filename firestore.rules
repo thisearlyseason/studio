@@ -679,11 +679,11 @@ service cloud.firestore {
     }
 
     // ─── Contact Inquiries (enterprise contact form) ──────────────────────────
-    // Public create: visitors submit without being signed in.
-    // Superadmin only read/delete: protects PII (name, email, inquiry text).
+    // The rate-limited server endpoint owns all writes and email delivery.
+    // Superadmin-only reads protect names, emails, and inquiry text.
     match /contact_inquiries/{docId} {
-      allow create: if true;
-      allow read, update, delete: if isSuperAdmin();
+      allow read, delete: if isSuperAdmin();
+      allow create, update: if false;
     }
   }
 }
