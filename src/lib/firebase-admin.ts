@@ -17,6 +17,7 @@ import * as admin from 'firebase-admin';
 
 let _app: admin.app.App | null = null;
 let _db: admin.firestore.Firestore | null = null;
+let _projectId: string | null = null;
 
 function initAdminApp(): admin.app.App {
   if (_app) return _app;
@@ -24,6 +25,7 @@ function initAdminApp(): admin.app.App {
   // Return existing app if already initialized by another module
   if (admin.apps.length > 0) {
     _app = admin.apps[0]!;
+    _projectId = _app.options.projectId || null;
     return _app;
   }
 
@@ -36,7 +38,7 @@ function initAdminApp(): admin.app.App {
     });
     console.info('[firebase-admin] Initialized for the local Firebase emulators.');
   } else if (serviceAccountJson) {
-    let serviceAccount: object | undefined;
+    let serviceAccount: (object & { project_id?: string; projectId?: string }) | undefined;
 
     // Attempt 1: parse as-is (the happy path — raw JSON pasted into Vercel)
     try {
@@ -72,13 +74,16 @@ function initAdminApp(): admin.app.App {
       );
     }
 
+    _projectId = serviceAccount.project_id || serviceAccount.projectId || null;
     _app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      ...(_projectId ? { projectId: _projectId } : {}),
     });
     console.info('[firebase-admin] Initialized with service account credentials.');
   } else {
     // Fallback: Application Default Credentials (GCP/Firebase App Hosting)
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+    _projectId = projectId || null;
     console.warn(
       '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set — using Application Default Credentials.',
       'This will FAIL on Vercel unless you set the env var.'
@@ -106,6 +111,11 @@ function getDb(): admin.firestore.Firestore {
  */
 export function ensureAdminInit(): void {
   initAdminApp();
+}
+
+export function getAdminProjectId(): string | null {
+  const app = initAdminApp();
+  return _projectId || app.options.projectId || null;
 }
 
 /**

@@ -1,15 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
-  Bold,
   Download,
   Eye,
   Heading2,
   Image as ImageIcon,
-  Italic,
   Link2,
   List,
   Loader2,
@@ -27,8 +25,9 @@ import { useTeam } from '@/components/providers/team-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { toast } from '@/hooks/use-toast';
+import { signOut } from 'firebase/auth';
 import {
   NewsletterBlock,
   renderNewsletterHtml,
@@ -74,7 +73,6 @@ function createBlock(type: NewsletterBlock['type']): NewsletterBlock {
 
 export function NewsletterManager() {
   const { firebaseUser } = useTeam();
-  const editorRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const [section, setSection] = useState<'compose' | 'subscribers'>('compose');
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -82,6 +80,7 @@ export function NewsletterManager() {
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [authExpired, setAuthExpired] = useState(false);
   const [subject, setSubject] = useState('');
   const [previewText, setPreviewText] = useState('');
   const [title, setTitle] = useState('');
@@ -110,7 +109,9 @@ export function NewsletterManager() {
     try {
       const response = await authenticatedFetch('/api/admin/newsletter');
       const payload = await response.json();
+      if (response.status === 401) setAuthExpired(true);
       if (!response.ok) throw new Error(payload.error || 'Unable to load newsletter data.');
+      setAuthExpired(false);
       setSubscribers(payload.subscribers || []);
       setCampaigns(payload.campaigns || []);
     } catch (error) {
@@ -136,62 +137,6 @@ export function NewsletterManager() {
 
   const updateBlock = (id: string, update: Partial<NewsletterBlock>) => {
     setBlocks(current => current.map(block => block.id === id ? { ...block, ...update } as NewsletterBlock : block));
-  };
-
-  const formatText = (
-    block: Extract<NewsletterBlock, { type: 'heading' | 'paragraph' }>,
-    prefix: string,
-    suffix: string,
-    placeholder: string,
-  ) => {
-    const editor = editorRefs.current[block.id];
-    if (!editor) return;
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const selection = block.text.slice(start, end) || placeholder;
-    const replacement = `${prefix}${selection}${suffix}`;
-    updateBlock(block.id, { text: `${block.text.slice(0, start)}${replacement}${block.text.slice(end)}` });
-    requestAnimationFrame(() => {
-      editor.focus();
-      editor.setSelectionRange(start + prefix.length, start + prefix.length + selection.length);
-    });
-  };
-
-  const formatList = (block: Extract<NewsletterBlock, { type: 'paragraph' }>) => {
-    const editor = editorRefs.current[block.id];
-    if (!editor) return;
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const selection = block.text.slice(start, end) || 'List item';
-    const replacement = selection.split(/\r?\n/).map(line => `- ${line.replace(/^\s*-\s*/, '')}`).join('\n');
-    updateBlock(block.id, { text: `${block.text.slice(0, start)}${replacement}${block.text.slice(end)}` });
-    requestAnimationFrame(() => {
-      editor.focus();
-      editor.setSelectionRange(start, start + replacement.length);
-    });
-  };
-
-  const formatLink = (block: Extract<NewsletterBlock, { type: 'paragraph' }>) => {
-    const editor = editorRefs.current[block.id];
-    if (!editor) return;
-    const url = window.prompt('Enter the secure link URL (https://):', 'https://');
-    if (!url) return;
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'https:') throw new Error('unsafe protocol');
-    } catch {
-      toast({ title: 'Invalid Link', description: 'Newsletter links must use a valid https:// address.', variant: 'destructive' });
-      return;
-    }
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const selection = block.text.slice(start, end) || 'Link text';
-    const replacement = `[${selection}](${url})`;
-    updateBlock(block.id, { text: `${block.text.slice(0, start)}${replacement}${block.text.slice(end)}` });
-    requestAnimationFrame(() => {
-      editor.focus();
-      editor.setSelectionRange(start + 1, start + 1 + selection.length);
-    });
   };
 
   const moveBlock = (index: number, direction: -1 | 1) => {
@@ -300,6 +245,19 @@ export function NewsletterManager() {
         ))}
       </div>
 
+      {authExpired && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          <p className="text-sm font-black uppercase tracking-wide">Admin session needs to be renewed</p>
+          <p className="mt-1 text-sm">Your saved login cannot be verified by the production server. Sign in again to obtain a new production token.</p>
+          <Button
+            className="mt-4 rounded-xl font-black uppercase"
+            onClick={() => void signOut(firebaseUser!.auth).finally(() => window.location.assign('/login?reason=expired'))}
+          >
+            Sign Out and Reauthenticate
+          </Button>
+        </div>
+      )}
+
       {section === 'subscribers' ? (
         <div className="space-y-5">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -360,38 +318,15 @@ export function NewsletterManager() {
                     </div>
                   </div>
                   {(block.type === 'heading' || block.type === 'paragraph') && (
-                    <div className="overflow-hidden rounded-xl border bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                      <div className="flex flex-wrap items-center gap-1 border-b bg-muted/50 p-2" role="toolbar" aria-label="Rich text formatting">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => formatText(block, '**', '**', 'bold text')} aria-label="Bold selected text" title="Bold">
-                          <Bold className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => formatText(block, '*', '*', 'italic text')} aria-label="Italicize selected text" title="Italic">
-                          <Italic className="h-4 w-4" />
-                        </Button>
-                        {block.type === 'paragraph' && (
-                          <>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => formatLink(block)} aria-label="Add link" title="Add link">
-                              <Link2 className="h-4 w-4" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => formatList(block)} aria-label="Format as bullet list" title="Bullet list">
-                              <List className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Rich text</span>
-                      </div>
-                      <Textarea
-                        ref={element => { editorRefs.current[block.id] = element; }}
-                        value={block.text}
-                        onChange={event => updateBlock(block.id, { text: event.target.value })}
-                        rows={block.type === 'paragraph' ? 9 : 2}
-                        maxLength={10000}
-                        aria-label={`${block.type} rich text editor`}
-                        className="resize-y rounded-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                      />
-                    </div>
+                    <RichTextEditor
+                      value={block.text}
+                      onChange={text => updateBlock(block.id, { text })}
+                      ariaLabel={`${block.type} visual editor`}
+                      placeholder={block.type === 'heading' ? 'Section heading' : 'Write your newsletter content…'}
+                      minHeightClassName={block.type === 'heading' ? 'min-h-24' : 'min-h-64'}
+                    />
                   )}
-                  {block.type === 'paragraph' && <p className="text-[10px] text-gray-400">Select text and use the formatting toolbar. The live preview shows exactly how the email will appear.</p>}
+                  {block.type === 'paragraph' && <p className="text-[10px] text-gray-400">Formatting and inline images appear visually while you compose. The email preview remains the final delivery reference.</p>}
                   {block.type === 'image' && (
                     <div className="space-y-3">
                       <Input type="url" value={block.url} onChange={event => updateBlock(block.id, { url: event.target.value })} placeholder="https://… public image URL" />

@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
-import { adminDb, ensureAdminInit } from '@/lib/firebase-admin';
+import { ensureAdminInit, getAdminProjectId } from '@/lib/firebase-admin';
 
 export interface DecodedToken {
   uid: string;
@@ -56,7 +56,7 @@ export async function verifyFirebaseToken(
 
   try {
     // Explicitly initialize the Admin SDK before calling admin.auth().
-    // NOTE: `void adminDb` does NOT trigger the Proxy getter — must call ensureAdminInit().
+    // Call the initializer directly rather than relying on lazy Firestore access.
     ensureAdminInit();
 
     // Cryptographically verify the JWT signature and expiry.
@@ -73,6 +73,33 @@ export async function verifyFirebaseToken(
       signInProvider: (decodedToken.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider,
     };
   } catch (err: any) {
+    let tokenProjectId: string | null = null;
+    try {
+      const encodedPayload = idToken.split('.')[1];
+      const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+      tokenProjectId = typeof payload.aud === 'string' ? payload.aud : null;
+    } catch {
+      // The Admin SDK remains authoritative; this decode is diagnostics only.
+    }
+    let adminProjectId: string | null = null;
+    try {
+      adminProjectId = getAdminProjectId();
+    } catch {
+      // Initialization failures are reported by the generic service error below.
+    }
+    if (tokenProjectId && adminProjectId && tokenProjectId !== adminProjectId) {
+      console.error('[verifyFirebaseToken] Firebase project mismatch.', {
+        tokenProjectId,
+        adminProjectId,
+      });
+      return NextResponse.json(
+        {
+          error: 'Your browser session belongs to a different Firebase environment. Sign out, refresh, and sign in again.',
+          code: 'auth/project-mismatch',
+        },
+        { status: 401 }
+      );
+    }
     // verifyIdToken throws for expired tokens, invalid signatures, revoked tokens, etc.
     if (
       err.code === 'auth/id-token-expired' ||
@@ -80,7 +107,7 @@ export async function verifyFirebaseToken(
       err.code === 'auth/id-token-revoked'
     ) {
       return NextResponse.json(
-        { error: 'Invalid or expired authentication token.' },
+        { error: 'Invalid or expired authentication token. Sign out and sign in again.', code: err.code },
         { status: 401 }
       );
     }

@@ -9,6 +9,8 @@ import { BookmarkButton } from '@/components/sports-hub/BookmarkButton';
 import { ShareButton } from '@/components/sports-hub/ShareButton';
 import { NewsletterSignup } from '@/components/sports-hub/NewsletterSignup';
 import { ARTICLES_DB, ARTICLES_LIST } from '@/lib/sports-hub-articles';
+import { renderSafeRichTextInline } from '@/lib/rich-text';
+import { getPublicSportsHubArticle } from '@/lib/server-sports-hub';
 
 interface Params {
   params: Promise<{ slug: string }>;
@@ -20,7 +22,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Params) {
   const { slug } = await params;
-  const article = ARTICLES_DB[slug];
+  const article = ARTICLES_DB[slug] || await getPublicSportsHubArticle(slug).catch(() => null);
   if (!article) return { title: 'Article Not Found | Sports Hub' };
   return {
     title: article.seoTitle || `${article.title} | Sports Hub`,
@@ -35,12 +37,7 @@ function renderContent(content: string): React.ReactNode[] {
   let listBuffer: string[] = [];
   let isNumberedList = false;
 
-  const formatInline = (text: string): string =>
-    text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-primary">$1</code>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline underline-offset-2 hover:no-underline">$1</a>');
+  const formatInline = (text: string): string => renderSafeRichTextInline(text);
 
   const flushList = (key: string) => {
     if (listBuffer.length === 0) return;
@@ -196,7 +193,10 @@ function renderContent(content: string): React.ReactNode[] {
 
 export default async function ArticlePage({ params }: Params) {
   const { slug } = await params;
-  const article = ARTICLES_DB[slug];
+  const article = ARTICLES_DB[slug] || await getPublicSportsHubArticle(slug).catch(error => {
+    console.error('[Sports Hub] Article lookup failed:', error);
+    return null;
+  });
 
   if (!article) notFound();
 

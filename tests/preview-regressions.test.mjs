@@ -138,11 +138,38 @@ test('production Firebase config cannot be replaced by preview credentials', asy
 
 test('newsletter manager refreshes expired tokens and exposes rich text controls', async () => {
   const manager = await readSource('../src/components/admin/newsletter-manager.tsx');
+  const editor = await readSource('../src/components/ui/rich-text-editor.tsx');
+  const apiAuth = await readSource('../src/lib/api-auth.ts');
   assert.match(manager, /response\.status === 401 \? requestWithToken\(true\)/);
-  assert.match(manager, /aria-label="Rich text formatting"/);
-  assert.match(manager, /Bold selected text/);
-  assert.match(manager, /Italicize selected text/);
-  assert.match(manager, /Format as bullet list/);
+  assert.match(manager, /Sign Out and Reauthenticate/);
+  assert.match(editor, /contentEditable/);
+  assert.match(editor, /label: 'Bold'/);
+  assert.match(editor, /label: 'Italic'/);
+  assert.match(editor, /label: 'Inline image'/);
+  assert.match(editor, /insertUnorderedList/);
+  assert.match(apiAuth, /auth\/project-mismatch/);
+  assert.match(apiAuth, /verifyIdToken\(idToken, true\)/);
+});
+
+test('Sports Hub admin combines built-in and custom articles without one failed query clearing all data', async () => {
+  const admin = await readSource('../src/app/admin/page.tsx');
+  const publicRoute = await readSource('../src/app/api/sports-hub/articles/route.ts');
+  const publicCatalog = await readSource('../src/hooks/use-sports-hub-articles.ts');
+  const articlePage = await readSource('../src/app/sports-hub/articles/[slug]/page.tsx');
+  const metadata = await import('../src/lib/sports-hub-catalog-metadata.ts');
+  const catalog = await import('../src/lib/sports-hub-articles.ts');
+
+  assert.equal(metadata.STATIC_SPORTS_HUB_ARTICLE_COUNT, catalog.ARTICLES_LIST.length);
+  assert.match(admin, /Promise\.allSettled/);
+  assert.match(admin, /STATIC_SPORTS_HUB_ARTICLE_COUNT \+ shArticles\.length/);
+  assert.match(admin, /collection\(db, 'newsletter_subscribers'\)/);
+  assert.match(admin, /subscriber\.source === 'sports_hub'/);
+  assert.match(admin, /<RichTextEditor/);
+  assert.match(admin, /content: shComposeContent/);
+  assert.match(publicRoute, /listPublicSportsHubArticles/);
+  assert.match(publicCatalog, /fetch\('\/api\/sports-hub\/articles'/);
+  assert.match(articlePage, /getPublicSportsHubArticle/);
+  assert.match(articlePage, /renderSafeRichTextInline/);
 });
 
 test('Resend webhook verifies raw signed payloads and processes each delivery once', async () => {

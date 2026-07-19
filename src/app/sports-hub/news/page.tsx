@@ -11,8 +11,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { ARTICLES_LIST } from '@/lib/sports-hub-articles';
 import type { Article } from '@/lib/sports-hub-articles';
+import { useSportsHubArticles } from '@/hooks/use-sports-hub-articles';
 
 // ─── Category Config ──────────────────────────────────────────────────────────
 
@@ -232,6 +232,7 @@ function CategoryPill({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function NewsPage() {
+  const articles = useSportsHubArticles();
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('newest');
@@ -242,18 +243,18 @@ export default function NewsPage() {
 
   // Counts per category
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: ARTICLES_LIST.length };
-    for (const a of ARTICLES_LIST) {
+    const counts: Record<string, number> = { All: articles.length };
+    for (const a of articles) {
       for (const c of a.categories) {
         counts[c] = (counts[c] ?? 0) + 1;
       }
     }
     return counts;
-  }, []);
+  }, [articles]);
 
   // Filtered + sorted articles
   const filtered = useMemo(() => {
-    let list = [...ARTICLES_LIST];
+    let list = [...articles];
 
     if (showOnlyBookmarks) list = list.filter(a => bookmarks.has(a.id));
 
@@ -277,7 +278,7 @@ export default function NewsPage() {
     }
 
     return list;
-  }, [category, search, sort, showOnlyBookmarks, bookmarks]);
+  }, [articles, category, search, sort, showOnlyBookmarks, bookmarks]);
 
   const featured = filtered.filter(a => a.isFeatured).slice(0, 3);
   const rest = featured.length > 0 ? filtered.filter(a => !a.isFeatured) : filtered;
@@ -301,7 +302,7 @@ export default function NewsPage() {
         </p>
         <div className="flex items-center gap-2 mt-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
           <span className="h-2 w-2 rounded-full hero-gradient" />
-          {ARTICLES_LIST.length} articles · Updated regularly
+          {articles.length} articles · Updated regularly
         </div>
       </motion.div>
 
