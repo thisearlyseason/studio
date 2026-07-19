@@ -1220,7 +1220,10 @@ export async function seedGuestDemoTeam(db: Firestore, userId: string, planId: s
                     gradYear: (m as any).gradYear,
                     gpa: (m as any).gpa,
                     primaryPosition: m.position,
-                    sports: [isSchoolDemo ? 'Basketball' : 'Multi-Sport']
+                    sports: [isSchoolDemo ? 'Basketball' : 'Multi-Sport'],
+                    // Keep recruiting private by default. Alex is the single
+                    // deterministic public demo used to exercise the scout portal.
+                    recruitingProfileEnabled: m.name === 'Alex Rivera'
                 }));
 
                 // Add recruiting content to one of the main players to showcase recruiting portal

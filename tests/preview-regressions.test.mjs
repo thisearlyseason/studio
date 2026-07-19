@@ -39,6 +39,13 @@ test('demo batches stay below the rules-engine access-call ceiling', async () =>
   assert.match(source, /transientCodes/);
 });
 
+test('demo recruiting profiles stay private except for the public scout fixture', async () => {
+  const source = await readSource('../src/lib/db-seeder.ts');
+
+  assert.match(source, /recruitingProfileEnabled: m\.name === 'Alex Rivera'/);
+  assert.match(source, /if \(m\.name === 'Alex Rivera'\)[\s\S]{0,700}isPublic: true/);
+});
+
 test('local Firebase client and Admin SDK honor the isolated preview project', async () => {
   const nextConfig = await readSource('../next.config.ts');
   const clientConfig = await readSource('../src/firebase/config.ts');
