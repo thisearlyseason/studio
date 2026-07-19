@@ -360,7 +360,7 @@ export default function FacilityManagementPage() {
 }
 
 function AuthorizedFacilityManagementPage() {
-  const { isStaff, addFacility, deleteFacility, isSuperAdmin, firebaseUser } = useTeam();
+  const { isStaff, addFacility, deleteFacility, firebaseUser } = useTeam();
 
   const db = useFirestore();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -369,13 +369,9 @@ function AuthorizedFacilityManagementPage() {
   const [deletingFacilityId, setDeletingFacilityId] = useState<string | null>(null);
 
   const facilitiesQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    if (isSuperAdmin) {
-      return query(collection(db, 'facilities'), orderBy('name', 'asc'));
-    }
-    if (!firebaseUser?.uid) return null;
+    if (!db || !firebaseUser?.uid) return null;
     return query(collection(db, 'facilities'), where('clubId', '==', firebaseUser.uid));
-  }, [db, firebaseUser?.uid, isSuperAdmin]);
+  }, [db, firebaseUser?.uid]);
 
   const { data: facilities, isLoading } = useCollection<Facility>(facilitiesQuery);
 
