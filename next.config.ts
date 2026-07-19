@@ -50,9 +50,11 @@ const nextConfig: NextConfig = {
   // connects to its own Firebase project instead of the local fallback.
   env: {
     NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG:
-      process.env.FIREBASE_WEBAPP_CONFIG ??
-      process.env.NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG ??
-      '',
+      process.env.VERCEL_ENV === 'production'
+        ? ''
+        : process.env.FIREBASE_WEBAPP_CONFIG ??
+          process.env.NEXT_PUBLIC_FIREBASE_WEBAPP_CONFIG ??
+          '',
   },
   typescript: {
     // Type checking is now enabled. Both project-level TS errors were fixed:

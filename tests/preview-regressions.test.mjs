@@ -130,6 +130,21 @@ test('newsletter subscription and sending are handled by protected server routes
   assert.match(renderer, /RESEND_UNSUBSCRIBE_URL/);
 });
 
+test('production Firebase config cannot be replaced by preview credentials', async () => {
+  const nextConfig = await readSource('../next.config.ts');
+  assert.match(nextConfig, /process\.env\.VERCEL_ENV === 'production'/);
+  assert.match(nextConfig, /\? ''/);
+});
+
+test('newsletter manager refreshes expired tokens and exposes rich text controls', async () => {
+  const manager = await readSource('../src/components/admin/newsletter-manager.tsx');
+  assert.match(manager, /response\.status === 401 \? requestWithToken\(true\)/);
+  assert.match(manager, /aria-label="Rich text formatting"/);
+  assert.match(manager, /Bold selected text/);
+  assert.match(manager, /Italicize selected text/);
+  assert.match(manager, /Format as bullet list/);
+});
+
 test('contact inquiries use a protected server delivery route', async () => {
   const landing = await readSource('../src/app/page.tsx');
   const route = await readSource('../src/app/api/contact/route.ts');
