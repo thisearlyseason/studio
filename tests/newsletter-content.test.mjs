@@ -28,6 +28,19 @@ test('newsletter renderer supports formatting, images, buttons, and unsubscribe 
   assert.match(renderNewsletterText(draft), /Unsubscribe: \{\{\{RESEND_UNSUBSCRIBE_URL\}\}\}/);
 });
 
+test('newsletter renderer supports safe inline images inside rich text', () => {
+  const html = renderNewsletterHtml({
+    ...draft,
+    blocks: [{
+      id: 'inline-image',
+      type: 'paragraph',
+      text: 'Before\n\n![Team celebrating](https://example.com/celebration.jpg)\n\nAfter',
+    }],
+  });
+  assert.match(html, /<img src="https:\/\/example\.com\/celebration\.jpg"/);
+  assert.match(html, /alt="Team celebrating"/);
+});
+
 test('newsletter renderer escapes markup and rejects unsafe image protocols', () => {
   const html = renderNewsletterHtml({
     ...draft,

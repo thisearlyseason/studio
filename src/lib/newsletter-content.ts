@@ -32,6 +32,7 @@ export function safeNewsletterUrl(value: string): string | null {
 
 function renderInline(text: string): string {
   return escapeNewsletterHtml(text)
+    .replace(/!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" style="display:block;width:100%;max-width:640px;height:auto;margin:18px auto;border-radius:18px;">')
     .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" style="color:#c91f26;text-decoration:underline;">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');

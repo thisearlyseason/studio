@@ -688,6 +688,22 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ─── Sports Hub CMS ──────────────────────────────────────────────────────
+    match /sports_hub_rss_feeds/{feedId} {
+      allow read, create, update, delete: if isSuperAdmin();
+    }
+
+    match /sports_hub_articles/{articleId} {
+      // Public reads are served through the filtered /api/sports-hub/articles
+      // endpoint so drafts and future internal fields never leak directly.
+      allow read, create, update, delete: if isSuperAdmin();
+    }
+
+    match /sports_hub_newsletter_subscribers/{subscriberId} {
+      allow read, delete: if isSuperAdmin();
+      allow create, update: if false;
+    }
+
     // ─── Contact Inquiries (enterprise contact form) ──────────────────────────
     // The rate-limited server endpoint owns all writes and email delivery.
     // Superadmin-only reads protect names, emails, and inquiry text.

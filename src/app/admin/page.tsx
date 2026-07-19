@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper, BookOpen, Rss, PenLine, ToggleLeft, ToggleRight, Globe, Star } from 'lucide-react';
 import { NewsletterManager } from '@/components/admin/newsletter-manager';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { STATIC_SPORTS_HUB_ARTICLE_COUNT } from '@/lib/sports-hub-catalog-metadata';
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:    { label: 'Free',          color: 'bg-gray-100 text-gray-700' },
@@ -29,6 +31,13 @@ const PLAN_LABELS: Record<string, { label: string; color: string }> = {
 function planBadge(plan: string | null | undefined) {
   const p = PLAN_LABELS[plan || 'free'] || { label: plan || 'Free', color: 'bg-gray-100 text-gray-700' };
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${p.color}`}>{p.label}</span>;
+}
+
+function adminDate(value: any): Date | null {
+  if (!value) return null;
+  if (typeof value?.toDate === 'function') return value.toDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 interface UserResult {
@@ -124,6 +133,7 @@ export default function AdminPortalPage() {
   const [refreshingFeed, setRefreshingFeed] = useState<string | null>(null);
   const [shComposeTitle, setShComposeTitle] = useState('');
   const [shComposeExcerpt, setShComposeExcerpt] = useState('');
+  const [shComposeContent, setShComposeContent] = useState('');
   const [shComposeSection, setShComposeSection] = useState('news');
   const [shComposeCategory, setShComposeCategory] = useState('Coaching');
   const [publishingArticle, setPublishingArticle] = useState(false);
@@ -274,23 +284,56 @@ export default function AdminPortalPage() {
   const fetchSportsHubData = async () => {
     if (!db) return;
     setLoadingSH(true);
-    try {
-      const [feedsSnap, articlesSnap, nlSnap] = await Promise.all([
+    const results = await Promise.allSettled([
         getDocs(query(collection(db, 'sports_hub_rss_feeds'), orderBy('createdAt', 'desc'), limit(50))),
-        getDocs(query(collection(db, 'sports_hub_articles'), orderBy('publishedAt', 'desc'), limit(20))),
+        getDocs(query(collection(db, 'sports_hub_articles'), orderBy('publishedAt', 'desc'), limit(100))),
         getDocs(query(collection(db, 'sports_hub_newsletter_subscribers'), orderBy('subscribedAt', 'desc'), limit(200))),
+        getDocs(query(collection(db, 'newsletter_subscribers'), limit(500))),
       ]);
-      setShFeeds(feedsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setShArticles(articlesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setShNewsletters(nlSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e: any) {
-      // Collections may not exist yet — show empty state gracefully
-      setShFeeds([]);
-      setShArticles([]);
-      setShNewsletters([]);
-    } finally {
-      setLoadingSH(false);
+
+    const [feedsResult, articlesResult, legacySubscribersResult, canonicalSubscribersResult] = results;
+    setShFeeds(feedsResult.status === 'fulfilled'
+      ? feedsResult.value.docs.map(d => ({ id: d.id, ...d.data() }))
+      : []);
+    setShArticles(articlesResult.status === 'fulfilled'
+      ? articlesResult.value.docs.map(d => ({ id: d.id, ...d.data() }))
+      : []);
+
+    const legacySubscribers = legacySubscribersResult.status === 'fulfilled'
+      ? legacySubscribersResult.value.docs.map(d => ({ id: d.id, ...d.data() } as any))
+      : [];
+    const canonicalSubscribers = canonicalSubscribersResult.status === 'fulfilled'
+      ? canonicalSubscribersResult.value.docs
+          .map(d => ({ id: d.id, ...d.data() } as any))
+          .filter(subscriber => subscriber.source === 'sports_hub' || subscriber.sources?.includes?.('sports_hub'))
+      : [];
+    const subscribersByEmail = new Map<string, any>();
+    [...legacySubscribers, ...canonicalSubscribers].forEach(subscriber => {
+      const email = typeof subscriber.email === 'string' ? subscriber.email.trim().toLowerCase() : '';
+      if (!email) return;
+      const existing = subscribersByEmail.get(email);
+      subscribersByEmail.set(email, {
+        ...existing,
+        ...subscriber,
+        email,
+        isActive: (existing?.isActive !== false) && subscriber.isActive !== false,
+      });
+    });
+    setShNewsletters([...subscribersByEmail.values()]);
+
+    const failedSources: string[] = [];
+    if (feedsResult.status === 'rejected') failedSources.push('RSS feeds');
+    if (articlesResult.status === 'rejected') failedSources.push('custom articles');
+    if (legacySubscribersResult.status === 'rejected') failedSources.push('legacy subscribers');
+    if (canonicalSubscribersResult.status === 'rejected') failedSources.push('newsletter subscribers');
+    if (failedSources.length) {
+      toast({
+        title: 'Sports Hub Data Partially Loaded',
+        description: `Unable to read: ${failedSources.join(', ')}.`,
+        variant: 'destructive',
+      });
     }
+    setLoadingSH(false);
   };
 
   const addRSSFeed = async () => {
@@ -359,7 +402,7 @@ export default function AdminPortalPage() {
   };
 
   const publishHubArticle = async () => {
-    if (!db || !shComposeTitle.trim() || !shComposeExcerpt.trim()) return;
+    if (!db || !shComposeTitle.trim() || !shComposeExcerpt.trim() || !shComposeContent.trim()) return;
     setPublishingArticle(true);
     try {
       const slug = shComposeTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -375,17 +418,18 @@ export default function AdminPortalPage() {
         isProductUpdate: false,
         viewCount: 0,
         bookmarkCount: 0,
-        readingTime: Math.ceil(shComposeExcerpt.split(' ').length / 200) || 3,
+        readingTime: Math.ceil(shComposeContent.split(/\s+/).length / 200) || 1,
         publishedAt: new Date().toISOString(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         tableOfContents: [],
         reactionCounts: {},
         tags: [],
-        content: shComposeExcerpt,
+        content: shComposeContent,
       });
       setShComposeTitle('');
       setShComposeExcerpt('');
+      setShComposeContent('');
       toast({ title: '✅ Article Published', description: `"${shComposeTitle}" is now live in the Sports Hub.` });
       setShSection('overview');
       await fetchSportsHubData();
@@ -2121,7 +2165,7 @@ export default function AdminPortalPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                       { label: 'RSS Feeds', value: shFeeds.length, sub: `${shFeeds.filter(f => f.isEnabled).length} active`, icon: Rss, color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
-                      { label: 'Articles', value: shArticles.length, sub: 'Published', icon: FileText, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+                      { label: 'Articles', value: STATIC_SPORTS_HUB_ARTICLE_COUNT + shArticles.length, sub: `${STATIC_SPORTS_HUB_ARTICLE_COUNT} built-in · ${shArticles.length} custom`, icon: FileText, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
                       { label: 'Subscribers', value: shNewsletters.length, sub: 'Hub newsletter', icon: Mail, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
                       { label: 'Last Sync', value: shFeeds.filter(f => f.lastSyncStatus === 'success').length, sub: 'feeds OK', icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/20' },
                     ].map(card => (
@@ -2310,7 +2354,7 @@ export default function AdminPortalPage() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {[
                       { label: 'Total Subscribers', value: shNewsletters.length, icon: Mail, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-                      { label: 'This Month', value: shNewsletters.filter(n => { if (!n.subscribedAt) return false; return new Date(n.subscribedAt) > new Date(Date.now() - 30 * 86400000); }).length, icon: TrendingUp, color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+                      { label: 'This Month', value: shNewsletters.filter(n => { const subscribed = adminDate(n.subscribedAt); return subscribed ? subscribed > new Date(Date.now() - 30 * 86400000) : false; }).length, icon: TrendingUp, color: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
                       { label: 'Active', value: shNewsletters.filter(n => n.isActive !== false).length, icon: CheckCircle, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
                     ].map(card => (
                       <div key={card.label} className={`rounded-2xl border-2 ${card.border} bg-white dark:bg-white/5 p-5 space-y-3`}>
@@ -2345,7 +2389,7 @@ export default function AdminPortalPage() {
                               {sub.isActive !== false ? 'Active' : 'Inactive'}
                             </span>
                             <span className="text-[10px] text-gray-400 dark:text-white/30 font-mono whitespace-nowrap pl-4">
-                              {sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                              {adminDate(sub.subscribedAt)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || '—'}
                             </span>
                           </div>
                         ))}
@@ -2360,7 +2404,7 @@ export default function AdminPortalPage() {
                 <div className="space-y-5 max-w-2xl">
                   <div className="bg-sky-500/10 border border-sky-500/20 rounded-2xl p-4 flex gap-3 text-xs font-medium text-sky-700 dark:text-sky-300">
                     <Star className="w-4 h-4 shrink-0 mt-0.5 text-sky-500" />
-                    Quick Compose creates a published article stub in Firestore. For full rich-text editing, open the article in the Sports Hub CMS and use the article editor.
+                    Compose a complete Sports Hub article with visual formatting and inline images. Only public HTTPS image URLs are accepted.
                   </div>
                   <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-6 space-y-5">
                     <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 dark:text-white/30">New Sports Hub Article</p>
@@ -2407,17 +2451,27 @@ export default function AdminPortalPage() {
                         className="rounded-xl bg-gray-50 dark:bg-white/5 font-medium resize-none"
                       />
                     </div>
+                    <div>
+                      <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 block">Article Content</Label>
+                      <RichTextEditor
+                        value={shComposeContent}
+                        onChange={setShComposeContent}
+                        ariaLabel="Sports Hub article visual editor"
+                        placeholder="Write the full article. Select text to make it bold or italic, add headings and lists, or insert an image…"
+                        minHeightClassName="min-h-80"
+                      />
+                    </div>
                     <div className="flex items-center gap-4">
                       <button
                         onClick={publishHubArticle}
-                        disabled={publishingArticle || !shComposeTitle.trim() || !shComposeExcerpt.trim()}
+                        disabled={publishingArticle || !shComposeTitle.trim() || !shComposeExcerpt.trim() || !shComposeContent.trim()}
                         className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 disabled:opacity-50"
                       >
                         {publishingArticle ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
                         Publish Article
                       </button>
                       <button
-                        onClick={() => { setShComposeTitle(''); setShComposeExcerpt(''); }}
+                        onClick={() => { setShComposeTitle(''); setShComposeExcerpt(''); setShComposeContent(''); }}
                         className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors"
                       >
                         Clear

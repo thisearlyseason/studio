@@ -108,6 +108,22 @@ beforeEach(async () => {
         inquiry: 'Private inquiry',
         deliveryStatus: 'sent',
       }),
+      setDoc(doc(db, 'sports_hub_rss_feeds', 'feed-a'), {
+        name: 'Private feed configuration',
+        url: 'https://example.com/rss',
+      }),
+      setDoc(doc(db, 'sports_hub_articles', 'published-a'), {
+        title: 'Published article',
+        isDraft: false,
+      }),
+      setDoc(doc(db, 'sports_hub_articles', 'draft-a'), {
+        title: 'Draft article',
+        isDraft: true,
+      }),
+      setDoc(doc(db, 'sports_hub_newsletter_subscribers', 'hub-subscriber-a'), {
+        email: 'hub@example.com',
+        isActive: true,
+      }),
     ]);
   });
 });
@@ -290,4 +306,22 @@ test('contact inquiries are server-written and superadmin-readable only', async 
   await assertFails(setDoc(doc(superAdminDb, 'contact_inquiries', 'inquiry-a'), {
     deliveryStatus: 'sent',
   }));
+});
+
+test('Sports Hub drafts, feeds, and subscriber data remain protected', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+  const outsiderDb = authenticatedDb('outsider');
+  const superAdminDb = authenticatedDb('global-admin', { role: 'superadmin' });
+
+  await assertFails(getDoc(doc(anonymousDb, 'sports_hub_articles', 'published-a')));
+  await assertFails(getDoc(doc(anonymousDb, 'sports_hub_articles', 'draft-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'sports_hub_articles', 'draft-a')));
+  await assertFails(setDoc(doc(outsiderDb, 'sports_hub_articles', 'forged'), {
+    title: 'Forged article',
+    isDraft: false,
+  }));
+  await assertFails(getDoc(doc(outsiderDb, 'sports_hub_rss_feeds', 'feed-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'sports_hub_rss_feeds', 'feed-a')));
+  await assertFails(getDoc(doc(outsiderDb, 'sports_hub_newsletter_subscribers', 'hub-subscriber-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'sports_hub_newsletter_subscribers', 'hub-subscriber-a')));
 });
