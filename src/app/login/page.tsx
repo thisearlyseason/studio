@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { signInWithEmailAndPassword, signInAnonymously, signOut, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, browserPopupRedirectResolver } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInAnonymously, signOut, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 import BrandLogo from '@/components/BrandLogo';
 import Image from 'next/image';
@@ -87,7 +87,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+      await signInWithPopup(auth, provider);
     } catch (error: any) {
       toast({
         title: "Google Login Failed",
