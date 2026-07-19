@@ -47,6 +47,14 @@ type Campaign = {
   subject: string;
   status: string;
   recipientCount: number;
+  sentCount: number;
+  deliveredCount: number;
+  openedCount: number;
+  clickedCount: number;
+  bouncedCount: number;
+  complainedCount: number;
+  failedCount: number;
+  suppressedCount: number;
   createdAt: string | null;
   sentAt: string | null;
 };
@@ -424,9 +432,26 @@ export function NewsletterManager() {
               <div className="rounded-2xl border bg-white dark:bg-white/5 p-5 space-y-3">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400"><List className="h-4 w-4" /> Recent campaigns</div>
                 {campaigns.slice(0, 5).map(campaign => (
-                  <div key={campaign.id} className="flex items-center justify-between gap-4 border-t pt-3 text-sm">
-                    <div className="min-w-0"><p className="font-bold truncate">{campaign.subject}</p><p className="text-[10px] text-gray-400">{campaign.recipientCount} recipients</p></div>
-                    <span className="text-[9px] font-black uppercase text-primary">{campaign.status}</span>
+                  <div key={campaign.id} className="border-t pt-3 text-sm">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0"><p className="font-bold truncate">{campaign.subject}</p><p className="text-[10px] text-gray-400">{campaign.recipientCount} recipients</p></div>
+                      <span className="text-[9px] font-black uppercase text-primary">{campaign.status}</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                      {[
+                        ['Delivered', campaign.deliveredCount],
+                        ['Opened', campaign.openedCount],
+                        ['Clicked', campaign.clickedCount],
+                        ['Bounced', campaign.bouncedCount],
+                        ['Complaints', campaign.complainedCount],
+                        ['Failed', campaign.failedCount + campaign.suppressedCount],
+                      ].map(([label, value]) => (
+                        <div key={String(label)} className="rounded-lg bg-muted/60 px-2 py-2 text-center">
+                          <p className="text-sm font-black">{value}</p>
+                          <p className="text-[7px] font-black uppercase tracking-wider text-muted-foreground">{label}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -14,10 +14,15 @@ The release requires:
 - The canonical HTTPS application URL and FCM VAPID key.
 - All base-plan and extra-squad Stripe price IDs.
 - Stripe secret and both webhook-signing secrets.
-- Resend, Straico, and Google AI credentials.
+- Resend API and webhook-signing credentials, Straico, and Google AI credentials.
 - A high-entropy internal API secret and owner notification destinations.
 - Google Calendar OAuth client ID, client secret, and HTTPS redirect URI.
 
-After configuration, verify Stripe and Stripe Connect webhook destinations,
+The Resend webhook destination is
+`https://www.thesquad.pro/api/webhooks/resend`. Subscribe it to the email
+delivery events and `contact.updated`/`contact.deleted`, then store its signing
+secret as `RESEND_WEBHOOK_SECRET`.
+
+After configuration, verify Stripe, Stripe Connect, and Resend webhook destinations,
 Firebase authorized domains, Google OAuth redirect URIs, Resend sender-domain
 verification, and FCM delivery from the deployed audit preview.
