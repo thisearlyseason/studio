@@ -57,6 +57,13 @@ test('local Firebase client and Admin SDK honor the isolated preview project', a
   assert.match(adminConfig, /admin\.initializeApp\(projectId \? \{ projectId \} : undefined\)/);
 });
 
+test('Google sign-in uses the resolver supplied by standard getAuth initialization', async () => {
+  const login = await readSource('../src/app/login/page.tsx');
+
+  assert.match(login, /signInWithPopup\(auth, provider\)/);
+  assert.doesNotMatch(login, /browserPopupRedirectResolver/);
+});
+
 test('school hub onboarding waits for profile hydration and permits the guarded hub route', async () => {
   const layout = await readSource('../src/app/(dashboard)/layout.tsx');
 
