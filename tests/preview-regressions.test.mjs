@@ -57,12 +57,12 @@ test('local Firebase client and Admin SDK honor the isolated preview project', a
   assert.match(adminConfig, /admin\.initializeApp\(projectId \? \{ projectId \} : undefined\)/);
 });
 
-test('Google sign-in uses the resolver supplied by standard getAuth initialization', async () => {
+test('Google sign-in keeps its provider and popup resolver in the same module boundary', async () => {
   const login = await readSource('../src/app/login/page.tsx');
   const nextConfig = await readSource('../next.config.ts');
 
-  assert.match(login, /signInWithPopup\(auth, provider\)/);
-  assert.doesNotMatch(login, /browserPopupRedirectResolver/);
+  assert.match(login, /browserPopupRedirectResolver/);
+  assert.match(login, /signInWithPopup\(auth, provider, browserPopupRedirectResolver\)/);
   assert.match(nextConfig, /script-src[^\n]*https:\/\/apis\.google\.com/);
   assert.match(nextConfig, /frame-src[^\n]*https:\/\/\*\.firebaseapp\.com/);
 });
