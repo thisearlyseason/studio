@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
+  Bold,
   Download,
   Eye,
   Heading2,
   Image as ImageIcon,
+  Italic,
   Link2,
   List,
   Loader2,
@@ -64,6 +66,7 @@ function createBlock(type: NewsletterBlock['type']): NewsletterBlock {
 
 export function NewsletterManager() {
   const { firebaseUser } = useTeam();
+  const editorRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const [section, setSection] = useState<'compose' | 'subscribers'>('compose');
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -78,15 +81,19 @@ export function NewsletterManager() {
 
   const authenticatedFetch = useCallback(async (url: string, init?: RequestInit) => {
     if (!firebaseUser) throw new Error('Your admin session is unavailable.');
-    const token = await firebaseUser.getIdToken();
-    return fetch(url, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...init?.headers,
-      },
-    });
+    const requestWithToken = async (forceRefresh: boolean) => {
+      const token = await firebaseUser.getIdToken(forceRefresh);
+      return fetch(url, {
+        ...init,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...init?.headers,
+        },
+      });
+    };
+    const response = await requestWithToken(false);
+    return response.status === 401 ? requestWithToken(true) : response;
   }, [firebaseUser]);
 
   const loadData = useCallback(async () => {
@@ -121,6 +128,62 @@ export function NewsletterManager() {
 
   const updateBlock = (id: string, update: Partial<NewsletterBlock>) => {
     setBlocks(current => current.map(block => block.id === id ? { ...block, ...update } as NewsletterBlock : block));
+  };
+
+  const formatText = (
+    block: Extract<NewsletterBlock, { type: 'heading' | 'paragraph' }>,
+    prefix: string,
+    suffix: string,
+    placeholder: string,
+  ) => {
+    const editor = editorRefs.current[block.id];
+    if (!editor) return;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selection = block.text.slice(start, end) || placeholder;
+    const replacement = `${prefix}${selection}${suffix}`;
+    updateBlock(block.id, { text: `${block.text.slice(0, start)}${replacement}${block.text.slice(end)}` });
+    requestAnimationFrame(() => {
+      editor.focus();
+      editor.setSelectionRange(start + prefix.length, start + prefix.length + selection.length);
+    });
+  };
+
+  const formatList = (block: Extract<NewsletterBlock, { type: 'paragraph' }>) => {
+    const editor = editorRefs.current[block.id];
+    if (!editor) return;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selection = block.text.slice(start, end) || 'List item';
+    const replacement = selection.split(/\r?\n/).map(line => `- ${line.replace(/^\s*-\s*/, '')}`).join('\n');
+    updateBlock(block.id, { text: `${block.text.slice(0, start)}${replacement}${block.text.slice(end)}` });
+    requestAnimationFrame(() => {
+      editor.focus();
+      editor.setSelectionRange(start, start + replacement.length);
+    });
+  };
+
+  const formatLink = (block: Extract<NewsletterBlock, { type: 'paragraph' }>) => {
+    const editor = editorRefs.current[block.id];
+    if (!editor) return;
+    const url = window.prompt('Enter the secure link URL (https://):', 'https://');
+    if (!url) return;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:') throw new Error('unsafe protocol');
+    } catch {
+      toast({ title: 'Invalid Link', description: 'Newsletter links must use a valid https:// address.', variant: 'destructive' });
+      return;
+    }
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selection = block.text.slice(start, end) || 'Link text';
+    const replacement = `[${selection}](${url})`;
+    updateBlock(block.id, { text: `${block.text.slice(0, start)}${replacement}${block.text.slice(end)}` });
+    requestAnimationFrame(() => {
+      editor.focus();
+      editor.setSelectionRange(start + 1, start + 1 + selection.length);
+    });
   };
 
   const moveBlock = (index: number, direction: -1 | 1) => {
@@ -289,9 +352,38 @@ export function NewsletterManager() {
                     </div>
                   </div>
                   {(block.type === 'heading' || block.type === 'paragraph') && (
-                    <Textarea value={block.text} onChange={event => updateBlock(block.id, { text: event.target.value })} rows={block.type === 'paragraph' ? 7 : 2} maxLength={10000} className="rounded-xl" />
+                    <div className="overflow-hidden rounded-xl border bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                      <div className="flex flex-wrap items-center gap-1 border-b bg-muted/50 p-2" role="toolbar" aria-label="Rich text formatting">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => formatText(block, '**', '**', 'bold text')} aria-label="Bold selected text" title="Bold">
+                          <Bold className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => formatText(block, '*', '*', 'italic text')} aria-label="Italicize selected text" title="Italic">
+                          <Italic className="h-4 w-4" />
+                        </Button>
+                        {block.type === 'paragraph' && (
+                          <>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => formatLink(block)} aria-label="Add link" title="Add link">
+                              <Link2 className="h-4 w-4" />
+                            </Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => formatList(block)} aria-label="Format as bullet list" title="Bullet list">
+                              <List className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Rich text</span>
+                      </div>
+                      <Textarea
+                        ref={element => { editorRefs.current[block.id] = element; }}
+                        value={block.text}
+                        onChange={event => updateBlock(block.id, { text: event.target.value })}
+                        rows={block.type === 'paragraph' ? 9 : 2}
+                        maxLength={10000}
+                        aria-label={`${block.type} rich text editor`}
+                        className="resize-y rounded-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                    </div>
                   )}
-                  {block.type === 'paragraph' && <p className="text-[10px] text-gray-400">Formatting: **bold**, *italic*, [link text](https://example.com), and lines beginning with “- ” for bullets.</p>}
+                  {block.type === 'paragraph' && <p className="text-[10px] text-gray-400">Select text and use the formatting toolbar. The live preview shows exactly how the email will appear.</p>}
                   {block.type === 'image' && (
                     <div className="space-y-3">
                       <Input type="url" value={block.url} onChange={event => updateBlock(block.id, { url: event.target.value })} placeholder="https://… public image URL" />
