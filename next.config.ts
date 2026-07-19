@@ -29,7 +29,7 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // Stripe Connect requires connect-js.stripe.com in script-src
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.stripe.com connect-js.stripe.com *.stripe.com elfsightcdn.com *.elfsightcdn.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com js.stripe.com connect-js.stripe.com *.stripe.com elfsightcdn.com *.elfsightcdn.com",
       "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
       "font-src 'self' fonts.gstatic.com",
       "img-src 'self' data: blob: https: storage.googleapis.com *.firebasestorage.app placehold.co images.unsplash.com picsum.photos api.dicebear.com freeimage.host",
@@ -37,7 +37,7 @@ const securityHeaders = [
       // Stripe Connect needs several stripe.com subdomains for its onboarding iframe/XHR
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.firebaseapp.com https://api.stripe.com https://*.stripe.com https://api.straico.com https://freeimage.host wss://*.firebaseio.com elfsight.com *.elfsight.com elfsightcdn.com *.elfsightcdn.com https://wttr.in https://nominatim.openstreetmap.org",
       // Stripe Connect onboarding is iframe-based
-      "frame-src 'self' js.stripe.com connect-js.stripe.com *.stripe.com checkout.stripe.com hooks.stripe.com elfsight.com *.elfsight.com elfsightcdn.com *.elfsightcdn.com youtube.com *.youtube.com youtu.be *.youtu.be www.youtube-nocookie.com",
+      "frame-src 'self' https://*.firebaseapp.com js.stripe.com connect-js.stripe.com *.stripe.com checkout.stripe.com hooks.stripe.com elfsight.com *.elfsight.com elfsightcdn.com *.elfsightcdn.com youtube.com *.youtube.com youtu.be *.youtu.be www.youtube-nocookie.com",
       "worker-src 'self' blob:",
       "child-src 'self' blob:",
     ].join('; '),

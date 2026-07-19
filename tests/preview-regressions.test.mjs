@@ -59,9 +59,12 @@ test('local Firebase client and Admin SDK honor the isolated preview project', a
 
 test('Google sign-in uses the resolver supplied by standard getAuth initialization', async () => {
   const login = await readSource('../src/app/login/page.tsx');
+  const nextConfig = await readSource('../next.config.ts');
 
   assert.match(login, /signInWithPopup\(auth, provider\)/);
   assert.doesNotMatch(login, /browserPopupRedirectResolver/);
+  assert.match(nextConfig, /script-src[^\n]*https:\/\/apis\.google\.com/);
+  assert.match(nextConfig, /frame-src[^\n]*https:\/\/\*\.firebaseapp\.com/);
 });
 
 test('school hub onboarding waits for profile hydration and permits the guarded hub route', async () => {
