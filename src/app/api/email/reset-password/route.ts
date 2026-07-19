@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as admin from 'firebase-admin';
 import { Resend } from 'resend';
 import { passwordResetEmail } from '@/lib/email-templates';
+import { ensureAdminInit } from '@/lib/firebase-admin';
+import {
+  enforcePublicRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
+
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY env var not set');
+  return new Resend(apiKey);
+}
 
 /**
  * POST /api/email/reset-password
@@ -15,18 +27,31 @@ const FROM = 'The Squad Pro <noreply@thesquad.pro>';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
+    const { email } = await readJsonBodyWithLimit<{ email?: unknown }>(req, 4_000);
 
-    if (!email || typeof email !== 'string') {
+    if (
+      typeof email !== 'string' ||
+      email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateLimit = await enforcePublicRateLimit(
+      req,
+      'reset-password',
+      5,
+      15 * 60 * 1000,
+      normalizedEmail
+    );
+    if (rateLimit) return rateLimit;
 
     // Use Firebase Admin SDK to generate a password reset link
     // This avoids sending Firebase's ugly default email
-    const admin = await getFirebaseAdmin();
+    ensureAdminInit();
     let resetLink: string;
     try {
-      resetLink = await admin.auth().generatePasswordResetLink(email, {
+      resetLink = await admin.auth().generatePasswordResetLink(normalizedEmail, {
         url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.thesquad.pro'}/login`,
       });
     } catch (adminErr: any) {
@@ -36,7 +61,8 @@ export async function POST(req: NextRequest) {
       const isUserNotFound =
         adminErr.code === 'auth/user-not-found' ||
         adminErr.message?.includes('INTERNAL ASSERT FAILED') ||
-        adminErr.message?.includes('user-not-found');
+        adminErr.message?.includes('user-not-found') ||
+        adminErr.message?.toLowerCase().includes('no user record');
       if (isUserNotFound) {
         // Return success silently — prevents email enumeration attacks
         return NextResponse.json({ success: true });
@@ -44,11 +70,11 @@ export async function POST(req: NextRequest) {
       throw adminErr;
     }
 
-    const { subject, html } = passwordResetEmail({ email, resetLink });
+    const { subject, html } = passwordResetEmail({ email: normalizedEmail, resetLink });
 
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: FROM,
-      to: [email],
+      to: [normalizedEmail],
       subject,
       html,
     });
@@ -60,23 +86,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error('[Reset Password] Error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to process password reset.' }, { status: 500 });
   }
-}
-
-// Lazy-initialize Firebase Admin to avoid import errors in edge environments
-async function getFirebaseAdmin() {
-  const admin = await import('firebase-admin');
-  if (!admin.apps.length) {
-    const serviceAccountB64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!serviceAccountB64) throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON env var not set');
-    const serviceAccount = JSON.parse(
-      Buffer.from(serviceAccountB64, 'base64').toString('utf8')
-    );
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-  }
-  return admin;
 }

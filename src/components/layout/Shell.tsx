@@ -1003,9 +1003,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                           <AlertDialogHeader>
                             <AlertDialogTitle className="text-2xl font-black uppercase tracking-tight">Identity Termination</AlertDialogTitle>
                             <AlertDialogDescription className="text-sm font-medium text-foreground/70">
-                              You are about to permanently delete your global account identity. All your data, settings, and role memberships will be purged. 
+                              You are about to schedule deletion of your global account identity. Your account is retained for seven days, then permanently removed. Accounts that own teams or leagues must transfer or delete them first so organization data is never orphaned.
                               <br /><br />
-                              <span className="font-bold text-destructive">WARNING: This cannot be undone.</span>
+                              <span className="font-bold text-destructive">WARNING: This action signs you out and begins the seven-day deletion period.</span>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter className="pt-4">

@@ -14,10 +14,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { adminDb, ensureAdminInit } from '@/lib/firebase-admin';
 
-interface DecodedToken {
+export interface DecodedToken {
   uid: string;
   email?: string;
   role?: string;
+  authTime?: number;
+  signInProvider?: string;
+}
+
+export function assertNonAnonymous(authResult: DecodedToken): NextResponse | null {
+  if (authResult.signInProvider === 'anonymous') {
+    return NextResponse.json(
+      { error: 'This operation requires a registered account.' },
+      { status: 403 }
+    );
+  }
+  return null;
 }
 
 /**
@@ -49,7 +61,7 @@ export async function verifyFirebaseToken(
 
     // Cryptographically verify the JWT signature and expiry.
     // This is the ONLY correct way to verify Firebase ID tokens server-side.
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await admin.auth().verifyIdToken(idToken, true);
 
     const role = (decodedToken as any).role as string | undefined;
 
@@ -57,6 +69,8 @@ export async function verifyFirebaseToken(
       uid: decodedToken.uid,
       email: decodedToken.email,
       role,
+      authTime: decodedToken.auth_time,
+      signInProvider: (decodedToken.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider,
     };
   } catch (err: any) {
     // verifyIdToken throws for expired tokens, invalid signatures, revoked tokens, etc.

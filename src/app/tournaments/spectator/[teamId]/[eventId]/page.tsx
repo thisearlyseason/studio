@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
 import { TeamEvent, TournamentGame } from '@/components/providers/team-provider';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -81,17 +79,39 @@ function calculateStandings(teams: string[], games: TournamentGame[]) {
 
 export default function PublicSpectatorHub() {
   const { teamId, eventId } = useParams();
-  const db = useFirestore();
   const [activeTab, setActiveTab] = useState('schedule');
   const [teamFilter, setTeamFilter] = useState<string | 'all'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [event, setEvent] = useState<TeamEvent | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const eventRef = useMemoFirebase(() => {
-    if (!db || !teamId || !eventId) return null;
-    return doc(db, 'teams', teamId as string, 'events', eventId as string);
-  }, [db, teamId, eventId]);
+  useEffect(() => {
+    const resolvedTeamId = typeof teamId === 'string' ? teamId : '';
+    const resolvedEventId = typeof eventId === 'string' ? eventId : '';
+    if (!resolvedTeamId || !resolvedEventId) {
+      setEvent(null);
+      setIsLoading(false);
+      return;
+    }
 
-  const { data: event, isLoading } = useDoc<TeamEvent>(eventRef);
+    const controller = new AbortController();
+    setIsLoading(true);
+    fetch(
+      `/api/public/tournaments/${encodeURIComponent(resolvedTeamId)}/${encodeURIComponent(resolvedEventId)}`,
+      { signal: controller.signal }
+    )
+      .then(async response => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Tournament unavailable.');
+        setEvent(payload.tournament as TeamEvent);
+      })
+      .catch(error => {
+        if (error.name !== 'AbortError') setEvent(null);
+      })
+      .finally(() => setIsLoading(false));
+
+    return () => controller.abort();
+  }, [teamId, eventId]);
 
   const filteredSchedule = useMemo(() => {
     if (!event?.tournamentGames) return [];

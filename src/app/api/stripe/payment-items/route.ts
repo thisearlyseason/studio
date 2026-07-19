@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
+import { resolveTeamConnectAccount } from '@/lib/server-stripe-connect';
+import {
+  enforceUserRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
 /**
  * Payment Items API — manages payable items that coaches/organizers create for
@@ -19,22 +26,10 @@ import { verifyFirebaseToken } from '@/lib/api-auth';
  *   teams/{teamId}/paymentItems/{itemId}
  */
 
-const PAID_PLAN_TYPES = new Set(['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo']);
 const VALID_CATEGORIES = new Set(['league', 'tournament', 'equipment', 'other', 'donation', 'fundraising']);
-
-async function assertProPlan(userId: string): Promise<NextResponse | null> {
-  const userSnap = await adminDb.collection('users').doc(userId).get();
-  if (!userSnap.exists) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
-  const data = userSnap.data()!;
-  const isSuperAdmin = data.role === 'superadmin';
-  if (!PAID_PLAN_TYPES.has(data.plan_type || '') && !isSuperAdmin) {
-    return NextResponse.json(
-      { error: 'Online payments require a paid plan.' },
-      { status: 403 }
-    );
-  }
-  return null;
-}
+const VALID_CURRENCIES = new Set(['cad', 'usd']);
+const SAFE_ID = /^[A-Za-z0-9_-]{1,200}$/;
+const SAFE_OPERATION_ID = /^[A-Za-z0-9_-]{16,100}$/;
 
 /**
  * Resolves which Stripe connected account to use for a given team.
@@ -45,92 +40,87 @@ async function assertProPlan(userId: string): Promise<NextResponse | null> {
  *
  * Returns: { connectAccountId, isHubAccount, hubTeamId, hubTeamName, squadName }
  */
-async function resolveConnectAccount(
-  teamId: string,
-  userId: string
-): Promise<{
-  connectAccountId: string | null;
-  isHubAccount: boolean;
-  hubTeamId: string | null;
-  hubTeamName: string | null;
-  squadName: string | null;
-}> {
-  const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-  const teamData = teamSnap.data();
-  const squadName = teamData?.name ?? null;
-
-  // Check if this team is part of a hub
-  const hubTeamId: string | null = teamData?.schoolId || teamData?.clubId || null;
-
-  if (hubTeamId) {
-    const hubSnap = await adminDb.collection('teams').doc(hubTeamId).get();
-    const hubData = hubSnap.data();
-    const stripeConnectMode: string = hubData?.stripeConnectMode || 'per_squad';
-
-    if (stripeConnectMode === 'shared') {
-      const hubAccountId: string | null = hubData?.stripeConnectAccountId || null;
-      return {
-        connectAccountId: hubAccountId,
-        isHubAccount: true,
-        hubTeamId,
-        hubTeamName: hubData?.name ?? null,
-        squadName,
-      };
-    }
-  }
-
-  // Per-squad or standalone: use the user's own connected account
-  const userSnap = await adminDb.collection('users').doc(userId).get();
-  const connectAccountId: string | null = userSnap.data()?.stripe_connect_account_id ?? null;
-  return { connectAccountId, isHubAccount: false, hubTeamId, hubTeamName: null, squadName };
-}
-
 // ── POST — create a payment item ──────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const auth = await verifyFirebaseToken(req);
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const { userId, teamId, name, description, amountDollars, category, currency = 'usd' } = await req.json();
+    const {
+      userId,
+      teamId,
+      name,
+      description,
+      amountDollars,
+      category,
+      currency = 'usd',
+      operationId,
+    } = await readJsonBodyWithLimit<{
+      userId?: unknown;
+      teamId?: unknown;
+      name?: unknown;
+      description?: unknown;
+      amountDollars?: unknown;
+      category?: unknown;
+      currency?: unknown;
+      operationId?: unknown;
+    }>(req, 16_000);
 
-    if (!userId || !teamId || !name || !amountDollars || !category) {
+    if (
+      typeof userId !== 'string' ||
+      typeof teamId !== 'string' ||
+      typeof name !== 'string' ||
+      typeof category !== 'string' ||
+      typeof operationId !== 'string' ||
+      !SAFE_ID.test(userId) ||
+      !SAFE_ID.test(teamId) ||
+      !SAFE_OPERATION_ID.test(operationId) ||
+      !name.trim() ||
+      name.trim().length > 120 ||
+      (description !== undefined && (typeof description !== 'string' || description.length > 500))
+    ) {
       return NextResponse.json(
-        { error: 'Missing required fields: userId, teamId, name, amountDollars, category.' },
+        { error: 'Invalid payment item request.' },
         { status: 400 }
       );
     }
 
     if (auth.uid !== userId) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
-    if (!VALID_CATEGORIES.has(category)) {
+    const normalizedCurrency = typeof currency === 'string' ? currency.toLowerCase() : '';
+    if (!VALID_CATEGORIES.has(category) || !VALID_CURRENCIES.has(normalizedCurrency)) {
       return NextResponse.json({ error: 'Invalid category.' }, { status: 400 });
     }
 
-    const amountCents = Math.round(parseFloat(amountDollars) * 100);
-    if (!isFinite(amountCents) || amountCents < 50) {
-      return NextResponse.json({ error: 'Amount must be at least $0.50.' }, { status: 400 });
+    const numericAmount = typeof amountDollars === 'number'
+      ? amountDollars
+      : Number(amountDollars);
+    const amountCents = Math.round(numericAmount * 100);
+    if (!Number.isFinite(amountCents) || amountCents < 50 || amountCents > 10_000_000) {
+      return NextResponse.json({ error: 'Amount must be between $0.50 and $100,000.' }, { status: 400 });
     }
 
-    // Plan gate
-    const planError = await assertProPlan(userId);
-    if (planError) return planError;
+    const rateLimit = await enforceUserRateLimit(
+      auth.uid,
+      'stripe-payment-item-create',
+      20,
+      60 * 60 * 1000
+    );
+    if (rateLimit) return rateLimit;
 
-    // Verify the user is the team owner OR a team admin member
-    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-    if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-
-    const isOwner = teamSnap.data()!.ownerUserId === userId;
-    const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
-    const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const userSnap2 = await adminDb.collection('users').doc(userId).get();
-    const isSuperAdmin = userSnap2.data()?.role === 'superadmin';
-
-    if (!isOwner && !isAdmin && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden: must be team owner or admin.' }, { status: 403 });
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      true
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     // Resolve which Stripe account to use (shared hub or per-squad)
-    const { connectAccountId, isHubAccount, hubTeamName, squadName } = await resolveConnectAccount(teamId, userId);
+    const { connectAccountId, isHubAccount, hubTeamName, squadName } =
+      await resolveTeamConnectAccount(teamId);
 
     if (!connectAccountId) {
       const msg = isHubAccount
@@ -139,8 +129,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const teamName = teamSnap.data()!.name || 'the team';
+    const teamName = access.team?.name || 'the team';
     const stripe = getStripe();
+    const itemRef = adminDb
+      .collection('teams')
+      .doc(teamId)
+      .collection('paymentItems')
+      .doc(operationId);
+    const existingItem = await itemRef.get();
+    if (existingItem.exists && existingItem.data()?.stripePaymentLinkUrl) {
+      return NextResponse.json({ item: existingItem.data(), duplicate: true });
+    }
 
     // Build metadata — include squad info when routing through hub account
     const productMetadata: Record<string, string> = {
@@ -156,11 +155,11 @@ export async function POST(req: NextRequest) {
     // 1. Create a Stripe Product on the resolved connected account
     const product = await stripe.products.create(
       {
-        name: isHubAccount && squadName ? `${squadName} — ${name}` : name,
+        name: isHubAccount && squadName ? `${squadName} — ${name.trim()}` : name.trim(),
         description: description || undefined,
         metadata: productMetadata,
       },
-      { stripeAccount: connectAccountId }
+      { stripeAccount: connectAccountId, idempotencyKey: `payment-item:${operationId}:product` }
     );
 
     // 2. Create a Price for the product
@@ -168,9 +167,9 @@ export async function POST(req: NextRequest) {
       {
         product: product.id,
         unit_amount: amountCents,
-        currency: currency.toLowerCase(),
+        currency: normalizedCurrency,
       },
-      { stripeAccount: connectAccountId }
+      { stripeAccount: connectAccountId, idempotencyKey: `payment-item:${operationId}:price` }
     );
 
     // 3. Create a Payment Link (reusable, shareable)
@@ -191,19 +190,18 @@ export async function POST(req: NextRequest) {
         },
         invoice_creation: { enabled: true },
       },
-      { stripeAccount: connectAccountId }
+      { stripeAccount: connectAccountId, idempotencyKey: `payment-item:${operationId}:link` }
     );
 
     // 4. Persist to Firestore
     const now = new Date().toISOString();
-    const itemRef = adminDb.collection('teams').doc(teamId).collection('paymentItems').doc();
     const item = {
-      id: itemRef.id,
+      id: operationId,
       teamId,
-      name,
+      name: name.trim(),
       description: description || '',
       amount: amountCents,
-      currency: currency.toLowerCase(),
+      currency: normalizedCurrency,
       category,
       stripeProductId: product.id,
       stripePriceId: price.id,
@@ -221,6 +219,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (err: any) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error('[stripe/payment-items POST] Error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -242,19 +243,20 @@ export async function GET(req: NextRequest) {
 
     const teamData = teamSnap.data()!;
     const isOwner = teamData.ownerUserId === auth.uid;
-    const isDemo = teamData.isDemo === true;
+    if (!isOwner) {
+      const membersRef = adminDb.collection('teams').doc(teamId).collection('members');
+      const [directMember, linkedMembers] = await Promise.all([
+        membersRef.doc(auth.uid).get(),
+        membersRef.where('userId', '==', auth.uid).limit(10).get(),
+      ]);
+      const isSuperAdmin = auth.role === 'superadmin';
+      const isActiveMember = [directMember, ...linkedMembers.docs].some(member => {
+        if (!member.exists) return false;
+        const data = member.data() || {};
+        return data.status !== 'removed' && data.isDeleted !== true;
+      });
 
-    // Demo teams are publicly readable — skip the member check
-    if (!isOwner && !isDemo) {
-      const memberSnap = await adminDb
-        .collection('teams').doc(teamId)
-        .collection('members').doc(auth.uid)
-        .get();
-      const userSnap = await adminDb.collection('users').doc(auth.uid).get();
-      const isSuperAdmin = userSnap.data()?.role === 'superadmin';
-      const isMember = memberSnap.exists;
-
-      if (!isMember && !isSuperAdmin) {
+      if (!isActiveMember && !isSuperAdmin) {
         return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
       }
     }
@@ -308,17 +310,14 @@ export async function DELETE(req: NextRequest) {
 
     if (auth.uid !== userId) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
-    // Verify team ownership or admin
-    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-    if (!teamSnap.exists) return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-    const isOwner = teamSnap.data()!.ownerUserId === userId;
-    const memberSnap = await adminDb.collection('teams').doc(teamId).collection('members').doc(userId).get();
-    const isAdmin = memberSnap.exists && memberSnap.data()?.role === 'Admin';
-    const userSnap = await adminDb.collection('users').doc(userId).get();
-    const isSuperAdmin = userSnap.data()?.role === 'superadmin';
-
-    if (!isOwner && !isAdmin && !isSuperAdmin) {
-      return NextResponse.json({ error: 'Forbidden: must be team owner or admin.' }, { status: 403 });
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      false
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     const itemRef = adminDb.collection('teams').doc(teamId).collection('paymentItems').doc(itemId);

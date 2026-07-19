@@ -850,6 +850,9 @@ export default function LandingPage() {
               </DialogTrigger>
               <DialogContent className="sm:max-w-4xl rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden bg-white">
                 <DialogTitle className="sr-only">Experience Tactical Demo Hub</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Choose a demo role to open an isolated sample workspace.
+                </DialogDescription>
                 <div className="h-2 bg-primary w-full" />
                 <div className="p-8 lg:p-12 space-y-8">
                   <div className="text-center space-y-2">

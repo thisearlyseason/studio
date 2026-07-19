@@ -13,22 +13,25 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return request.auth != null &&
-        request.auth.token.role == 'superadmin';
+        request.auth.token.get('role', '') == 'superadmin';
     }
 
     function isTeamMember(teamId) {
-      return isSignedIn() && (
-        teamId.matches('^demo_.*') ||
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid))
-      );
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
     }
 
     function isTeamOwner(teamId) {
-      return isSignedIn() && (
-        teamId.matches('^demo_.*') ||
-        (exists(/databases/$(database)/documents/teams/$(teamId)) &&
-         get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid)
-      );
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/teams/$(teamId)) &&
+        (
+          get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUserId == request.auth.uid ||
+          (
+            request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'anonymous' &&
+            get(/databases/$(database)/documents/teams/$(teamId)).data.get('isDemo', false) == true &&
+            get(/databases/$(database)/documents/teams/$(teamId)).data.get('demoSessionOwnerId', '') == request.auth.uid
+          )
+        );
     }
 
     function isTeamCoachOfPlayer(playerId) {
@@ -39,23 +42,41 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/players/$(playerId)) &&
         tId != '' &&
         exists(/databases/$(database)/documents/teams/$(tId)) &&
-        get(/databases/$(database)/documents/teams/$(tId)).data.ownerUserId == request.auth.uid;
+        isTeamOwner(tId);
+    }
+
+    function isLeagueMember(leagueId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/leagues/$(leagueId)) && (
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid ||
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.get('memberUserIds', []).hasAny([request.auth.uid])
+        );
+    }
+
+    // Subscription state is server-managed. Every browser-created team starts
+    // free; a trusted server flow activates Pro only after a paid upgrade.
+    function requestsPaidTeam() {
+      return request.resource.data.get('isPro', false) == true ||
+        request.resource.data.get('planId', 'free') in
+          ['team', 'elite', 'league', 'school', 'squad_pro', 'squad_pro_demo'];
     }
 
     // ─── Users ──────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if isSuperAdmin() || (isSignedIn() && isOwner(userId));
-      // Demo seeder creates mock child/teen user profiles (alexId, juniorId) with isDemo:true.
-      // These are NOT the authenticated user, so we allow create for demo docs specifically.
-      // Scope: signed-in only, isDemo:true must be in the written doc, no other bypass.
-      allow create: if isSuperAdmin() || (isSignedIn() && (
-        isOwner(userId) ||
-        request.resource.data.isDemo == true
-      ));
-      allow update: if isSuperAdmin() || (isSignedIn() && (
-        isOwner(userId) ||
-        resource.data.isDemo == true
-      ));
+      // Profile fields are user-editable; authorization, billing, and organization
+      // authority remain server-owned and are never accepted from the browser.
+      allow create: if isSuperAdmin() || (isSignedIn() && isOwner(userId) &&
+        request.resource.data.role in ['parent', 'adult_player', 'youth_player', 'coach', 'admin', 'league_creator'] &&
+        !request.resource.data.keys().hasAny(['plan_type', 'team_limit', 'extra_teams', 'subscription_status', 'stripe_customer_id', 'stripe_subscription_id', 'isPrimaryClubAuthority', 'isStaff', 'isBetaTester', 'activePlanId', 'proTeamLimit', 'planSource'])
+      );
+      allow update: if isSuperAdmin() || (isSignedIn() && isOwner(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'fullName', 'email', 'phone', 'avatar', 'avatarUrl',
+          'notificationsEnabled', 'seenAlertIds', 'clubName', 'clubDescription',
+          'schoolName', 'institutionTitle'
+        ])
+      );
       allow delete: if false;
 
       match /tokens/{tokenId} {
@@ -82,38 +103,37 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if isSuperAdmin() || (isSignedIn() && (
         resource == null ||
-        resource.data.ownerUserId == request.auth.uid ||
-        resource.data.isDemo == true ||
+        isTeamOwner(teamId) ||
         isTeamMember(teamId)
       ));
-      // isDemo:true bypass allows parent/player demos whose teams are owned by a fictional
-      // coach ID (not the auth user) so the player/parent doesn't appear as a team owner.
       allow create: if isSuperAdmin() || (isSignedIn() && (
-        request.resource.data.ownerUserId == request.auth.uid ||
-        request.resource.data.isDemo == true
+        request.resource.data.ownerUserId == request.auth.uid &&
+        !requestsPaidTeam()
       ));
-      // Only team owner can update or delete the team document itself
+      // Only team owner can update or delete the team document itself. Client
+      // updates cannot transfer ownership or alter paid plan state.
       allow update: if isSuperAdmin() || (isSignedIn() && (
-        resource != null && resource.data.ownerUserId == request.auth.uid
+        resource != null &&
+        isTeamOwner(teamId) &&
+        request.resource.data.ownerUserId == resource.data.ownerUserId &&
+        request.resource.data.get('isPro', false) == resource.data.get('isPro', false) &&
+        request.resource.data.get('planId', 'free') == resource.data.get('planId', 'free') &&
+        request.resource.data.get('plan', 'free') == resource.data.get('plan', 'free') &&
+        request.resource.data.get('isDemo', false) == resource.data.get('isDemo', false) &&
+        request.resource.data.get('demoSessionOwnerId', '') == resource.data.get('demoSessionOwnerId', '')
       ));
-      allow delete: if isSuperAdmin() || (isSignedIn() && resource != null && resource.data.ownerUserId == request.auth.uid);
+      allow delete: if isSuperAdmin() || (isSignedIn() && resource != null && isTeamOwner(teamId));
 
       match /members/{memberId} {
         allow read: if isSuperAdmin() || (isSignedIn() && (
           resource == null ||
           resource.data.ownerUserId == request.auth.uid ||
           isTeamOwner(teamId) ||
-          isTeamMember(teamId) ||
-          (exists(/databases/$(database)/documents/teams/$(teamId)) &&
-           get(/databases/$(database)/documents/teams/$(teamId)).data.isDemo == true)
+          isTeamMember(teamId)
         ));
-        // isDemo bypass: demo seeder writes members before team doc is committed;
-        // the teamId.matches regex covers this but isDemo provides belt-and-suspenders safety.
-        allow write: if isSuperAdmin() || (isSignedIn() && (
-          isTeamOwner(teamId) ||
-          request.resource.data.ownerUserId == request.auth.uid ||
-          request.resource.data.isDemo == true
-        ));
+        // Membership is organization-owned. A member cannot create, promote, or
+        // rewrite their own membership record.
+        allow create, update, delete: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
 
         match /signatures/{sigId} {
           allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
@@ -154,11 +174,24 @@ service cloud.firestore {
 
       match /fundraising/{fundId} {
         allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
-        allow write: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
+        allow create, delete: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
+        allow update: if isSuperAdmin() || (isSignedIn() && (
+          isTeamOwner(teamId) ||
+          (
+            isTeamMember(teamId) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['finances']) &&
+            request.resource.data.finances.diff(resource.data.get('finances', {}))
+              .affectedKeys().hasOnly([request.auth.uid])
+          )
+        ));
 
         match /donations/{donationId} {
           allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
-          allow write: if isSuperAdmin() || isSignedIn();
+          // Public donation intents are validated and created by the server.
+          // Only the primary squad owner may manually verify or correct them.
+          allow create, update, delete: if isSuperAdmin() || (
+            isSignedIn() && isTeamOwner(teamId)
+          );
         }
       }
 
@@ -177,6 +210,25 @@ service cloud.firestore {
         allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
       }
 
+      // ─── Team Chat ────────────────────────────────────────────────────────
+      // Members may send messages only under their own identity. Channel
+      // membership and moderation remain owner-controlled.
+      match /groupChats/{chatId} {
+        allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
+        allow create, update, delete: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
+
+        match /messages/{messageId} {
+          allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
+          allow create: if isSuperAdmin() || (isSignedIn() && isTeamMember(teamId) &&
+            request.resource.data.authorId == request.auth.uid);
+          allow update: if isSuperAdmin() || (isSignedIn() &&
+            resource.data.authorId == request.auth.uid &&
+            request.resource.data.authorId == resource.data.authorId);
+          allow delete: if isSuperAdmin() || (isSignedIn() && (
+            isTeamOwner(teamId) || resource.data.authorId == request.auth.uid));
+        }
+      }
+
       // ─── Coach Waiver Signatures (hub-deployed global waivers for staff) ────
       // Any team member (coach, assistant, staff) can write their own signature.
       // Only the team owner can read all signatures for compliance auditing.
@@ -189,33 +241,33 @@ service cloud.firestore {
         ) || isTeamOwner(teamId));
       }
 
-      // FIX #1: isDemo bypass added for batch race condition on demo seeding
-      // where team doc may not yet be committed when subcollection writes are evaluated.
       match /{subCollection}/{docId} {
         allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
-        allow write: if isSuperAdmin() || (isSignedIn() && (
-          isTeamOwner(teamId) ||
-          request.resource.data.isDemo == true
-        ));
+        allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
 
         match /{subSubCollection}/{subDocId} {
           allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
-          allow write: if isSuperAdmin() || (isSignedIn() && (
-            isTeamOwner(teamId) ||
-            request.resource.data.isDemo == true
-          ));
+          allow write: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
         }
       }
     }
 
     // ─── Players ────────────────────────────────────────────────────────────
     match /players/{playerId} {
-      allow read: if true;
+      // Public visibility is limited to athletes who explicitly enabled their
+      // recruiting profile. All other player records stay within the family/team.
+      allow read: if resource.data.get('recruitingProfileEnabled', false) == true ||
+        isSuperAdmin() || (isSignedIn() && (
+          resource.data.get('userId', '') == request.auth.uid ||
+          resource.data.get('parentId', '') == request.auth.uid ||
+          isTeamCoachOfPlayer(playerId)
+        ));
 
-      // Demo seeder creates fake child player profiles (juniorId, alexId) with isDemo:true.
       allow create: if isSignedIn() && (
-        request.resource.data.userId == request.auth.uid ||
-        request.resource.data.isDemo == true
+        request.resource.data.get('userId', '') == request.auth.uid ||
+        request.resource.data.get('parentId', '') == request.auth.uid ||
+        (request.resource.data.get('updatedByTeamId', '') != '' &&
+         isTeamOwner(request.resource.data.updatedByTeamId))
       );
 
       // Coaches can update top-level player doc (e.g. toggleRecruitingProfile).
@@ -224,31 +276,35 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         playerId == request.auth.uid ||
         isTeamCoachOfPlayer(playerId) ||
-        resource.data.isDemo == true ||
         (request.resource.data.get('updatedByTeamId', '') != '' &&
          exists(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)) &&
-         get(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)).data.ownerUserId == request.auth.uid)
+         isTeamOwner(request.resource.data.updatedByTeamId))
       ));
 
       allow delete: if isSuperAdmin() || (isSignedIn() && (
         resource.data.userId == request.auth.uid ||
-        resource.data.isDemo == true
+        resource.data.get('parentId', '') == request.auth.uid ||
+        playerId == request.auth.uid
       ));
 
       match /{subCollection}/{docId} {
-        allow read: if true;
+        allow read: if get(/databases/$(database)/documents/players/$(playerId)).data.get('recruitingProfileEnabled', false) == true ||
+          isSuperAdmin() || (isSignedIn() && (
+            get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
+            get(/databases/$(database)/documents/players/$(playerId)).data.get('parentId', '') == request.auth.uid ||
+            isTeamCoachOfPlayer(playerId)
+          ));
 
         // ── CREATE / UPDATE ──────────────────────────────────────────────────
         // request.resource.data is available for create and update.
         // Coaches include updatedByTeamId in written data; rule verifies ownership.
         allow create, update: if isSuperAdmin() || (isSignedIn() && (
-          get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
-          isTeamCoachOfPlayer(playerId) ||
-          request.resource.data.get('isDemo', false) == true ||
-          playerId == request.auth.uid ||
           (request.resource.data.get('updatedByTeamId', '') != '' &&
            exists(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)) &&
-           get(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)).data.ownerUserId == request.auth.uid)
+           isTeamOwner(request.resource.data.updatedByTeamId)) ||
+          get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
+          isTeamCoachOfPlayer(playerId) ||
+          playerId == request.auth.uid
         ));
 
         // ── DELETE ───────────────────────────────────────────────────────────
@@ -258,34 +314,44 @@ service cloud.firestore {
         allow delete: if isSuperAdmin() || (isSignedIn() && (
           get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
           isTeamCoachOfPlayer(playerId) ||
-          resource.data.get('isDemo', false) == true ||
           playerId == request.auth.uid ||
           (resource.data.get('updatedByTeamId', '') != '' &&
            exists(/databases/$(database)/documents/teams/$(resource.data.updatedByTeamId)) &&
-           get(/databases/$(database)/documents/teams/$(resource.data.updatedByTeamId)).data.ownerUserId == request.auth.uid)
+           isTeamOwner(resource.data.updatedByTeamId))
         ));
       }
     }
 
     // ─── Leagues ────────────────────────────────────────────────────────────
     match /leagues/{leagueId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() &&
-        request.resource.data.creatorId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        resource.data.creatorId == request.auth.uid ||
-        resource.data.isDemo == true
+      // Use the document being evaluated so creator-scoped collection queries
+      // can be proven by Firestore without a separate get() returning null.
+      allow read: if isSuperAdmin() || (isSignedIn() && (
+        resource.data.get('creatorId', '') == request.auth.uid ||
+        resource.data.get('memberUserIds', []).hasAny([request.auth.uid])
+      ));
+      // Browser-created leagues start with their organizer only. Cloud Functions
+      // later expand memberUserIds from enrolled team memberships.
+      allow create: if isSuperAdmin() || (isSignedIn() &&
+        request.resource.data.creatorId == request.auth.uid &&
+        request.resource.data.get('memberUserIds', []).size() == 1 &&
+        request.resource.data.get('memberUserIds', []).hasAll([request.auth.uid])
       );
-      allow delete: if isSignedIn() && (
-        resource.data.creatorId == request.auth.uid ||
-        resource.data.isDemo == true
+      // Only organizers may modify league operations. Browser clients cannot
+      // change the access cache; trusted server code is the sole writer.
+      allow update: if isSuperAdmin() || (isSignedIn() &&
+        resource.data.creatorId == request.auth.uid &&
+        request.resource.data.get('memberUserIds', []) == resource.data.get('memberUserIds', [])
+      );
+      allow delete: if isSuperAdmin() || (isSignedIn() &&
+        resource.data.creatorId == request.auth.uid
       );
 
       match /registrationEntries/{entryId} {
-        allow create: if true;
-        allow read: if isSignedIn();
-        allow update, delete: if isSignedIn() && 
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid;
+        allow create: if isLeagueMember(leagueId);
+        allow read: if isSuperAdmin() || isLeagueMember(leagueId);
+        allow update, delete: if isSuperAdmin() || (isSignedIn() &&
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
 
       match /archived_waivers/{waiverId} {
@@ -294,40 +360,56 @@ service cloud.firestore {
       }
 
       match /registration/{configId} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn() && 
-          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid;
+        allow read: if isSuperAdmin() || isLeagueMember(leagueId);
+        allow write: if isSuperAdmin() || (isSignedIn() &&
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
 
       match /scores/{scoreId} {
-        allow read: if true;
+        allow read: if isSuperAdmin() || isLeagueMember(leagueId);
         allow write: if isSuperAdmin() || (isSignedIn() &&
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
 
       match /invites/{inviteId} {
-        allow read: if isSignedIn();
+        allow read: if isSuperAdmin() || isLeagueMember(leagueId);
         allow write: if isSuperAdmin() || (isSignedIn() &&
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
       }
 
       match /divisions/{divisionId} {
-        allow read: if isSignedIn();
+        allow read: if isSuperAdmin() || isLeagueMember(leagueId);
         allow write: if isSuperAdmin() || (isSignedIn() &&
           get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
 
         match /{subCollection}/{docId} {
-          allow read: if isSignedIn();
+          allow read: if isSuperAdmin() || isLeagueMember(leagueId);
           allow write: if isSuperAdmin() || (isSignedIn() &&
             get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
 
           match /{deepCollection}/{deepDocId} {
-            allow read: if isSignedIn();
+            allow read: if isSuperAdmin() || isLeagueMember(leagueId);
             allow write: if isSuperAdmin() || (isSignedIn() &&
               get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
           }
         }
       }
+
+      match /accessRedemptions/{redemptionId} {
+        allow read: if isSuperAdmin() || (isSignedIn() &&
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.creatorId == request.auth.uid);
+        allow write: if false;
+      }
+    }
+
+    // Spectator pages use a server-produced projection with schedule, standings,
+    // and roster display information only. Clients can never write this data.
+    match /publicLeagueViews/{leagueId} {
+      // A spectator who has the direct league link may read that one projection,
+      // but public collection enumeration is never allowed.
+      allow get: if true;
+      allow list: if false;
+      allow write: if false;
     }
 
     // ─── Leagues global invites ───────────────────────────────────────────────
@@ -339,28 +421,36 @@ service cloud.firestore {
 
     // ─── Tournament Hubs ─────────────────────────────────────────────────────
     match /tournaments/{hubId} {
-      allow read: if isSignedIn();
+      function isTournamentMember() {
+        return isSignedIn() && (
+          get(/databases/$(database)/documents/tournaments/$(hubId)).data.creatorId == request.auth.uid ||
+          get(/databases/$(database)/documents/tournaments/$(hubId))
+            .data.get('memberUserIds', []).hasAny([request.auth.uid])
+        );
+      }
+
+      allow read: if isSuperAdmin() || isTournamentMember();
       allow create: if isSignedIn() &&
         request.resource.data.creatorId == request.auth.uid;
-      allow update: if isSignedIn() && (
+      allow update: if isSuperAdmin() || (isSignedIn() && (
         resource.data.creatorId == request.auth.uid
-      );
-      allow delete: if isSignedIn() && (
+      ));
+      allow delete: if isSuperAdmin() || (isSignedIn() && (
         resource.data.creatorId == request.auth.uid
-      );
+      ));
 
       match /divisions/{divisionId} {
-        allow read: if isSignedIn();
+        allow read: if isSuperAdmin() || isTournamentMember();
         allow write: if isSuperAdmin() || (isSignedIn() &&
           get(/databases/$(database)/documents/tournaments/$(hubId)).data.creatorId == request.auth.uid);
 
         match /{subCollection}/{docId} {
-          allow read: if isSignedIn();
+          allow read: if isSuperAdmin() || isTournamentMember();
           allow write: if isSuperAdmin() || (isSignedIn() &&
             get(/databases/$(database)/documents/tournaments/$(hubId)).data.creatorId == request.auth.uid);
 
           match /{deepCollection}/{deepDocId} {
-            allow read: if isSignedIn();
+            allow read: if isSuperAdmin() || isTournamentMember();
             allow write: if isSuperAdmin() || (isSignedIn() &&
               get(/databases/$(database)/documents/tournaments/$(hubId)).data.creatorId == request.auth.uid);
           }
@@ -382,7 +472,9 @@ service cloud.firestore {
 
     // ─── Calendar feeds ──────────────────────────────────────────────────────
     match /calendarFeeds/{feedId} {
-      allow read: if true;
+      allow read: if isSuperAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+      );
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isSuperAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
@@ -427,29 +519,42 @@ service cloud.firestore {
 
     // ─── Facilities ───────────────────────────────────────────────────────────
     match /facilities/{facilityId} {
-      allow read: if isSignedIn();
+      // Facility records can include private operational notes such as access
+      // instructions. Only the creator and the global superadmin may read them.
+      allow read: if isSuperAdmin() || (
+        isSignedIn() && resource.data.clubId == request.auth.uid
+      );
       allow create: if isSignedIn() &&
         request.resource.data.clubId == request.auth.uid;
-      // Allow update/delete if:
-      //   • superadmin
-      //   • original creator (clubId == uid)
-      //   • demo facility (isDemo bypass)
-      //   • any signed-in staff/coach (isPro team owner or admin role)
-      allow update, delete: if isSuperAdmin() || (isSignedIn() && (
-        resource.data.clubId == request.auth.uid ||
-        resource.data.isDemo == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isPrimaryClubAuthority', false) == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['coach', 'admin', 'athletic_director', 'league_creator']
-      ));
+      allow update: if isSuperAdmin() || (
+        isSignedIn() &&
+        resource.data.clubId == request.auth.uid &&
+        request.resource.data.clubId == resource.data.clubId &&
+        request.resource.data.get('isDemo', false) == resource.data.get('isDemo', false)
+      );
+      // Deletion must use the authenticated server endpoint so linked schedules
+      // are checked and nested resources are removed atomically.
+      allow delete: if false;
 
-      match /{subCollection}/{docId} {
-        allow read: if isSignedIn();
-        allow write: if isSuperAdmin() || (isSignedIn() && (
-          request.resource.data.isDemo == true ||
-          get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid ||
-          get(/databases/$(database)/documents/facilities/$(facilityId)).data.isDemo == true ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['coach', 'admin', 'athletic_director', 'league_creator']
-        ));
+      match /fields/{fieldId} {
+        function isFacilityOwner() {
+          return isSignedIn() &&
+            get(/databases/$(database)/documents/facilities/$(facilityId)).data.clubId == request.auth.uid;
+        }
+
+        allow read: if isSuperAdmin() || isFacilityOwner();
+        allow create: if isSuperAdmin() || (
+          isFacilityOwner() &&
+          request.resource.data.facilityId == facilityId
+        );
+        allow update: if isSuperAdmin() || (
+          isFacilityOwner() &&
+          request.resource.data.get('facilityId', facilityId) ==
+            resource.data.get('facilityId', facilityId) &&
+          request.resource.data.get('isDemo', false) ==
+            resource.data.get('isDemo', false)
+        );
+        allow delete: if false;
       }
     }
 
@@ -474,12 +579,11 @@ service cloud.firestore {
     }
 
     // ─── Invites ─────────────────────────────────────────────────────────────
-    // FIX #4: update requires auth (was `if true` — public unauthenticated token replay)
+    // Youth invitation lookup and single-use redemption are server-mediated.
+    // The browser can never list child/family invitation PII.
     match /invites/{inviteId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSuperAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+      allow read, delete: if isSuperAdmin();
+      allow create, update: if false;
     }
 
     // ─── Beta Tester System ──────────────────────────────────────────────────
@@ -513,11 +617,11 @@ service cloud.firestore {
 
     match /{path=**}/events/{eventId} {
       allow read: if isSuperAdmin() || (isSignedIn() && (
-        resource.data.isTournament == true ||
         resource.data.ownerUserId == request.auth.uid ||
-        resource.data.teamId == null ||
-        isTeamMember(resource.data.teamId) ||
-        isTeamOwner(resource.data.teamId)
+        (
+          resource.data.teamId != null &&
+          (isTeamMember(resource.data.teamId) || isTeamOwner(resource.data.teamId))
+        )
       ));
     }
 

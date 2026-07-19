@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { adminDb } from '@/lib/firebase-admin';
+import {
+  enforceUserRateLimit,
+  readJsonBodyWithLimit,
+  RequestBodyError,
+} from '@/lib/server-request-guards';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
 
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY env var not set');
+  return new Resend(apiKey);
+}
+
 export interface SendEmailPayload {
-  to: string | string[];
+  teamId: string;
+  recipientUserIds: string[];
   subject: string;
   html: string;
   replyTo?: string;
@@ -17,23 +29,65 @@ export interface SendEmailPayload {
  * Generic authenticated email sender. All template construction happens
  * on the client side or in a parent route; this is the delivery layer.
  *
- * Body: { to, subject, html, replyTo? }
+ * Body: { teamId, recipientUserIds, subject, html, replyTo? }
  */
 export async function POST(req: NextRequest) {
   const authResult = await verifyFirebaseToken(req);
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const body: SendEmailPayload = await req.json();
-    const { to, subject, html, replyTo } = body;
+    const body = await readJsonBodyWithLimit<SendEmailPayload>(req, 256_000);
+    const { teamId, recipientUserIds, subject, html, replyTo } = body;
 
-    if (!to || !subject || !html) {
-      return NextResponse.json({ error: 'Missing required fields: to, subject, html' }, { status: 400 });
+    if (!teamId || !Array.isArray(recipientUserIds) || !recipientUserIds.length || !subject || !html) {
+      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+    }
+    if (recipientUserIds.length > 500) {
+      return NextResponse.json({ error: 'Too many recipients.' }, { status: 400 });
+    }
+    if (
+      typeof subject !== 'string' ||
+      subject.length > 200 ||
+      /[\r\n]/.test(subject) ||
+      typeof html !== 'string' ||
+      html.length > 200_000 ||
+      (replyTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo))
+    ) {
+      return NextResponse.json({ error: 'Invalid email content.' }, { status: 400 });
+    }
+    const rateLimit = await enforceUserRateLimit(
+      authResult.uid,
+      'email-send',
+      30,
+      60 * 60 * 1000
+    );
+    if (rateLimit) return rateLimit;
+
+    const teamSnap = await adminDb.collection('teams').doc(teamId).get();
+    if (!teamSnap.exists || (authResult.role !== 'superadmin' && teamSnap.data()!.ownerUserId !== authResult.uid)) {
+      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     }
 
-    const { data, error } = await resend.emails.send({
+    const uniqueRecipients = [...new Set(recipientUserIds.filter((id): id is string => typeof id === 'string'))];
+    const memberSnaps = await Promise.all(uniqueRecipients.map(id =>
+      adminDb.collection('teams').doc(teamId).collection('members').doc(id).get()
+    ));
+    if (memberSnaps.some(member =>
+      !member.exists ||
+      member.data()?.status === 'removed' ||
+      member.data()?.isDeleted === true
+    )) {
+      return NextResponse.json({ error: 'Recipients must be current team members.' }, { status: 403 });
+    }
+    const to = memberSnaps.flatMap(member => {
+      const email = member.data()?.email;
+      return typeof email === 'string' && email.includes('@') ? [email] : [];
+    });
+    if (!to.length) return NextResponse.json({ error: 'No recipient email addresses are available.' }, { status: 400 });
+
+    const { data, error } = await getResend().emails.send({
       from: FROM,
-      to: Array.isArray(to) ? to : [to],
+      to,
       subject,
       html,
       ...(replyTo ? { replyTo } : {}),
@@ -41,12 +95,15 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[Resend] Send error:', error);
-      return NextResponse.json({ error: error.message }, { status: 502 });
+      return NextResponse.json({ error: 'Email delivery failed.' }, { status: 502 });
     }
 
     return NextResponse.json({ id: data?.id });
   } catch (err: any) {
+    if (err instanceof RequestBodyError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error('[Resend] Unexpected error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to send email.' }, { status: 500 });
   }
 }

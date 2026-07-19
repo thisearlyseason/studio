@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { verifyFirebaseToken } from '@/lib/api-auth';
+import { getTeamFinanceAccess } from '@/lib/server-team-entitlements';
+import { resolveTeamConnectAccount } from '@/lib/server-stripe-connect';
 
 /**
  * GET /api/stripe/connect/status
@@ -24,7 +25,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
     const teamId = searchParams.get('teamId');
-    const mode   = searchParams.get('mode') ?? 'user';
 
     if (!userId) {
       return NextResponse.json({ error: 'Missing userId.' }, { status: 400 });
@@ -33,32 +33,21 @@ export async function GET(req: NextRequest) {
     if (auth.uid !== userId) {
       return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
     }
-
-    let connectAccountId: string | undefined;
-
-    if (mode === 'hub') {
-      if (!teamId) {
-        return NextResponse.json({ error: 'teamId required for hub mode.' }, { status: 400 });
-      }
-      const teamSnap = await adminDb.collection('teams').doc(teamId).get();
-      if (!teamSnap.exists) {
-        return NextResponse.json({ error: 'Team not found.' }, { status: 404 });
-      }
-      // Hub admins only
-      if (teamSnap.data()!.ownerUserId !== userId) {
-        const userSnap = await adminDb.collection('users').doc(userId).get();
-        if (userSnap.data()?.role !== 'superadmin') {
-          return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
-        }
-      }
-      connectAccountId = teamSnap.data()?.stripeConnectAccountId;
-    } else {
-      const userSnap = await adminDb.collection('users').doc(userId).get();
-      if (!userSnap.exists) {
-        return NextResponse.json({ error: 'User not found.' }, { status: 404 });
-      }
-      connectAccountId = userSnap.data()?.stripe_connect_account_id;
+    if (!teamId) {
+      return NextResponse.json({ error: 'Missing teamId.' }, { status: 400 });
     }
+
+    const access = await getTeamFinanceAccess(
+      userId,
+      teamId,
+      auth.role === 'superadmin',
+      true
+    );
+    if (!access.allowed) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+
+    const { connectAccountId } = await resolveTeamConnectAccount(teamId);
 
     if (!connectAccountId) {
       return NextResponse.json({ connected: false });

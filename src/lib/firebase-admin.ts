@@ -28,8 +28,14 @@ function initAdminApp(): admin.app.App {
   }
 
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const isEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST);
 
-  if (serviceAccountJson) {
+  if (isEmulator) {
+    _app = admin.initializeApp({
+      projectId: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'demo-the-squad-audit',
+    });
+    console.info('[firebase-admin] Initialized for the local Firebase emulators.');
+  } else if (serviceAccountJson) {
     let serviceAccount: object | undefined;
 
     // Attempt 1: parse as-is (the happy path — raw JSON pasted into Vercel)
@@ -72,11 +78,17 @@ function initAdminApp(): admin.app.App {
     console.info('[firebase-admin] Initialized with service account credentials.');
   } else {
     // Fallback: Application Default Credentials (GCP/Firebase App Hosting)
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
     console.warn(
       '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON not set — using Application Default Credentials.',
       'This will FAIL on Vercel unless you set the env var.'
     );
-    _app = admin.initializeApp();
+    // ADC can belong to a different default project than the environment being
+    // served (for example, local QA credentials with an isolated preview app).
+    // Pin the Admin app to the declared runtime project so Auth token
+    // verification and Firestore writes always target the same Firebase tenant
+    // as the browser client.
+    _app = admin.initializeApp(projectId ? { projectId } : undefined);
   }
 
   return _app;
@@ -104,6 +116,6 @@ export const adminDb = new Proxy({} as admin.firestore.Firestore, {
   get(_target, prop: PropertyKey) {
     const db = getDb();
     const value = (db as any)[prop];
-    return typeof value === 'function' ? (value as Function).bind(db) : value;
+    return typeof value === 'function' ? value.bind(db) : value;
   },
 });

@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, collection, addDoc } from 'firebase/firestore';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import { FundraisingOpportunity } from '@/components/providers/team-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,23 +27,54 @@ import {
   DollarSign
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
-import { format, isPast } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
 export default function PublicDonationPortalPage() {
   const { teamId, fundId } = useParams();
-  const db = useFirestore();
-  const router = useRouter();
+  const [fund, setFund] = useState<FundraisingOpportunity | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [donorName, setDonorName] = useState('');
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<'external' | 'etransfer'>('external');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const submissionKey = useRef<string | null>(null);
 
-  const fundRef = useMemoFirebase(() => (db && teamId && fundId) ? doc(db, 'teams', teamId as string, 'fundraising', fundId as string) : null, [db, teamId, fundId]);
-  const { data: fund, isLoading } = useDoc<FundraisingOpportunity>(fundRef);
+  useEffect(() => {
+    const resolvedTeamId = typeof teamId === 'string' ? teamId : '';
+    const resolvedFundId = typeof fundId === 'string' ? fundId : '';
+    if (!resolvedTeamId || !resolvedFundId) {
+      setLoadError('This donation link is invalid.');
+      setIsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsLoading(true);
+    fetch(
+      `/api/public/fundraising?teamId=${encodeURIComponent(resolvedTeamId)}&fundId=${encodeURIComponent(resolvedFundId)}`,
+      { signal: controller.signal }
+    )
+      .then(async response => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Campaign unavailable.');
+        setFund(payload.campaign as FundraisingOpportunity);
+        setLoadError(null);
+      })
+      .catch(error => {
+        if (error.name !== 'AbortError') {
+          setFund(null);
+          setLoadError(error.message || 'Campaign unavailable.');
+        }
+      })
+      .finally(() => setIsLoading(false));
+
+    return () => controller.abort();
+  }, [teamId, fundId]);
 
   const progress = useMemo(() => {
     if (!fund) return 0;
@@ -58,17 +87,29 @@ export default function PublicDonationPortalPage() {
 
     setIsSubmitting(true);
     try {
-      // 1. Log the intent in the squad's donation ledger as "pending"
-      const donationRef = collection(db, 'teams', teamId as string, 'fundraising', fundId as string, 'donations');
-      await addDoc(donationRef, {
-        donorName,
-        amount: parseFloat(amount),
-        method,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      });
-
-      // 2. Tactical Redirection or Confirmation
+      if (!submissionKey.current) {
+        submissionKey.current = crypto.randomUUID();
+      }
+      const response = await fetch(
+        `/api/public/fundraising?teamId=${encodeURIComponent(teamId as string)}&fundId=${encodeURIComponent(fundId as string)}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': submissionKey.current,
+          },
+          body: JSON.stringify({
+            donorName,
+            amount: Number(amount),
+            method,
+          }),
+        }
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Unable to record this donation intent.');
+      }
+      submissionKey.current = null;
       if (method === 'external' && fund.externalLink) {
         toast({ title: "Dispatching to Secure Hub" });
         setTimeout(() => {
@@ -77,8 +118,12 @@ export default function PublicDonationPortalPage() {
       } else {
         setIsSuccess(true);
       }
-    } catch (err) {
-      toast({ title: "Submission Failed", variant: "destructive" });
+    } catch (err: any) {
+      toast({
+        title: "Submission Failed",
+        description: err.message || 'Please try again.',
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -91,12 +136,12 @@ export default function PublicDonationPortalPage() {
     </div>
   );
 
-  if (!fund || (!fund.isShareable && !isPast(new Date(fund.deadline)))) return (
+  if (!fund || loadError) return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-muted/10">
       <Card className="max-w-md text-center p-12 rounded-[3rem] border-none shadow-2xl">
         <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-6 opacity-20" />
         <h2 className="text-2xl font-black uppercase tracking-tight">Campaign Inactive</h2>
-        <p className="text-muted-foreground font-medium mt-2">This donation portal has been closed or the link is invalid.</p>
+        <p className="text-muted-foreground font-medium mt-2">{loadError || 'This donation portal has been closed or the link is invalid.'}</p>
       </Card>
     </div>
   );

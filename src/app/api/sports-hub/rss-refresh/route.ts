@@ -1,22 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAndParseRSSFeed, shouldRejectItem } from '@/lib/rss-parser';
+import { verifyFirebaseToken } from '@/lib/api-auth';
+import { adminDb } from '@/lib/firebase-admin';
+import { DEFAULT_RSS_FEEDS } from '@/lib/sports-hub-rss-config';
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyFirebaseToken(req);
+  if (auth instanceof NextResponse) return auth;
+  if (auth.role !== 'superadmin') {
+    return NextResponse.json({ error: 'Super Admin access is required.' }, { status: 403 });
+  }
+
   try {
-    // Super admin check — in production, verify Firebase Admin auth token
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { feedUrl, feedId } = await req.json();
+    if (typeof feedId !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(feedId)) {
+      return NextResponse.json({ error: 'A valid feed ID is required.' }, { status: 400 });
     }
 
-    const { feedUrl, feedId, category } = await req.json();
-
-    if (!feedUrl) {
-      return NextResponse.json({ error: 'feedUrl is required' }, { status: 400 });
+    const defaultFeed = DEFAULT_RSS_FEEDS.find(feed => feed.id === feedId);
+    const storedFeed = defaultFeed
+      ? null
+      : await adminDb.collection('sports_hub_rss_feeds').doc(feedId).get();
+    const config = defaultFeed || (storedFeed?.exists ? storedFeed.data() : null);
+    if (!config || config.isEnabled !== true || typeof config.url !== 'string') {
+      return NextResponse.json({ error: 'That RSS feed is unavailable.' }, { status: 404 });
+    }
+    if (typeof feedUrl === 'string' && feedUrl.trim() !== config.url) {
+      return NextResponse.json(
+        { error: 'The supplied URL does not match the approved feed.' },
+        { status: 400 }
+      );
     }
 
     // Fetch and parse the RSS feed
-    const rawItems = await fetchAndParseRSSFeed(feedUrl);
+    const rawItems = await fetchAndParseRSSFeed(config.url);
 
     // Apply content filters
     const filteredItems = rawItems.filter((item) => !shouldRejectItem(item));
@@ -34,7 +51,7 @@ export async function POST(req: NextRequest) {
     //     imageUrl: item.imageUrl || null,
     //     source: item.source,
     //     publishedAt: item.publishedAt,
-    //     category: category || 'General',
+    //     category: config.category || 'General',
     //     importedAt: new Date().toISOString(),
     //     isDuplicate: false,
     //   });
@@ -58,7 +75,6 @@ export async function POST(req: NextRequest) {
     console.error('[Sports Hub] RSS refresh error:', error);
     return NextResponse.json({
       error: 'RSS refresh failed',
-      details: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 });
   }
 }

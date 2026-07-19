@@ -3,8 +3,9 @@
 import React, { useState, useMemo, useEffect, Suspense, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTeam, LeagueRegistrationConfig, RegistrationFormField } from '@/components/providers/team-provider';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirebase, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,6 +75,7 @@ function RegistrationForm() {
   const searchParams = useSearchParams();
   const protocolId = searchParams.get('protocol') || 'player_config';
   const { submitRegistrationEntry, getTeamByCode, db } = useTeam();
+  const { firebaseApp, user: firebaseUser, isAuthResolved } = useFirebase();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -85,13 +87,44 @@ function RegistrationForm() {
   const [teamCode, setTeamCode] = useState('');
   const [validatingCode, setValidatingCode] = useState(false);
   const [validatedTeam, setValidatedTeam] = useState<any>(null);
+  const [resolvedLeagueId, setResolvedLeagueId] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [isRedeemingInvite, setIsRedeemingInvite] = useState(true);
 
-  const configRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string, 'registration', protocolId) : null, [db, leagueId, protocolId]);
-  const leagueRef = useMemoFirebase(() => db ? doc(db, 'leagues', leagueId as string) : null, [db, leagueId]);
+  useEffect(() => {
+    let active = true;
+    if (!isAuthResolved) return;
+    if (!firebaseUser || !leagueId) {
+      setIsRedeemingInvite(false);
+      return;
+    }
+
+    setIsRedeemingInvite(true);
+    setInviteError(null);
+    const redeem = httpsCallable<{ inviteCode: string }, { leagueId: string }>(
+      getFunctions(firebaseApp),
+      'redeemLeagueInvite'
+    );
+    redeem({ inviteCode: leagueId as string })
+      .then(({ data }) => {
+        if (active) setResolvedLeagueId(data.leagueId);
+      })
+      .catch((error) => {
+        if (active) setInviteError(error?.message || 'This league invite is not valid.');
+      })
+      .finally(() => {
+        if (active) setIsRedeemingInvite(false);
+      });
+
+    return () => { active = false; };
+  }, [firebaseApp, firebaseUser, isAuthResolved, leagueId]);
+
+  const configRef = useMemoFirebase(() => db && resolvedLeagueId ? doc(db, 'leagues', resolvedLeagueId, 'registration', protocolId) : null, [db, resolvedLeagueId, protocolId]);
+  const leagueRef = useMemoFirebase(() => db && resolvedLeagueId ? doc(db, 'leagues', resolvedLeagueId) : null, [db, resolvedLeagueId]);
   const { data: config, isLoading: isConfigLoading } = useDoc<LeagueRegistrationConfig>(configRef);
   const { data: league, isLoading: isLeagueLoading } = useDoc<any>(leagueRef);
 
-  const isLoading = isConfigLoading || isLeagueLoading;
+  const isLoading = isRedeemingInvite || isConfigLoading || isLeagueLoading;
 
   const formSchema = config?.form_schema || [];
 
@@ -189,7 +222,8 @@ function RegistrationForm() {
     const timer = setTimeout(async () => {
       setValidatingCode(true);
       try {
-        const team = await getTeamByCode(teamCode, leagueId as string);
+        if (!resolvedLeagueId) return;
+        const team = await getTeamByCode(teamCode, resolvedLeagueId);
         setValidatedTeam(team);
       } catch (err) {
         console.error(err);
@@ -198,7 +232,7 @@ function RegistrationForm() {
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [teamCode, getTeamByCode, leagueId]);
+  }, [teamCode, getTeamByCode, resolvedLeagueId]);
 
   const handleInputChange = useCallback((id: string, value: any) => {
     setAnswers(prev => {
@@ -210,7 +244,7 @@ function RegistrationForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!config || isSubmitting) return;
+    if (!config || !resolvedLeagueId || isSubmitting) return;
 
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
@@ -230,7 +264,7 @@ function RegistrationForm() {
         team_name: validatedTeam?.name || validatedTeam?.teamName || null,
         team_id: validatedTeam?.id || null
       };
-      await submitRegistrationEntry(leagueId as string, config.id, finalAnswers, config.form_version || 0, signature, 'leagues');
+      await submitRegistrationEntry(resolvedLeagueId, config.id, finalAnswers, config.form_version || 0, signature, 'leagues');
       setIsSuccess(true);
     } catch (error) {
       toast({ title: "Submission Failed", variant: "destructive" });
@@ -240,11 +274,36 @@ function RegistrationForm() {
   };
 
 
-  if (isLoading) {
+  if (!isAuthResolved || isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 p-6">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
         <p className="mt-4 text-[10px] font-black uppercase tracking-widest opacity-40">Connecting to Hub...</p>
+      </div>
+    );
+  }
+
+  if (!firebaseUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
+        <Card className="max-w-md text-center p-10 space-y-4">
+          <Lock className="h-12 w-12 text-primary mx-auto" />
+          <h1 className="text-2xl font-black uppercase">Sign in required</h1>
+          <p className="text-sm text-muted-foreground">Sign in or create an account to redeem this league invite.</p>
+          <Button onClick={() => router.push('/login')}>Sign in</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (inviteError || !resolvedLeagueId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
+        <Card className="max-w-md text-center p-10 space-y-4">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+          <h1 className="text-2xl font-black uppercase">Invite unavailable</h1>
+          <p className="text-sm text-muted-foreground">{inviteError || 'This league invite could not be redeemed.'}</p>
+        </Card>
       </div>
     );
   }

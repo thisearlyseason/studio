@@ -39,11 +39,18 @@ export default function LoginPage() {
   React.useEffect(() => {
     if (!isUserLoading && user) {
       const fetchRole = async () => {
+        const returnPath = sessionStorage.getItem('squad_return_path');
+        if (returnPath?.startsWith('/') && !returnPath.startsWith('//')) {
+          sessionStorage.removeItem('squad_return_path');
+          router.push(returnPath);
+          return;
+        }
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
-            if (data.role === 'superadmin' || user.email === 'thisearlyseason@gmail.com') {
+            const tokenResult = await user.getIdTokenResult();
+            if (tokenResult.claims.role === 'superadmin') {
               router.push('/admin');
             } else if (data.role === 'admin' || data.isSchoolAdmin) {
               router.push('/club');

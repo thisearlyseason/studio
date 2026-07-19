@@ -81,6 +81,7 @@ import html2canvas from 'html2canvas';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TournamentBracket from '@/components/TournamentBracket';
 import { SquadIdentity } from '@/components/SquadIdentity';
+import { getFacilityFieldName } from '@/lib/facility-rename';
 
 interface TournamentTeam extends TeamIdentity {
   coach?: string;
@@ -1342,7 +1343,8 @@ function TournamentDetailView({
     try {
       const mappedFields = (event.selectedFields || []).map((fId: string) => {
         if (fId.includes(':')) {
-          const [facId, fieldName] = fId.split(':');
+          const facId = fId.slice(0, fId.indexOf(':'));
+          const fieldName = getFacilityFieldName(fId);
           const facility = facilities?.find(fac => fac.id === facId);
           return facility ? `${facility.name} - ${fieldName}` : fieldName;
         }

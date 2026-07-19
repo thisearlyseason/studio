@@ -1,5 +1,5 @@
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getOrInitializeFirebaseApp } from '@/firebase/config';
+import { FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { 
@@ -22,14 +22,7 @@ export function initializeFirebase() {
   if (isClient && globalSdks.firebaseSdks) return globalSdks.firebaseSdks;
   if (cachedSdks) return cachedSdks;
 
-  const apps = getApps();
-  let firebaseApp;
-
-  if (!apps.length) {
-    firebaseApp = initializeApp(firebaseConfig);
-  } else {
-    firebaseApp = getApp();
-  }
+  const firebaseApp = getOrInitializeFirebaseApp();
 
   cachedSdks = getSdks(firebaseApp);
   if (isClient) {
@@ -74,10 +67,27 @@ export function getSdks(firebaseApp: FirebaseApp) {
     auth = getAuth(firebaseApp);
   }
 
+  const storage = getStorage(firebaseApp);
+
+  // Local QA can run against the Firebase Emulator Suite without reading or
+  // writing production Auth, Firestore, or Storage data.
+  if (typeof window !== 'undefined' &&
+      process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === 'true' &&
+      !globalSdks.firebaseEmulatorsConnected) {
+    const { connectAuthEmulator } = require('firebase/auth');
+    const { connectFirestoreEmulator } = require('firebase/firestore');
+    const { connectStorageEmulator } = require('firebase/storage');
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(firestore, '127.0.0.1', 8080);
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
+    globalSdks.firebaseEmulatorsConnected = true;
+    console.info('[Firebase] Connected to local Auth, Firestore, and Storage emulators.');
+  }
+
   return {
     firebaseApp,
     auth,
     firestore,
-    storage: getStorage(firebaseApp)
+    storage
   };
 }

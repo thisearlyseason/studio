@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
+import { connectAccountOwnsTeam } from '@/lib/server-stripe-connect';
 
 /**
  * POST /api/stripe/connect/webhook
@@ -62,19 +63,19 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(session, connectedAccountId, event.id);
+        await handleCheckoutCompleted(session, connectedAccountId);
         break;
       }
 
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentIntentSucceeded(pi, event.id);
+        await handlePaymentIntentSucceeded(pi, connectedAccountId);
         break;
       }
 
       case 'payment_intent.payment_failed': {
         const pi = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentIntentFailed(pi, event.id);
+        await handlePaymentIntentFailed(pi, connectedAccountId);
         break;
       }
 
@@ -94,19 +95,21 @@ export async function POST(req: NextRequest) {
  * Handles a completed Stripe Checkout session originating from a Payment Link
  * on a connected account. Creates or updates a `payments` Firestore doc.
  *
- * Idempotent: uses event.id as the Firestore document ID to prevent duplicates
- * on Stripe retries.
+ * Idempotent: uses Stripe's payment-intent ID as the Firestore document ID so
+ * checkout and payment-intent events for the same payment update one record.
  */
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
-  connectedAccountId: string | undefined,
-  eventId: string
+  connectedAccountId: string | undefined
 ) {
   const teamId: string | undefined = session.metadata?.firebase_team_id;
   if (!teamId) {
     // This checkout session was not created through our payment items system;
     // could be a subscription session. Skip silently.
     return;
+  }
+  if (!(await connectAccountOwnsTeam(teamId, connectedAccountId))) {
+    throw new Error('Connected account does not own the referenced team.');
   }
 
   const payerEmail = session.customer_details?.email ?? session.customer_email ?? '';
@@ -132,14 +135,19 @@ async function handleCheckoutCompleted(
 
   const now = new Date().toISOString();
 
-  // Use event ID as Firestore doc ID for idempotency
+  // Checkout and payment-intent events have different event IDs. The payment
+  // intent is the stable identifier they share, so it prevents double records.
+  const paymentIntentId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : session.payment_intent?.id;
+  const paymentRecordId = paymentIntentId ?? session.id;
   const docRef = adminDb
     .collection('teams').doc(teamId)
-    .collection('payments').doc(eventId);
+    .collection('payments').doc(paymentRecordId);
 
   await docRef.set(
     {
-      id: eventId,
+      id: paymentRecordId,
       teamId,
       paymentItemName: session.metadata?.payment_item_category
         ? `${session.metadata.payment_item_category} payment`
@@ -151,6 +159,7 @@ async function handleCheckoutCompleted(
       payment_method: 'online',
       status: 'paid',
       stripe_session_id: session.id,
+      stripe_payment_intent_id: paymentIntentId ?? null,
       stripe_receipt_url: receiptUrl,
       stripe_connect_account_id: connectedAccountId ?? null,
       createdAt: now,
@@ -168,23 +177,28 @@ async function handleCheckoutCompleted(
  */
 async function handlePaymentIntentSucceeded(
   pi: Stripe.PaymentIntent,
-  eventId: string
+  connectedAccountId: string | undefined
 ) {
   const teamId: string | undefined = pi.metadata?.firebase_team_id;
   if (!teamId) return;
+  if (!(await connectAccountOwnsTeam(teamId, connectedAccountId))) {
+    throw new Error('Connected account does not own the referenced team.');
+  }
 
   // Only update — the checkout.session.completed handler is primary
   await adminDb
     .collection('teams').doc(teamId)
-    .collection('payments').doc(eventId)
+    .collection('payments').doc(pi.id)
     .set(
       {
-        id: eventId,
+        id: pi.id,
         teamId,
         payment_method: 'online',
         status: 'paid',
         amount: pi.amount_received,
         currency: pi.currency,
+        stripe_payment_intent_id: pi.id,
+        stripe_connect_account_id: connectedAccountId,
         payer_email: pi.receipt_email ?? '',
         payer_name: '',
         paymentItemName: 'Online Payment',
@@ -200,22 +214,27 @@ async function handlePaymentIntentSucceeded(
  */
 async function handlePaymentIntentFailed(
   pi: Stripe.PaymentIntent,
-  eventId: string
+  connectedAccountId: string | undefined
 ) {
   const teamId: string | undefined = pi.metadata?.firebase_team_id;
   if (!teamId) return;
+  if (!(await connectAccountOwnsTeam(teamId, connectedAccountId))) {
+    throw new Error('Connected account does not own the referenced team.');
+  }
 
   await adminDb
     .collection('teams').doc(teamId)
-    .collection('payments').doc(eventId)
+    .collection('payments').doc(pi.id)
     .set(
       {
-        id: eventId,
+        id: pi.id,
         teamId,
         payment_method: 'online',
         status: 'failed',
         amount: pi.amount,
         currency: pi.currency,
+        stripe_payment_intent_id: pi.id,
+        stripe_connect_account_id: connectedAccountId,
         payer_email: pi.receipt_email ?? '',
         payer_name: '',
         paymentItemName: 'Online Payment',

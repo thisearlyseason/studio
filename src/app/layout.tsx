@@ -6,8 +6,6 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { TeamProvider } from '@/components/providers/team-provider';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BugReporter from '@/components/BugReporter';
-import Script from 'next/script';
-import { Analytics } from '@vercel/analytics/react';
 
 // ─── SEO Metadata ────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
@@ -210,7 +208,6 @@ export default function RootLayout({
                 {children}
                 <BugReporter />
                 <Toaster />
-                <Analytics />
               </TeamProvider>
             </TooltipProvider>
           </Suspense>
