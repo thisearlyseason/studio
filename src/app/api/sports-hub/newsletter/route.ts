@@ -1,6 +1,5 @@
-import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { subscribeToNewsletter } from '@/lib/server-newsletter';
 import {
   enforcePublicRateLimit,
   readJsonBodyWithLimit,
@@ -34,18 +33,11 @@ export async function POST(req: NextRequest) {
     );
     if (rateLimit) return rateLimit;
 
-    const subscriberId = createHash('sha256').update(normalizedEmail).digest('hex');
-    await adminDb
-      .collection('sports_hub_newsletter_subscribers')
-      .doc(subscriberId)
-      .set({
-        email: normalizedEmail,
-        name: typeof name === 'string' ? name.trim() : '',
-        subscribedAt: new Date().toISOString(),
-        isActive: true,
-        sports: [],
-        source: 'sports_hub',
-      }, { merge: true });
+    await subscribeToNewsletter({
+      email: normalizedEmail,
+      name: typeof name === 'string' ? name.trim() : '',
+      source: 'sports_hub',
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

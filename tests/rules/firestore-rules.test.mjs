@@ -87,6 +87,14 @@ beforeEach(async () => {
         userId: 'owner',
         status: 'active',
       }),
+      setDoc(doc(db, 'newsletter_subscribers', 'subscriber-a'), {
+        email: 'subscriber@example.com',
+        isActive: true,
+      }),
+      setDoc(doc(db, 'newsletter_campaigns', 'campaign-a'), {
+        subject: 'Private campaign',
+        status: 'sent',
+      }),
     ]);
   });
 });
@@ -230,4 +238,20 @@ test('league collection queries cannot discover other organizations', async () =
     where('memberUserIds', 'array-contains', 'member'),
   )));
   await assertFails(getDocs(collection(outsiderDb, 'leagues')));
+});
+
+test('newsletter consent and campaign records are server-controlled and superadmin-only', async () => {
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+  const outsiderDb = authenticatedDb('outsider');
+  const superAdminDb = authenticatedDb('global-admin', { role: 'superadmin' });
+
+  await assertFails(setDoc(doc(anonymousDb, 'newsletter_signups', 'spam'), {
+    email: 'spam@example.com',
+  }));
+  await assertFails(getDoc(doc(outsiderDb, 'newsletter_subscribers', 'subscriber-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'newsletter_subscribers', 'subscriber-a')));
+  await assertSucceeds(getDoc(doc(superAdminDb, 'newsletter_campaigns', 'campaign-a')));
+  await assertFails(setDoc(doc(superAdminDb, 'newsletter_campaigns', 'forged-campaign'), {
+    status: 'sent',
+  }));
 });

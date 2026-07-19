@@ -655,8 +655,27 @@ service cloud.firestore {
 
     // ─── Newsletter signups ───────────────────────────────────────────────────
     match /newsletter_signups/{docId} {
-      allow create: if true;
+      // Legacy collection retained for historical signups. New subscriptions
+      // use the rate-limited server endpoint and canonical collection below.
+      allow create: if false;
       allow read, delete: if isSuperAdmin();
+    }
+
+    // Canonical newsletter contacts and campaign history are written only by
+    // authenticated server routes. Superadmins may read them for the dashboard,
+    // but browser clients cannot alter consent or delivery records directly.
+    match /newsletter_subscribers/{docId} {
+      allow read: if isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /newsletter_campaigns/{campaignId} {
+      allow read: if isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /newsletter_system/{configId} {
+      allow read, write: if false;
     }
 
     // ─── Contact Inquiries (enterprise contact form) ──────────────────────────

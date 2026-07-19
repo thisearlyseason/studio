@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper, BookOpen, Rss, PenLine, ToggleLeft, ToggleRight, Globe, Star } from 'lucide-react';
+import { NewsletterManager } from '@/components/admin/newsletter-manager';
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   free:    { label: 'Free',          color: 'bg-gray-100 text-gray-700' },
@@ -153,10 +154,15 @@ export default function AdminPortalPage() {
 
         if (lastLoginDate) {
           const sinceTs = Timestamp.fromDate(lastLoginDate);
-          const [nlSnap, betaSnap] = await Promise.all([
+          const [legacyNlSnap, currentNlSnap, betaSnap] = await Promise.all([
             getDocs(query(
               collection(db, 'newsletter_signups'),
               where('createdAt', '>', sinceTs),
+              limit(200)
+            )),
+            getDocs(query(
+              collection(db, 'newsletter_subscribers'),
+              where('updatedAt', '>', sinceTs),
               limit(200)
             )),
             getDocs(query(
@@ -166,15 +172,16 @@ export default function AdminPortalPage() {
               limit(200)
             )),
           ]);
-          newNewsletterCount = nlSnap.size;
+          newNewsletterCount = legacyNlSnap.size + currentNlSnap.size;
           newBetaCount = betaSnap.size;
         } else {
           // First ever login — just count totals so the banner is useful
-          const [nlSnap, betaSnap] = await Promise.all([
+          const [legacyNlSnap, currentNlSnap, betaSnap] = await Promise.all([
             getDocs(query(collection(db, 'newsletter_signups'), limit(200))),
+            getDocs(query(collection(db, 'newsletter_subscribers'), limit(200))),
             getDocs(query(collection(db, 'beta_applications'), where('status', '==', 'pending'), limit(200))),
           ]);
-          newNewsletterCount = nlSnap.size;
+          newNewsletterCount = legacyNlSnap.size + currentNlSnap.size;
           newBetaCount = betaSnap.size;
         }
 
@@ -207,7 +214,6 @@ export default function AdminPortalPage() {
     if (activeTab === 'beta') fetchBetaApps();
     if (activeTab === 'bugs') fetchBugs();
     if (activeTab === 'users') fetchAllUsers();
-    if (activeTab === 'newsletters') fetchNewsletters();
     if (activeTab === 'sports-hub') fetchSportsHubData();
   }, [activeTab, isSuperAdmin, db]);
 
@@ -1922,7 +1928,8 @@ export default function AdminPortalPage() {
         )}
 
         {/* ══════════ NEWSLETTERS TAB ══════════ */}
-        {activeTab === 'newsletters' && (() => {
+        {activeTab === 'newsletters' && <NewsletterManager />}
+        {activeTab === 'newsletters' && false && (() => {
           const term = newsletterSearch.toLowerCase();
           const filtered = newsletters.filter(n =>
             (n.name || '').toLowerCase().includes(term) ||

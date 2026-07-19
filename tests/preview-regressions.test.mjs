@@ -116,3 +116,16 @@ test('landing navigation sends authenticated users to the dashboard', async () =
   assert.match(landing, /const accountLabel = user \? 'Dashboard' : 'Log In'/);
   assert.equal((landing.match(/href=\{accountHref\}/g) || []).length, 3);
 });
+
+test('newsletter subscription and sending are handled by protected server routes', async () => {
+  const landing = await readSource('../src/app/page.tsx');
+  const adminRoute = await readSource('../src/app/api/admin/newsletter/send/route.ts');
+  const renderer = await readSource('../src/lib/newsletter-content.ts');
+
+  assert.match(landing, /fetch\('\/api\/newsletter\/subscribe'/);
+  assert.doesNotMatch(landing, /addDoc\(collection\(db, 'newsletter_signups'/);
+  assert.match(adminRoute, /auth\.role !== 'superadmin'/);
+  assert.match(adminRoute, /syncNewsletterSubscribersToResend/);
+  assert.match(adminRoute, /broadcasts\.create/);
+  assert.match(renderer, /RESEND_UNSUBSCRIBE_URL/);
+});

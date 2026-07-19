@@ -358,12 +358,13 @@ export default function LandingPage() {
     try {
       const emailVal = newsletterEmail.trim().toLowerCase();
       const nameVal = newsletterName.trim();
-      await addDoc(collection(db, 'newsletter_signups'), {
-        name: nameVal,
-        email: emailVal,
-        createdAt: serverTimestamp(),
-        source: 'landing_page',
+      const response = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameVal, email: emailVal, source: 'landing_page' }),
       });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to subscribe.');
       setNewsletterDone(true);
       toast({ title: "You Got it!", description: "We'll keep you in the loop. 🏆" });
 

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { Resend } from 'resend';
@@ -60,13 +61,25 @@ export async function POST(req: NextRequest) {
 
     // 1. Security check: verify there is an actual matching document in Firestore created recently
     if (type === 'newsletter') {
-      const snap = await db.collection('newsletter_signups')
-        .where('email', '==', emailLower)
-        .where('createdAt', '>=', tsThreshold)
-        .limit(1)
-        .get();
+      const subscriberId = createHash('sha256').update(emailLower).digest('hex');
+      const [legacySnap, currentSnap] = await Promise.all([
+        db.collection('newsletter_signups')
+          .where('email', '==', emailLower)
+          .limit(10)
+          .get(),
+        db.collection('newsletter_subscribers')
+          .doc(subscriberId)
+          .get(),
+      ]);
+      const isRecentLegacy = legacySnap.docs.some(document => {
+        const createdAt = document.data().createdAt;
+        return createdAt?.toMillis?.() >= tsThreshold.toMillis();
+      });
+      const currentUpdatedAt = currentSnap.data()?.updatedAt;
+      const isRecentCurrent = currentSnap.exists &&
+        currentUpdatedAt?.toMillis?.() >= tsThreshold.toMillis();
 
-      if (snap.empty) {
+      if (!isRecentLegacy && !isRecentCurrent) {
         return NextResponse.json({ error: 'Verification failed: No matching recent newsletter signup found' }, { status: 400 });
       }
     } else if (type === 'beta') {
