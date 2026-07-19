@@ -124,14 +124,17 @@ function DemoSeedWrapper({
         }, 2000);
 
       } catch (e: any) {
-        // Log every available detail so we can diagnose permission failures in production
-        console.error(`[Demo] Seed attempt ${attempt} failed:`, {
+        // Keep the diagnostic as one serialized string. Some hosted console
+        // collectors collapse object arguments to the literal word "Object",
+        // which hides the actionable Firebase code and project identifier.
+        const diagnostic = {
           message: e?.message,
           code: e?.code,
           name: e?.name,
+          firebaseProjectId: auth.app.options.projectId,
           stack: e?.stack?.split('\n').slice(0,5).join('\n'),
-          raw: e
-        });
+        };
+        console.error(`[Demo] Seed attempt ${attempt} failed: ${JSON.stringify(diagnostic)}`);
 
         if (e.code === 'resource-exhausted') {
           // Quota errors are not recoverable — surface immediately
