@@ -13,6 +13,19 @@ test('facility rename scans owner-scoped schedules without collection-group inde
   assert.doesNotMatch(source, /collectionGroup\('events'\)/);
 });
 
+test('facility management remains owner-scoped for super admins', async () => {
+  const source = await readSource('../src/app/(dashboard)/facilities/page.tsx');
+
+  assert.match(
+    source,
+    /collection\(db, 'facilities'\), where\('clubId', '==', firebaseUser\.uid\)/
+  );
+  assert.doesNotMatch(
+    source,
+    /if \(isSuperAdmin\) \{\s*return query\(collection\(db, 'facilities'\)/
+  );
+});
+
 test('squad recruitment links never redirect into league registration', async () => {
   const roster = await readSource('../src/app/(dashboard)/roster/page.tsx');
   const team = await readSource('../src/app/(dashboard)/team/page.tsx');
