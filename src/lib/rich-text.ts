@@ -18,6 +18,7 @@ export function renderSafeRichTextInline(value: string): string {
   return escapeRichTextHtml(value)
     .replace(/!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" style="display:block;max-width:100%;height:auto;margin:16px auto;border-radius:14px;" />')
     .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#c91f26;text-decoration:underline;">$1</a>')
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
 }
