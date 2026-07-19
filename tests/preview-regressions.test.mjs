@@ -95,3 +95,11 @@ test('demo role selector has an accessible description', async () => {
 
   assert.match(landing, /Choose a demo role to open an isolated sample workspace/);
 });
+
+test('landing navigation sends authenticated users to the dashboard', async () => {
+  const landing = await readSource('../src/app/page.tsx');
+
+  assert.match(landing, /const accountHref = user \? '\/dashboard' : '\/login'/);
+  assert.match(landing, /const accountLabel = user \? 'Dashboard' : 'Log In'/);
+  assert.equal((landing.match(/href=\{accountHref\}/g) || []).length, 3);
+});
