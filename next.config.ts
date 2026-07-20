@@ -44,6 +44,12 @@ const securityHeaders = [
   },
 ];
 
+const embedSecurityHeaders = securityHeaders
+  .filter(header => header.key !== 'X-Frame-Options')
+  .map(header => header.key === 'Content-Security-Policy'
+    ? { ...header, value: `${header.value}; frame-ancestors *` }
+    : header);
+
 const nextConfig: NextConfig = {
   // App Hosting provides FIREBASE_WEBAPP_CONFIG at build time. Expose only
   // that public web-SDK configuration to the browser bundle so each backend
@@ -120,8 +126,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Apply to all routes: pages, API routes, and static files
-        source: '/(.*)',
+        // Embed cards are intentionally frameable on external Linktree-style sites.
+        source: '/embed/:path*',
+        headers: embedSecurityHeaders,
+      },
+      {
+        // Every non-embed route retains strict same-origin framing protection.
+        source: '/((?!embed(?:/|$)).*)',
         headers: securityHeaders,
       },
     ];

@@ -1,12 +1,16 @@
 import 'server-only';
 
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { Resend } from 'resend';
 import { adminDb } from '@/lib/firebase-admin';
+import { parseNewsletterDraft } from '@/lib/newsletter-draft-validation';
+import { renderNewsletterHtml, renderNewsletterText } from '@/lib/newsletter-content';
 
 const SEGMENT_NAME = 'The Squad Newsletter';
 const CONFIG_REF = () => adminDb.collection('newsletter_system').doc('resend');
+const WELCOME_REF = () => adminDb.collection('newsletter_system').doc('welcome_email');
+const FROM = 'The Squad <noreply@thesquad.pro>';
 const SUBSCRIBER_COLLECTIONS = [
   { name: 'newsletter_subscribers', dateField: 'subscribedAt', fallbackSource: 'newsletter' },
   { name: 'newsletter_signups', dateField: 'createdAt', fallbackSource: 'landing_page' },
@@ -31,6 +35,32 @@ function getResend(): Resend {
 
 function normalizeEmail(value: unknown): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function publicAppUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (configured && /^https:\/\//.test(configured)) return configured.replace(/\/$/, '');
+  return 'https://www.thesquad.pro';
+}
+
+function unsubscribeToken(email: string): string {
+  const secret = process.env.RESEND_API_KEY;
+  if (!secret) throw new Error('RESEND_API_KEY is not configured.');
+  return createHmac('sha256', secret).update(`newsletter-unsubscribe:${email}`).digest('hex');
+}
+
+export function newsletterUnsubscribeUrl(emailValue: string): string {
+  const email = normalizeEmail(emailValue);
+  const params = new URLSearchParams({ email, token: unsubscribeToken(email) });
+  return `${publicAppUrl()}/api/newsletter/unsubscribe?${params.toString()}`;
+}
+
+export function validNewsletterUnsubscribeToken(emailValue: string, token: string): boolean {
+  const email = normalizeEmail(emailValue);
+  if (!email || !/^[a-f0-9]{64}$/.test(token)) return false;
+  const expected = Buffer.from(unsubscribeToken(email), 'hex');
+  const supplied = Buffer.from(token, 'hex');
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
 }
 
 function toIso(value: unknown): string {
@@ -115,6 +145,69 @@ async function syncResendContact(input: {
   }
 }
 
+async function sendWelcomeEmailIfNeeded(email: string, name: string): Promise<void> {
+  const configSnapshot = await WELCOME_REF().get();
+  const config = configSnapshot.data();
+  const draft = parseNewsletterDraft(config);
+  if (!configSnapshot.exists || config?.enabled !== true || !draft) return;
+
+  const id = createHash('sha256').update(email).digest('hex');
+  const subscriberRef = adminDb.collection('newsletter_subscribers').doc(id);
+  const now = Date.now();
+  const acquired = await adminDb.runTransaction(async transaction => {
+    const subscriber = await transaction.get(subscriberRef);
+    const data = subscriber.data();
+    const leaseStartedAt = typeof data?.welcomeEmailSendingAtMs === 'number'
+      ? data.welcomeEmailSendingAtMs
+      : 0;
+    if (!subscriber.exists || data?.welcomeEmailSentAt || leaseStartedAt > now - 15 * 60 * 1000) return false;
+    transaction.set(subscriberRef, {
+      welcomeEmailSendingAtMs: now,
+      welcomeEmailPending: false,
+    }, { merge: true });
+    return true;
+  });
+  if (!acquired) return;
+
+  try {
+    const unsubscribeUrl = newsletterUnsubscribeUrl(email);
+    const response = await getResend().emails.send({
+      from: FROM,
+      to: [email],
+      subject: draft.subject,
+      html: renderNewsletterHtml(draft, unsubscribeUrl),
+      text: renderNewsletterText(draft, unsubscribeUrl),
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+      tags: [
+        { name: 'email_type', value: 'newsletter_welcome' },
+        { name: 'subscriber_source', value: 'newsletter' },
+      ],
+    });
+    if (response.error || !response.data?.id) {
+      throw resendError(response.error, 'Resend did not accept the welcome email.');
+    }
+    await subscriberRef.set({
+      welcomeEmailSentAt: FieldValue.serverTimestamp(),
+      welcomeEmailResendId: response.data.id,
+      welcomeEmailSendingAtMs: FieldValue.delete(),
+      welcomeEmailPending: FieldValue.delete(),
+      welcomeEmailFailureReason: FieldValue.delete(),
+      ...(name ? { welcomeEmailRecipientName: name } : {}),
+    }, { merge: true });
+  } catch (error) {
+    await subscriberRef.set({
+      welcomeEmailSendingAtMs: FieldValue.delete(),
+      welcomeEmailPending: true,
+      welcomeEmailFailureReason: error instanceof Error ? error.message.slice(0, 500) : 'Unknown delivery error',
+      welcomeEmailFailedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    throw error;
+  }
+}
+
 export async function subscribeToNewsletter(input: {
   email: string;
   name?: string;
@@ -146,6 +239,32 @@ export async function subscribeToNewsletter(input: {
   } catch (error) {
     console.error('[Newsletter] Subscriber saved, but Resend sync failed:', error);
     await ref.set({ resendSyncPending: true }, { merge: true });
+  }
+
+  try {
+    await sendWelcomeEmailIfNeeded(email, name);
+  } catch (error) {
+    console.error('[Newsletter] Subscriber saved, but welcome email delivery failed:', error);
+  }
+}
+
+export async function unsubscribeNewsletterSubscriber(emailValue: string): Promise<void> {
+  const email = normalizeEmail(emailValue);
+  const snapshots = await Promise.all(SUBSCRIBER_COLLECTIONS.map(source =>
+    adminDb.collection(source.name).where('email', '==', email).get()
+  ));
+  const batch = adminDb.batch();
+  snapshots.forEach(snapshot => snapshot.docs.forEach(document => batch.set(document.ref, {
+    isActive: false,
+    unsubscribedAt: FieldValue.serverTimestamp(),
+    unsubscribeSource: 'email_link',
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true })));
+  await batch.commit();
+
+  const updated = await getResend().contacts.update({ email, unsubscribed: true });
+  if (updated.error && !/not found/i.test(updated.error.message || '')) {
+    throw resendError(updated.error, 'Unable to update newsletter consent in Resend.');
   }
 }
 

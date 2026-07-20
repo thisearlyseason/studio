@@ -15,8 +15,9 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper, BookOpen, Rss, PenLine, ToggleLeft, ToggleRight, Globe, Star } from 'lucide-react';
+import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper, BookOpen, Rss, PenLine, ToggleLeft, ToggleRight, Globe, Star, Code2 } from 'lucide-react';
 import { NewsletterManager } from '@/components/admin/newsletter-manager';
+import { EmbedHubManager } from '@/components/admin/embed-hub-manager';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { STATIC_SPORTS_HUB_ARTICLE_COUNT } from '@/lib/sports-hub-catalog-metadata';
 
@@ -70,7 +71,7 @@ export default function AdminPortalPage() {
   const db = useFirestore();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs' | 'users' | 'newsletters' | 'sports-hub'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'beta' | 'bugs' | 'users' | 'newsletters' | 'sports-hub' | 'embeds'>('accounts');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -949,6 +950,12 @@ export default function AdminPortalPage() {
             className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'sports-hub' ? 'bg-primary text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:text-white'}`}
           >
             <BookOpen className="w-4 h-4" /> Sports Hub
+          </button>
+          <button
+            onClick={() => setActiveTab('embeds')}
+            className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'embeds' ? 'bg-violet-600 text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:hover:text-white'}`}
+          >
+            <Code2 className="w-4 h-4" /> Embed Hub
           </button>
         </div>
 
@@ -1973,6 +1980,7 @@ export default function AdminPortalPage() {
 
         {/* ══════════ NEWSLETTERS TAB ══════════ */}
         {activeTab === 'newsletters' && <NewsletterManager />}
+        {activeTab === 'embeds' && <EmbedHubManager />}
         {activeTab === 'newsletters' && false && (() => {
           const term = newsletterSearch.toLowerCase();
           const filtered = newsletters.filter(n =>

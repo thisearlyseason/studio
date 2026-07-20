@@ -151,6 +151,40 @@ test('newsletter manager refreshes expired tokens and exposes rich text controls
   assert.match(apiAuth, /verifyIdToken\(idToken, true\)/);
 });
 
+test('new subscribers receive one configurable server-side welcome email', async () => {
+  const manager = await readSource('../src/components/admin/welcome-email-manager.tsx');
+  const welcomeRoute = await readSource('../src/app/api/admin/newsletter/welcome/route.ts');
+  const server = await readSource('../src/lib/server-newsletter.ts');
+  const unsubscribe = await readSource('../src/app/api/newsletter/unsubscribe/route.ts');
+
+  assert.match(manager, /Automatic delivery/);
+  assert.match(manager, /RichTextEditor/);
+  assert.match(manager, /renderNewsletterHtml/);
+  assert.match(welcomeRoute, /auth\.role === 'superadmin'/);
+  assert.match(welcomeRoute, /parseNewsletterDraft/);
+  assert.match(server, /welcomeEmailSentAt/);
+  assert.match(server, /welcomeEmailSendingAtMs/);
+  assert.match(server, /emails\.send/);
+  assert.match(server, /List-Unsubscribe/);
+  assert.match(unsubscribe, /validNewsletterUnsubscribeToken/);
+  assert.match(unsubscribe, /export async function POST/);
+});
+
+test('embed hub exposes frameable public cards without weakening other pages', async () => {
+  const nextConfig = await readSource('../next.config.ts');
+  const admin = await readSource('../src/components/admin/embed-hub-manager.tsx');
+  const embed = await readSource('../src/components/embed/embed-panel.tsx');
+  const adminPage = await readSource('../src/app/admin/page.tsx');
+
+  assert.match(nextConfig, /source: '\/embed\/:path\*'/);
+  assert.match(nextConfig, /frame-ancestors \*/);
+  assert.match(nextConfig, /X-Frame-Options/);
+  assert.match(admin, /Responsive iframe code/);
+  assert.match(admin, /All-in-One Link Hub/);
+  assert.match(embed, /\/api\/newsletter\/subscribe/);
+  assert.match(adminPage, /<EmbedHubManager/);
+});
+
 test('Sports Hub admin combines built-in and custom articles without one failed query clearing all data', async () => {
   const admin = await readSource('../src/app/admin/page.tsx');
   const publicRoute = await readSource('../src/app/api/sports-hub/articles/route.ts');
