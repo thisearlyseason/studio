@@ -19,6 +19,7 @@ import {
   Send,
   Trash2,
   Type,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { useTeam } from '@/components/providers/team-provider';
@@ -26,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { WelcomeEmailManager } from '@/components/admin/welcome-email-manager';
 import { toast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
 import {
@@ -73,7 +75,7 @@ function createBlock(type: NewsletterBlock['type']): NewsletterBlock {
 
 export function NewsletterManager() {
   const { firebaseUser } = useTeam();
-  const [section, setSection] = useState<'compose' | 'subscribers'>('compose');
+  const [section, setSection] = useState<'compose' | 'welcome' | 'subscribers'>('compose');
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,6 +226,9 @@ export function NewsletterManager() {
           <Button variant={section === 'compose' ? 'default' : 'ghost'} onClick={() => setSection('compose')} className="rounded-xl font-black uppercase text-[10px]">
             <Send className="mr-2 h-4 w-4" /> Compose
           </Button>
+          <Button variant={section === 'welcome' ? 'default' : 'ghost'} onClick={() => setSection('welcome')} className="rounded-xl font-black uppercase text-[10px]">
+            <UserPlus className="mr-2 h-4 w-4" /> New Subscriber
+          </Button>
           <Button variant={section === 'subscribers' ? 'default' : 'ghost'} onClick={() => setSection('subscribers')} className="rounded-xl font-black uppercase text-[10px]">
             <Users className="mr-2 h-4 w-4" /> Subscribers
           </Button>
@@ -297,6 +302,8 @@ export function NewsletterManager() {
             </div>
           </div>
         </div>
+      ) : section === 'welcome' ? (
+        <WelcomeEmailManager />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
           <div className="space-y-6">

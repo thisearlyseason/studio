@@ -9,12 +9,11 @@ import {
   syncNewsletterSubscribersToResend,
 } from '@/lib/server-newsletter';
 import {
-  NewsletterBlock,
   NewsletterDraft,
   renderNewsletterHtml,
   renderNewsletterText,
-  safeNewsletterUrl,
 } from '@/lib/newsletter-content';
+import { parseNewsletterDraft } from '@/lib/newsletter-draft-validation';
 import {
   enforceUserRateLimit,
   readJsonBodyWithLimit,
@@ -22,26 +21,6 @@ import {
 } from '@/lib/server-request-guards';
 
 const FROM = 'The Squad <noreply@thesquad.pro>';
-
-function validBlock(value: unknown): value is NewsletterBlock {
-  if (!value || typeof value !== 'object') return false;
-  const block = value as Record<string, unknown>;
-  if (typeof block.id !== 'string' || block.id.length > 100 || typeof block.type !== 'string') return false;
-  if (block.type === 'divider') return true;
-  if (block.type === 'heading' || block.type === 'paragraph') {
-    return typeof block.text === 'string' && block.text.length <= 10_000;
-  }
-  if (block.type === 'image') {
-    return typeof block.url === 'string' && Boolean(safeNewsletterUrl(block.url)) &&
-      typeof block.alt === 'string' && block.alt.length <= 300 &&
-      (block.caption === undefined || (typeof block.caption === 'string' && block.caption.length <= 500));
-  }
-  if (block.type === 'button') {
-    return typeof block.label === 'string' && block.label.length <= 120 &&
-      typeof block.url === 'string' && Boolean(safeNewsletterUrl(block.url));
-  }
-  return false;
-}
 
 export async function POST(request: NextRequest) {
   const auth = await verifyFirebaseToken(request);
@@ -59,24 +38,19 @@ export async function POST(request: NextRequest) {
       blocks?: unknown;
     }>(request, 256_000);
     const campaignId = typeof body.campaignId === 'string' ? body.campaignId : '';
-    const draft: NewsletterDraft = {
+    const draftInput: NewsletterDraft = {
       subject: typeof body.subject === 'string' ? body.subject.trim() : '',
       previewText: typeof body.previewText === 'string' ? body.previewText.trim() : '',
       title: typeof body.title === 'string' ? body.title.trim() : '',
-      blocks: Array.isArray(body.blocks) && body.blocks.every(validBlock) ? body.blocks : [],
+      blocks: Array.isArray(body.blocks) ? body.blocks as NewsletterDraft['blocks'] : [],
     };
+    const draft = parseNewsletterDraft(draftInput);
 
     if (!/^[a-zA-Z0-9_-]{8,100}$/.test(campaignId)) {
       return NextResponse.json({ error: 'A valid campaign ID is required.' }, { status: 400 });
     }
-    if (!draft.subject || draft.subject.length > 200 || /[\r\n]/.test(draft.subject)) {
-      return NextResponse.json({ error: 'Enter a valid subject line.' }, { status: 400 });
-    }
-    if (!draft.title || draft.title.length > 200 || draft.blocks.length < 1 || draft.blocks.length > 40) {
-      return NextResponse.json({ error: 'A title and 1–40 valid content blocks are required.' }, { status: 400 });
-    }
-    if ((draft.previewText || '').length > 300) {
-      return NextResponse.json({ error: 'Preview text is too long.' }, { status: 400 });
+    if (!draft) {
+      return NextResponse.json({ error: 'A valid subject, title, and 1–40 content blocks are required.' }, { status: 400 });
     }
 
     const rateLimit = await enforceUserRateLimit(auth.uid, 'newsletter-send', 10, 60 * 60 * 1000);

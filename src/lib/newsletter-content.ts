@@ -34,6 +34,7 @@ function renderInline(text: string): string {
   return escapeNewsletterHtml(text)
     .replace(/!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" style="display:block;width:100%;max-width:640px;height:auto;margin:18px auto;border-radius:18px;">')
     .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" style="color:#c91f26;text-decoration:underline;">$1</a>')
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
 }
@@ -77,7 +78,10 @@ export function renderNewsletterBlock(block: NewsletterBlock): string {
   return `<div style="margin:30px 0;text-align:center;"><a href="${escapeNewsletterHtml(url)}" style="display:inline-block;background:#c91f26;color:#ffffff;text-decoration:none;padding:15px 28px;border-radius:999px;font-size:14px;font-weight:800;letter-spacing:0.04em;">${escapeNewsletterHtml(block.label)}</a></div>`;
 }
 
-export function renderNewsletterHtml(draft: NewsletterDraft): string {
+export function renderNewsletterHtml(
+  draft: NewsletterDraft,
+  unsubscribeUrl = '{{{RESEND_UNSUBSCRIBE_URL}}}'
+): string {
   const preview = escapeNewsletterHtml(draft.previewText || 'Updates from The Squad');
   const content = draft.blocks.map(renderNewsletterBlock).join('');
   return `<!doctype html>
@@ -93,19 +97,22 @@ export function renderNewsletterHtml(draft: NewsletterDraft): string {
       </td></tr>
       <tr><td style="padding:28px 38px;background:#111118;text-align:center;color:#b7b7bf;font-size:12px;line-height:1.6;">
         You received this because you subscribed to The Squad newsletter.<br>
-        <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#ffffff;text-decoration:underline;">Unsubscribe</a> at any time.
+        <a href="${escapeNewsletterHtml(unsubscribeUrl)}" style="color:#ffffff;text-decoration:underline;">Unsubscribe</a> at any time.
       </td></tr>
     </table>
   </td></tr></table>
 </body></html>`;
 }
 
-export function renderNewsletterText(draft: NewsletterDraft): string {
+export function renderNewsletterText(
+  draft: NewsletterDraft,
+  unsubscribeUrl = '{{{RESEND_UNSUBSCRIBE_URL}}}'
+): string {
   const body = draft.blocks.map(block => {
     if (block.type === 'divider') return '---';
     if (block.type === 'image') return block.caption || block.alt || block.url;
     if (block.type === 'button') return `${block.label}: ${block.url}`;
     return block.text.replace(/\*\*/g, '').replace(/\*/g, '');
   }).join('\n\n');
-  return `${draft.title}\n\n${body}\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}`;
+  return `${draft.title}\n\n${body}\n\nUnsubscribe: ${unsubscribeUrl}`;
 }

@@ -41,6 +41,17 @@ test('newsletter renderer supports safe inline images inside rich text', () => {
   assert.match(html, /alt="Team celebrating"/);
 });
 
+test('newsletter renderer supports combined formatting and a signed unsubscribe URL', () => {
+  const unsubscribeUrl = 'https://www.thesquad.pro/api/newsletter/unsubscribe?email=test%40example.com&token=abc';
+  const html = renderNewsletterHtml({
+    ...draft,
+    blocks: [{ id: 'combined', type: 'paragraph', text: 'This is ***important***.' }],
+  }, unsubscribeUrl);
+  assert.match(html, /<strong><em>important<\/em><\/strong>/);
+  assert.match(html, /api\/newsletter\/unsubscribe\?email=test%40example\.com&amp;token=abc/);
+  assert.match(renderNewsletterText(draft, unsubscribeUrl), /Unsubscribe: https:\/\/www\.thesquad\.pro\/api\/newsletter\/unsubscribe/);
+});
+
 test('newsletter renderer escapes markup and rejects unsafe image protocols', () => {
   const html = renderNewsletterHtml({
     ...draft,
