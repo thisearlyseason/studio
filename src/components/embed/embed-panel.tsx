@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { ArrowRight, BookOpen, LayoutDashboard, Loader2, Mail, UserPlus } from 'lucide-react';
+import Image from 'next/image';
 
 type EmbedMode = 'newsletter' | 'signup' | 'sports-hub' | 'squad-hub' | 'links';
 
@@ -40,7 +41,7 @@ export function EmbedPanel({ mode }: { mode: EmbedMode }) {
   };
 
   const newsletter = (
-    <section className="rounded-[28px] border border-black/10 bg-white p-6 shadow-xl sm:p-8">
+    <section className="rounded-[28px] border border-white/40 bg-white/95 p-6 shadow-2xl backdrop-blur-sm sm:p-8">
       <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white"><Mail className="h-6 w-6" /></div>
       <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Stay in the game</p>
       <h1 className="mt-2 text-3xl font-black uppercase tracking-tight">Join The Squad Newsletter</h1>
@@ -61,7 +62,17 @@ export function EmbedPanel({ mode }: { mode: EmbedMode }) {
   if (mode === 'links') {
     return (
       <div className="space-y-4">
-        <div className="pb-3 text-center"><p className="text-[11px] font-black uppercase tracking-[0.28em] text-primary">The Squad</p><h1 className="mt-2 text-4xl font-black uppercase tracking-tight">Everything your team needs.</h1></div>
+        <div className="pb-4 text-center text-white">
+          <Image
+            src="/images/embed/the-squad-logo.png"
+            alt="The Squad"
+            width={2304}
+            height={1440}
+            priority
+            className="mx-auto h-auto w-full max-w-[390px] drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)]"
+          />
+          <h1 className="mt-2 text-3xl font-black uppercase tracking-tight drop-shadow-lg sm:text-4xl">Everything your team needs.</h1>
+        </div>
         {links.map(({ title, description, href, Icon }) => <LinkCard key={href} title={title} description={description} href={href} Icon={Icon} />)}
         {newsletter}
       </div>
@@ -73,7 +84,7 @@ export function EmbedPanel({ mode }: { mode: EmbedMode }) {
 
 function LinkCard({ title, description, href, Icon }: { title: string; description: string; href: string; Icon: typeof UserPlus }) {
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-4 rounded-[28px] border border-black/10 bg-white p-6 shadow-xl transition hover:-translate-y-0.5 hover:border-primary">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-4 rounded-[28px] border border-white/40 bg-white/95 p-6 shadow-2xl backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-primary">
       <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon className="h-7 w-7" /></span>
       <span className="min-w-0 flex-1"><span className="block text-lg font-black uppercase tracking-tight">{title}</span><span className="mt-1 block text-sm leading-5 text-zinc-600">{description}</span></span>
       <ArrowRight className="h-5 w-5 shrink-0 transition group-hover:translate-x-1" />
