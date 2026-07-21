@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper, BookOpen, Rss, PenLine, ToggleLeft, ToggleRight, Globe, Star, Code2 } from 'lucide-react';
+import { Search, Shield, Users, CreditCard, Building2, ChevronRight, X, RefreshCw, AlertTriangle, CheckCircle2, Clock, CheckCircle, XCircle, HelpCircle, LogOut, Loader2, ExternalLink, Copy, Bug, FileText, Bell, Send, MapPin, BarChart3, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Download, Mail, Newspaper, BookOpen, Rss, PenLine, ToggleLeft, ToggleRight, Globe, Star, Code2, UserX, ShieldOff, RotateCcw } from 'lucide-react';
 import { NewsletterManager } from '@/components/admin/newsletter-manager';
 import { EmbedHubManager } from '@/components/admin/embed-hub-manager';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
@@ -115,6 +115,12 @@ export default function AdminPortalPage() {
   const [userSortField, setUserSortField] = useState<'createdAt' | 'plan_type' | 'fullName'>('createdAt');
   const [userSortDir, setUserSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [accountControl, setAccountControl] = useState<{
+    action: 'suspend' | 'restore' | 'schedule_deletion' | 'cancel_deletion';
+    target: any;
+  } | null>(null);
+  const [accountConfirmationEmail, setAccountConfirmationEmail] = useState('');
+  const [accountControlBusy, setAccountControlBusy] = useState(false);
 
   // ── Newsletter state ────────────────────────────────────────────────────────
   const [newsletters, setNewsletters] = useState<any[]>([]);
@@ -743,6 +749,63 @@ export default function AdminPortalPage() {
     }
   };
 
+  const runAccountControl = async () => {
+    if (!firebaseUser || !accountControl) return;
+    setAccountControlBusy(true);
+    try {
+      const token = await firebaseUser.getIdToken();
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(accountControl.target.id)}/account-control`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: accountControl.action,
+          confirmationEmail: accountConfirmationEmail,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to update this account.');
+
+      const updatedStatus = payload.status || 'active';
+      const updateLocalUser = (entry: any) => entry.id === accountControl.target.id
+        ? {
+            ...entry,
+            accountStatus: updatedStatus,
+            deletionStatus: updatedStatus === 'pending_deletion' ? 'pending' : undefined,
+            deletionPurgeAt: payload.purgeAt || undefined,
+          }
+        : entry;
+      setAllUsers(previous => previous.map(updateLocalUser));
+      setResults(previous => previous.map(updateLocalUser));
+      setSelectedUser(previous => previous ? updateLocalUser(previous) : previous);
+
+      const labels: Record<typeof accountControl.action, string> = {
+        suspend: 'Account Suspended',
+        restore: 'Account Restored',
+        schedule_deletion: 'Deletion Scheduled',
+        cancel_deletion: 'Deletion Cancelled',
+      };
+      toast({
+        title: labels[accountControl.action],
+        description: payload.purgeAt
+          ? `The account is disabled and will be permanently removed after ${new Date(payload.purgeAt).toLocaleDateString()}.`
+          : 'The account status was updated successfully.',
+      });
+      setAccountControl(null);
+      setAccountConfirmationEmail('');
+    } catch (error) {
+      toast({
+        title: 'Account Update Blocked',
+        description: error instanceof Error ? error.message : 'Unable to update this account safely.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAccountControlBusy(false);
+    }
+  };
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: `${label} copied` });
@@ -805,6 +868,106 @@ export default function AdminPortalPage() {
               disabled={upgradingExisting}
             >
               {upgradingExisting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Upgrade Account'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Super Admin Account Control Confirmation ── */}
+      <Dialog
+        open={!!accountControl}
+        onOpenChange={(open) => {
+          if (!open && !accountControlBusy) {
+            setAccountControl(null);
+            setAccountConfirmationEmail('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg rounded-3xl bg-white dark:bg-[#111] border-2 border-red-500/20 p-0 overflow-hidden">
+          <div className="bg-red-500/10 px-8 pt-8 pb-6 border-b border-red-500/20">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 rounded-2xl bg-red-500/15 flex items-center justify-center">
+                {accountControl?.action === 'schedule_deletion'
+                  ? <UserX className="w-5 h-5 text-red-500" />
+                  : accountControl?.action === 'suspend'
+                    ? <ShieldOff className="w-5 h-5 text-red-500" />
+                    : <RotateCcw className="w-5 h-5 text-emerald-500" />}
+              </div>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+                {accountControl?.action === 'schedule_deletion' && 'Schedule Account Deletion'}
+                {accountControl?.action === 'suspend' && 'Suspend Account'}
+                {accountControl?.action === 'restore' && 'Restore Account'}
+                {accountControl?.action === 'cancel_deletion' && 'Cancel Account Deletion'}
+              </DialogTitle>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-white/60 font-medium">
+              {accountControl?.target.fullName || accountControl?.target.name || accountControl?.target.email}
+              <span className="block text-xs font-mono mt-1 text-gray-400">{accountControl?.target.email}</span>
+            </p>
+          </div>
+          <div className="px-8 py-6 space-y-5">
+            {accountControl?.action === 'schedule_deletion' && (
+              <>
+                <div className="rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4 text-sm font-medium text-red-800 dark:text-red-200 leading-relaxed">
+                  Login access will be revoked immediately. Personal data will be retained for seven days and then permanently purged. Active Stripe subscriptions and organization ownership must be resolved first.
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="account-delete-confirmation" className="text-[10px] font-black uppercase tracking-widest">
+                    Type the account email to confirm
+                  </Label>
+                  <Input
+                    id="account-delete-confirmation"
+                    value={accountConfirmationEmail}
+                    onChange={event => setAccountConfirmationEmail(event.target.value)}
+                    placeholder={accountControl.target.email || 'user@example.com'}
+                    autoComplete="off"
+                    className="h-12 rounded-xl border-2 font-mono"
+                  />
+                </div>
+              </>
+            )}
+            {accountControl?.action === 'suspend' && (
+              <p className="text-sm text-gray-600 dark:text-white/60 leading-relaxed">
+                This immediately revokes every active session and prevents the user from signing in. Their data, memberships, and billing records are retained.
+              </p>
+            )}
+            {accountControl?.action === 'restore' && (
+              <p className="text-sm text-gray-600 dark:text-white/60 leading-relaxed">
+                This re-enables login for the suspended account. The user must sign in again to obtain a new session.
+              </p>
+            )}
+            {accountControl?.action === 'cancel_deletion' && (
+              <p className="text-sm text-gray-600 dark:text-white/60 leading-relaxed">
+                This cancels the pending seven-day purge, restores the account, and requires the user to sign in again.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="px-8 pb-8 flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 h-12 border-2 font-black uppercase tracking-widest text-xs rounded-xl"
+              onClick={() => {
+                setAccountControl(null);
+                setAccountConfirmationEmail('');
+              }}
+              disabled={accountControlBusy}
+            >
+              Cancel
+            </Button>
+            <Button
+              className={`flex-1 h-12 font-black uppercase tracking-widest text-xs rounded-xl ${
+                accountControl?.action === 'restore' || accountControl?.action === 'cancel_deletion'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-red-600 hover:bg-red-700 text-white'
+              }`}
+              onClick={runAccountControl}
+              disabled={
+                accountControlBusy ||
+                (accountControl?.action === 'schedule_deletion' &&
+                  accountConfirmationEmail.trim().toLowerCase() !== String(accountControl.target.email || '').trim().toLowerCase())
+              }
+            >
+              {accountControlBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm Action'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1121,6 +1284,9 @@ export default function AdminPortalPage() {
                     {filtered.map((u) => {
                       const isExpanded = expandedUserId === u.id;
                       const cancelDate = u.cancelledAt || u.subscription_cancelled_at || u.canceledAt;
+                      const accountStatus = u.deletionStatus === 'pending'
+                        ? 'pending_deletion'
+                        : (u.accountStatus || 'active');
                       return (
                         <div key={u.id}>
                           <button
@@ -1181,6 +1347,7 @@ export default function AdminPortalPage() {
                                   { label: 'Beta Upgraded', value: fmt(u.betaUpgradedAt) },
                                   { label: 'Cancelled', value: fmt(cancelDate) },
                                   { label: 'Is Demo', value: u.isDemo ? 'Yes' : 'No' },
+                                  { label: 'Account Status', value: accountStatus.replaceAll('_', ' ') },
                                 ].map(({ label, value }) => (
                                   <div key={label} className="space-y-1">
                                     <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 dark:text-white/25">{label}</p>
@@ -1203,6 +1370,53 @@ export default function AdminPortalPage() {
                                   <Copy className="w-3 h-3" /> Copy UID
                                 </button>
                               </div>
+                              {!u.isDemo && u.id !== user?.id && String(u.role || '').toLowerCase() !== 'superadmin' && (
+                                <div className="mt-5 pt-4 border-t border-gray-200 dark:border-white/10 flex flex-wrap items-center gap-2">
+                                  <span className={`mr-2 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                                    accountStatus === 'active'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : accountStatus === 'suspended'
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    {accountStatus.replaceAll('_', ' ')}
+                                  </span>
+                                  {accountStatus === 'active' && (
+                                    <button
+                                      onClick={() => setAccountControl({ action: 'suspend', target: u })}
+                                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-300 text-amber-700 hover:bg-amber-50 text-[9px] font-black uppercase tracking-widest transition-colors"
+                                    >
+                                      <ShieldOff className="w-3.5 h-3.5" /> Suspend
+                                    </button>
+                                  )}
+                                  {accountStatus === 'suspended' && (
+                                    <button
+                                      onClick={() => setAccountControl({ action: 'restore', target: u })}
+                                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-[9px] font-black uppercase tracking-widest transition-colors"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" /> Restore
+                                    </button>
+                                  )}
+                                  {accountStatus === 'pending_deletion' ? (
+                                    <button
+                                      onClick={() => setAccountControl({ action: 'cancel_deletion', target: u })}
+                                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-[9px] font-black uppercase tracking-widest transition-colors"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" /> Cancel Deletion
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setAccountConfirmationEmail('');
+                                        setAccountControl({ action: 'schedule_deletion', target: u });
+                                      }}
+                                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[9px] font-black uppercase tracking-widest transition-colors"
+                                    >
+                                      <UserX className="w-3.5 h-3.5" /> Delete Account
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

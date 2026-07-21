@@ -51,6 +51,30 @@ test('live deletion immediately revokes access and purges on a short schedule', 
   assert.match(functions, /purgeExpiredDeletionRequests = onSchedule\('every 15 minutes'/);
 });
 
+test('Super Admin account controls fail closed and use the seven-day purge lifecycle', async () => {
+  const route = await readSource('../src/app/api/admin/users/[uid]/account-control/route.ts');
+  const adminPage = await readSource('../src/app/admin/page.tsx');
+
+  assert.match(route, /auth\.role !== 'superadmin'/);
+  assert.match(route, /uid === auth\.uid/);
+  assert.match(route, /profileRole === 'superadmin' \|\| authRole === 'superadmin'/);
+  assert.match(route, /confirmationEmail !== targetEmail/);
+  assert.match(route, /isActiveSubscription\(profile\)/);
+  assert.match(route, /findOwnedOrganizations\(uid\)/);
+  assert.match(route, /RETENTION_MS = 7 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(route, /revokeRefreshTokens\(uid\)/);
+  assert.match(route, /updateUser\(uid, \{ disabled: true \}\)/);
+  assert.match(route, /adminAuditLogs/);
+  assert.match(route, /transaction\.delete\(deletionRef\)/);
+  assert.doesNotMatch(route, /admin\.auth\(\)\.deleteUser/);
+
+  assert.match(adminPage, /Schedule Account Deletion/);
+  assert.match(adminPage, /Type the account email to confirm/);
+  assert.match(adminPage, /Cancel Deletion/);
+  assert.match(adminPage, /u\.id !== user\?\.id/);
+  assert.match(adminPage, /String\(u\.role \|\| ''\)\.toLowerCase\(\) !== 'superadmin'/);
+});
+
 test('removed members cannot use payment or poll member access checks', async () => {
   const items = await readSource('../src/app/api/stripe/payment-items/route.ts');
   const vote = await readSource('../src/app/api/teams/chat/vote/route.ts');
