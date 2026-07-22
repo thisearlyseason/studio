@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/admin/'],
     },
-    sitemap: 'https://thesquad.pro/sitemap.xml',
+    sitemap: 'https://www.thesquad.pro/sitemap.xml',
   }
 }

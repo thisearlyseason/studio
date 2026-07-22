@@ -242,6 +242,16 @@ test('the Elfsight chatbot and beta reporter are restricted to the landing page'
   assert.doesNotMatch(dashboardLayout, /LandingChatbot|elfsight/);
 });
 
+test('robots and sitemap use the canonical www production host', async () => {
+  const robots = await readSource('../src/app/robots.ts');
+  const sitemap = await readSource('../src/app/sitemap.ts');
+
+  assert.match(robots, /sitemap: 'https:\/\/www\.thesquad\.pro\/sitemap\.xml'/);
+  assert.match(sitemap, /const baseUrl = 'https:\/\/www\.thesquad\.pro'/);
+  assert.doesNotMatch(robots, /sitemap: 'https:\/\/thesquad\.pro/);
+  assert.doesNotMatch(sitemap, /const baseUrl = 'https:\/\/thesquad\.pro'/);
+});
+
 test('Resend webhook verifies raw signed payloads and processes each delivery once', async () => {
   const route = await readSource('../src/app/api/webhooks/resend/route.ts');
   assert.match(route, /const payload = await request\.text\(\)/);
