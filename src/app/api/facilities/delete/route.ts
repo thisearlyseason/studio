@@ -61,206 +61,149 @@ export async function POST(req: NextRequest) {
     // claim, never from a browser-writable profile document.
     const isSuperAdmin = auth.role === 'superadmin';
 
-    const result = await adminDb.runTransaction(async transaction => {
-      const facilityRef = adminDb.collection('facilities').doc(facilityId);
-      const facilitySnap = await transaction.get(facilityRef);
+    const facilityRef = adminDb.collection('facilities').doc(facilityId);
+    const facilitySnap = await facilityRef.get();
 
-      if (!facilitySnap.exists) return { status: 404 as const };
-
-      const facility = facilitySnap.data() || {};
-      if (!isSuperAdmin && facility.clubId !== auth.uid) {
-        return { status: 403 as const };
-      }
-      const facilityOwnerId = cleanId(facility.clubId);
-      if (!facilityOwnerId) return { status: 409 as const, invalidOwner: true };
-
-      const fieldsQuery = facilityRef.collection('fields');
-      const fieldsSnap = await transaction.get(fieldsQuery);
-      const allFields = fieldsSnap.docs.map(document => ({
-        id: document.id,
-        name: cleanName(document.data().name),
-        ref: document.ref,
-      }));
-
-      const targetField = fieldId
-        ? allFields.find(field => field.id === fieldId)
-        : undefined;
-      if (fieldId && !targetField) return { status: 404 as const, missingField: true };
-      if (targetField && !targetField.name) {
-        return { status: 409 as const, invalidField: true };
-      }
-
-      const targetFields = targetField ? [targetField] : allFields;
-      const context: FacilityDeletionContext = {
-        facilityId,
-        facilityName: cleanName(facility.name) || 'Facility',
-        fieldName: targetField?.name,
-        facilityFieldNames: targetField
-          ? undefined
-          : allFields.map(field => field.name).filter(Boolean),
-      };
-
-      const eventDocs = new Map<string, any>();
-      const leagueDocs = new Map<string, any>();
-
-      addSnapshotDocs(
-        eventDocs,
-        await transaction.get(
-          adminDb.collectionGroup('events').where('facilityId', '==', facilityId)
-        )
-      );
-
-      const ownerTeams = new Map<string, any>();
-      addSnapshotDocs(
-        ownerTeams,
-        await transaction.get(
-          adminDb.collection('teams').where('ownerUserId', '==', facilityOwnerId)
-        )
-      );
-      addSnapshotDocs(
-        ownerTeams,
-        await transaction.get(
-          adminDb.collection('teams').where('schoolAdminIds', 'array-contains', facilityOwnerId)
-        )
-      );
-      addSnapshotDocs(
-        ownerTeams,
-        await transaction.get(
-          adminDb.collection('teams').where('clubId', '==', facilityOwnerId)
-        )
-      );
-
-      for (const teamDoc of ownerTeams.values()) {
-        addSnapshotDocs(
-          eventDocs,
-          await transaction.get(teamDoc.ref.collection('events'))
-        );
-      }
-
-      addSnapshotDocs(
-        leagueDocs,
-        await transaction.get(
-          adminDb.collection('leagues').where('creatorId', '==', facilityOwnerId)
-        )
-      );
-
-      for (const field of targetFields) {
-        if (!field.name) continue;
-        const qualifiedName = `${facilityId}:${field.name}`;
-        addSnapshotDocs(
-          eventDocs,
-          await transaction.get(
-            adminDb
-              .collectionGroup('events')
-              .where('selectedFields', 'array-contains', qualifiedName)
-          )
-        );
-        addSnapshotDocs(
-          leagueDocs,
-          await transaction.get(
-            adminDb
-              .collection('leagues')
-              .where('schedulerConfig.selectedFields', 'array-contains', qualifiedName)
-          )
-        );
-      }
-
-      if (eventDocs.size + leagueDocs.size > MAX_SCANNED_RECORDS) {
-        return { status: 409 as const, scanLimit: true };
-      }
-
-      const linkedRecords: LinkedRecord[] = [];
-      eventDocs.forEach(document => {
-        const reasons = getFacilityReferenceReasons(document.data(), context);
-        if (reasons.length === 0) return;
-        linkedRecords.push({
-          path: document.ref.path,
-          type: 'event',
-          label: cleanName(document.data().title) || `Event ${document.id}`,
-          reasons,
-        });
-      });
-      leagueDocs.forEach(document => {
-        const reasons = getFacilityReferenceReasons(document.data(), context);
-        if (reasons.length === 0) return;
-        linkedRecords.push({
-          path: document.ref.path,
-          type: 'league',
-          label: cleanName(document.data().name) || `League ${document.id}`,
-          reasons,
-        });
-      });
-
-      if (linkedRecords.length > 0) {
-        return {
-          status: 409 as const,
-          dependencies: describeDependencies(linkedRecords),
-        };
-      }
-
-      if (targetField) {
-        transaction.delete(targetField.ref);
-        return { status: 200 as const, deleted: 'field' as const };
-      }
-
-      if (allFields.length + 1 > MAX_DELETE_WRITES) {
-        return { status: 409 as const, deleteLimit: true };
-      }
-      allFields.forEach(field => transaction.delete(field.ref));
-      transaction.delete(facilityRef);
-      return {
-        status: 200 as const,
-        deleted: 'facility' as const,
-        deletedFields: allFields.length,
-      };
-    });
-
-    if (result.status === 404) {
-      return NextResponse.json(
-        { error: result.missingField ? 'Facility resource not found.' : 'Facility not found.' },
-        { status: 404 }
-      );
+    if (!facilitySnap.exists) {
+      return NextResponse.json({ error: 'Facility not found.' }, { status: 404 });
     }
-    if (result.status === 403) {
+
+    const facility = facilitySnap.data() || {};
+    if (!isSuperAdmin && facility.clubId !== auth.uid) {
       return NextResponse.json(
         { error: 'Only the facility owner can delete this facility or its resources.' },
         { status: 403 }
       );
     }
-    if (result.status === 409) {
-      if (result.dependencies) {
-        return NextResponse.json(
-          {
-            error:
-              'This resource is still in use. Reassign or remove it from the linked schedules before deleting it.',
-            dependencies: result.dependencies,
-          },
-          { status: 409 }
-        );
-      }
-      if (result.invalidField || result.invalidOwner) {
-        return NextResponse.json(
-          {
-            error:
-              'This facility has invalid legacy data and cannot be deleted safely. No records were changed.',
-          },
-          { status: 409 }
-        );
-      }
+    const facilityOwnerId = cleanId(facility.clubId);
+    if (!facilityOwnerId) {
       return NextResponse.json(
         {
-          error: result.scanLimit
-            ? 'This facility has too many linked records to verify safely. No records were changed.'
-            : 'This facility contains too many resources to delete safely in one operation. No records were changed.',
+          error:
+            'This facility has invalid legacy data and cannot be deleted safely. No records were changed.',
         },
         { status: 409 }
       );
     }
 
+    const fieldsSnap = await facilityRef.collection('fields').get();
+    const allFields = fieldsSnap.docs.map(document => ({
+      id: document.id,
+      name: cleanName(document.data().name),
+      ref: document.ref,
+    }));
+
+    const targetField = fieldId
+      ? allFields.find(field => field.id === fieldId)
+      : undefined;
+    if (fieldId && !targetField) {
+      return NextResponse.json({ error: 'Facility resource not found.' }, { status: 404 });
+    }
+    if (targetField && !targetField.name) {
+      return NextResponse.json(
+        {
+          error:
+            'This facility has invalid legacy data and cannot be deleted safely. No records were changed.',
+        },
+        { status: 409 }
+      );
+    }
+
+    const context: FacilityDeletionContext = {
+      facilityId,
+      facilityName: cleanName(facility.name) || 'Facility',
+      fieldName: targetField?.name,
+      facilityFieldNames: targetField
+        ? undefined
+        : allFields.map(field => field.name).filter(Boolean),
+    };
+
+    // Scan only the facility owner's organization, matching the rename path.
+    // This avoids collection-group index failures while still detecting both
+    // current ID-based links and legacy display-name schedule references.
+    const [ownedTeams, schoolTeams, clubTeams, leaguesSnap] = await Promise.all([
+      adminDb.collection('teams').where('ownerUserId', '==', facilityOwnerId).get(),
+      adminDb.collection('teams').where('schoolAdminIds', 'array-contains', facilityOwnerId).get(),
+      adminDb.collection('teams').where('clubId', '==', facilityOwnerId).get(),
+      adminDb.collection('leagues').where('creatorId', '==', facilityOwnerId).get(),
+    ]);
+    const ownerTeams = new Map<string, any>();
+    [ownedTeams, schoolTeams, clubTeams].forEach(snapshot =>
+      addSnapshotDocs(ownerTeams, snapshot)
+    );
+    const eventSnapshots = await Promise.all(
+      [...ownerTeams.values()].map(teamDoc => teamDoc.ref.collection('events').get())
+    );
+    const eventDocs = new Map<string, any>();
+    eventSnapshots.forEach(snapshot => addSnapshotDocs(eventDocs, snapshot));
+    const leagueDocs = new Map<string, any>();
+    addSnapshotDocs(leagueDocs, leaguesSnap);
+
+    if (eventDocs.size + leagueDocs.size > MAX_SCANNED_RECORDS) {
+      return NextResponse.json(
+        {
+          error:
+            'This facility has too many linked records to verify safely. No records were changed.',
+        },
+        { status: 409 }
+      );
+    }
+
+    const linkedRecords: LinkedRecord[] = [];
+    eventDocs.forEach(document => {
+      const reasons = getFacilityReferenceReasons(document.data(), context);
+      if (reasons.length === 0) return;
+      linkedRecords.push({
+        path: document.ref.path,
+        type: 'event',
+        label: cleanName(document.data().title) || `Event ${document.id}`,
+        reasons,
+      });
+    });
+    leagueDocs.forEach(document => {
+      const reasons = getFacilityReferenceReasons(document.data(), context);
+      if (reasons.length === 0) return;
+      linkedRecords.push({
+        path: document.ref.path,
+        type: 'league',
+        label: cleanName(document.data().name) || `League ${document.id}`,
+        reasons,
+      });
+    });
+
+    if (linkedRecords.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'This resource is still in use. Reassign or remove it from the linked schedules before deleting it.',
+          dependencies: describeDependencies(linkedRecords),
+        },
+        { status: 409 }
+      );
+    }
+
+    if (allFields.length + 1 > MAX_DELETE_WRITES) {
+      return NextResponse.json(
+        {
+          error:
+            'This facility contains too many resources to delete safely in one operation. No records were changed.',
+        },
+        { status: 409 }
+      );
+    }
+
+    const batch = adminDb.batch();
+    if (targetField) {
+      batch.delete(targetField.ref);
+    } else {
+      allFields.forEach(field => batch.delete(field.ref));
+      batch.delete(facilityRef);
+    }
+    await batch.commit();
     return NextResponse.json({
       ok: true,
-      deleted: result.deleted,
-      deletedFields: result.deletedFields || 0,
+      deleted: targetField ? 'field' : 'facility',
+      deletedFields: targetField ? 0 : allFields.length,
     });
   } catch (error: any) {
     console.error('[facilities/delete] Error:', error?.message || error);

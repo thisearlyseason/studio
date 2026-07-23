@@ -42,7 +42,8 @@ import {
   Mail,
   Users,
   Phone,
-  ArrowRight
+  ArrowRight,
+  PenTool
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -336,16 +337,25 @@ export default function RosterPage() {
         return y + 10;
       };
 
-      const drawField = (label: string, value: string, x: number, y: number, colWidth = 55) => {
+      const truncateToWidth = (value: string, maxWidth: number) => {
+        if (doc.getTextWidth(value) <= maxWidth) return value;
+        let shortened = value;
+        while (shortened.length > 1 && doc.getTextWidth(`${shortened}…`) > maxWidth) {
+          shortened = shortened.slice(0, -1);
+        }
+        return `${shortened}…`;
+      };
+
+      const drawField = (label: string, value: string, x: number, y: number, colWidth = 38) => {
         doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(150, 150, 150);
-        doc.text(label.toUpperCase(), x, y);
+        doc.text(truncateToWidth(label.toUpperCase(), colWidth), x, y);
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(20, 20, 20);
         const val = String(value || '—');
-        doc.text(val.length > 18 ? val.slice(0, 17) + '…' : val, x, y + 6);
+        doc.text(truncateToWidth(val, colWidth), x, y + 6);
       };
 
       // ── HEADER ─────────────────────────────────────────────
@@ -371,23 +381,23 @@ export default function RosterPage() {
       let y = startY + 24;
       y = sectionHeader('Identity & Academic', y);
       drawField('Graduation Year', String(profile.graduationYear || metrics.graduationYear || selectedMember.gradYear || '—'), 20, y);
-      drawField('GPA', String(profile.academicGPA || metrics.academicGPA || selectedMember.gpa || '—'), 75, y);
-      drawField('Intended Major', profile.intendedMajor || '—', 130, y);
-      drawField('Recruit Status', (profile.status || 'Active').toUpperCase(), 185, y);
+      drawField('GPA', String(profile.academicGPA || metrics.academicGPA || selectedMember.gpa || '—'), 65, y);
+      drawField('Intended Major', profile.intendedMajor || '—', 110, y);
+      drawField('Recruit Status', (profile.status || 'Active').toUpperCase(), 155, y);
       y += 18;
       drawField('School', profile.school || metrics.school || '—', 20, y);
-      drawField('Hometown', profile.hometown || '—', 75, y);
-      drawField('Height', metrics.height || '—', 130, y);
-      drawField('Weight', metrics.weight || '—', 185, y);
+      drawField('Hometown', profile.hometown || '—', 65, y);
+      drawField('Height', metrics.height || '—', 110, y);
+      drawField('Weight', metrics.weight || '—', 155, y);
       y += 18;
 
       // ── CONTACT ────────────────────────────────────────────
       if (contact.email || contact.phone || contact.coachName) {
         y = checkPageBreak(y);
         y = sectionHeader('Recruiting Contact', y);
-        if (contact.coachName) { drawField('Coaching Contact', contact.coachName, 20, y); }
-        if (contact.email) { drawField('Email', contact.email, 75, y); }
-        if (contact.phone) { drawField('Phone', contact.phone, 150, y); }
+        if (contact.coachName) { drawField('Coaching Contact', contact.coachName, 20, y, 52); }
+        if (contact.email) { drawField('Email', contact.email, 80, y, 58); }
+        if (contact.phone) { drawField('Phone', contact.phone, 146, y, 44); }
         y += 18;
       }
 
@@ -419,7 +429,7 @@ export default function RosterPage() {
           const col = i % 4;
           const row = Math.floor(i / 4);
           if (col === 0 && i > 0) y += 16;
-          drawField(label as string, String(val), 20 + col * 47, y);
+          drawField(label as string, String(val), 20 + col * 45, y, 38);
         });
         y += 24;
       }
@@ -462,7 +472,10 @@ export default function RosterPage() {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(8);
           doc.setTextColor(80, 80, 80);
-          doc.text(`${ev.coachName || 'Staff'} — Overall: ${ev.overall || '—'}/10  ·  Athleticism: ${ev.athleticism || '—'}  ·  Skill: ${ev.skillLevel || '—'}  ·  Coachability: ${ev.coachability || '—'}`, 20, y);
+          const evaluationHeading = `${ev.coachName || 'Staff'} — Overall: ${ev.overall || '—'}/10  ·  Athleticism: ${ev.athleticism || '—'}  ·  Skill: ${ev.skillLevel || '—'}  ·  Coachability: ${ev.coachability || '—'}`;
+          const evaluationHeadingLines = doc.splitTextToSize(evaluationHeading, pageWidth - 40);
+          doc.text(evaluationHeadingLines, 20, y);
+          y += Math.max(0, evaluationHeadingLines.length - 1) * 4;
           if (ev.notes) {
             y += 5;
             doc.setFont("helvetica", "normal");
@@ -486,15 +499,17 @@ export default function RosterPage() {
           doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(120, 80, 255);
           doc.text('SKILLS:', 20, y);
           doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(20, 20, 20);
-          doc.text(skills.join('  ·  '), 44, y);
-          y += 8;
+          const skillLines = doc.splitTextToSize(skills.join('  ·  '), pageWidth - 68);
+          doc.text(skillLines, 44, y);
+          y += Math.max(8, skillLines.length * 4.5);
         }
         if (achievements.length > 0) {
           doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(200, 140, 0);
           doc.text('AWARDS:', 20, y);
           doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(20, 20, 20);
-          doc.text(achievements.join('  ·  '), 44, y);
-          y += 8;
+          const achievementLines = doc.splitTextToSize(achievements.join('  ·  '), pageWidth - 68);
+          doc.text(achievementLines, 44, y);
+          y += Math.max(8, achievementLines.length * 4.5);
         }
         y += 4;
       }
@@ -513,9 +528,9 @@ export default function RosterPage() {
       y = checkPageBreak(y, 18);
       y = sectionHeader('Institutional Compliance', y);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(20, 20, 20);
-      doc.text(`Medical Clearance: ${selectedMember.medicalClearance ? 'VALID' : 'PENDING'}`, 20, y);
-      doc.text(`Waivers: ${signedDocIds.length > 0 ? `${signedDocIds.length} EXECUTED` : 'PENDING'}`, 100, y);
-      doc.text(`Fees: ${selectedMember.feesPaid ? 'PAID' : 'OUTSTANDING'}`, 170, y);
+      doc.text(truncateToWidth(`Medical: ${selectedMember.medicalClearance ? 'VALID' : 'PENDING'}`, 52), 20, y);
+      doc.text(truncateToWidth(`Waivers: ${signedDocIds.length > 0 ? `${signedDocIds.length} EXECUTED` : 'PENDING'}`, 52), 80, y);
+      doc.text(truncateToWidth(`Fees: ${selectedMember.feesPaid ? 'PAID' : 'OUTSTANDING'}`, 45), 145, y);
 
       return y + 20;
     });
@@ -921,7 +936,16 @@ export default function RosterPage() {
                       
                       <div className="grid grid-cols-1 gap-3">
                         {isStaff && (
-                          <Button className="w-full h-11 rounded-xl bg-white text-black font-black uppercase text-[10px] shadow-xl hover:bg-white/90" onClick={handleExportPortfolio}>Generate Scouting Pack</Button>
+                          <>
+                            <Button
+                              className="w-full h-11 rounded-xl bg-primary text-white font-black uppercase text-[10px] shadow-xl hover:bg-primary/90"
+                              onClick={() => router.push(`/coaches-corner?athlete=${encodeURIComponent(selectedMember.id)}`)}
+                            >
+                              <PenTool className="h-4 w-4 mr-2" />
+                              Edit in Coaches Corner
+                            </Button>
+                            <Button className="w-full h-11 rounded-xl bg-white text-black font-black uppercase text-[10px] shadow-xl hover:bg-white/90" onClick={handleExportPortfolio}>Generate Scouting Pack</Button>
+                          </>
                         )}
                         
                         {activeTeam?.role === 'Admin' && (

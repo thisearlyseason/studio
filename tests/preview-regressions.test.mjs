@@ -26,6 +26,15 @@ test('facility management remains owner-scoped for super admins', async () => {
   );
 });
 
+test('unused facility deletion scans owner schedules without collection-group indexes', async () => {
+  const source = await readSource('../src/app/api/facilities/delete/route.ts');
+
+  assert.match(source, /where\('ownerUserId', '==', facilityOwnerId\)/);
+  assert.match(source, /teamDoc\.ref\.collection\('events'\)\.get\(\)/);
+  assert.match(source, /const batch = adminDb\.batch\(\)/);
+  assert.doesNotMatch(source, /collectionGroup\('events'\)/);
+});
+
 test('squad recruitment links never redirect into league registration', async () => {
   const roster = await readSource('../src/app/(dashboard)/roster/page.tsx');
   const team = await readSource('../src/app/(dashboard)/team/page.tsx');

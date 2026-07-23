@@ -43,10 +43,45 @@ test('coach parent-access toggles are prominent in the tactical chat hub', () =>
   assert.match(chatPage, /Currently Off/);
 });
 
-test('institution switcher headers do not repeat the active sub-squad', () => {
+test('institution switcher headers show a squad only outside the club or school hub', () => {
   const shell = read('../src/components/layout/Shell.tsx');
 
-  assert.match(shell, /Keep the collapsed header organization-focused/);
-  assert.match(shell, /Elite Team and Elite League owners see only/);
-  assert.doesNotMatch(shell, /↳ \{activeTeam\?\.name \|\| 'Squad'\}/);
+  assert.match(shell, /!isSchoolInstitutionMode && activeTeam/);
+  assert.match(shell, /!isEliteHubMode && activeTeam/);
+  assert.match(shell, /↳ \{activeTeam\.name\}/);
+});
+
+test('volunteer contribution awards are server-authorized, atomic, and use configured points', () => {
+  const page = read('../src/app/(dashboard)/volunteers/page.tsx');
+  const provider = read('../src/components/providers/team-provider.tsx');
+  const route = read('../src/app/api/teams/volunteers/verify/route.ts');
+
+  assert.match(provider, /fetch\('\/api\/teams\/volunteers\/verify'/);
+  assert.match(route, /getTeamAuthority/);
+  assert.match(route, /runTransaction/);
+  assert.match(route, /FieldValue\.increment\(points\)/);
+  assert.match(route, /Number\(opportunity\.points\)/);
+  assert.match(page, /signup\.verifiedPoints \?\? opportunity\.points/);
+  assert.match(page, /contributionTotals/);
+  assert.doesNotMatch(page, /verifyVolunteerPoints\(opp\.id, signup\.userId, 1\)/);
+});
+
+test('coaches corner navigation and roster profile shortcut remain stable', () => {
+  const coachesCorner = read('../src/app/(dashboard)/coaches-corner/page.tsx');
+  const roster = read('../src/app/(dashboard)/roster/page.tsx');
+
+  assert.match(coachesCorner, /xl:grid-cols-5/);
+  assert.match(coachesCorner, /searchParams\.get\('athlete'\)/);
+  assert.match(roster, /Edit in Coaches Corner/);
+  assert.match(roster, /\/coaches-corner\?athlete=/);
+});
+
+test('scouting pack content is constrained to printable page width', () => {
+  const roster = read('../src/app/(dashboard)/roster/page.tsx');
+  const pdf = read('../src/lib/pdf-utils.ts');
+
+  assert.match(pdf, /fitText\(fullTitle, pageWidth - 102/);
+  assert.match(roster, /truncateToWidth/);
+  assert.match(roster, /splitTextToSize\(evaluationHeading/);
+  assert.doesNotMatch(roster, /drawField\('Recruit Status'.*, 185, y\)/);
 });

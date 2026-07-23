@@ -400,7 +400,9 @@ function AuthorizedFacilityManagementPage() {
       });
     } catch (error: any) {
       toast({
-        title: 'Facility Still In Use',
+        title: error.message?.toLowerCase().includes('still in use')
+          ? 'Facility Still In Use'
+          : 'Facility Deletion Failed',
         description: error.message || 'Could not safely delete this facility.',
         variant: 'destructive',
       });

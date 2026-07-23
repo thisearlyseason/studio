@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { loadFFmpeg, trimVideoClip, mergeVideoClips, captureVideoFrame, processHighlightClip, extractFramesForAnalysis } from '@/lib/ffmpeg-processor';
 import { useTeam, TeamDocument, Member, PlayerProfile, RecruitingProfile, AthleticMetrics, PlayerStat, PlayerEvaluation, RecruitingContact, PlayerVideo, VideoComment, TeamIncident, TeamEvent } from '@/components/providers/team-provider';
 import { EmailExportDialog } from '@/components/team/EmailExportDialog';
@@ -545,6 +545,7 @@ function VolunteerOpportunityManager() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any>(null);
   const [managingOpp, setManagingOpp] = useState<any>(null);
+  const [verifyingSignupKey, setVerifyingSignupKey] = useState<string | null>(null);
   
   const vRef = useMemoFirebase(() => db && activeTeam?.id ? query(collection(db, 'teams', activeTeam.id, 'volunteers'), orderBy('date', 'desc')) : null, [db, activeTeam?.id]);
   const { data: opportunities, isLoading } = useCollection(vRef);
@@ -780,8 +781,10 @@ function VolunteerOpportunityManager() {
               </div>
 
               <div className="space-y-3">
-                {Object.values(managingOpp?.signups || {}).map((s: any) => (
-                  <div key={s.userId} className="bg-white rounded-3xl p-5 border-2 border-black/5 flex items-center justify-between shadow-sm group hover:border-primary/20 transition-all">
+                {Object.entries(managingOpp?.signups || {}).map(([signupKey, rawSignup]) => {
+                  const s = rawSignup as any;
+                  return (
+                  <div key={signupKey} className="bg-white rounded-3xl p-5 border-2 border-black/5 flex items-center justify-between shadow-sm group hover:border-primary/20 transition-all">
                     <div className="flex items-center gap-4">
                       <div className={cn("h-10 w-10 rounded-2xl flex items-center justify-center shadow-inner", s.status === 'verified' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground/40")}>
                         {s.status === 'verified' ? <Check className="h-5 w-5" strokeWidth={3} /> : <Users className="h-5 w-5" />}
@@ -796,28 +799,40 @@ function VolunteerOpportunityManager() {
                     <div className="flex items-center gap-2">
                       {s.status !== 'verified' ? (
                         <Button onClick={async () => {
-                          await verifyVolunteerPoints(managingOpp.id, s.userId, managingOpp.points);
-                          await createAlert(
-                            "Strategic Points Awarded",
-                            `Your contribution to "${managingOpp.title}" has been verified. ${managingOpp.points} points have been credited to your institutional record.`,
-                            s.userId as any
-                          );
-                          const updated = { ...managingOpp.signups, [s.userId]: { ...s, status: 'verified' } };
-                          setManagingOpp({ ...managingOpp, signups: updated });
-                          toast({ title: "Mission Verified", description: `Intelligence confirmed. Points awarded to ${s.userName}.` });
-                        }} className="h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/20">Verify & Award</Button>
+                          setVerifyingSignupKey(signupKey);
+                          try {
+                            await verifyVolunteerPoints(managingOpp.id, s.userId, managingOpp.points);
+                            if (!String(s.userId).startsWith('public_')) {
+                              await createAlert(
+                                "Strategic Points Awarded",
+                                `Your contribution to "${managingOpp.title}" has been verified. ${managingOpp.points} points have been credited to your institutional record.`,
+                                s.userId as any
+                              ).catch(() => undefined);
+                            }
+                            const updated = { ...managingOpp.signups, [signupKey]: { ...s, status: 'verified', verifiedPoints: managingOpp.points } };
+                            setManagingOpp({ ...managingOpp, signups: updated });
+                            toast({ title: "Mission Verified", description: `Intelligence confirmed. Points awarded to ${s.userName}.` });
+                          } catch (error: any) {
+                            toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
+                          } finally {
+                            setVerifyingSignupKey(null);
+                          }
+                        }} disabled={verifyingSignupKey === signupKey} className="h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/20">
+                          {verifyingSignupKey === signupKey ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify & Award'}
+                        </Button>
                       ) : (
                          <div className="h-10 flex items-center px-4 rounded-xl border-2 border-green-100 text-green-600 font-black text-[10px] uppercase tracking-widest bg-green-50/50">Completed</div>
                       )}
                       <Button variant="ghost" size="icon" onClick={async () => {
-                        const { [s.userId]: _, ...rest } = managingOpp.signups;
+                        const { [signupKey]: _, ...rest } = managingOpp.signups;
                         await updateVolunteerOpportunity(managingOpp.id, { signups: rest });
                         setManagingOpp({ ...managingOpp, signups: rest });
                         toast({ title: "Personnel Relieved", description: "Member removed from mission registry." });
                       }} className="h-10 w-10 rounded-xl text-red-600 hover:bg-red-50"><X className="h-4 w-4" /></Button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {Object.values(managingOpp?.signups || {}).length === 0 && (
                   <div className="py-12 bg-white rounded-[2.5rem] border-2 border-dashed border-black/5 text-center flex flex-col items-center justify-center space-y-4">
                     <div className="bg-muted p-4 rounded-2xl opacity-20"><Users className="h-8 w-8" /></div>
@@ -4342,6 +4357,7 @@ function StaffEvalPanel({
 
 export default function CoachesCornerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { activeTeam, isStaff, isPro, isStarter, createTeamDocument, updateTeamDocument, deleteTeamDocument, db, members, createAlert, isSchoolMode, user, teams, getLeagueMembers, updateMember, signGlobalWaiverAsCoach } = useTeam();
 
   const handleUpdateMemberField = async (memberId: string, field: string, value: any) => {
@@ -4435,6 +4451,13 @@ export default function CoachesCornerPage() {
   const customProtocols = useMemo(() => allDocuments?.filter(d => !defaultDocIds.includes(d.id) && d.type === 'waiver' && !d.isClubMaster) || [], [allDocuments, defaultDocIds]);
 
   const selectedMember = useMemo(() => members.find(m => m.id === selectedMemberId), [members, selectedMemberId]);
+
+  useEffect(() => {
+    const athleteId = searchParams.get('athlete');
+    if (!athleteId || !members.some(member => member.id === athleteId)) return;
+    setActiveTab('recruiting');
+    setSelectedMemberId(athleteId);
+  }, [members, searchParams]);
 
   const vRef = useMemoFirebase(() => db && activeTeam?.id ? query(collection(db, 'teams', activeTeam.id, 'volunteers'), orderBy('date', 'desc')) : null, [db, activeTeam?.id]);
   const { data: volunteerOpps } = useCollection(vRef);
@@ -4560,24 +4583,24 @@ export default function CoachesCornerPage() {
             </Badge>
           </div>
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
-          <TabsList className="mb-0 flex-wrap h-auto bg-white p-2 rounded-2xl shadow-sm border border-black/5 gap-2 w-full flex-row justify-start">
-            <TabsTrigger value="recruiting" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Talent Center</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full xl:max-w-5xl">
+          <TabsList className="mb-0 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 h-auto bg-white p-2 rounded-2xl shadow-sm border border-black/5 gap-2 w-full">
+            <TabsTrigger value="recruiting" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Talent Center</TabsTrigger>
             {isSchoolMode && (
-              <TabsTrigger value="coaches" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Coaches</TabsTrigger>
+              <TabsTrigger value="coaches" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Coaches</TabsTrigger>
             )}
-            <TabsTrigger value="tracking" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Tracking</TabsTrigger>
-            <TabsTrigger value="volunteers" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Volunteers</TabsTrigger>
-            <TabsTrigger value="compliance" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white relative">
+            <TabsTrigger value="tracking" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Tracking</TabsTrigger>
+            <TabsTrigger value="volunteers" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Volunteers</TabsTrigger>
+            <TabsTrigger value="compliance" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white relative">
               Legal Docs
               {unsignedGlobalWaivers.length > 0 && (
                 <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 border-2 border-background" />
               )}
             </TabsTrigger>
-            <TabsTrigger value="archives" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Waiver Library</TabsTrigger>
-            <TabsTrigger value="fundraising" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Fundraising</TabsTrigger>
-            {isPro && <TabsTrigger value="finances" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Finances</TabsTrigger>}
-            <TabsTrigger value="safety" className="rounded-lg font-black text-[10px] uppercase px-6 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Safety Hub</TabsTrigger>
+            <TabsTrigger value="archives" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Waiver Library</TabsTrigger>
+            <TabsTrigger value="fundraising" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Fundraising</TabsTrigger>
+            {isPro && <TabsTrigger value="finances" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Finances</TabsTrigger>}
+            <TabsTrigger value="safety" className="w-full rounded-lg font-black text-[10px] uppercase px-3 h-10 data-[state=active]:bg-primary data-[state=active]:text-white">Safety Hub</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

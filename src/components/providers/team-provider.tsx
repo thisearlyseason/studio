@@ -2443,23 +2443,23 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const deleteVolunteerOpportunity = useCallback(async (oppId: string) => { if (activeTeam?.id && db) await deleteDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId)); }, [activeTeam, db]);
   const publicSignUpForVolunteer = useCallback(async (teamId: string, oppId: string, data: any) => { if (db) await updateDoc(doc(db, 'teams', teamId, 'volunteers', oppId), { [`signups.${data.name.replace(/\s+/g, '')}_${Date.now()}`]: { userId: `public_${Date.now()}`, userName: data.name, email: data.email, phone: data.phone, isConfirmed: false, status: 'pending', createdAt: new Date().toISOString() } }); }, [db]);
   const signUpForVolunteer = useCallback(async (oppId: string) => { if (activeTeam?.id && firebaseUser && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), { [`signups.${firebaseUser.uid}`]: { userId: firebaseUser.uid, userName: userProfile?.name, email: firebaseUser.email, isConfirmed: false, status: 'pending', createdAt: new Date().toISOString() } }); }, [activeTeam, firebaseUser, db, userProfile]);
-  const verifyVolunteerPoints = useCallback(async (oppId: string, userId: string, points: number) => { 
-    if (activeTeam?.id && db) {
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), { 
-        [`signups.${userId}.status`]: 'verified', 
-        [`signups.${userId}.verifiedPoints`]: points 
-      });
-      
-      // Also update the member document if it exists for persistent point tracking
-      const memberQuery = query(collection(db, 'teams', activeTeam.id, 'members'), where('userId', '==', userId), limit(1));
-      const memberSnap = await getDocs(memberQuery);
-      if (!memberSnap.empty) {
-        await updateDoc(doc(db, 'teams', activeTeam.id, 'members', memberSnap.docs[0].id), {
-          volunteerPoints: increment(points)
-        });
-      }
-    }
-  }, [activeTeam, db]);
+  const verifyVolunteerPoints = useCallback(async (oppId: string, userId: string, _points: number) => {
+    void _points; // The server derives the authoritative award from the opportunity.
+    if (!activeTeam?.id || !firebaseAuth) return;
+    const idToken = await getAuthToken(firebaseAuth);
+    if (!idToken) throw new Error('Your session has expired. Please sign in again.');
+    const response = await fetch('/api/teams/volunteers/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
+      body: JSON.stringify({
+        teamId: activeTeam.id,
+        opportunityId: oppId,
+        contributorId: userId,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Unable to verify contribution points.');
+  }, [activeTeam?.id, firebaseAuth]);
   const confirmVolunteerAttendance = useCallback(async (oppId: string, userId: string, confirmed: boolean) => { if (activeTeam?.id && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), { [`signups.${userId}.isConfirmed`]: confirmed }); }, [activeTeam, db]);
 
   const addFundraisingOpportunity = useCallback(async (data: any) => { if (activeTeam?.id && db) await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...data, currentAmount: 0, finances: {} })); }, [activeTeam, db]);
