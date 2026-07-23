@@ -38,6 +38,9 @@ export default function PublicDonationPortalPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [donorName, setDonorName] = useState('');
+  const [donorEmail, setDonorEmail] = useState('');
+  const [donorPhone, setDonorPhone] = useState('');
+  const [relationship, setRelationship] = useState('');
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<'external' | 'etransfer'>('external');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,7 +86,7 @@ export default function PublicDonationPortalPage() {
 
   const handleDonate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!donorName || !amount || isSubmitting || !fund) return;
+    if (!donorName || !donorEmail || !donorPhone || !relationship || !amount || isSubmitting || !fund) return;
 
     setIsSubmitting(true);
     try {
@@ -100,6 +103,9 @@ export default function PublicDonationPortalPage() {
           },
           body: JSON.stringify({
             donorName,
+            donorEmail,
+            donorPhone,
+            relationship,
             amount: Number(amount),
             method,
           }),
@@ -245,6 +251,32 @@ export default function PublicDonationPortalPage() {
                     className="h-14 rounded-2xl border-2 font-black text-2xl text-primary focus:border-primary/20 transition-all"
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Email Address</Label>
+                  <Input required type="email" value={donorEmail} onChange={e => setDonorEmail(e.target.value)} className="h-14 rounded-2xl border-2 font-bold" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Phone Number</Label>
+                  <Input required type="tel" value={donorPhone} onChange={e => setDonorPhone(e.target.value)} className="h-14 rounded-2xl border-2 font-bold" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Your Connection</Label>
+                <RadioGroup value={relationship} onValueChange={setRelationship} className="grid grid-cols-2 gap-3">
+                  {[
+                    ['parent', 'Parent'],
+                    ['family_member', 'Family Member'],
+                    ['friend', 'Friend'],
+                    ['other', 'Other'],
+                  ].map(([value, label]) => (
+                    <Label key={value} htmlFor={`donor-${value}`} className="flex items-center gap-3 rounded-xl border-2 p-4 cursor-pointer">
+                      <RadioGroupItem id={`donor-${value}`} value={value} />
+                      <span className="text-xs font-black uppercase">{label}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
               </div>
 
               <div className="space-y-4 pt-4 border-t">

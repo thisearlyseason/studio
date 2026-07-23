@@ -499,7 +499,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       if (tab.name === 'Library' && activeTeam?.features?.library === false) return false;
 
       // Feed is filtered by plan/feature
-      if (tab.name === 'Feed') return hasFeature?.('live_feed_read');
+      if (tab.name === 'Feed') return hasFeature?.('live_feed_read') && !(isParent && activeTeam?.parentFeedEnabled === false);
       // Roster: hide for school admins in institution mode (they use the School Hub instead)
       if (tab.name === 'Roster' && isSchoolMode && isPrimaryClubAuthority && activeTeam?.type === 'school') return false;
       // Fundraising: staff-only administrative module — players and parents cannot access it
@@ -549,7 +549,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             ? [{ name: 'Home', href: '/dashboard', icon: Home }]
             : []),
           { name: 'Schedule', href: '/events', icon: CalendarDays },
-          ...(activeTeam?.features?.feed !== false ? [{ name: 'Feed', href: '/feed', icon: LayoutDashboard, gate: () => hasFeature?.('live_feed_read') }] : []),
+          ...(activeTeam?.features?.feed !== false && !(isParent && activeTeam?.parentFeedEnabled === false) ? [{ name: 'Feed', href: '/feed', icon: LayoutDashboard, gate: () => hasFeature?.('live_feed_read') }] : []),
           ...(activeTeam?.features?.tacticalChat !== false ? [{ name: 'Tactical Chat', href: '/chats', icon: MessageCircle }] : []),
           { name: 'Hub', href: '/sports-hub', icon: BookOpen },
         ]

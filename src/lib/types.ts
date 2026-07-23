@@ -24,6 +24,7 @@ export interface Team {
   inviteCode?: string;
   parentCommentsEnabled?: boolean;
   parentChatEnabled?: boolean;
+  parentFeedEnabled?: boolean;
   description?: string;
   contactEmail?: string;
   contactPhone?: string;

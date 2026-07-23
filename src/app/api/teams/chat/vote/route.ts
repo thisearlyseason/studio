@@ -34,22 +34,31 @@ export async function POST(req: NextRequest) {
     if (rateLimit) return rateLimit;
 
     const teamRef = adminDb.collection('teams').doc(teamId);
-    const memberRef = teamRef.collection('members').doc(auth.uid);
-    const linkedMembersQuery = teamRef.collection('members').where('userId', '==', auth.uid).limit(10);
+    const chatRef = teamRef.collection('groupChats').doc(chatId);
+    const activeMembershipsQuery = adminDb.collectionGroup('members').where('userId', '==', auth.uid).limit(50);
     const messageRef = teamRef.collection('groupChats').doc(chatId).collection('messages').doc(messageId);
     await adminDb.runTransaction(async (transaction) => {
-      const [team, member, linkedMembers, message] = await Promise.all([
+      const [team, chat, activeMemberships, message] = await Promise.all([
         transaction.get(teamRef),
-        transaction.get(memberRef),
-        transaction.get(linkedMembersQuery),
+        transaction.get(chatRef),
+        transaction.get(activeMembershipsQuery),
         transaction.get(messageRef),
       ]);
-      const activeMembership = [member, ...linkedMembers.docs].some(candidate => {
-        if (!candidate.exists) return false;
-        const data = candidate.data() || {};
+      const chatMembers = Array.isArray(chat.data()?.memberIds) ? chat.data()?.memberIds : [];
+      const hasActiveMembership = activeMemberships.docs.some(member => {
+        const data = member.data();
         return data.status !== 'removed' && data.isDeleted !== true;
       });
-      if (!team.exists || (!activeMembership && team.data()?.ownerUserId !== auth.uid)) throw new Error('FORBIDDEN');
+      if (
+        !team.exists ||
+        !chat.exists ||
+        (
+          team.data()?.ownerUserId !== auth.uid &&
+          (!chatMembers.includes(auth.uid) || !hasActiveMembership)
+        )
+      ) {
+        throw new Error('FORBIDDEN');
+      }
       if (!message.exists) throw new Error('NOT_FOUND');
 
       const poll = message.data()?.poll;

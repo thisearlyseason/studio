@@ -10,6 +10,7 @@ import {
 const MAX_DONATION = 100_000;
 const MAX_NAME_LENGTH = 120;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+const RELATIONSHIPS = new Set(['parent', 'family_member', 'friend', 'other']);
 
 function cleanId(value: string | null): string | null {
   if (!value || !/^[A-Za-z0-9_-]{1,200}$/.test(value)) return null;
@@ -107,10 +108,21 @@ export async function POST(req: NextRequest) {
         : '';
     const amount = Number(body.amount);
     const method = body.method;
+    const donorEmail =
+      typeof body.donorEmail === 'string' ? body.donorEmail.trim().toLowerCase().slice(0, 254) : '';
+    const donorPhone =
+      typeof body.donorPhone === 'string' ? body.donorPhone.trim().slice(0, 40) : '';
+    const relationship = typeof body.relationship === 'string' ? body.relationship : '';
     const idempotencyKey = req.headers.get('idempotency-key') || '';
 
     if (donorName.length < 2) {
       return NextResponse.json({ error: 'Enter a valid donor name.' }, { status: 400 });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donorEmail) || donorPhone.length < 7) {
+      return NextResponse.json({ error: 'Enter a valid email address and phone number.' }, { status: 400 });
+    }
+    if (!RELATIONSHIPS.has(relationship)) {
+      return NextResponse.json({ error: 'Select how you are connected to the participant.' }, { status: 400 });
     }
     if (!Number.isFinite(amount) || amount < 0.01 || amount > MAX_DONATION) {
       return NextResponse.json(
@@ -137,6 +149,9 @@ export async function POST(req: NextRequest) {
       await donationRef.create({
         id: donationId,
         donorName,
+        donorEmail,
+        donorPhone,
+        relationship,
         amount: Math.round(amount * 100) / 100,
         method,
         status: 'pending',

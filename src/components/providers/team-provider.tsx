@@ -286,6 +286,7 @@ export type Team = {
   ownerUserId?: string;
   parentChatEnabled?: boolean;
   parentCommentsEnabled?: boolean;
+  parentFeedEnabled?: boolean;
   parentPostingEnabled?: boolean;
   contactEmail?: string;
   contactPhone?: string;
@@ -874,12 +875,12 @@ interface TeamContextType {
   deleteEvent: (id: string) => Promise<void>;
   updateRSVP: (eventId: string, status: string, teamId?: string, userId?: string) => Promise<void>;
   claimAssignment: (eventId: string, assignmentId: string) => Promise<boolean>;
-  addMessage: (chatId: string, author: string, content: string, type: string, img?: string, poll?: any) => Promise<void>;
+  addMessage: (chatId: string, author: string, content: string, type: string, img?: string, poll?: any, teamId?: string) => Promise<void>;
   deleteMessage: (chatId: string, messageId: string) => Promise<void>;
-  createChat: (name: string, members: string[]) => Promise<string>;
+  createChat: (name: string, members: string[], contextId?: string) => Promise<string>;
   deleteChat: (chatId: string) => Promise<void>;
   hideChatForUser: (chatId: string) => Promise<void>;
-  votePoll: (chatId: string, messageId: string, optionIdx: number) => Promise<void>;
+  votePoll: (chatId: string, messageId: string, optionIdx: number, teamId?: string) => Promise<void>;
   updateChat: (chatId: string, data: any) => Promise<void>;
   resetSquadData: (categories: string[]) => Promise<void>;
   addVolunteerOpportunity: (data: any) => Promise<void>;
@@ -2378,38 +2379,56 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     return true;
   }, [db, activeTeam, firebaseUser, userProfile]);
 
-  const addMessage = useCallback(async (chatId: string, author: string, content: string, type: string, img?: string, poll?: any) => { 
-    if (activeTeam?.id && firebaseUser && db) {
-      await addDoc(collection(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages'), {
-        author,
-        authorId: firebaseUser.uid,
-        content,
-        type,
-        imageUrl: img || null,
-        poll: poll || null,
-        createdAt: new Date().toISOString()
-      });
-    }
-  }, [activeTeam, firebaseUser, db]);
+  const addMessage = useCallback(async (chatId: string, author: string, content: string, type: string, img?: string, poll?: any, teamId?: string) => {
+    const targetTeamId = teamId || activeTeam?.id;
+    if (!targetTeamId || !firebaseAuth) return;
+    const token = await getAuthToken(firebaseAuth);
+    if (!token) throw new Error('Your session has expired. Sign in again.');
+    const response = await fetch('/api/teams/chat/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ teamId: targetTeamId, chatId, author, content, type, imageUrl: img || null, poll: poll || null }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Unable to send this tactical message.');
+  }, [activeTeam, firebaseAuth]);
 
   const deleteMessage = useCallback(async (chatId: string, messageId: string) => { 
     if (activeTeam?.id && db) {
       await deleteDoc(doc(db, 'teams', activeTeam.id, 'groupChats', chatId, 'messages', messageId));
     }
   }, [activeTeam, db]);
-  const createChat = useCallback(async (name: string, members: string[]) => { if (!activeTeam?.id || !firebaseUser || !db) return ''; const cid = `chat_${Date.now()}`; await setDoc(doc(db, 'teams', activeTeam.id, 'groupChats', cid), clean({ id: cid, name, createdBy: firebaseUser.uid, memberIds: [...members, firebaseUser.uid], createdAt: new Date().toISOString(), isDeleted: false, teamId: activeTeam.id })); return cid; }, [activeTeam, firebaseUser, db]);
+  const createChat = useCallback(async (name: string, members: string[], contextId?: string) => {
+    if (!activeTeam?.id || !firebaseAuth) return '';
+    const token = await getAuthToken(firebaseAuth);
+    if (!token) throw new Error('Your session has expired. Sign in again.');
+    const response = await fetch('/api/teams/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({
+        teamId: activeTeam.id,
+        contextId: contextId || `team:${activeTeam.id}`,
+        name,
+        memberIds: members,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Unable to create this tactical chat.');
+    return payload.chatId as string;
+  }, [activeTeam, firebaseAuth]);
   const deleteChat = useCallback(async (chatId: string) => { if (activeTeam?.id && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'groupChats', chatId), { isDeleted: true }); }, [activeTeam, db]);
   const hideChatForUser = useCallback(async (chatId: string) => { if (!firebaseUser || !db) return; await setDoc(doc(db, 'users', firebaseUser.uid, 'hiddenChats', chatId), { id: `${firebaseUser.uid}_${chatId}`, userId: firebaseUser.uid, chatId, hiddenAt: new Date().toISOString() }); }, [firebaseUser, db]);
   
-  const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number) => { 
-    if (!activeTeam?.id || !firebaseAuth) return;
+  const votePoll = useCallback(async (chatId: string, messageId: string, optionIdx: number, teamId?: string) => {
+    const targetTeamId = teamId || activeTeam?.id;
+    if (!targetTeamId || !firebaseAuth) return;
     try {
       const idToken = await getAuthToken(firebaseAuth);
       if (!idToken) throw new Error('Your session has expired.');
       const response = await fetch('/api/teams/chat/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader(idToken) },
-        body: JSON.stringify({ teamId: activeTeam.id, chatId, messageId, optionIdx }),
+        body: JSON.stringify({ teamId: targetTeamId, chatId, messageId, optionIdx }),
       });
       if (!response.ok) throw new Error((await response.json()).error || 'Unable to record your vote.');
     } catch (error: any) {

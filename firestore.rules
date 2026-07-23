@@ -214,18 +214,34 @@ service cloud.firestore {
       // Members may send messages only under their own identity. Channel
       // membership and moderation remain owner-controlled.
       match /groupChats/{chatId} {
-        allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
+        allow read: if isSuperAdmin() || (isSignedIn() && (
+          isTeamOwner(teamId) ||
+          resource.data.get('memberIds', []).hasAny([request.auth.uid])
+        ));
         allow create, update, delete: if isSuperAdmin() || (isSignedIn() && isTeamOwner(teamId));
 
         match /messages/{messageId} {
-          allow read: if isSuperAdmin() || (isSignedIn() && (isTeamOwner(teamId) || isTeamMember(teamId)));
-          allow create: if isSuperAdmin() || (isSignedIn() && isTeamMember(teamId) &&
-            request.resource.data.authorId == request.auth.uid);
+          allow read: if isSuperAdmin() || (isSignedIn() && (
+            isTeamOwner(teamId) ||
+            get(/databases/$(database)/documents/teams/$(teamId)/groupChats/$(chatId))
+              .data.get('memberIds', []).hasAny([request.auth.uid])
+          ));
+          // New messages are validated by the authenticated server route so
+          // removed members and cross-team recipients are checked authoritatively.
+          allow create: if false;
           allow update: if isSuperAdmin() || (isSignedIn() &&
+            get(/databases/$(database)/documents/teams/$(teamId)/groupChats/$(chatId))
+              .data.get('memberIds', []).hasAny([request.auth.uid]) &&
             resource.data.authorId == request.auth.uid &&
             request.resource.data.authorId == resource.data.authorId);
           allow delete: if isSuperAdmin() || (isSignedIn() && (
-            isTeamOwner(teamId) || resource.data.authorId == request.auth.uid));
+            isTeamOwner(teamId) ||
+            (
+              get(/databases/$(database)/documents/teams/$(teamId)/groupChats/$(chatId))
+                .data.get('memberIds', []).hasAny([request.auth.uid]) &&
+              resource.data.authorId == request.auth.uid
+            )
+          ));
         }
       }
 
