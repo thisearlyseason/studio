@@ -42,3 +42,11 @@ test('coach parent-access toggles are prominent in the tactical chat hub', () =>
   assert.match(chatPage, /Currently On/);
   assert.match(chatPage, /Currently Off/);
 });
+
+test('institution switcher headers do not repeat the active sub-squad', () => {
+  const shell = read('../src/components/layout/Shell.tsx');
+
+  assert.match(shell, /Keep the collapsed header organization-focused/);
+  assert.match(shell, /Elite Team and Elite League owners see only/);
+  assert.doesNotMatch(shell, /↳ \{activeTeam\?\.name \|\| 'Squad'\}/);
+});

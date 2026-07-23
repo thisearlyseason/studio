@@ -723,39 +723,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         </Avatar>
                         <div className="flex flex-col min-w-0">
                           {isSchoolMode && isPrimaryClubAuthority ? (
-                            <>
-                              {/* Always show school name as the top line */}
-                              <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
-                                {user?.schoolName || user?.clubName || 'School Hub'}
-                              </span>
-                              {activeTeam?.type === 'school' ? (
-                                /* Institution is active — prompt to pick a squad */
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate flex items-center gap-1">
-                                  Select a Squad
-                                </span>
-                              ) : (
-                                /* A specific squad is active */
-                                <span className="text-[9px] font-bold text-primary uppercase tracking-widest truncate">
-                                  ↳ {activeTeam?.name || 'Squad'}
-                                </span>
-                              )}
-                            </>
+                            /* Keep the collapsed header organization-focused.
+                               The selected squad remains visible inside the menu. */
+                            <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
+                              {user?.schoolName || user?.clubName || 'School Hub'}
+                            </span>
                           ) : isEliteClubMode ? (
-                            <>
-                              {/* Elite Club Organizer identity */}
-                              <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
-                                {user?.clubName || user?.schoolName || 'Elite Club'}
-                              </span>
-                              {isEliteHubMode ? (
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate">
-                                  Select a Squad
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-bold text-primary uppercase tracking-widest truncate">
-                                  ↳ {activeTeam?.name || 'Squad'}
-                                </span>
-                              )}
-                            </>
+                            /* Elite Team and Elite League owners see only the
+                               organization identity in the collapsed header. */
+                            <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
+                              {user?.clubName || user?.schoolName || 'Elite Club'}
+                            </span>
                           ) : (
                             <span className="font-black text-sm truncate uppercase tracking-tight text-foreground">
                               {activeTeam?.name || 'Select Squad'}
