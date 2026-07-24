@@ -31,6 +31,10 @@ test('audience pages use audience-specific features and preserve the original ho
   assert.match(data, /Multi-program oversight/);
   assert.match(component, /landing\.features\.map/);
   assert.match(component, /Canadian-built sports operations platform/);
+  assert.match(component, /images\/campaigns\/\$\{landing\.slug\}-hero\.webp/);
+  for (const audience of ['parents', 'coaches', 'leagues', 'tournaments', 'schools', 'municipalities']) {
+    assert.equal(fs.existsSync(new URL(`../public/images/campaigns/${audience}-hero.webp`, import.meta.url)), true);
+  }
   assert.match(homepage, /export default function LandingPage/);
 });
 

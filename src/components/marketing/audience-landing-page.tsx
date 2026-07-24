@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -84,7 +85,33 @@ export function AudienceLandingPage({ landing }: { landing: AudienceLanding }) {
 
           <div className="relative mx-auto w-full max-w-xl">
             <div className="absolute -inset-5 rotate-3 rounded-[44px] border border-primary/40 bg-primary/10" />
-            <div className="relative overflow-hidden rounded-[38px] border border-white/15 bg-white p-5 text-black shadow-[0_35px_90px_rgba(0,0,0,.55)] sm:p-8">
+            <div
+              data-testid="campaign-hero-photo"
+              className="relative aspect-[16/10] overflow-hidden rounded-[38px] border border-white/15 bg-zinc-900 shadow-[0_35px_90px_rgba(0,0,0,.55)]"
+            >
+              <Image
+                src={`/images/campaigns/${landing.slug}-hero.webp`}
+                alt={`${landing.audience} using a coordinated community sports environment`}
+                fill
+                priority
+                sizes="(max-width: 1024px) 92vw, 560px"
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/5 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6 text-white sm:p-8">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.28em] text-primary">Built for your side of sport</p>
+                  <p className="mt-2 max-w-sm text-xl font-black uppercase leading-tight tracking-tight sm:text-2xl">{landing.audience}</p>
+                </div>
+                <span className="hidden rounded-full border border-white/25 bg-black/35 px-4 py-2 text-[8px] font-black uppercase tracking-[0.2em] backdrop-blur sm:block">
+                  Canadian sport
+                </span>
+              </div>
+            </div>
+            <div
+              data-testid="campaign-operating-card"
+              className="relative z-10 mx-3 mt-5 overflow-hidden rounded-[32px] border border-black/10 bg-white p-5 text-black shadow-[0_28px_70px_rgba(0,0,0,.5)] sm:mx-5 sm:mt-6 sm:p-7"
+            >
               <div className="flex items-center justify-between border-b border-black/10 pb-5">
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-[0.26em] text-primary">Live operating view</p>
