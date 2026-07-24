@@ -521,13 +521,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return true;
   });
 
-  // School admin in institution mode: only the squad-selector is shown.
-  // This covers: (a) when the explicit school hub record is active, or (b) when no squad has been chosen yet.
-  const isSchoolInstitutionMode = isSchoolMode && isPrimaryClubAuthority && (!activeTeam || activeTeam?.type === 'school');
+  // The institution hub is a route-level context. A previously selected squad can
+  // remain active for later navigation, but it must not appear selected on the hub.
+  const isInstitutionHubRoute = pathname === '/club';
 
-  // Elite Club Organizer in hub mode: nav is hidden only when NO squad is selected (organizer is on the Club Hub).
-  // When a sub-squad is selected, full navigation is shown for that squad.
-  const isEliteHubMode = isEliteClubMode && !activeTeam;
+  // School admin in institution mode: show only the institution identity.
+  const isSchoolInstitutionMode = isSchoolMode && isPrimaryClubAuthority
+    && (isInstitutionHubRoute || !activeTeam || activeTeam?.type === 'school');
+
+  // Club organizers likewise see only the club identity while on the Club Hub.
+  const isEliteHubMode = isEliteClubMode && (isInstitutionHubRoute || !activeTeam);
 
   // Institution authority: based purely on account type, never on which squad is currently active.
   // Used in the More menu so the hub link + squad switcher ALWAYS appear for these users.

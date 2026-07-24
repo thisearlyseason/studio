@@ -46,6 +46,9 @@ test('coach parent-access toggles are prominent in the tactical chat hub', () =>
 test('institution switcher headers show a squad only outside the club or school hub', () => {
   const shell = read('../src/components/layout/Shell.tsx');
 
+  assert.match(shell, /const isInstitutionHubRoute = pathname === '\/club'/);
+  assert.match(shell, /isInstitutionHubRoute \|\| !activeTeam \|\| activeTeam\?\.type === 'school'/);
+  assert.match(shell, /isEliteClubMode && \(isInstitutionHubRoute \|\| !activeTeam\)/);
   assert.match(shell, /!isSchoolInstitutionMode && activeTeam/);
   assert.match(shell, /!isEliteHubMode && activeTeam/);
   assert.match(shell, /↳ \{activeTeam\.name\}/);
