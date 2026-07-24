@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 const items = [
-  { id: 'links', name: 'All-in-One Link Hub', description: 'A complete Linktree-style page with account, dashboard, Sports Hub, and newsletter links.', height: 1050, directPath: '/embed/links' },
+  { id: 'links', name: 'All-in-One Link Hub', description: 'A complete Linktree-style page with account, dashboard, Sports Hub, parent referral, and newsletter links.', height: 1250, directPath: '/embed/links' },
   { id: 'newsletter', name: 'Newsletter Signup Form', description: 'An interactive subscriber form connected to your newsletter and automatic welcome email.', height: 560, directPath: '/#newsletter' },
   { id: 'signup', name: 'Account Signup Card', description: 'A compact call-to-action that sends visitors to account signup.', height: 210, directPath: '/signup' },
   { id: 'sports-hub', name: 'Sports Hub Card', description: 'A compact link to coaching resources, news, templates, and playbooks.', height: 210, directPath: '/sports-hub' },

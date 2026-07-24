@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { ArrowRight, BookOpen, LayoutDashboard, Loader2, Mail, UserPlus } from 'lucide-react';
+import { ArrowRight, BookOpen, HeartHandshake, LayoutDashboard, Loader2, Mail, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 
 type EmbedMode = 'newsletter' | 'signup' | 'sports-hub' | 'squad-hub' | 'links';
@@ -10,6 +10,7 @@ const links = [
   { mode: 'signup', title: 'Create Your Account', description: 'Build your squad and start organizing today.', href: '/signup', Icon: UserPlus },
   { mode: 'squad-hub', title: 'Open Squad Hub', description: 'Sign in and go directly to your team dashboard.', href: '/dashboard', Icon: LayoutDashboard },
   { mode: 'sports-hub', title: 'Explore Sports Hub', description: 'Coaching resources, news, templates, and playbooks.', href: '/sports-hub', Icon: BookOpen },
+  { mode: 'parent-referral', title: 'Refer Your Coach', description: 'Send your coach a friendly introduction to The Squad.', href: '/refer-a-coach', Icon: HeartHandshake },
 ] as const;
 
 export function EmbedPanel({ mode }: { mode: EmbedMode }) {
