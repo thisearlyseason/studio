@@ -43,8 +43,11 @@ test('parent referral is a fixed-content, rate-limited, idempotent server email'
   const page = read('src/app/refer-a-coach/page.tsx');
   const links = read('src/components/embed/embed-panel.tsx');
 
-  assert.match(route, /A Team Management Tool Worth Reviewing/);
-  assert.match(route, /I came across The Squad, a Canadian sports management platform/);
+  assert.match(route, /Thought this might be helpful for our team/);
+  assert.match(route, /I found a team app called The Squad/);
+  assert.match(route, /No pressure at all/);
+  assert.match(page, /Thought this might be helpful for our team/);
+  assert.match(page, /No pressure at all/);
   assert.match(route, /enforcePublicRateLimit/);
   assert.match(route, /coach-referral-sender/);
   assert.match(route, /coach-referral-recipient/);

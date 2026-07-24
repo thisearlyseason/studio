@@ -112,19 +112,19 @@ export default function ReferACoachPage() {
               <details className="mt-8 rounded-2xl bg-zinc-100 p-5">
                 <summary className="cursor-pointer text-[10px] font-black uppercase tracking-[0.16em]">Preview the exact email</summary>
                 <div className="mt-5 whitespace-pre-line text-sm leading-7 text-zinc-700">
-                  {`Subject: A Team Management Tool Worth Reviewing
+                  {`Subject: Thought this might be helpful for our team
 
 Hi ${coachName || '[Coach’s Name]'},
 
-I came across The Squad, a Canadian sports management platform built for coaches, teams, leagues, tournaments, and parents.
+I found a team app called The Squad and thought it might be worth a look for our team.
 
-The platform brings schedules, team updates, messages, videos, drills, playbooks, and other team resources into one organized place. It looks like a helpful way to reduce group chats, scattered emails, and missed information.
+It keeps schedules, updates, messages, videos, drills, playbooks, and other team info in one place, which could make things a little easier than keeping track of group chats and emails.
 
-I thought it might be worth reviewing!
+No pressure at all—I just thought I’d pass it along in case it could help.
 
-You can learn more at thesquad.pro.
+You can check it out at thesquad.pro.
 
-Thanks for taking a look,
+Thanks!
 
 ${parentName || '[Parent’s Name]'}`}
                 </div>

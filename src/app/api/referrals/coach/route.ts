@@ -9,7 +9,7 @@ import {
   RequestBodyError,
 } from '@/lib/server-request-guards';
 
-const SUBJECT = 'A Team Management Tool Worth Reviewing';
+const SUBJECT = 'Thought this might be helpful for our team';
 const FROM = 'The Squad Pro <noreply@thesquad.pro>';
 const BASE_URL = 'https://www.thesquad.pro';
 
@@ -30,15 +30,15 @@ function resendClient() {
 function referralText(coachName: string, parentName: string) {
   return `Hi ${coachName},
 
-I came across The Squad, a Canadian sports management platform built for coaches, teams, leagues, tournaments, and parents.
+I found a team app called The Squad and thought it might be worth a look for our team.
 
-The platform brings schedules, team updates, messages, videos, drills, playbooks, and other team resources into one organized place. It looks like a helpful way to reduce group chats, scattered emails, and missed information.
+It keeps schedules, updates, messages, videos, drills, playbooks, and other team info in one place, which could make things a little easier than keeping track of group chats and emails.
 
-I thought it might be worth reviewing!
+No pressure at all—I just thought I’d pass it along in case it could help.
 
-You can learn more at thesquad.pro.
+You can check it out at thesquad.pro.
 
-Thanks for taking a look,
+Thanks!
 
 ${parentName}`;
 }
@@ -61,14 +61,14 @@ function referralHtml(coachName: string, parentName: string) {
               <tr><td style="padding:38px 38px 12px;">
                 <p style="margin:0 0 28px;font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#d11c20;">A parent referral from The Squad</p>
                 <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Hi ${safeCoachName},</p>
-                <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">I came across <strong>The Squad</strong>, a Canadian sports management platform built for coaches, teams, leagues, tournaments, and parents.</p>
-                <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">The platform brings schedules, team updates, messages, videos, drills, playbooks, and other team resources into one organized place. It looks like a helpful way to reduce group chats, scattered emails, and missed information.</p>
-                <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">I thought it might be worth reviewing!</p>
-                <p style="margin:0 0 28px;font-size:16px;line-height:1.7;">You can learn more at <a href="${BASE_URL}" style="color:#d11c20;font-weight:800;">thesquad.pro</a>.</p>
-                <p style="margin:0;font-size:16px;line-height:1.7;">Thanks for taking a look,<br /><strong>${safeParentName}</strong></p>
+                <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">I found a team app called <strong>The Squad</strong> and thought it might be worth a look for our team.</p>
+                <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">It keeps schedules, updates, messages, videos, drills, playbooks, and other team info in one place, which could make things a little easier than keeping track of group chats and emails.</p>
+                <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">No pressure at all—I just thought I’d pass it along in case it could help.</p>
+                <p style="margin:0 0 28px;font-size:16px;line-height:1.7;">You can check it out at <a href="${BASE_URL}" style="color:#d11c20;font-weight:800;">thesquad.pro</a>.</p>
+                <p style="margin:0;font-size:16px;line-height:1.7;">Thanks!<br /><strong>${safeParentName}</strong></p>
               </td></tr>
               <tr><td style="padding:26px 38px 38px;">
-                <a href="${BASE_URL}/for/coaches" style="display:inline-block;border-radius:999px;background:#d11c20;color:#ffffff;text-decoration:none;padding:15px 24px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Review The Squad for Coaches</a>
+                <a href="${BASE_URL}/for/coaches" style="display:inline-block;border-radius:999px;background:#d11c20;color:#ffffff;text-decoration:none;padding:15px 24px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Take a look at The Squad</a>
                 <p style="margin:24px 0 0;border-top:1px solid #e4e4e7;padding-top:18px;font-size:11px;line-height:1.6;color:#71717a;">This one-time referral was submitted by ${safeParentName}. It did not create an account or subscribe this address to marketing email.</p>
               </td></tr>
             </table>
