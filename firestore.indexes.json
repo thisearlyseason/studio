@@ -56,6 +56,16 @@
     },
     {
       "collectionGroup": "events",
+      "fieldPath": "date",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
       "fieldPath": "selectedFields",
       "indexes": [
         {

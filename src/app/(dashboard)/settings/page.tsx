@@ -82,12 +82,14 @@ export default function SettingsPage() {
   const { 
     user, updateUser, members, activeTeam, updateMember, 
     manageSubscription, isPro, resetSquadData, checkCodeUniqueness, 
-    updateTeamCode, isStaff, isPlayer, isPrimaryClubAuthority, db
+    updateTeamCode, isStaff, isPlayer, isParent, isPrimaryClubAuthority, db
   } = useTeam();
   const auth = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState(false);
   const [isNotifLoading, setIsNotifLoading] = useState(false);
+  const [upcomingEventNotifications, setUpcomingEventNotifications] = useState(true);
+  const [isUpcomingEventNotifLoading, setIsUpcomingEventNotifLoading] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isDoubleConfirmOpen, setIsDoubleConfirmOpen] = useState(false);
@@ -154,6 +156,7 @@ export default function SettingsPage() {
       });
       // Initialize notifications from user preferences
       setNotifications((user as any).notificationsEnabled ?? true);
+      setUpcomingEventNotifications(user.upcomingEventNotificationsEnabled ?? true);
     }
   }, [user, activeTeam, members]);
 
@@ -296,6 +299,35 @@ export default function SettingsPage() {
       toast({ title: 'Failed to update notifications', variant: 'destructive' });
     } finally {
       setIsNotifLoading(false);
+    }
+  };
+
+  const handleUpcomingEventNotificationsToggle = async (enabled: boolean) => {
+    setIsUpcomingEventNotifLoading(true);
+    try {
+      if (enabled && 'Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          toast({
+            title: 'Notifications Blocked',
+            description: 'Allow notifications in your browser settings to receive game-day reminders.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      setUpcomingEventNotifications(enabled);
+      await updateUser({ upcomingEventNotificationsEnabled: enabled });
+      toast({
+        title: enabled ? 'Game-Day Reminders Enabled' : 'Game-Day Reminders Disabled',
+        description: enabled
+          ? 'You will receive one same-day reminder for upcoming team events.'
+          : 'Upcoming event reminders are now off for your account.',
+      });
+    } catch {
+      toast({ title: 'Failed to update game-day reminders', variant: 'destructive' });
+    } finally {
+      setIsUpcomingEventNotifLoading(false);
     }
   };
 
@@ -510,6 +542,38 @@ export default function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        {(isParent || isPlayer) && (
+          <Card className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden">
+            <CardHeader className="bg-muted/30 border-b p-8 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-100 p-2.5 rounded-xl text-blue-700"><Bell className="h-5 w-5" /></div>
+                <div>
+                  <CardTitle className="text-sm font-black uppercase tracking-widest">Game-Day Reminders</CardTitle>
+                  <CardDescription className="mt-1 text-[10px] font-bold uppercase tracking-wider">
+                    Players and parents
+                  </CardDescription>
+                </div>
+              </div>
+              <Switch
+                aria-label="Game-day reminders"
+                checked={notifications && upcomingEventNotifications}
+                onCheckedChange={handleUpcomingEventNotificationsToggle}
+                disabled={isUpcomingEventNotifLoading || !notifications}
+              />
+            </CardHeader>
+            <CardContent className="p-8 space-y-3">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+                Receive one same-day alert with the upcoming game, practice, tournament, meeting, or event time and location.
+              </p>
+              {!notifications && (
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-700">
+                  Turn on Tactical Alerts first to enable game-day reminders.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {(isStaff && !isPlayer || isPrimaryClubAuthority) && (
         <Card className="rounded-[2.5rem] border-none shadow-xl bg-white ring-1 ring-black/5 overflow-hidden">

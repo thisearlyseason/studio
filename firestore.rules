@@ -73,7 +73,8 @@ service cloud.firestore {
       allow update: if isSuperAdmin() || (isSignedIn() && isOwner(userId) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'fullName', 'email', 'phone', 'avatar', 'avatarUrl',
-          'notificationsEnabled', 'seenAlertIds', 'clubName', 'clubDescription',
+          'notificationsEnabled', 'upcomingEventNotificationsEnabled',
+          'seenAlertIds', 'clubName', 'clubDescription',
           'schoolName', 'institutionTitle'
         ])
       );

@@ -123,6 +123,7 @@ export type UserProfile = {
   isBetaTester?: boolean;
   betaDemoSeeded?: boolean;
   notificationsEnabled?: boolean; // Push notification preference — persisted to Firestore
+  upcomingEventNotificationsEnabled?: boolean;
 };
 
 export type PlayerProfile = {

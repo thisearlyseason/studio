@@ -8,6 +8,12 @@ import {
   USER_DOCUMENT_TARGETS,
   USER_MAP_TARGETS,
 } from "./account-deletion";
+import {
+  buildUpcomingEventMessage,
+  candidateDateKeys,
+  normalizeEventKind,
+  shouldSendSameDayReminder,
+} from "./event-reminders";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -823,4 +829,118 @@ export const cleanupAnonymousUsers = onSchedule('every 15 minutes', async (_even
   } catch (error) {
     console.error('Failed to execute cleanup routine:', error);
   }
+});
+
+/**
+ * Sends one same-day reminder to player and parent accounts for each upcoming
+ * team event. Delivery claims prevent overlapping scheduler runs from sending
+ * the same reminder more than once.
+ */
+export const sendUpcomingEventReminders = onSchedule({
+  schedule: 'every 15 minutes',
+  timeoutSeconds: 540,
+  memory: '512MiB',
+}, async () => {
+  const now = new Date();
+  const eventSnaps = await db.collectionGroup("events")
+    .where("date", "in", candidateDateKeys(now))
+    .get();
+  const teamCache = new Map<string, admin.firestore.DocumentSnapshot>();
+  let sentCount = 0;
+
+  for (const eventSnap of eventSnaps.docs) {
+    const teamRef = eventSnap.ref.parent.parent;
+    if (!teamRef) continue;
+    const teamId = teamRef.id;
+    let teamSnap = teamCache.get(teamId);
+    if (!teamSnap) {
+      teamSnap = await teamRef.get();
+      teamCache.set(teamId, teamSnap);
+    }
+    if (!teamSnap.exists) continue;
+
+    const eventData = eventSnap.data();
+    const teamData = teamSnap.data() || {};
+    const timeZone = typeof eventData.timeZone === "string"
+      ? eventData.timeZone
+      : (typeof teamData.timeZone === "string" ? teamData.timeZone : "America/Edmonton");
+    if (!shouldSendSameDayReminder(eventData, now, timeZone)) continue;
+
+    const members = await teamRef.collection("members").get();
+    const userIds = [...new Set(members.docs
+      .filter((member) => member.data().status !== "removed" && member.data().isDeleted !== true)
+      .map((member) => member.data().userId)
+      .filter((userId): userId is string => typeof userId === "string" && !!userId))];
+    if (!userIds.length) continue;
+
+    const users = await Promise.all(userIds.map((userId) => db.collection("users").doc(userId).get()));
+    for (const userSnap of users) {
+      if (!userSnap.exists) continue;
+      const user = userSnap.data() || {};
+      if (!["parent", "adult_player", "youth_player"].includes(user.role)) continue;
+      if (user.notificationsEnabled === false || user.upcomingEventNotificationsEnabled === false) continue;
+      const tokens = Array.isArray(user.fcmTokens)
+        ? [...new Set(user.fcmTokens.filter((token: unknown): token is string =>
+          typeof token === "string" && !!token))]
+        : [];
+      if (!tokens.length) continue;
+
+      const deliveryRef = db.collection("eventReminderDeliveries")
+        .doc(`${teamId}_${eventSnap.id}_${userSnap.id}`);
+      const claimed = await db.runTransaction(async (transaction) => {
+        const delivery = await transaction.get(deliveryRef);
+        const data = delivery.data() || {};
+        if (data.status === "sent") return false;
+        const leaseExpiresAt = data.leaseExpiresAt?.toMillis?.() || 0;
+        if (data.status === "processing" && leaseExpiresAt > Date.now()) return false;
+        transaction.set(deliveryRef, {
+          teamId,
+          eventId: eventSnap.id,
+          userId: userSnap.id,
+          status: "processing",
+          attempts: Number(data.attempts || 0) + 1,
+          leaseExpiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + (5 * 60 * 1000)),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        return true;
+      });
+      if (!claimed) continue;
+
+      try {
+        const result = await admin.messaging().sendEachForMulticast({
+          tokens,
+          notification: {
+            title: `Upcoming ${normalizeEventKind(eventData).replace(/^./, (letter) => letter.toUpperCase())}`,
+            body: buildUpcomingEventMessage(eventData),
+          },
+          webpush: {
+            notification: {
+              icon: "/favicon-192.png",
+              badge: "/favicon-192.png",
+            },
+            fcmOptions: { link: "/calendar" },
+          },
+        });
+        if (result.successCount < 1) throw new Error("No registered device accepted the reminder.");
+        await deliveryRef.set({
+          status: "sent",
+          successCount: result.successCount,
+          failureCount: result.failureCount,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          leaseExpiresAt: admin.firestore.FieldValue.delete(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        sentCount += 1;
+      } catch (error) {
+        await deliveryRef.set({
+          status: "failed",
+          error: error instanceof Error ? error.message : "Reminder delivery failed.",
+          leaseExpiresAt: admin.firestore.FieldValue.delete(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+  }
+
+  console.log(`[event-reminders] Sent ${sentCount} same-day player/parent reminder(s).`);
 });

@@ -8,6 +8,7 @@ export interface User {
   phone?: string;
   avatarUrl?: string;
   notificationsEnabled: boolean;
+  upcomingEventNotificationsEnabled?: boolean;
   createdAt: string;
 }
 

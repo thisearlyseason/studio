@@ -218,6 +218,7 @@ export async function PUT(req: NextRequest) {
         createdAt: new Date().toISOString(),
         avatarUrl: `https://picsum.photos/seed/${userRecord.uid}/150/150`,
         notificationsEnabled: true,
+        upcomingEventNotificationsEnabled: true,
       });
       transaction.update(playerRef, {
         hasLogin: true,

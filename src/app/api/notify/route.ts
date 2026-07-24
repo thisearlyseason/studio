@@ -86,7 +86,9 @@ export async function POST(req: NextRequest) {
       }
       const userSnaps = await Promise.all(allowedRecipients.map(id => adminDb.collection('users').doc(id).get()));
       tokens = userSnaps.flatMap(snap => {
-        const savedTokens = snap.data()?.fcmTokens;
+        const user = snap.data();
+        if (user?.notificationsEnabled === false) return [];
+        const savedTokens = user?.fcmTokens;
         return Array.isArray(savedTokens) ? savedTokens.filter((token: unknown): token is string => typeof token === 'string') : [];
       });
     }
