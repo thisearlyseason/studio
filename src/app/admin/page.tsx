@@ -1095,7 +1095,7 @@ export default function AdminPortalPage() {
             onClick={() => setActiveTab('embeds')}
             className={`px-4 py-2 font-black uppercase tracking-widest text-xs rounded-full transition-colors flex items-center gap-2 ${activeTab === 'embeds' ? 'bg-violet-600 text-white' : 'text-gray-900 dark:text-white/50 hover:bg-gray-200 dark:bg-white/10 hover:text-gray-900 dark:hover:text-white'}`}
           >
-            <Code2 className="w-4 h-4" /> Embed Hub
+            <Code2 className="w-4 h-4" /> Links &amp; Embeds
           </button>
         </div>
 

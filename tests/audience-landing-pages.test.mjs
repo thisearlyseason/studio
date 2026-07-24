@@ -63,3 +63,15 @@ test('campaign and referral URLs are included in the production sitemap', () => 
   assert.match(sitemap, /\/for\/\$\{audience\}/);
   assert.match(sitemap, /\/refer-a-coach/);
 });
+
+test('super admin links hub exposes every audience campaign URL', () => {
+  const linksHub = read('src/components/admin/embed-hub-manager.tsx');
+  const adminPage = read('src/app/admin/page.tsx');
+
+  for (const audience of ['parents', 'coaches', 'leagues', 'tournaments', 'schools', 'municipalities']) {
+    assert.match(linksHub, new RegExp(`directPath: '/for/${audience}'`));
+  }
+  assert.match(linksHub, /Audience Landing Pages/);
+  assert.match(linksHub, /Direct URL/);
+  assert.match(adminPage, /Links &amp; Embeds/);
+});
