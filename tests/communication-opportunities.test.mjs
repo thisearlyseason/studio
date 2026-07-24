@@ -54,6 +54,17 @@ test('institution switcher headers show a squad only outside the club or school 
   assert.match(shell, /↳ \{activeTeam\.name\}/);
 });
 
+test('institution hub stats resolve authoritative squads and stay team-scoped', () => {
+  const hub = read('../src/app/(dashboard)/club/page.tsx');
+
+  assert.match(hub, /getDoc\(doc\(db, 'teams', membership\.id\)\)/);
+  assert.match(hub, /const clubTeams = useMemo\(\(\) => \{[\s\S]*schoolSquads\.map/);
+  assert.match(hub, /for \(const team of clubTeams\)/);
+  assert.match(hub, /clubTeamIds\.map\(teamId => getDocs\(collection\(db, 'teams', teamId, 'incidents'\)\)\)/);
+  assert.doesNotMatch(hub, /collectionGroup\(db, 'incidents'\)/);
+  assert.match(hub, /isHubDataLoading \? <Loader2/);
+});
+
 test('volunteer contribution awards are server-authorized, atomic, and use configured points', () => {
   const page = read('../src/app/(dashboard)/volunteers/page.tsx');
   const provider = read('../src/components/providers/team-provider.tsx');
