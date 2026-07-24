@@ -46,6 +46,8 @@ test('parent referral is a fixed-content, rate-limited, idempotent server email'
   assert.match(route, /Thought this might be helpful for our team/);
   assert.match(route, /I found a team app called The Squad/);
   assert.match(route, /No pressure at all/);
+  assert.match(route, /images\/email\/the-squad-grass-logo\.png/);
+  assert.match(route, /alt="The Squad"/);
   assert.match(page, /Thought this might be helpful for our team/);
   assert.match(page, /No pressure at all/);
   assert.match(route, /enforcePublicRateLimit/);

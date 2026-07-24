@@ -58,6 +58,11 @@ function referralHtml(coachName: string, parentName: string) {
           <tr><td align="center">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:24px;overflow:hidden;">
               <tr><td style="height:8px;background:#d11c20;"></td></tr>
+              <tr><td align="center" style="padding:20px 38px;background:#09090b;">
+                <a href="${BASE_URL}" style="display:inline-block;text-decoration:none;">
+                  <img src="${BASE_URL}/images/email/the-squad-grass-logo.png" width="320" height="200" alt="The Squad" style="display:block;width:100%;max-width:320px;height:auto;border:0;" />
+                </a>
+              </td></tr>
               <tr><td style="padding:38px 38px 12px;">
                 <p style="margin:0 0 28px;font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#d11c20;">A parent referral from The Squad</p>
                 <p style="margin:0 0 22px;font-size:16px;line-height:1.7;">Hi ${safeCoachName},</p>
