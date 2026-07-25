@@ -51,8 +51,8 @@ import { format } from 'date-fns';
 
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
-const isJerseyAsset = (name: string, category: string) =>
-  category === 'Uniforms' && /jersey|uniform/i.test(name);
+const isJerseyAsset = (_name: string, category: string) =>
+  category === 'Uniforms';
 
 export default function EquipmentPage() {
   const { isStaff, isPro } = useTeam();

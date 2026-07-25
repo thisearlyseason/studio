@@ -29,6 +29,7 @@ test('uniform inventory records jersey size and number per assignment', async ()
 
   assert.match(equipment, /Jersey Size/);
   assert.match(equipment, /Jersey Number/);
+  assert.match(equipment, /category === 'Uniforms'/);
   assert.match(provider, /details\?: \{ size\?: string; jerseyNumber\?: string \}/);
   assert.match(provider, /jerseyNumber\?: string/);
   assert.match(provider, /size: details\?\.size/);
