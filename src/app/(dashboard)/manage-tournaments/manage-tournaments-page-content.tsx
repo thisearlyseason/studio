@@ -70,7 +70,7 @@ import { useTeam, TeamEvent, TournamentGame, TournamentReferee, Member, Facility
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, where, doc, updateDoc, getDoc, getDocs, collectionGroup } from 'firebase/firestore';
-import { cn } from '@/lib/utils';
+import { cn, compressImage } from '@/lib/utils';
 import { format, isPast, isSameDay, eachDayOfInterval, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
@@ -1218,6 +1218,8 @@ function TournamentDetailView({
   const [selectedGame, setSelectedGame] = useState<TournamentGame | null>(null);
   const [celebrationWinner, setCelebrationWinner] = useState<string | null>(null);
   const [logoEditState, setLogoEditState] = useState<{ idx: number; name: string; url: string } | null>(null);
+  const [isOptimizingLogo, setIsOptimizingLogo] = useState(false);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Queries for logistics editor
@@ -1443,6 +1445,49 @@ function TournamentDetailView({
     await updateDoc(doc(db, 'teams', activeTeam.id, 'events', event.id), { tournamentTeamsData: updated });
     toast({ title: 'Logo Updated', description: `Logo set for ${logoEditState.name}.` });
     setLogoEditState(null);
+  };
+
+  const handleTeamLogoFile = async (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast({
+        title: 'Unsupported Image',
+        description: 'Choose a JPG, PNG, or WEBP image.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Image Too Large',
+        description: 'Choose an image smaller than 10 MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsOptimizingLogo(true);
+    try {
+      const raw = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error || new Error('Unable to read image.'));
+        reader.readAsDataURL(file);
+      });
+      const optimized = await compressImage(raw, 480, 480, 0.78);
+      setLogoEditState(current => current ? { ...current, url: optimized } : null);
+      toast({ title: 'Logo Optimized', description: 'The image is ready to save.' });
+    } catch (error) {
+      console.error('[Tournament] Logo optimization failed:', error);
+      toast({
+        title: 'Image Processing Failed',
+        description: 'The logo could not be optimized. Please try another image.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOptimizingLogo(false);
+      if (logoFileInputRef.current) logoFileInputRef.current.value = '';
+    }
   };
 
   // ── Referee Management ──────────────────────────────────────────────────
@@ -2345,12 +2390,29 @@ function TournamentDetailView({
                        <DialogHeader>
                          <DialogTitle className="text-2xl font-black uppercase tracking-tight">Set Squad Logo</DialogTitle>
                          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{logoEditState?.name}</DialogDescription>
-                         <DialogClose className="absolute right-8 top-8 opacity-70 transition-opacity hover:opacity-100">
-                           <X className="h-6 w-6" />
-                         </DialogClose>
                        </DialogHeader>
                        <div className="space-y-3">
-                         <Label className="text-[10px] font-black uppercase tracking-widest">Logo Image URL</Label>
+                         <Label className="text-[10px] font-black uppercase tracking-widest">Upload Team Logo</Label>
+                         <input
+                           ref={logoFileInputRef}
+                           type="file"
+                           accept="image/jpeg,image/png,image/webp"
+                           className="hidden"
+                           onChange={(event) => void handleTeamLogoFile(event.target.files?.[0])}
+                         />
+                         <Button
+                           type="button"
+                           variant="outline"
+                           onClick={() => logoFileInputRef.current?.click()}
+                           disabled={isOptimizingLogo}
+                           className="w-full h-12 rounded-2xl border-2 font-black uppercase text-xs"
+                         >
+                           {isOptimizingLogo ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2 rotate-180" />}
+                           {isOptimizingLogo ? 'Optimizing Image' : 'Choose JPG, PNG or WEBP'}
+                         </Button>
+                         <div className="relative py-1 text-center">
+                           <span className="bg-white px-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground">or paste an image URL</span>
+                         </div>
                          <Input
                            placeholder="https://example.com/logo.png"
                            value={logoEditState?.url || ''}
@@ -2366,7 +2428,7 @@ function TournamentDetailView({
                          )}
                        </div>
                        <DialogFooter>
-                         <Button onClick={handleSaveTeamLogo} className="w-full h-12 rounded-2xl font-black uppercase text-xs tracking-widest">
+                         <Button onClick={handleSaveTeamLogo} disabled={isOptimizingLogo || !logoEditState?.url} className="w-full h-12 rounded-2xl font-black uppercase text-xs tracking-widest">
                            <Save className="h-4 w-4 mr-2" /> Save Logo
                          </Button>
                        </DialogFooter>

@@ -51,6 +51,9 @@ import { format } from 'date-fns';
 
 import { AccessRestricted } from '@/components/layout/AccessRestricted';
 
+const isJerseyAsset = (name: string, category: string) =>
+  category === 'Uniforms' && /jersey|uniform/i.test(name);
+
 export default function EquipmentPage() {
   const { isStaff, isPro } = useTeam();
 
@@ -73,8 +76,9 @@ function AuthorizedEquipmentPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
 
-  const [formEq, setFormEq] = useState({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' });
-  const [assignment, setAssignment] = useState({ userId: '', quantity: '1' });
+  const emptyAssetForm = { name: '', category: 'Uniforms', totalQuantity: '10', description: '', size: '', jerseyNumber: '' };
+  const [formEq, setFormEq] = useState(emptyAssetForm);
+  const [assignment, setAssignment] = useState({ userId: '', quantity: '1', size: '', jerseyNumber: '' });
 
   const eqQuery = useMemoFirebase(() => {
     if (!activeTeam || !db) return null;
@@ -101,7 +105,7 @@ function AuthorizedEquipmentPage() {
     });
     setIsAddOpen(false);
     setIsProcessing(false);
-    setFormEq({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' });
+    setFormEq(emptyAssetForm);
     toast({ title: "Inventory Updated", description: `${formEq.name} enrolled in vault.` });
   };
 
@@ -124,7 +128,9 @@ function AuthorizedEquipmentPage() {
       name: item.name,
       category: item.category,
       totalQuantity: item.totalQuantity.toString(),
-      description: item.description || ''
+      description: item.description || '',
+      size: item.size || '',
+      jerseyNumber: item.jerseyNumber || ''
     });
     setIsEditOpen(true);
   };
@@ -141,7 +147,15 @@ function AuthorizedEquipmentPage() {
     if (!targetMember) return;
 
     setIsProcessing(true);
-    await assignEquipment(selectedItem.id, targetMember.userId, targetMember.name, qty);
+    await assignEquipment(
+      selectedItem.id,
+      targetMember.userId,
+      targetMember.name,
+      qty,
+      isJerseyAsset(selectedItem.name, selectedItem.category)
+        ? { size: assignment.size, jerseyNumber: assignment.jerseyNumber }
+        : undefined
+    );
 
     // Fire an in-app alert so the player sees it when they next log in
     await createAlert(
@@ -153,7 +167,7 @@ function AuthorizedEquipmentPage() {
 
     setIsInviteOpen(false);
     setIsProcessing(false);
-    setAssignment({ userId: '', quantity: '1' });
+    setAssignment({ userId: '', quantity: '1', size: '', jerseyNumber: '' });
     toast({ title: "Asset Deployed", description: `${selectedItem.name} assigned to ${targetMember.name}. They’ve been notified.` });
   };
 
@@ -176,7 +190,7 @@ function AuthorizedEquipmentPage() {
         </div>
 
         {isStaff && (
-          <Button onClick={() => { setFormEq({ name: '', category: 'Uniforms', totalQuantity: '10', description: '' }); setIsAddOpen(true); }} className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 transition-all active:scale-95">
+          <Button onClick={() => { setFormEq(emptyAssetForm); setIsAddOpen(true); }} className="h-14 px-8 rounded-2xl text-lg font-black shadow-xl shadow-primary/20 transition-all active:scale-95">
             <Plus className="h-5 w-5 mr-2" /> Add Asset
           </Button>
         )}
@@ -249,6 +263,12 @@ function AuthorizedEquipmentPage() {
                   </div>
                   <CardTitle className="text-2xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{item.name}</CardTitle>
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest line-clamp-2">{item.description || 'Professional grade squad equipment logged in active inventory.'}</CardDescription>
+                  {isJerseyAsset(item.name, item.category) && (item.size || item.jerseyNumber) && (
+                    <div className="flex flex-wrap gap-2">
+                      {item.size && <Badge variant="secondary" className="font-black text-[9px]">SIZE {item.size}</Badge>}
+                      {item.jerseyNumber && <Badge variant="secondary" className="font-black text-[9px]">#{item.jerseyNumber}</Badge>}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="p-8 pt-0 flex-1 space-y-6">
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t">
@@ -274,6 +294,11 @@ function AuthorizedEquipmentPage() {
                                 {format(new Date(as.date), 'MMM d, yyyy ’ h:mm a')}
                               </p>
                             )}
+                            {(as.size || as.jerseyNumber) && (
+                              <p className="text-[8px] font-black text-primary mt-0.5">
+                                {[as.size && `SIZE ${as.size}`, as.jerseyNumber && `#${as.jerseyNumber}`].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[10px] font-black text-primary">QTY: {as.quantity}</span>
@@ -292,7 +317,16 @@ function AuthorizedEquipmentPage() {
                 <CardFooter className="p-8 pt-0 flex gap-2">
                   <Button 
                     className="flex-1 h-12 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20"
-                    onClick={() => { setSelectedItem(item); setIsInviteOpen(true); }}
+                    onClick={() => {
+                      setSelectedItem(item);
+                      setAssignment({
+                        userId: '',
+                        quantity: '1',
+                        size: item.size || '',
+                        jerseyNumber: item.jerseyNumber || '',
+                      });
+                      setIsInviteOpen(true);
+                    }}
                     disabled={item.availableQuantity === 0}
                   >
                     <UserPlus className="h-4 w-4 mr-2" /> Assign to Player
@@ -352,6 +386,18 @@ function AuthorizedEquipmentPage() {
                   <Input type="number" value={formEq.totalQuantity} onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})} className="h-14 rounded-2xl font-black border-2 focus:border-primary/20 transition-all" />
                 </div>
               </div>
+              {isJerseyAsset(formEq.name, formEq.category) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Size</Label>
+                    <Input placeholder="e.g. Youth L, Adult M" value={formEq.size} onChange={e => setFormEq({...formEq, size: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Number</Label>
+                    <Input inputMode="numeric" placeholder="e.g. 12" value={formEq.jerseyNumber} onChange={e => setFormEq({...formEq, jerseyNumber: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Description</Label>
                 <Textarea placeholder="Condition notes or sizing..." value={formEq.description} onChange={e => setFormEq({...formEq, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium focus:border-primary/20 transition-all p-4 resize-none" />
@@ -405,6 +451,18 @@ function AuthorizedEquipmentPage() {
                   <Input type="number" value={formEq.totalQuantity} onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})} className="h-14 rounded-2xl font-black border-2" />
                 </div>
               </div>
+              {isJerseyAsset(formEq.name, formEq.category) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Size</Label>
+                    <Input value={formEq.size} onChange={e => setFormEq({...formEq, size: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Number</Label>
+                    <Input inputMode="numeric" value={formEq.jerseyNumber} onChange={e => setFormEq({...formEq, jerseyNumber: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Description</Label>
                 <Textarea value={formEq.description} onChange={e => setFormEq({...formEq, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium p-4 resize-none" />
@@ -442,6 +500,18 @@ function AuthorizedEquipmentPage() {
               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Quantity</Label>
               <Input type="number" value={assignment.quantity} onChange={e => setAssignment({...assignment, quantity: e.target.value})} className="h-12 rounded-xl font-black border-2" />
             </div>
+            {selectedItem && isJerseyAsset(selectedItem.name, selectedItem.category) && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Size</Label>
+                  <Input placeholder={selectedItem.size || 'e.g. M'} value={assignment.size} onChange={e => setAssignment({...assignment, size: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Number</Label>
+                  <Input inputMode="numeric" placeholder={selectedItem.jerseyNumber || 'e.g. 12'} value={assignment.jerseyNumber} onChange={e => setAssignment({...assignment, jerseyNumber: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleAssign} disabled={isProcessing || !assignment.userId}>

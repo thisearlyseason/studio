@@ -96,6 +96,9 @@ export default function SettingsPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [resetOptions, setResetOptions] = useState<string[]>(['games', 'events']);
   const [mounted, setMounted] = useState(false);
+  const hasLeagueMembership = Boolean(
+    activeTeam?.leagueIds && Object.keys(activeTeam.leagueIds).length > 0
+  );
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const storage = useStorage();
@@ -670,6 +673,19 @@ export default function SettingsPage() {
 
       <div className="space-y-4 pt-10 border-t">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-2">Account Logistics</h3>
+
+        {hasLeagueMembership && (
+          <Link href="/teams/join" className="w-full p-6 bg-black text-white rounded-3xl flex items-center justify-between border-2 border-transparent hover:border-primary/40 shadow-sm transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/10 p-3 rounded-2xl text-white group-hover:bg-primary transition-colors"><ShieldCheck className="h-6 w-6" /></div>
+              <div className="text-left">
+                <p className="font-black text-sm uppercase tracking-tight">League Membership</p>
+                <p className="text-[10px] text-white/60 font-bold uppercase">Use an invite code to join another league</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
+          </Link>
+        )}
 
         <Link href="/how-to" className="w-full p-6 bg-white rounded-3xl flex items-center justify-between border-2 border-transparent hover:border-primary/20 shadow-sm transition-all group block">
           <div className="flex items-center gap-4">

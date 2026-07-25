@@ -703,8 +703,17 @@ export type EquipmentItem = {
   totalQuantity: number;
   availableQuantity: number;
   description?: string;
+  size?: string;
+  jerseyNumber?: string;
   status: string;
-  assignments: Record<string, { userId: string; userName: string; quantity: number; date: string }>;
+  assignments: Record<string, {
+    userId: string;
+    userName: string;
+    quantity: number;
+    date: string;
+    size?: string;
+    jerseyNumber?: string;
+  }>;
 };
 
 export type TournamentGame = {
@@ -891,7 +900,7 @@ interface TeamContextType {
   signUpForVolunteer: (oppId: string) => Promise<void>;
   verifyVolunteerPoints: (oppId: string, userId: string, points: number) => Promise<void>;
   confirmVolunteerAttendance: (oppId: string, userId: string, confirmed: boolean) => Promise<void>;
-  addFundraisingOpportunity: (data: any) => Promise<void>;
+  addFundraisingOpportunity: (data: any) => Promise<string | undefined>;
   updateFundraisingOpportunity: (fundId: string, updates: any) => Promise<void>;
   signUpForFundraising: (fundId: string) => Promise<void>;
   recordDonation: (fundId: string, amount: number, donorName: string, method: 'external' | 'e-transfer') => Promise<void>;
@@ -899,7 +908,13 @@ interface TeamContextType {
   addEquipmentItem: (data: any) => Promise<void>;
   updateEquipmentItem: (id: string, updates: any) => Promise<void>;
   deleteEquipmentItem: (id: string) => Promise<void>;
-  assignEquipment: (id: string, userId: string, userName: string, qty: number) => Promise<void>;
+  assignEquipment: (
+    id: string,
+    userId: string,
+    userName: string,
+    qty: number,
+    details?: { size?: string; jerseyNumber?: string }
+  ) => Promise<void>;
   returnEquipment: (id: string, userId: string) => Promise<void>;
   addDrill: (data: any) => Promise<void>;
   updateDrill: (drillId: string, data: any) => Promise<void>;
@@ -2463,7 +2478,14 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam?.id, firebaseAuth]);
   const confirmVolunteerAttendance = useCallback(async (oppId: string, userId: string, confirmed: boolean) => { if (activeTeam?.id && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'volunteers', oppId), { [`signups.${userId}.isConfirmed`]: confirmed }); }, [activeTeam, db]);
 
-  const addFundraisingOpportunity = useCallback(async (data: any) => { if (activeTeam?.id && db) await addDoc(collection(db, 'teams', activeTeam.id, 'fundraising'), clean({ ...data, currentAmount: 0, finances: {} })); }, [activeTeam, db]);
+  const addFundraisingOpportunity = useCallback(async (data: any) => {
+    if (!activeTeam?.id || !db) return undefined;
+    const created = await addDoc(
+      collection(db, 'teams', activeTeam.id, 'fundraising'),
+      clean({ ...data, currentAmount: 0, finances: {} })
+    );
+    return created.id;
+  }, [activeTeam, db]);
   const updateFundraisingOpportunity = useCallback(async (fundId: string, updates: any) => { if (activeTeam?.id && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), clean(updates)); }, [activeTeam, db]);
   const deleteFundraisingOpportunity = useCallback(async (id: string) => { if (activeTeam?.id && db) await deleteDoc(doc(db, 'teams', activeTeam.id, 'fundraising', id)); }, [activeTeam, db]);
   const signUpForFundraising = useCallback(async (fundId: string) => { if (activeTeam?.id && firebaseUser && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'fundraising', fundId), { [`finances.${firebaseUser.uid}`]: { userId: firebaseUser.uid, userName: userProfile?.name, status: 'joined', contributed: 0, createdAt: new Date().toISOString() } }); }, [activeTeam, firebaseUser, db, userProfile]);
@@ -2513,7 +2535,27 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
   }, [activeTeam, db]);
   const deleteEquipmentItem = useCallback(async (id: string) => { if (activeTeam?.id && db) await deleteDoc(doc(db, 'teams', activeTeam.id, 'equipment', id)); }, [activeTeam, db]);
-  const assignEquipment = useCallback(async (id: string, uid: string, uname: string, q: number) => { if (activeTeam?.id && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), { [`assignments.${uid}`]: { userId: uid, userName: uname, quantity: q, date: new Date().toISOString() }, availableQuantity: increment(-q) }); }, [activeTeam, db]);
+  const assignEquipment = useCallback(async (
+    id: string,
+    uid: string,
+    uname: string,
+    q: number,
+    details?: { size?: string; jerseyNumber?: string }
+  ) => {
+    if (activeTeam?.id && db) {
+      await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), {
+        [`assignments.${uid}`]: clean({
+          userId: uid,
+          userName: uname,
+          quantity: q,
+          date: new Date().toISOString(),
+          size: details?.size,
+          jerseyNumber: details?.jerseyNumber,
+        }),
+        availableQuantity: increment(-q),
+      });
+    }
+  }, [activeTeam, db]);
   const returnEquipment = useCallback(async (id: string, uid: string) => { if (activeTeam?.id && db) { const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'equipment', id)); if(snap.exists()) { const data = snap.data(); const assignment = data.assignments?.[uid]; if (assignment) { await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), { [`assignments.${uid}`]: deleteField(), availableQuantity: increment(assignment.quantity) }); } } } }, [activeTeam, db]);
 
   const addDrill = useCallback(async (d: any) => { 

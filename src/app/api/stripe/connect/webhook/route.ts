@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { getStripe } from '@/lib/stripe-client';
 import { connectAccountOwnsTeam } from '@/lib/server-stripe-connect';
@@ -119,6 +120,7 @@ async function handleCheckoutCompleted(
 
   // Fetch receipt URL from the payment intent (if available)
   let receiptUrl: string | null = null;
+  let paymentIntentMetadata: Stripe.Metadata = {};
   try {
     if (session.payment_intent && connectedAccountId) {
       const stripe = getStripe();
@@ -128,6 +130,7 @@ async function handleCheckoutCompleted(
         { stripeAccount: connectedAccountId }
       );
       receiptUrl = (pi.latest_charge as Stripe.Charge)?.receipt_url ?? null;
+      paymentIntentMetadata = pi.metadata || {};
     }
   } catch (err: any) {
     console.warn('[Connect Webhook] Could not fetch receipt URL:', err.message);
@@ -168,6 +171,18 @@ async function handleCheckoutCompleted(
     { merge: true }
   );
 
+  await recordFundraisingDonation({
+    teamId,
+    campaignId: session.metadata?.firebase_campaign_id || paymentIntentMetadata.firebase_campaign_id,
+    paymentIntentId: paymentRecordId,
+    amountCents: amountTotal,
+    currency,
+    payerName,
+    payerEmail,
+    receiptUrl,
+    connectedAccountId,
+  });
+
   console.log(`[Connect Webhook] Payment recorded for team ${teamId}: ${payerEmail} paid ${amountTotal} ${currency}`);
 }
 
@@ -207,6 +222,87 @@ async function handlePaymentIntentSucceeded(
       },
       { merge: true }
     );
+
+  await recordFundraisingDonation({
+    teamId,
+    campaignId: pi.metadata?.firebase_campaign_id,
+    paymentIntentId: pi.id,
+    amountCents: pi.amount_received,
+    currency: pi.currency,
+    payerName: '',
+    payerEmail: pi.receipt_email ?? '',
+    receiptUrl: null,
+    connectedAccountId,
+  });
+}
+
+/**
+ * Adds a verified donation and updates the campaign total exactly once.
+ * Both Stripe checkout and payment-intent events call this helper, so the
+ * deterministic donation ID and transaction prevent duplicate totals.
+ */
+async function recordFundraisingDonation({
+  teamId,
+  campaignId,
+  paymentIntentId,
+  amountCents,
+  currency,
+  payerName,
+  payerEmail,
+  receiptUrl,
+  connectedAccountId,
+}: {
+  teamId: string;
+  campaignId?: string;
+  paymentIntentId: string;
+  amountCents: number;
+  currency: string;
+  payerName: string;
+  payerEmail: string;
+  receiptUrl: string | null;
+  connectedAccountId?: string;
+}) {
+  if (!campaignId || amountCents <= 0) return;
+
+  const campaignRef = adminDb
+    .collection('teams').doc(teamId)
+    .collection('fundraising').doc(campaignId);
+  const donationRef = campaignRef
+    .collection('donations').doc(`stripe_${paymentIntentId}`);
+
+  await adminDb.runTransaction(async transaction => {
+    const [campaignSnapshot, donationSnapshot] = await Promise.all([
+      transaction.get(campaignRef),
+      transaction.get(donationRef),
+    ]);
+    if (!campaignSnapshot.exists) {
+      throw new Error('Stripe payment referenced a missing fundraising campaign.');
+    }
+    if (donationSnapshot.exists) return;
+
+    const now = new Date().toISOString();
+    transaction.set(donationRef, {
+      id: donationRef.id,
+      donorName: payerName || 'Stripe Donor',
+      donorEmail: payerEmail,
+      amount: amountCents / 100,
+      amountCents,
+      currency,
+      method: 'external',
+      status: 'verified',
+      stripePaymentIntentId: paymentIntentId,
+      stripeReceiptUrl: receiptUrl,
+      stripeConnectAccountId: connectedAccountId ?? null,
+      createdAt: now,
+      verifiedAt: now,
+      verificationSource: 'stripe_webhook',
+    });
+    transaction.update(campaignRef, {
+      currentAmount: FieldValue.increment(amountCents / 100),
+      lastDonationAt: now,
+      updatedAt: now,
+    });
+  });
 }
 
 /**

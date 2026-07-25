@@ -60,7 +60,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, where, doc, updateDoc, limit, or } from 'firebase/firestore';
+import { collection, query, orderBy, where, doc, updateDoc, limit } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateIntelligentLeagueSchedule } from '@/lib/intelligent-scheduler';
@@ -1451,22 +1451,35 @@ export function LeaguesPageContent({ embedded = false }: { embedded?: boolean })
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [duplicatingLeague, setDuplicatingLeague] = useState<League | null>(null);
 
-  const leaguesQuery = useMemoFirebase(() => {
+  const ownedLeaguesQuery = useMemoFirebase(() => {
     if (!isAuthResolved || !db || !authUser?.uid) return null;
     
     if (isSuperAdmin) return query(collection(db, 'leagues'), limit(50));
 
     return query(
       collection(db, 'leagues'),
-      or(
-        where('creatorId', '==', authUser.uid),
-        where('memberUserIds', 'array-contains', authUser.uid)
-      ),
+      where('creatorId', '==', authUser.uid),
       limit(isStaff ? 50 : 20)
     );
   }, [isAuthResolved, db, authUser?.uid, isStaff, isSuperAdmin]);
 
-  const { data: allLeagues, isLoading: isLeaguesLoading } = useCollection<League>(leaguesQuery);
+  const memberLeaguesQuery = useMemoFirebase(() => {
+    if (!isAuthResolved || !db || !authUser?.uid || isSuperAdmin) return null;
+    return query(
+      collection(db, 'leagues'),
+      where('memberUserIds', 'array-contains', authUser.uid),
+      limit(isStaff ? 50 : 20)
+    );
+  }, [isAuthResolved, db, authUser?.uid, isStaff, isSuperAdmin]);
+
+  const { data: ownedLeagues, isLoading: ownedLeaguesLoading } = useCollection<League>(ownedLeaguesQuery);
+  const { data: memberLeagues, isLoading: memberLeaguesLoading } = useCollection<League>(memberLeaguesQuery);
+  const allLeagues = useMemo(() => {
+    const merged = new Map<string, League>();
+    [...(ownedLeagues || []), ...(memberLeagues || [])].forEach(league => merged.set(league.id, league));
+    return Array.from(merged.values());
+  }, [ownedLeagues, memberLeagues]);
+  const isLeaguesLoading = ownedLeaguesLoading || memberLeaguesLoading;
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const searchParams = useSearchParams();

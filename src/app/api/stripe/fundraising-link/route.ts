@@ -163,6 +163,14 @@ export async function POST(req: NextRequest) {
           payment_item_category: 'donation',
           type: 'fundraising',
         },
+        payment_intent_data: {
+          metadata: {
+            firebase_team_id: teamId,
+            firebase_campaign_id: campaignId,
+            payment_item_category: 'donation',
+            type: 'fundraising',
+          },
+        },
         invoice_creation: { enabled: true },
       },
       { stripeAccount: connectAccountId, idempotencyKey: `fundraising:${operationId}:link` }
@@ -176,6 +184,8 @@ export async function POST(req: NextRequest) {
       stripePriceId: price.id,
       stripeConnectAccountId: connectAccountId,
       stripeEnabled: true,
+      externalLink: paymentLink.url,
+      paymentMethod: 'stripe',
       updatedAt: new Date().toISOString(),
     });
 
