@@ -121,6 +121,7 @@ import { StripeConnectSetup } from '@/components/finance/StripeConnectSetup';
 import { PaymentItemsManager } from '@/components/finance/PaymentItemsManager';
 import { getAuthToken, authHeader } from '@/lib/client-auth';
 import { useAuth } from '@/firebase';
+import { hasCoachesCornerEntitlement } from '@/lib/coaches-corner-entitlement';
 
 const DEFAULT_PROTOCOLS = [
   { id: 'default_medical', title: 'Medical Clearance', type: 'waiver' },
@@ -4358,7 +4359,8 @@ function StaffEvalPanel({
 export default function CoachesCornerPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { activeTeam, isStaff, isPro, isStarter, createTeamDocument, updateTeamDocument, deleteTeamDocument, db, members, createAlert, isSchoolMode, user, teams, getLeagueMembers, updateMember, signGlobalWaiverAsCoach } = useTeam();
+  const { activeTeam, isStaff, isPro, isStarter, isSuperAdmin, createTeamDocument, updateTeamDocument, deleteTeamDocument, db, members, createAlert, isSchoolMode, user, teams, getLeagueMembers, updateMember, signGlobalWaiverAsCoach } = useTeam();
+  const canAccessCoachesCorner = hasCoachesCornerEntitlement(activeTeam, isSuperAdmin);
 
   const handleUpdateMemberField = async (memberId: string, field: string, value: any) => {
     await updateMember(memberId, { [field]: value });
@@ -4372,7 +4374,7 @@ export default function CoachesCornerPage() {
   const currentSchoolId = activeTeam?.schoolId || (activeTeam?.type === 'school' ? activeTeam?.id : null);
   
   const institutionalMembersQuery = useMemoFirebase(() => {
-    if (!db || !isSchoolMode) return null;
+    if (!db || !isSchoolMode || !canAccessCoachesCorner) return null;
     
     if (currentSchoolId) {
       return query(collectionGroup(db, 'members'), where('schoolId', '==', currentSchoolId));
@@ -4384,7 +4386,7 @@ export default function CoachesCornerPage() {
     }
     
     return null;
-  }, [db, user?.id, isSchoolMode, currentSchoolId, activeTeam?.id]);
+  }, [db, user?.id, isSchoolMode, canAccessCoachesCorner, currentSchoolId, activeTeam?.id]);
 
   const { data: institutionalMembers } = useCollection<Member>(institutionalMembersQuery);
   
@@ -4403,7 +4405,7 @@ export default function CoachesCornerPage() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [editingWaiver, setEditingWaiver] = useState<TeamDocument | null>(null);
 
-  const docsQuery = useMemoFirebase(() => (activeTeam && db) ? query(collection(db, 'teams', activeTeam.id, 'documents'), orderBy('createdAt', 'desc')) : null, [activeTeam?.id, db]);
+  const docsQuery = useMemoFirebase(() => (activeTeam && db && canAccessCoachesCorner) ? query(collection(db, 'teams', activeTeam.id, 'documents'), orderBy('createdAt', 'desc')) : null, [activeTeam?.id, db, canAccessCoachesCorner]);
   const { data: allDocuments } = useCollection<TeamDocument>(docsQuery);
 
   // ── Global waivers (hub-deployed) requiring COACH signature ──────────────────
@@ -4416,10 +4418,10 @@ export default function CoachesCornerPage() {
 
   // Query existing coach signatures for this team
   const coachSigsRef = useMemoFirebase(
-    () => (db && activeTeam?.id && user?.id)
+    () => (db && activeTeam?.id && user?.id && canAccessCoachesCorner)
       ? query(collection(db, 'teams', activeTeam.id, 'coachWaiverSignatures'))
       : null,
-    [db, activeTeam?.id, user?.id]
+    [db, activeTeam?.id, user?.id, canAccessCoachesCorner]
   );
   const { data: coachSigDocs } = useCollection<{ waiverDocId: string; signedBy: string; signedAt: string }>(coachSigsRef);
 
@@ -4459,14 +4461,14 @@ export default function CoachesCornerPage() {
     setSelectedMemberId(athleteId);
   }, [members, searchParams]);
 
-  const vRef = useMemoFirebase(() => db && activeTeam?.id ? query(collection(db, 'teams', activeTeam.id, 'volunteers'), orderBy('date', 'desc')) : null, [db, activeTeam?.id]);
+  const vRef = useMemoFirebase(() => db && activeTeam?.id && canAccessCoachesCorner ? query(collection(db, 'teams', activeTeam.id, 'volunteers'), orderBy('date', 'desc')) : null, [db, activeTeam?.id, canAccessCoachesCorner]);
   const { data: volunteerOpps } = useCollection(vRef);
 
-  const eRef = useMemoFirebase(() => db && activeTeam?.id ? query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'desc')) : null, [db, activeTeam?.id]);
+  const eRef = useMemoFirebase(() => db && activeTeam?.id && canAccessCoachesCorner ? query(collection(db, 'teams', activeTeam.id, 'events'), orderBy('date', 'desc')) : null, [db, activeTeam?.id, canAccessCoachesCorner]);
   const { data: events } = useCollection<TeamEvent>(eRef);
 
   if (!isStaff) return <AccessRestricted type="feature" />;
-  if (!isPro && !isStarter) return <AccessRestricted type="data" />;
+  if (!canAccessCoachesCorner) return <AccessRestricted type="feature" />;
 
   const handleSaveProtocolUpdate = async () => {
     if (!editingWaiver || !activeTeam) return;

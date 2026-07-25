@@ -61,6 +61,7 @@ import { cn, compressImage } from '@/lib/utils';
 import { useUser, useCollection, useMemoFirebase, useAuth } from '@/firebase';
 import { authHeader, getAuthToken } from '@/lib/client-auth';
 import Link from 'next/link';
+import { hasCoachesCornerEntitlement } from '@/lib/coaches-corner-entitlement';
 
 export default function TeamProfilePage() {
   const { user: authUser } = useUser();
@@ -70,6 +71,7 @@ export default function TeamProfilePage() {
     isSuperAdmin, plans, updateTeamPlan, isStaff, hasFeature, 
     respondToAssignment, db, updateTeamCode, checkCodeUniqueness, propagateLogoToLeagues 
   } = useTeam();
+  const canAccessCoachesCorner = hasCoachesCornerEntitlement(activeTeam, isSuperAdmin);
 
   
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -297,15 +299,17 @@ export default function TeamProfilePage() {
           </CardHeader>
           <CardContent className="p-8 lg:p-10 relative z-10">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Button asChild variant="outline" className="h-20 rounded-2xl bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest justify-start gap-4 px-6 group/btn">
-                <Link href="/coaches-corner" className="flex items-center w-full">
-                  <PenTool className="h-6 w-6 text-primary group-hover/btn:scale-110 transition-transform" />
-                  <div className="flex flex-col items-start min-w-0 ml-3">
-                    <span>Coaches Corner</span>
-                    <span className="text-[7px] text-white/40">Docs & Waivers</span>
-                  </div>
-                </Link>
-              </Button>
+              {canAccessCoachesCorner && (
+                <Button asChild variant="outline" className="h-20 rounded-2xl bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest justify-start gap-4 px-6 group/btn">
+                  <Link href="/coaches-corner" className="flex items-center w-full">
+                    <PenTool className="h-6 w-6 text-primary group-hover/btn:scale-110 transition-transform" />
+                    <div className="flex flex-col items-start min-w-0 ml-3">
+                      <span>Coaches Corner</span>
+                      <span className="text-[7px] text-white/40">Docs & Waivers</span>
+                    </div>
+                  </Link>
+                </Button>
+              )}
               <Button asChild variant="outline" className="h-20 rounded-2xl bg-white/5 border-white/10 hover:bg-white/10 text-white font-black uppercase text-[10px] tracking-widest justify-start gap-4 px-6 group/btn">
                 <Link href="/leagues" className="flex items-center w-full">
                   <Shield className="h-6 w-6 text-primary group-hover/btn:scale-110 transition-transform" />

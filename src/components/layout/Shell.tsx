@@ -112,6 +112,7 @@ import {
 import { signOut } from 'firebase/auth';
 import { useAuth } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
+import { hasCoachesCornerEntitlement } from '@/lib/coaches-corner-entitlement';
 import {
   Tooltip,
   TooltipContent,
@@ -408,6 +409,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   } = useTeam();
   const auth = useAuth();
   const hasDemoBanner = !!user?.isDemo && !user?.isBetaTester;
+  const canAccessCoachesCorner = hasCoachesCornerEntitlement(activeTeam, isSuperAdmin);
+  const isAdminTabLocked = (tab: (typeof adminTabs)[number]) =>
+    tab.name === 'Coaches Corner'
+      ? !canAccessCoachesCorner
+      : tab.pro && !isPro;
 
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   // Controlled open state for both squad switcher instances
@@ -769,7 +775,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   {isStaff && (
                     <div className="space-y-1.5">
                       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-primary px-2 mb-2">Command</p>
-                      {filteredAdminTabs.map(tab => <SidebarItem key={tab.name} tab={tab} isActive={pathname === tab.href} isLocked={tab.pro && !isPro} />)}
+                      {filteredAdminTabs.map(tab => <SidebarItem key={tab.name} tab={tab} isActive={pathname === tab.href} isLocked={isAdminTabLocked(tab)} />)}
                     </div>
                   )}
                   <div className="space-y-1.5">
@@ -1174,7 +1180,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary px-2">Command Hub</p>
                                 <div className="grid grid-cols-1 gap-2">
                                   {adminTabs.map((tab) => {
-                                    const isLocked = tab.pro && !isPro;
+                                    const isLocked = isAdminTabLocked(tab);
                                     const handleClick = (e: React.MouseEvent) => {
                                       if (isLocked) { e.preventDefault(); purchasePro(); }
                                       else { setIsMoreMenuOpen(false); }
