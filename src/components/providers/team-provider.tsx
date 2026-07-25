@@ -84,7 +84,8 @@ import {
   serverTimestamp,
   deleteField,
   arrayRemove,
-  or
+  or,
+  runTransaction
 } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useRouter, usePathname } from 'next/navigation';
@@ -703,6 +704,7 @@ export type EquipmentItem = {
   totalQuantity: number;
   availableQuantity: number;
   description?: string;
+  sizeStock?: Record<string, number>;
   size?: string;
   jerseyNumber?: string;
   status: string;
@@ -2513,26 +2515,84 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const addGame = useCallback(async (data: any) => { if (activeTeam?.id && db) await addDoc(collection(db, 'teams', activeTeam.id, 'games'), clean({ ...data, teamId: activeTeam.id })); }, [activeTeam, db]);
   const updateGame = useCallback(async (id: string, data: any) => { if (activeTeam?.id && db) await updateDoc(doc(db, 'teams', activeTeam.id, 'games', id), clean({ ...data, teamId: activeTeam.id })); }, [activeTeam, db]);
 
-  const addEquipmentItem = useCallback(async (data: any) => { if (activeTeam?.id && db) await addDoc(collection(db, 'teams', activeTeam.id, 'equipment'), clean({ ...data, assignments: {}, status: 'Active', availableQuantity: parseInt(data.totalQuantity), totalQuantity: parseInt(data.totalQuantity) })); }, [activeTeam, db]);
-  const updateEquipmentItem = useCallback(async (id: string, updates: any) => { 
-    if (activeTeam?.id && db) {
-      if ('totalQuantity' in updates) {
-        const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'equipment', id));
-        if (snap.exists()) {
-          const data = snap.data();
-          const currentAssignments = Object.values(data.assignments || {}) as any[];
-          const assignedCount = currentAssignments.reduce((acc, curr: any) => acc + (curr.quantity || 0), 0);
-          const newTotal = parseInt(updates.totalQuantity);
-          updates.availableQuantity = newTotal - assignedCount;
-          
-          // Re-open if availability restored
-          if (updates.availableQuantity > 0) {
-            updates.status = 'Active';
+  const addEquipmentItem = useCallback(async (data: any) => {
+    if (!activeTeam?.id || !db) return;
+    const sizeStock = data.sizeStock && typeof data.sizeStock === 'object'
+      ? data.sizeStock as Record<string, number>
+      : undefined;
+    const sizeTotal = sizeStock
+      ? Object.values(sizeStock).reduce((sum, quantity) => sum + Math.max(0, Number(quantity) || 0), 0)
+      : 0;
+    const totalQuantity = sizeTotal > 0 ? sizeTotal : Math.max(0, parseInt(data.totalQuantity) || 0);
+    await addDoc(
+      collection(db, 'teams', activeTeam.id, 'equipment'),
+      clean({
+        ...data,
+        sizeStock,
+        assignments: {},
+        status: 'Active',
+        availableQuantity: totalQuantity,
+        totalQuantity,
+      })
+    );
+  }, [activeTeam, db]);
+  const updateEquipmentItem = useCallback(async (id: string, updates: any) => {
+    if (!activeTeam?.id || !db) return;
+    const equipmentRef = doc(db, 'teams', activeTeam.id, 'equipment', id);
+    if (!('totalQuantity' in updates)) {
+      await updateDoc(equipmentRef, clean(updates));
+      return;
+    }
+
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(equipmentRef);
+      if (!snapshot.exists()) throw new Error('Equipment item no longer exists.');
+
+      const data = snapshot.data();
+      const currentAssignments = Object.values(data.assignments || {}) as any[];
+      const assignedCount = currentAssignments.reduce(
+        (sum, assignment) => sum + (Number(assignment.quantity) || 0),
+        0
+      );
+      const requestedSizeStock = updates.sizeStock && typeof updates.sizeStock === 'object'
+        ? updates.sizeStock as Record<string, number>
+        : undefined;
+      const sizeTotal = requestedSizeStock
+        ? Object.values(requestedSizeStock).reduce(
+            (sum, quantity) => sum + Math.max(0, Number(quantity) || 0),
+            0
+          )
+        : 0;
+
+      if (requestedSizeStock) {
+        const assignedBySize = currentAssignments.reduce<Record<string, number>>((totals, assignment) => {
+          if (!assignment.size) {
+            throw new Error('Return existing assignments without a sub-item before enabling sub-item stock.');
+          }
+          totals[assignment.size] = (totals[assignment.size] || 0) + (Number(assignment.quantity) || 0);
+          return totals;
+        }, {});
+        for (const [size, assigned] of Object.entries(assignedBySize)) {
+          if (assigned > (Number(requestedSizeStock[size]) || 0)) {
+            throw new Error(`Cannot reduce ${size} stock below the quantity currently signed out.`);
           }
         }
       }
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), clean(updates)); 
-    }
+
+      const newTotal = sizeTotal > 0
+        ? sizeTotal
+        : Math.max(0, parseInt(updates.totalQuantity) || 0);
+      if (newTotal < assignedCount) {
+        throw new Error('Total stock cannot be lower than the quantity currently signed out.');
+      }
+      const availableQuantity = newTotal - assignedCount;
+      transaction.update(equipmentRef, clean({
+        ...updates,
+        totalQuantity: newTotal,
+        availableQuantity,
+        status: availableQuantity > 0 ? 'Active' : data.status,
+      }));
+    });
   }, [activeTeam, db]);
   const deleteEquipmentItem = useCallback(async (id: string) => { if (activeTeam?.id && db) await deleteDoc(doc(db, 'teams', activeTeam.id, 'equipment', id)); }, [activeTeam, db]);
   const assignEquipment = useCallback(async (
@@ -2543,20 +2603,64 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     details?: { size?: string; jerseyNumber?: string }
   ) => {
     if (activeTeam?.id && db) {
-      await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), {
-        [`assignments.${uid}`]: clean({
-          userId: uid,
-          userName: uname,
-          quantity: q,
-          date: new Date().toISOString(),
-          size: details?.size,
-          jerseyNumber: details?.jerseyNumber,
-        }),
-        availableQuantity: increment(-q),
+      const equipmentRef = doc(db, 'teams', activeTeam.id, 'equipment', id);
+      await runTransaction(db, async transaction => {
+        const snapshot = await transaction.get(equipmentRef);
+        if (!snapshot.exists()) throw new Error('Equipment item no longer exists.');
+        const data = snapshot.data();
+        const assignments = data.assignments || {};
+        if (assignments[uid]) {
+          throw new Error('This member already has this equipment signed out. Return it before assigning another.');
+        }
+        if (!Number.isInteger(q) || q <= 0 || q > (Number(data.availableQuantity) || 0)) {
+          throw new Error('The requested quantity is not available.');
+        }
+
+        const sizeStock = data.sizeStock && typeof data.sizeStock === 'object'
+          ? data.sizeStock as Record<string, number>
+          : {};
+        const sizes = Object.keys(sizeStock);
+        if (sizes.length > 0) {
+          const selectedSize = details?.size?.trim();
+          if (!selectedSize || !(selectedSize in sizeStock)) {
+            throw new Error('Select an available stock sub-item.');
+          }
+          const assignedForSize = Object.values(assignments as Record<string, any>)
+            .filter(assignment => assignment.size === selectedSize)
+            .reduce((sum, assignment) => sum + (Number(assignment.quantity) || 0), 0);
+          if (assignedForSize + q > (Number(sizeStock[selectedSize]) || 0)) {
+            throw new Error(`${selectedSize} does not have enough stock available.`);
+          }
+        }
+
+        transaction.update(equipmentRef, {
+          [`assignments.${uid}`]: clean({
+            userId: uid,
+            userName: uname,
+            quantity: q,
+            date: new Date().toISOString(),
+            size: details?.size,
+            jerseyNumber: details?.jerseyNumber,
+          }),
+          availableQuantity: increment(-q),
+        });
       });
     }
   }, [activeTeam, db]);
-  const returnEquipment = useCallback(async (id: string, uid: string) => { if (activeTeam?.id && db) { const snap = await getDoc(doc(db, 'teams', activeTeam.id, 'equipment', id)); if(snap.exists()) { const data = snap.data(); const assignment = data.assignments?.[uid]; if (assignment) { await updateDoc(doc(db, 'teams', activeTeam.id, 'equipment', id), { [`assignments.${uid}`]: deleteField(), availableQuantity: increment(assignment.quantity) }); } } } }, [activeTeam, db]);
+  const returnEquipment = useCallback(async (id: string, uid: string) => {
+    if (!activeTeam?.id || !db) return;
+    const equipmentRef = doc(db, 'teams', activeTeam.id, 'equipment', id);
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(equipmentRef);
+      if (!snapshot.exists()) return;
+      const assignment = snapshot.data().assignments?.[uid];
+      if (!assignment) return;
+      transaction.update(equipmentRef, {
+        [`assignments.${uid}`]: deleteField(),
+        availableQuantity: increment(Number(assignment.quantity) || 0),
+      });
+    });
+  }, [activeTeam, db]);
 
   const addDrill = useCallback(async (d: any) => { 
     if (!isStaff) return;

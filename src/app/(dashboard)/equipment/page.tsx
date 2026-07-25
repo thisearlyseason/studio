@@ -54,6 +54,115 @@ import { AccessRestricted } from '@/components/layout/AccessRestricted';
 const isJerseyAsset = (_name: string, category: string) =>
   category === 'Uniforms';
 
+type SizeStockRow = { id: string; size: string; quantity: string };
+
+const emptyAssetForm = {
+  name: '',
+  category: 'Uniforms',
+  totalQuantity: '0',
+  description: '',
+};
+
+const newSizeRow = (size = '', quantity = ''): SizeStockRow => ({
+  id: crypto.randomUUID(),
+  size,
+  quantity,
+});
+
+const buildSizeStock = (rows: SizeStockRow[]) =>
+  rows.reduce<Record<string, number>>((stock, row) => {
+    const size = row.size.trim();
+    const quantity = Math.max(0, parseInt(row.quantity) || 0);
+    if (size && quantity > 0) stock[size] = (stock[size] || 0) + quantity;
+    return stock;
+  }, {});
+
+const assignedForSize = (item: EquipmentItem, size: string) =>
+  Object.values(item.assignments || {})
+    .filter(assignment => assignment.size === size)
+    .reduce((sum, assignment) => sum + (Number(assignment.quantity) || 0), 0);
+
+const effectiveSizeStock = (item: EquipmentItem): Record<string, number> => {
+  if (item.sizeStock && Object.keys(item.sizeStock).length > 0) return item.sizeStock;
+  return item.size ? { [item.size]: item.totalQuantity } : {};
+};
+
+function SizeStockEditor({
+  rows,
+  onChange,
+  uniform,
+}: {
+  rows: SizeStockRow[];
+  onChange: (rows: SizeStockRow[]) => void;
+  uniform: boolean;
+}) {
+  return (
+    <div className="space-y-3 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <Label className="text-[10px] font-black uppercase tracking-widest">
+            {uniform ? 'Jersey sizes and stock' : 'Stock sub-items'}
+          </Label>
+          <p className="mt-1 text-[9px] font-bold uppercase text-muted-foreground">
+            {uniform
+              ? 'Add the quantity owned for each size'
+              : 'Optional: track quantities by size, colour, type, or model'}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="rounded-xl font-black uppercase text-[9px]"
+          onClick={() => onChange([...rows, newSizeRow()])}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" /> Add {uniform ? 'Size' : 'Sub-item'}
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {rows.map((row, index) => (
+          <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_90px_40px] items-end gap-2">
+            <div className="space-y-1">
+              <Label className="text-[9px] font-black uppercase">{uniform ? 'Size' : 'Sub-item'}</Label>
+              <Input
+                placeholder={uniform ? 'e.g. Youth L' : 'e.g. Orange, Small, Model A'}
+                value={row.size}
+                onChange={event => onChange(rows.map((current, rowIndex) =>
+                  rowIndex === index ? { ...current, size: event.target.value } : current
+                ))}
+                className="h-11 rounded-xl border-2 font-bold"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[9px] font-black uppercase">Quantity</Label>
+              <Input
+                type="number"
+                min="0"
+                value={row.quantity}
+                onChange={event => onChange(rows.map((current, rowIndex) =>
+                  rowIndex === index ? { ...current, quantity: event.target.value } : current
+                ))}
+                className="h-11 rounded-xl border-2 font-black"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`Remove size row ${index + 1}`}
+              className="h-10 w-10 text-destructive"
+              onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}
+              disabled={rows.length === 1}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function EquipmentPage() {
   const { isStaff, isPro } = useTeam();
 
@@ -76,8 +185,8 @@ function AuthorizedEquipmentPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
 
-  const emptyAssetForm = { name: '', category: 'Uniforms', totalQuantity: '10', description: '', size: '', jerseyNumber: '' };
   const [formEq, setFormEq] = useState(emptyAssetForm);
+  const [sizeRows, setSizeRows] = useState<SizeStockRow[]>([newSizeRow()]);
   const [assignment, setAssignment] = useState({ userId: '', quantity: '1', size: '', jerseyNumber: '' });
 
   const eqQuery = useMemoFirebase(() => {
@@ -98,28 +207,59 @@ function AuthorizedEquipmentPage() {
 
   const handleAddItem = async () => {
     if (!formEq.name) return;
+    const configuredStock = buildSizeStock(sizeRows);
+    const sizeStock = Object.keys(configuredStock).length > 0 ? configuredStock : undefined;
+    const totalQuantity = sizeStock
+      ? Object.values(sizeStock).reduce((sum, quantity) => sum + quantity, 0)
+      : parseInt(formEq.totalQuantity);
+    if (isJerseyAsset(formEq.name, formEq.category) && !sizeStock) {
+      toast({ title: 'Add Jersey Stock', description: 'Add at least one size and quantity.', variant: 'destructive' });
+      return;
+    }
     setIsProcessing(true);
-    await addEquipmentItem({
-      ...formEq,
-      totalQuantity: parseInt(formEq.totalQuantity)
-    });
-    setIsAddOpen(false);
-    setIsProcessing(false);
-    setFormEq(emptyAssetForm);
-    toast({ title: "Inventory Updated", description: `${formEq.name} enrolled in vault.` });
+    try {
+      await addEquipmentItem({
+        ...formEq,
+        sizeStock,
+        totalQuantity,
+      });
+      setIsAddOpen(false);
+      setFormEq(emptyAssetForm);
+      setSizeRows([newSizeRow()]);
+      toast({ title: "Inventory Updated", description: `${formEq.name} enrolled in vault.` });
+    } catch (error: any) {
+      toast({ title: 'Inventory Update Failed', description: error?.message || 'Unable to add equipment.', variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleEditItem = async () => {
     if (!selectedItem || !formEq.name) return;
+    const configuredStock = buildSizeStock(sizeRows);
+    const sizeStock = Object.keys(configuredStock).length > 0 ? configuredStock : undefined;
+    const totalQuantity = sizeStock
+      ? Object.values(sizeStock).reduce((sum, quantity) => sum + quantity, 0)
+      : parseInt(formEq.totalQuantity);
+    if (isJerseyAsset(formEq.name, formEq.category) && !sizeStock) {
+      toast({ title: 'Add Jersey Stock', description: 'Add at least one size and quantity.', variant: 'destructive' });
+      return;
+    }
     setIsProcessing(true);
-    await updateEquipmentItem(selectedItem.id, {
-      ...formEq,
-      totalQuantity: parseInt(formEq.totalQuantity)
-    });
-    setIsEditOpen(false);
-    setIsProcessing(false);
-    setSelectedItem(null);
-    toast({ title: "Asset Synchronized" });
+    try {
+      await updateEquipmentItem(selectedItem.id, {
+        ...formEq,
+        sizeStock: sizeStock || null,
+        totalQuantity,
+      });
+      setIsEditOpen(false);
+      setSelectedItem(null);
+      toast({ title: "Asset Synchronized" });
+    } catch (error: any) {
+      toast({ title: 'Inventory Update Failed', description: error?.message || 'Unable to update stock.', variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const openEdit = (item: EquipmentItem) => {
@@ -129,9 +269,13 @@ function AuthorizedEquipmentPage() {
       category: item.category,
       totalQuantity: item.totalQuantity.toString(),
       description: item.description || '',
-      size: item.size || '',
-      jerseyNumber: item.jerseyNumber || ''
     });
+    const existingSizeStock = effectiveSizeStock(item);
+    setSizeRows(
+      Object.entries(existingSizeStock).length > 0
+        ? Object.entries(existingSizeStock).map(([size, quantity]) => newSizeRow(size, String(quantity)))
+        : [newSizeRow()]
+    );
     setIsEditOpen(true);
   };
 
@@ -142,33 +286,55 @@ function AuthorizedEquipmentPage() {
       toast({ title: "Quota Exceeded", description: "Not enough stock available.", variant: "destructive" });
       return;
     }
+    if (
+      Object.keys(effectiveSizeStock(selectedItem)).length > 0 &&
+      (!assignment.size ||
+        qty > ((effectiveSizeStock(selectedItem)[assignment.size] || 0) - assignedForSize(selectedItem, assignment.size)))
+    ) {
+      toast({ title: 'Size Unavailable', description: 'Select a size with enough jerseys available.', variant: 'destructive' });
+      return;
+    }
     
     const targetMember = members.find(m => m.userId === assignment.userId);
     if (!targetMember) return;
 
     setIsProcessing(true);
-    await assignEquipment(
-      selectedItem.id,
-      targetMember.userId,
-      targetMember.name,
-      qty,
-      isJerseyAsset(selectedItem.name, selectedItem.category)
-        ? { size: assignment.size, jerseyNumber: assignment.jerseyNumber }
-        : undefined
-    );
+    try {
+      await assignEquipment(
+        selectedItem.id,
+        targetMember.userId,
+        targetMember.name,
+        qty,
+        Object.keys(effectiveSizeStock(selectedItem)).length > 0 ||
+          isJerseyAsset(selectedItem.name, selectedItem.category)
+          ? {
+              size: assignment.size,
+              jerseyNumber: isJerseyAsset(selectedItem.name, selectedItem.category)
+                ? assignment.jerseyNumber
+                : undefined,
+            }
+          : undefined
+      );
 
-    // Fire an in-app alert so the player sees it when they next log in
-    await createAlert(
-      'Equipment Assigned',
-      `${selectedItem.name} ×${qty} has been checked out to you. Please confirm receipt with your coach.`,
-      'specific',
-      targetMember.userId
-    );
+      try {
+        await createAlert(
+          'Equipment Assigned',
+          `${selectedItem.name}${assignment.size ? ` (${assignment.size})` : ''} ×${qty} has been checked out to you. Please confirm receipt with your coach.`,
+          'specific',
+          targetMember.userId
+        );
+      } catch (notificationError) {
+        console.warn('Equipment was assigned, but the member alert could not be delivered.', notificationError);
+      }
 
-    setIsInviteOpen(false);
-    setIsProcessing(false);
-    setAssignment({ userId: '', quantity: '1', size: '', jerseyNumber: '' });
-    toast({ title: "Asset Deployed", description: `${selectedItem.name} assigned to ${targetMember.name}. They’ve been notified.` });
+      setIsInviteOpen(false);
+      setAssignment({ userId: '', quantity: '1', size: '', jerseyNumber: '' });
+      toast({ title: "Asset Deployed", description: `${selectedItem.name} assigned to ${targetMember.name}. They’ve been notified.` });
+    } catch (error: any) {
+      toast({ title: 'Assignment Failed', description: error?.message || 'Unable to assign equipment.', variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (isLoading) {
@@ -263,10 +429,16 @@ function AuthorizedEquipmentPage() {
                   </div>
                   <CardTitle className="text-2xl font-black uppercase tracking-tight leading-none group-hover:text-primary transition-colors">{item.name}</CardTitle>
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest line-clamp-2">{item.description || 'Professional grade squad equipment logged in active inventory.'}</CardDescription>
-                  {isJerseyAsset(item.name, item.category) && (item.size || item.jerseyNumber) && (
+                  {Object.keys(effectiveSizeStock(item)).length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {item.size && <Badge variant="secondary" className="font-black text-[9px]">SIZE {item.size}</Badge>}
-                      {item.jerseyNumber && <Badge variant="secondary" className="font-black text-[9px]">#{item.jerseyNumber}</Badge>}
+                      {Object.entries(effectiveSizeStock(item)).map(([size, total]) => {
+                        const available = Math.max(0, total - assignedForSize(item, size));
+                        return (
+                          <Badge key={size} variant="secondary" className="font-black text-[9px]">
+                            {size.toUpperCase()}: {available}/{total}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   )}
                 </CardHeader>
@@ -322,8 +494,8 @@ function AuthorizedEquipmentPage() {
                       setAssignment({
                         userId: '',
                         quantity: '1',
-                        size: item.size || '',
-                        jerseyNumber: item.jerseyNumber || '',
+                        size: '',
+                        jerseyNumber: '',
                       });
                       setIsInviteOpen(true);
                     }}
@@ -383,21 +555,26 @@ function AuthorizedEquipmentPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Total Stock</Label>
-                  <Input type="number" value={formEq.totalQuantity} onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})} className="h-14 rounded-2xl font-black border-2 focus:border-primary/20 transition-all" />
+                  <Input
+                    type="number"
+                    min="0"
+                    readOnly={
+                      isJerseyAsset(formEq.name, formEq.category) ||
+                      Object.keys(buildSizeStock(sizeRows)).length > 0
+                    }
+                    value={Object.keys(buildSizeStock(sizeRows)).length > 0
+                      ? Object.values(buildSizeStock(sizeRows)).reduce((sum, quantity) => sum + quantity, 0)
+                      : formEq.totalQuantity}
+                    onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})}
+                    className="h-14 rounded-2xl font-black border-2 focus:border-primary/20 transition-all"
+                  />
                 </div>
               </div>
-              {isJerseyAsset(formEq.name, formEq.category) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Size</Label>
-                    <Input placeholder="e.g. Youth L, Adult M" value={formEq.size} onChange={e => setFormEq({...formEq, size: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Number</Label>
-                    <Input inputMode="numeric" placeholder="e.g. 12" value={formEq.jerseyNumber} onChange={e => setFormEq({...formEq, jerseyNumber: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
-                  </div>
-                </div>
-              )}
+              <SizeStockEditor
+                rows={sizeRows}
+                onChange={setSizeRows}
+                uniform={isJerseyAsset(formEq.name, formEq.category)}
+              />
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Description</Label>
                 <Textarea placeholder="Condition notes or sizing..." value={formEq.description} onChange={e => setFormEq({...formEq, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium focus:border-primary/20 transition-all p-4 resize-none" />
@@ -448,21 +625,26 @@ function AuthorizedEquipmentPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Total Stock</Label>
-                  <Input type="number" value={formEq.totalQuantity} onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})} className="h-14 rounded-2xl font-black border-2" />
+                  <Input
+                    type="number"
+                    min="0"
+                    readOnly={
+                      isJerseyAsset(formEq.name, formEq.category) ||
+                      Object.keys(buildSizeStock(sizeRows)).length > 0
+                    }
+                    value={Object.keys(buildSizeStock(sizeRows)).length > 0
+                      ? Object.values(buildSizeStock(sizeRows)).reduce((sum, quantity) => sum + quantity, 0)
+                      : formEq.totalQuantity}
+                    onChange={e => setFormEq({...formEq, totalQuantity: e.target.value})}
+                    className="h-14 rounded-2xl font-black border-2"
+                  />
                 </div>
               </div>
-              {isJerseyAsset(formEq.name, formEq.category) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Size</Label>
-                    <Input value={formEq.size} onChange={e => setFormEq({...formEq, size: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Jersey Number</Label>
-                    <Input inputMode="numeric" value={formEq.jerseyNumber} onChange={e => setFormEq({...formEq, jerseyNumber: e.target.value})} className="h-14 rounded-2xl font-bold border-2" />
-                  </div>
-                </div>
-              )}
+              <SizeStockEditor
+                rows={sizeRows}
+                onChange={setSizeRows}
+                uniform={isJerseyAsset(formEq.name, formEq.category)}
+              />
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Asset Description</Label>
                 <Textarea value={formEq.description} onChange={e => setFormEq({...formEq, description: e.target.value})} className="rounded-[1.5rem] min-h-[120px] border-2 font-medium p-4 resize-none" />
@@ -500,21 +682,52 @@ function AuthorizedEquipmentPage() {
               <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Quantity</Label>
               <Input type="number" value={assignment.quantity} onChange={e => setAssignment({...assignment, quantity: e.target.value})} className="h-12 rounded-xl font-black border-2" />
             </div>
-            {selectedItem && isJerseyAsset(selectedItem.name, selectedItem.category) && (
-              <div className="grid grid-cols-2 gap-4">
+            {selectedItem && Object.keys(effectiveSizeStock(selectedItem)).length > 0 && (
+              <div className={cn(
+                'grid gap-4',
+                isJerseyAsset(selectedItem.name, selectedItem.category) ? 'grid-cols-2' : 'grid-cols-1'
+              )}>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Size</Label>
-                  <Input placeholder={selectedItem.size || 'e.g. M'} value={assignment.size} onChange={e => setAssignment({...assignment, size: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">
+                    {isJerseyAsset(selectedItem.name, selectedItem.category) ? 'Size' : 'Sub-item'}
+                  </Label>
+                  <Select value={assignment.size} onValueChange={size => setAssignment({...assignment, size})}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 font-bold">
+                      <SelectValue placeholder="Choose size..." />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {Object.entries(effectiveSizeStock(selectedItem)).map(([size, total]) => {
+                        const available = Math.max(0, total - assignedForSize(selectedItem, size));
+                        return (
+                          <SelectItem key={size} value={size} disabled={available === 0} className="font-bold">
+                            {size} ({available} available)
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Number</Label>
-                  <Input inputMode="numeric" placeholder={selectedItem.jerseyNumber || 'e.g. 12'} value={assignment.jerseyNumber} onChange={e => setAssignment({...assignment, jerseyNumber: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
-                </div>
+                {isJerseyAsset(selectedItem.name, selectedItem.category) && (
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest ml-1">Number</Label>
+                    <Input inputMode="numeric" placeholder={selectedItem.jerseyNumber || 'e.g. 12'} value={assignment.jerseyNumber} onChange={e => setAssignment({...assignment, jerseyNumber: e.target.value})} className="h-12 rounded-xl font-bold border-2" />
+                  </div>
+                )}
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button className="w-full h-14 rounded-2xl text-lg font-black shadow-xl" onClick={handleAssign} disabled={isProcessing || !assignment.userId}>
+            <Button
+              className="w-full h-14 rounded-2xl text-lg font-black shadow-xl"
+              onClick={handleAssign}
+              disabled={
+                isProcessing ||
+                !assignment.userId ||
+                (selectedItem !== null &&
+                  Object.keys(effectiveSizeStock(selectedItem)).length > 0 &&
+                  !assignment.size)
+              }
+            >
               Dispatch Asset
             </Button>
           </DialogFooter>

@@ -23,15 +23,26 @@ test('league enrollment moves from dashboard to Settings after joining', async (
   assert.match(settings, /League Membership/);
 });
 
-test('uniform inventory records jersey size and number per assignment', async () => {
+test('equipment inventory tracks optional sub-item stock and jersey sizes', async () => {
   const equipment = await readSource('../src/app/(dashboard)/equipment/page.tsx');
   const provider = await readSource('../src/components/providers/team-provider.tsx');
 
-  assert.match(equipment, /Jersey Size/);
-  assert.match(equipment, /Jersey Number/);
+  assert.match(equipment, /SizeStockEditor/);
+  assert.match(equipment, /Jersey sizes and stock/);
+  assert.match(equipment, /Stock sub-items/);
+  assert.match(equipment, /size, colour, type, or model/);
+  assert.match(equipment, /Object\.values\(buildSizeStock\(sizeRows\)\)/);
+  assert.match(equipment, /effectiveSizeStock/);
+  assert.match(equipment, /assignedForSize/);
+  assert.match(equipment, /Choose size\.\.\./);
+  assert.match(equipment, /\{available\} available/);
   assert.match(equipment, /category === 'Uniforms'/);
+  assert.match(provider, /sizeStock\?: Record<string, number>/);
   assert.match(provider, /details\?: \{ size\?: string; jerseyNumber\?: string \}/);
   assert.match(provider, /jerseyNumber\?: string/);
+  assert.match(provider, /runTransaction\(db/);
+  assert.match(provider, /assignedForSize \+ q/);
+  assert.match(provider, /Select an available stock sub-item/);
   assert.match(provider, /size: details\?\.size/);
   assert.match(provider, /jerseyNumber: details\?\.jerseyNumber/);
 });
