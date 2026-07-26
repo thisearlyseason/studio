@@ -291,6 +291,7 @@ service cloud.firestore {
       // They include updatedByTeamId in the written data so we can verify ownership.
       allow update: if isSuperAdmin() || (isSignedIn() && (
         resource.data.userId == request.auth.uid ||
+        resource.data.get('parentId', '') == request.auth.uid ||
         playerId == request.auth.uid ||
         isTeamCoachOfPlayer(playerId) ||
         (request.resource.data.get('updatedByTeamId', '') != '' &&
@@ -321,6 +322,7 @@ service cloud.firestore {
            exists(/databases/$(database)/documents/teams/$(request.resource.data.updatedByTeamId)) &&
            isTeamOwner(request.resource.data.updatedByTeamId)) ||
           get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
+          get(/databases/$(database)/documents/players/$(playerId)).data.get('parentId', '') == request.auth.uid ||
           isTeamCoachOfPlayer(playerId) ||
           playerId == request.auth.uid
         ));
@@ -331,6 +333,7 @@ service cloud.firestore {
         // Otherwise fall back to player-self or coach checks.
         allow delete: if isSuperAdmin() || (isSignedIn() && (
           get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
+          get(/databases/$(database)/documents/players/$(playerId)).data.get('parentId', '') == request.auth.uid ||
           isTeamCoachOfPlayer(playerId) ||
           playerId == request.auth.uid ||
           (resource.data.get('updatedByTeamId', '') != '' &&

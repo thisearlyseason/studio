@@ -17,7 +17,7 @@
 - Attack path: a guardian creates a child using `parentId`, then attempts subsequent player/subcollection updates. Read/create/delete recognize the parent in places, but update uses player user ID/self/coach pathways and omits `resource.data.parentId == request.auth.uid`.
 - Impact: legitimate guardian profile maintenance can fail; ad-hoc client fallbacks risk future insecure workarounds.
 - Fix: add a minimally scoped parent update condition, preserve immutable ownership fields, and add emulator coverage.
-- Status: unresolved pending rules-emulator verification.
+- Status: fixed on the audit branch by allowing the existing `parentId` to authorize child updates and subcollection maintenance. Emulator verification remains required.
 
 ## DEP-001 — Vulnerable package versions
 

@@ -51,3 +51,9 @@ test('private player documents are no longer the public recruiting transport', (
   assert.match(publicPage, /\/api\/public\/recruiting\//);
   assert.doesNotMatch(publicPage, /recruitingContact/);
 });
+
+test('a guardian retains update access to their own child without making the record public', () => {
+  const rules = fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
+  assert.match(rules, /resource\.data\.get\('parentId', ''\) == request\.auth\.uid/);
+  assert.match(rules, /documents\/players\/\$\(playerId\)\)\.data\.get\('parentId', ''\) == request\.auth\.uid/);
+});
