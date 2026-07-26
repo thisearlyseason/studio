@@ -8,7 +8,7 @@
 - Impact: disclosure of player/guardian identifiers, date of birth, invite metadata, recruiting contact details, evaluations, and any future player subcollection. This is especially serious for minors.
 - Required fix: server-generate a dedicated public projection containing only reviewed recruiting fields; consume it through a public API or public projection collection; revoke anonymous reads from player records/subcollections; migrate and test before deployment.
 - Regression test: emulator test as anonymous user must be denied `players/*` and every child collection while allowed only the whitelisted projection fields.
-- Current status: **unresolved; public release blocked.**
+- Current status: **fixed on the audit branch.** Public page reads were replaced with `/api/public/recruiting/[playerId]`, which builds a field-whitelisted payload; Firestore anonymous reads of player documents/subcollections were removed. Unit and production-build validation passed; emulator/Preview verification remains required.
 
 ## AUTH-001 — Guardian update authorization is inconsistent
 

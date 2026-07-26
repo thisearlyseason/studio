@@ -2,7 +2,7 @@
 
 ## Blocking before production
 
-- [ ] Remediate SEC-001 using a field-whitelisted public recruiting projection; migrate data and deploy revised Firestore/Storage rules.
+- [x] Remediate SEC-001 with a server-side field-whitelisted public recruiting payload and revised Firestore rules on the audit branch.
 - [ ] Add and pass anonymous/public recruiting privacy regression tests in the Firebase emulator.
 - [ ] Install JDK 21+ in CI and local release environment; `npm run test:rules` passes.
 - [ ] Populate and validate every production environment variable using `npm run verify:env`.

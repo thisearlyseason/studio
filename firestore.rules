@@ -271,10 +271,10 @@ service cloud.firestore {
 
     // ─── Players ────────────────────────────────────────────────────────────
     match /players/{playerId} {
-      // Public visibility is limited to athletes who explicitly enabled their
-      // recruiting profile. All other player records stay within the family/team.
-      allow read: if resource.data.get('recruitingProfileEnabled', false) == true ||
-        isSuperAdmin() || (isSignedIn() && (
+      // Player documents hold family, invite, and operational data. Public
+      // recruiting views are served from a field-whitelisted server projection,
+      // never from this private record.
+      allow read: if isSuperAdmin() || (isSignedIn() && (
           resource.data.get('userId', '') == request.auth.uid ||
           resource.data.get('parentId', '') == request.auth.uid ||
           isTeamCoachOfPlayer(playerId)
@@ -305,8 +305,9 @@ service cloud.firestore {
       ));
 
       match /{subCollection}/{docId} {
-        allow read: if get(/databases/$(database)/documents/players/$(playerId)).data.get('recruitingProfileEnabled', false) == true ||
-          isSuperAdmin() || (isSignedIn() && (
+        // Do not expose arbitrary future player subcollections when a public
+        // recruiting profile is enabled. The public API whitelists its payload.
+        allow read: if isSuperAdmin() || (isSignedIn() && (
             get(/databases/$(database)/documents/players/$(playerId)).data.get('userId', '') == request.auth.uid ||
             get(/databases/$(database)/documents/players/$(playerId)).data.get('parentId', '') == request.auth.uid ||
             isTeamCoachOfPlayer(playerId)

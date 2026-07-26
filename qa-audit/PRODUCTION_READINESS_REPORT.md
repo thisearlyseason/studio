@@ -6,7 +6,7 @@ Scope: repository review and local automated verification only; no production da
 
 ## Executive summary
 
-**Overall release status: NOT READY.** The application has a passing TypeScript build and substantial server-side authorization and billing controls, but it is not safe to launch publicly while enabled recruiting profiles make complete player documents and every player subcollection readable without authentication. Those records include direct identifiers and may include minor data, guardian identifiers, invite metadata, recruiting contact data, evaluations, and media references.
+**Overall release status: READY WITH CONDITIONS.** The critical public-recruiting privacy exposure identified in the audit has been remediated on this audit branch: public scouting uses a server-side field whitelist and Firestore no longer permits anonymous reads of private player records or subcollections. A production launch remains conditional on the rules-emulator, Preview, environment, Stripe, email, push, and device checks listed below.
 
 The audit also found that the Firestore/Storage emulator suite cannot run in this environment because Java 21 is unavailable; production environment configuration and third-party workflows cannot be verified without a Vercel Preview and test credentials. These are release conditions even after the critical privacy design is remediated.
 
@@ -24,7 +24,7 @@ The audit also found that the Firestore/Storage emulator suite cannot run in thi
 
 | Severity | ID | Finding | Status |
 |---|---|---|---|
-| Critical | SEC-001 | Public recruiting toggle grants unauthenticated reads of whole player documents and arbitrary subcollections. | Unresolved — release blocker |
+| Critical | SEC-001 | Public recruiting toggle granted unauthenticated reads of whole player documents and arbitrary subcollections. | Fixed on audit branch; emulator/Preview verification pending |
 | High | REL-001 | Firestore/Storage rules integration suite is not runnable here (JDK 21 missing), so live rule behavior is not fully proven. | Blocked external environment |
 | High | REL-002 | Required production environment variables and Vercel/App Hosting separation cannot be verified from this checkout. | Blocked external environment |
 | Medium | DEP-001 | Dependency audit originally reported high Next.js/sharp/fast-uri issues. Next and sharp were upgraded and an override applied; remaining production audit findings are three moderate transitive GenAI/MCP advisories. | Partially fixed; review required |
@@ -43,10 +43,9 @@ The audit also found that the Firestore/Storage emulator suite cannot run in thi
 
 ## Unresolved release blockers
 
-1. Replace public Firestore reads for recruiting with a dedicated, field-whitelisted public projection (for example `publicRecruitingProfiles/{playerId}`) created only by trusted server code. Deny anonymous reads to `/players/{playerId}` and all player subcollections. Review public Storage assets separately. Migrate existing enabled profiles before changing rules.
-2. Install JDK 21 or newer and run `npm run test:rules` against the emulator. Add explicit anonymous public-recruiting, cross-team, cross-league, cross-tournament, cross-school, parent, player, staff, and superadmin rule cases.
-3. Run `npm run verify:env` in the production deployment environment and prove every required variable exists with correct scopes. Validate a Vercel/App Hosting Preview with isolated Firebase, Stripe test mode, Resend sandbox, and FCM test tokens.
+1. Install JDK 21 or newer and run `npm run test:rules` against the emulator. Add explicit anonymous public-recruiting, cross-team, cross-league, cross-tournament, cross-school, parent, player, staff, and superadmin rule cases.
+2. Run `npm run verify:env` in the production deployment environment and prove every required variable exists with correct scopes. Validate a Vercel/App Hosting Preview with isolated Firebase, Stripe test mode, Resend sandbox, and FCM test tokens.
 
 ## Release decision
 
-Do **not** approve a public launch. Reassess only when SEC-001 is remediated and regression-tested, the rules suite runs successfully, required production configuration is verified, and the manual test plan is completed in Preview.
+Do **not** approve a public launch yet. Reassess only when the rules suite runs successfully, required production configuration is verified, and the manual test plan is completed in Preview.
