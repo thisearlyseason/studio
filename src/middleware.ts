@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import * as admin from 'firebase-admin'
+import { ensureAdminInit } from '@/lib/firebase-admin'
  
 const PROTECTED_ROOTS = new Set([
   'admin', 'calendar', 'chats', 'club', 'coaches-corner', 'competition',
@@ -53,11 +55,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
     try {
-      const verification = await fetch(new URL('/api/auth/session', request.url), {
-        headers: { cookie: `__session=${sessionCookie}` },
-        cache: 'no-store',
-      });
-      if (!verification.ok) throw new Error('INVALID_SESSION');
+      ensureAdminInit();
+      const decoded = await admin.auth().verifySessionCookie(sessionCookie, true);
+      if (
+        decoded.firebase?.sign_in_provider !== 'anonymous' &&
+        decoded.email_verified !== true &&
+        decoded.role !== 'superadmin'
+      ) {
+        throw new Error('EMAIL_NOT_VERIFIED');
+      }
     } catch {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('reason', 'expired');
@@ -72,6 +78,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  runtime: 'nodejs',
   matcher: [
     /*
      * Match all request paths except for the ones starting with:

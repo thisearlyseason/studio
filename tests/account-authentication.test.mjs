@@ -42,7 +42,8 @@ test('protected pages require a revocation-checked HTTP-only server session', as
   ]);
 
   assert.match(middleware, /request\.cookies\.get\('__session'\)/);
-  assert.match(middleware, /fetch\(new URL\('\/api\/auth\/session'/);
+  assert.match(middleware, /verifySessionCookie\(sessionCookie, true\)/);
+  assert.match(middleware, /runtime: 'nodejs'/);
   assert.match(middleware, /pathname\.startsWith\('\/events\/register\/'\).*return false/);
   assert.match(middleware, /pathname === '\/leagues'/);
   assert.match(middleware, /pathname === '\/tournaments'/);
