@@ -41,26 +41,15 @@ import { useToast } from '@/hooks/use-toast';
  * respecting the target audience.
  */
 export function AlertOverlay() {
-  const { alerts, seenAlertIds, markAlertAsSeen, isStaff, isPlayer, isParent, user } = useTeam();
+  const { alerts, seenAlertIds, markAlertAsSeen } = useTeam();
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [locallyAcknowledgedIds, setLocallyAcknowledgedIds] = useState<string[]>([]);
 
   // Tactical logic to find the next unread alert
   const findNextAlert = useCallback(() => {
-    const myAlerts = (alerts || []).filter(alert => {
-      // If targetUserId is set, it MUST match the current user
-      if (alert.targetUserId && alert.targetUserId !== user?.id) return false;
-      
-      if (alert.audience === 'everyone') return true;
-      if (alert.audience === 'coaches' && isStaff) return true;
-      if (alert.audience === 'players' && isPlayer) return true;
-      if (alert.audience === 'parents' && isParent) return true;
-      return false;
-    });
-
-    return myAlerts.find(a => !seenAlertIds.includes(a.id) && !locallyAcknowledgedIds.includes(a.id));
-  }, [alerts, seenAlertIds, locallyAcknowledgedIds, isStaff, isPlayer, isParent, user?.id]);
+    return alerts.find(alert => !seenAlertIds.includes(alert.id) && !locallyAcknowledgedIds.includes(alert.id));
+  }, [alerts, seenAlertIds, locallyAcknowledgedIds]);
 
   useEffect(() => {
     if (isAlertOpen) return;
@@ -163,32 +152,19 @@ function QuoteIcon({ className }: { className?: string }) {
 }
 
 export function AlertsHistoryDialog({ children }: { children: React.ReactNode }) {
-  const { alerts, markAlertAsSeen, markAllAlertsAsSeen, seenAlertIds, isStaff, isPlayer, isParent, deleteAlert, user } = useTeam();
+  const { alerts, markAlertAsSeen, markAllAlertsAsSeen, seenAlertIds, isStaff, deleteAlert } = useTeam();
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
   const [showArchived, setShowArchived] = useState(false);
   const [processingIds, setProcessingIds] = useState<string[]>([]);
 
-  const filteredAlerts = useMemo(() => {
-    return (alerts || []).filter(alert => {
-      // If targetUserId is set, it MUST match the current user
-      if (alert.targetUserId && alert.targetUserId !== user?.id) return false;
-
-      if (alert.audience === 'everyone') return true;
-      if (alert.audience === 'coaches' && isStaff) return true;
-      if (alert.audience === 'players' && isPlayer) return true;
-      if (alert.audience === 'parents' && isParent) return true;
-      return false;
-    });
-  }, [alerts, isStaff, isPlayer, isParent]);
-
   const { activeAlerts, archivedAlerts } = useMemo(() => {
     return {
-      activeAlerts: filteredAlerts.filter((a: TeamAlert) => !seenAlertIds.includes(a.id) && !processingIds.includes(a.id)),
-      archivedAlerts: filteredAlerts.filter((a: TeamAlert) => seenAlertIds.includes(a.id) || (processingIds.includes(a.id) && !seenAlertIds.includes(a.id)))
+      activeAlerts: alerts.filter((a: TeamAlert) => !seenAlertIds.includes(a.id) && !processingIds.includes(a.id)),
+      archivedAlerts: alerts.filter((a: TeamAlert) => seenAlertIds.includes(a.id) || (processingIds.includes(a.id) && !seenAlertIds.includes(a.id)))
     };
-  }, [filteredAlerts, seenAlertIds, processingIds]);
+  }, [alerts, seenAlertIds, processingIds]);
 
   const displayAlerts = showArchived ? [...activeAlerts, ...archivedAlerts] : activeAlerts;
 

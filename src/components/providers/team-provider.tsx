@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useFirestore, useMemoFirebase, useUser, useCollection, useDoc, useStorage, useAuth } from '@/firebase';
 import { getAuthToken, authHeader } from '@/lib/client-auth';
+import { isAlertRelevantToRecipient } from '@/lib/alert-audience';
 import { isBillableSquadSeat } from '@/lib/team-seat-policy';
 
 /**
@@ -1261,12 +1262,13 @@ export function TeamProvider({ children }: { children: ReactNode }) {
   const { data: gamesData } = useCollection(gamesQuery);
   const games = useMemo(() => gamesData || [], [gamesData]);
 
-  const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc'), limit(10)) : null, [isAuthResolved, activeTeam?.id, db]);
+  // History is deliberately unbounded here: the inbox promises the member's
+  // full squad broadcast history, not an arbitrary latest-ten slice.
+  const alertsQuery = useMemoFirebase(() => (isAuthResolved && activeTeam?.id && db) ? query(collection(db, 'teams', activeTeam.id, 'alerts'), orderBy('createdAt', 'desc')) : null, [isAuthResolved, activeTeam?.id, db]);
   const { data: alertsData } = useCollection<TeamAlert>(alertsQuery);
-  const alerts = useMemo(() => alertsData || [], [alertsData]);
+  const allAlerts = useMemo(() => alertsData || [], [alertsData]);
   
   const seenAlertIds = useMemo(() => userProfile?.seenAlertIds || [], [userProfile?.seenAlertIds]);
-  const unreadAlertsCount = useMemo(() => alerts.filter(a => !seenAlertIds.includes(a.id)).length, [alerts, seenAlertIds]);
 
   const plansQuery = useMemoFirebase(() => (db && isAuthResolved) ? collection(db, 'plans') : null, [db, isAuthResolved]);
   const { data: plansData, isLoading: isPlansLoading } = useCollection(plansQuery);
@@ -1391,6 +1393,19 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     
     return false;
   }, [userProfile, firebaseUser, members]);
+
+  // Every alert surface receives this same audience-filtered collection.
+  // This prevents a badge for broadcasts that the inbox must not disclose.
+  const alerts = useMemo(() => allAlerts.filter(alert => isAlertRelevantToRecipient(alert, {
+    userId: firebaseUser?.uid,
+    isStaff,
+    isPlayer,
+    isParent,
+  })), [allAlerts, firebaseUser?.uid, isStaff, isPlayer, isParent]);
+  const unreadAlertsCount = useMemo(
+    () => alerts.filter(alert => !seenAlertIds.includes(alert.id)).length,
+    [alerts, seenAlertIds],
+  );
 
   const teams = teamsRaw;
 
@@ -3588,13 +3603,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const userRelevantIds = alerts.filter(alert => {
-        if (alert.audience === 'everyone') return true;
-        if (alert.audience === 'coaches' && isStaff) return true;
-        if (alert.audience === 'players' && isPlayer) return true;
-        if (alert.audience === 'parents' && isParent) return true;
-        return false;
-      }).map(a => a.id);
+      const userRelevantIds = alerts.map(alert => alert.id);
 
       console.log("DEBUG: Filtered relevant IDs for bulk archive:", userRelevantIds);
 
