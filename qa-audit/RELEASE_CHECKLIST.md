@@ -1,0 +1,30 @@
+# Release Checklist
+
+## Blocking before production
+
+- [ ] Remediate SEC-001 using a field-whitelisted public recruiting projection; migrate data and deploy revised Firestore/Storage rules.
+- [ ] Add and pass anonymous/public recruiting privacy regression tests in the Firebase emulator.
+- [ ] Install JDK 21+ in CI and local release environment; `npm run test:rules` passes.
+- [ ] Populate and validate every production environment variable using `npm run verify:env`.
+- [ ] Verify Preview uses isolated Firebase, Stripe test mode, Resend sandbox, non-production OAuth callback, and non-production FCM tokens.
+- [ ] Review the remaining three moderate dependency advisories and accept/update with an owner.
+- [ ] Set appropriate App Hosting capacity/autoscaling; `maxInstances: 1` must be an intentional capacity decision.
+
+## Required release evidence
+
+- [ ] Clean checkout / `npm ci` succeeds.
+- [ ] `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:rules`, `npm run build`, and `npm --prefix functions run build` pass.
+- [ ] Production dependency audit has no critical/high findings.
+- [ ] Stripe test-mode checkout/update/add-on/cancel/webhook matrix is signed off.
+- [ ] Resend and FCM test delivery and opt-out handling are signed off.
+- [ ] All role/tenant negative cases complete in Preview.
+- [ ] Mobile/browser/accessibility test plan complete.
+- [ ] Backup/retention, incident response, alerting, ownership, rollback, and deploy runbook are approved.
+
+## Deploy/rollback
+
+- [ ] Snapshot rules/indexes/config before deploy.
+- [ ] Deploy Preview first; run smoke tests with test accounts.
+- [ ] Promote only an immutable, reviewed commit.
+- [ ] Monitor Stripe/Resend/webhook/API error logs after release.
+- [ ] Keep a documented rollback version and data-migration reversal plan.
