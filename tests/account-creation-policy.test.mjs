@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   accountCreationLimit,
@@ -55,4 +56,14 @@ test('creation capacity and text are bounded', () => {
     () => normalizeCreationText('x'.repeat(121), { field: 'name', max: 120 }),
     /NAME_INVALID/
   );
+});
+
+test('team creation API accepts every team type offered by onboarding', async () => {
+  const route = await readFile(
+    new URL('../src/app/api/teams/create/route.ts', import.meta.url),
+    'utf8'
+  );
+  for (const type of ['adult', 'youth', 'team', 'club', 'school', 'school_squad']) {
+    assert.match(route, new RegExp(`['"]${type}['"]`));
+  }
 });

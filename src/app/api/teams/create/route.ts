@@ -8,7 +8,14 @@ import {
 } from '@/lib/account-creation-policy';
 import { readJsonBodyWithLimit, RequestBodyError } from '@/lib/server-request-guards';
 
-const ALLOWED_TYPES = new Set(['team', 'club', 'school', 'school_squad']);
+const ALLOWED_TYPES = new Set([
+  'adult',
+  'youth',
+  'team',
+  'club',
+  'school',
+  'school_squad',
+]);
 
 function inviteCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
