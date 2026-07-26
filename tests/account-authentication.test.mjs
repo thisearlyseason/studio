@@ -13,6 +13,9 @@ test('email-password signup requires verification before plan or tenant access',
   assert.match(signup, /router\.push\('\/verify-email'\)/);
   assert.match(signup, /password !== passwordConfirmation/);
   assert.match(signup, /Confirm Password/);
+  assert.match(signup, /sendEmailVerification[\s\S]*writeBatch/);
+  assert.match(signup, /await deleteUser\(createdUser\)/);
+  assert.doesNotMatch(signup, /description: error\.message/);
   assert.match(auth, /auth\/email-not-verified/);
   assert.match(rules, /email_verified/);
   assert.match(rules, /hasActiveAccount/);

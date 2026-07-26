@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CardFooter, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, deleteUser, sendEmailVerification, updateProfile, type User as FirebaseUser } from 'firebase/auth';
+import { doc, writeBatch } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import {
   User, Baby, ArrowRight, Check, ShieldCheck, Trophy, ChevronLeft,
@@ -197,9 +197,11 @@ export default function SignupPage() {
     }
 
     setIsLoading(true);
+    let createdUser: FirebaseUser | null = null;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       const user = userCredential.user;
+      createdUser = user;
       await updateProfile(user, { displayName: cleanName });
 
       const roleMap: Record<string, string> = {
@@ -210,30 +212,6 @@ export default function SignupPage() {
         league_creator: 'league_creator',
       };
       const role = roleMap[regTarget as string] || 'adult_player';
-
-      await setDoc(doc(db, 'users', user.uid), {
-        id: user.uid,
-        fullName: cleanName,
-        email: cleanEmail,
-        role,
-        notificationsEnabled: true,
-        upcomingEventNotificationsEnabled: true,
-        createdAt: new Date().toISOString(),
-        avatarUrl: `https://picsum.photos/seed/${user.uid}/150/150`,
-      });
-
-      // Adult player: create matching player record
-      if (regTarget === 'self') {
-        await setDoc(doc(db, 'players', `p_${user.uid}`), {
-          firstName: cleanName.split(' ')[0],
-          lastName: cleanName.split(' ').slice(1).join(' '),
-          isMinor: false,
-          userId: user.uid,
-          hasLogin: true,
-          recruitingProfileEnabled: false,
-          createdAt: new Date().toISOString(),
-        });
-      }
 
       const postVerificationPath =
         planChoice && planChoice !== 'starter'
@@ -251,9 +229,43 @@ export default function SignupPage() {
       await sendEmailVerification(user, {
         url: `${window.location.origin}/login?verified=1`,
       });
+
+      const profileBatch = writeBatch(db);
+      profileBatch.set(doc(db, 'users', user.uid), {
+        id: user.uid,
+        fullName: cleanName,
+        email: cleanEmail,
+        role,
+        notificationsEnabled: true,
+        upcomingEventNotificationsEnabled: true,
+        createdAt: new Date().toISOString(),
+        avatarUrl: `https://picsum.photos/seed/${user.uid}/150/150`,
+      });
+
+      // Adult player: create matching player record
+      if (regTarget === 'self') {
+        profileBatch.set(doc(db, 'players', `p_${user.uid}`), {
+          firstName: cleanName.split(' ')[0],
+          lastName: cleanName.split(' ').slice(1).join(' '),
+          isMinor: false,
+          userId: user.uid,
+          hasLogin: true,
+          recruitingProfileEnabled: false,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      await profileBatch.commit();
       toast({ title: "Verify Your Email", description: "We sent a verification link before account access is enabled." });
       router.push('/verify-email');
     } catch (error: any) {
+      if (createdUser) {
+        sessionStorage.removeItem('squad_post_verify_path');
+        await deleteUser(createdUser).catch(() => {
+          // A very recent signup normally requires no reauthentication. If the
+          // provider refuses cleanup, the unverified identity remains blocked
+          // by API, middleware, Firestore, and Storage verification gates.
+        });
+      }
       const code = error?.code || '';
       if (code === 'auth/email-already-in-use') {
         toast({ title: "Email Already in Use", description: "Please log in or use a different email.", variant: "destructive" });
@@ -261,8 +273,10 @@ export default function SignupPage() {
         toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
       } else if (code === 'auth/weak-password') {
         toast({ title: "Weak Password", description: "Password must be at least 6 characters.", variant: "destructive" });
+      } else if (code === 'auth/unauthorized-continue-uri') {
+        toast({ title: "Signup Temporarily Unavailable", description: "This site is not authorized for account verification. No account was retained.", variant: "destructive" });
       } else {
-        toast({ title: "Signup Error", description: error.message || "An unexpected error occurred.", variant: "destructive" });
+        toast({ title: "Signup Error", description: "Signup could not be completed. No account was retained; please try again.", variant: "destructive" });
       }
     } finally {
       setIsLoading(false);
