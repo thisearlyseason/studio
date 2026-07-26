@@ -3,8 +3,8 @@
 ## Blocking before production
 
 - [x] Remediate SEC-001 with a server-side field-whitelisted public recruiting payload and revised Firestore rules on the audit branch.
-- [ ] Add and pass anonymous/public recruiting privacy regression tests in the Firebase emulator.
-- [ ] Install JDK 21+ in CI and local release environment; `npm run test:rules` passes.
+- [x] Add and pass anonymous/public recruiting privacy regression tests in the Firebase emulator.
+- [x] Use JDK 21+ in the local release environment; `npm run test:rules` passes (Java 26.0.2). Ensure CI uses JDK 21+.
 - [ ] Populate and validate every production environment variable using `npm run verify:env`.
 - [ ] Verify Preview uses isolated Firebase, Stripe test mode, Resend sandbox, non-production OAuth callback, and non-production FCM tokens.
 - [ ] Review the remaining three moderate dependency advisories and accept/update with an owner.
@@ -13,7 +13,7 @@
 ## Required release evidence
 
 - [ ] Clean checkout / `npm ci` succeeds.
-- [ ] `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:rules`, `npm run build`, and `npm --prefix functions run build` pass.
+- [ ] Re-run and record a clean-checkout pass of `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:rules`, `npm run build`, and `npm --prefix functions run build`.
 - [ ] Production dependency audit has no critical/high findings.
 - [ ] Stripe test-mode checkout/update/add-on/cancel/webhook matrix is signed off.
 - [ ] Resend and FCM test delivery and opt-out handling are signed off.

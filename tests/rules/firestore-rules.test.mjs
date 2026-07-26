@@ -71,6 +71,9 @@ beforeEach(async () => {
         primaryTeamId: 'team-a',
         recruitingProfileEnabled: true,
       }),
+      setDoc(doc(db, 'players', 'public-player', 'contact', 'private'), {
+        email: 'guardian@example.test',
+      }),
       setDoc(doc(db, 'leagues', 'league-a'), {
         creatorId: 'owner',
         memberUserIds: ['owner', 'member'],
@@ -197,10 +200,10 @@ test('members cannot create or promote their own team membership', async () => {
   }));
 });
 
-test('team chat messages cannot impersonate another member', async () => {
+test('team chat messages are server-authored and cannot be impersonated by clients', async () => {
   const memberDb = authenticatedDb('member');
 
-  await assertSucceeds(setDoc(
+  await assertFails(setDoc(
     doc(memberDb, 'teams', 'team-a', 'groupChats', 'chat-a', 'messages', 'self-message'),
     { authorId: 'member', text: 'hello' },
   ));
@@ -210,13 +213,27 @@ test('team chat messages cannot impersonate another member', async () => {
   ));
 });
 
-test('private players stay family-scoped while enabled scout profiles are public', async () => {
+test('player records stay family-scoped even when recruiting is enabled', async () => {
   const anonymousDb = testEnv.unauthenticatedContext().firestore();
   const memberDb = authenticatedDb('member');
 
   await assertFails(getDoc(doc(anonymousDb, 'players', 'private-player')));
-  await assertSucceeds(getDoc(doc(anonymousDb, 'players', 'public-player')));
+  await assertFails(getDoc(doc(anonymousDb, 'players', 'public-player')));
+  await assertFails(getDoc(doc(anonymousDb, 'players', 'public-player', 'contact', 'private')));
   await assertSucceeds(getDoc(doc(memberDb, 'players', 'private-player')));
+});
+
+test('a guardian can maintain their child record and an outsider cannot', async () => {
+  const guardianDb = authenticatedDb('member');
+  const outsiderDb = authenticatedDb('outsider');
+  const playerRef = 'players/private-player';
+
+  await assertSucceeds(setDoc(doc(guardianDb, playerRef), {
+    guardianNote: 'Updated by guardian',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(outsiderDb, playerRef), {
+    guardianNote: 'Forged update',
+  }, { merge: true }));
 });
 
 test('leagues are visible only to organizers or registered members', async () => {

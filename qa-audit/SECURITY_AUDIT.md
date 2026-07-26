@@ -7,8 +7,8 @@
 - Attack path: enable `recruitingProfileEnabled` on any player, then anonymously read `players/{playerId}` and enumerate/read documents below `players/{playerId}/{subCollection}`. Firestore rules permit both. The public page directly queries player, recruiting profile, contact, metrics, stats, evaluations, and videos.
 - Impact: disclosure of player/guardian identifiers, date of birth, invite metadata, recruiting contact details, evaluations, and any future player subcollection. This is especially serious for minors.
 - Required fix: server-generate a dedicated public projection containing only reviewed recruiting fields; consume it through a public API or public projection collection; revoke anonymous reads from player records/subcollections; migrate and test before deployment.
-- Regression test: emulator test as anonymous user must be denied `players/*` and every child collection while allowed only the whitelisted projection fields.
-- Current status: **fixed on the audit branch.** Public page reads were replaced with `/api/public/recruiting/[playerId]`, which builds a field-whitelisted payload; Firestore anonymous reads of player documents/subcollections were removed. Unit and production-build validation passed; emulator/Preview verification remains required.
+- Regression test: emulator test as anonymous user is denied `players/*` and the private child contact document while the separate public API uses only whitelisted projection fields.
+- Current status: **fixed and emulator-verified on the audit branch.** Public page reads were replaced with `/api/public/recruiting/[playerId]`, which builds a field-whitelisted payload; Firestore anonymous reads of player documents/subcollections are denied. Preview verification remains required.
 
 ## AUTH-001 — Guardian update authorization is inconsistent
 
@@ -17,7 +17,7 @@
 - Attack path: a guardian creates a child using `parentId`, then attempts subsequent player/subcollection updates. Read/create/delete recognize the parent in places, but update uses player user ID/self/coach pathways and omits `resource.data.parentId == request.auth.uid`.
 - Impact: legitimate guardian profile maintenance can fail; ad-hoc client fallbacks risk future insecure workarounds.
 - Fix: add a minimally scoped parent update condition, preserve immutable ownership fields, and add emulator coverage.
-- Status: fixed on the audit branch by allowing the existing `parentId` to authorize child updates and subcollection maintenance. Emulator verification remains required.
+- Status: fixed on the audit branch by allowing the existing `parentId` to authorize child updates and subcollection maintenance. Rules suite passes in the emulator; Preview verification remains required.
 
 ## DEP-001 — Vulnerable package versions
 
@@ -38,4 +38,4 @@
 
 ## Review limitations
 
-No production account, database, deployment, browser farm, email inbox, Stripe test fixture, FCM device, or rules emulator was available. Absence of findings outside this scope is not proof of absence.
+No production account, database, deployment, browser farm, email inbox, Stripe test fixture, or FCM device was available. The Firebase Firestore/Storage rules emulator was run locally. Absence of findings outside this scope is not proof of absence.

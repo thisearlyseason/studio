@@ -6,9 +6,9 @@ Scope: repository review and local automated verification only; no production da
 
 ## Executive summary
 
-**Overall release status: READY WITH CONDITIONS.** The critical public-recruiting privacy exposure identified in the audit has been remediated on this audit branch: public scouting uses a server-side field whitelist and Firestore no longer permits anonymous reads of private player records or subcollections. A production launch remains conditional on the rules-emulator, Preview, environment, Stripe, email, push, and device checks listed below.
+**Overall release status: READY WITH CONDITIONS.** The critical public-recruiting privacy exposure identified in the audit has been remediated on this audit branch: public scouting uses a server-side field whitelist and Firestore no longer permits anonymous reads of private player records or subcollections. The Firestore/Storage emulator suite now passes with Java 26. A production launch remains conditional on Preview, environment, Stripe, email, push, and device checks listed below.
 
-The audit also found that the Firestore/Storage emulator suite cannot run in this environment because Java 21 is unavailable; production environment configuration and third-party workflows cannot be verified without a Vercel Preview and test credentials. These are release conditions even after the critical privacy design is remediated.
+Production environment configuration and third-party workflows cannot be verified from this checkout without a Vercel/App Hosting Preview and test credentials. These remain release conditions even after the critical privacy design is remediated.
 
 ## Architecture summary
 
@@ -24,11 +24,10 @@ The audit also found that the Firestore/Storage emulator suite cannot run in thi
 
 | Severity | ID | Finding | Status |
 |---|---|---|---|
-| Critical | SEC-001 | Public recruiting toggle granted unauthenticated reads of whole player documents and arbitrary subcollections. | Fixed on audit branch; emulator/Preview verification pending |
-| High | REL-001 | Firestore/Storage rules integration suite is not runnable here (JDK 21 missing), so live rule behavior is not fully proven. | Blocked external environment |
+| Critical | SEC-001 | Public recruiting toggle granted unauthenticated reads of whole player documents and arbitrary subcollections. | Fixed on audit branch; anonymous player and child-document access now denied in emulator |
 | High | REL-002 | Required production environment variables and Vercel/App Hosting separation cannot be verified from this checkout. | Blocked external environment |
 | Medium | DEP-001 | Dependency audit originally reported high Next.js/sharp/fast-uri issues. Next and sharp were upgraded and an override applied; remaining production audit findings are three moderate transitive GenAI/MCP advisories. | Partially fixed; review required |
-| Medium | AUTH-001 | Parent-owned child player documents may be created/deleted by the guardian but parent update access is not consistently present in the player rules. | Unresolved functional/authorization review |
+| Medium | AUTH-001 | Parent-owned child player documents may be created/deleted by the guardian but parent update access is not consistently present in the player rules. | Fixed on audit branch; regression coverage added |
 | Medium | QA-001 | Lint completes with exit code 0 but reports 1,943 warnings, including React hook dependency and accessibility/performance warnings. | Unresolved quality debt |
 | Low | OPS-001 | App Hosting has `maxInstances: 1`; this is a capacity/availability risk at public launch. | Unresolved deployment decision |
 
@@ -43,9 +42,9 @@ The audit also found that the Firestore/Storage emulator suite cannot run in thi
 
 ## Unresolved release blockers
 
-1. Install JDK 21 or newer and run `npm run test:rules` against the emulator. Add explicit anonymous public-recruiting, cross-team, cross-league, cross-tournament, cross-school, parent, player, staff, and superadmin rule cases.
-2. Run `npm run verify:env` in the production deployment environment and prove every required variable exists with correct scopes. Validate a Vercel/App Hosting Preview with isolated Firebase, Stripe test mode, Resend sandbox, and FCM test tokens.
+1. Run `npm run verify:env` in the production deployment environment and prove every required variable exists with correct scopes.
+2. Validate a Vercel/App Hosting Preview with isolated Firebase, Stripe test mode, Resend sandbox, and FCM test tokens. Complete the manual role/tenant, browser, mobile, accessibility, billing, email, and push flows.
 
 ## Release decision
 
-Do **not** approve a public launch yet. Reassess only when the rules suite runs successfully, required production configuration is verified, and the manual test plan is completed in Preview.
+Do **not** approve a public launch yet. Reassess only when required production configuration is verified and the manual test plan is completed in Preview.
