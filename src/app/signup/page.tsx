@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CardFooter, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
-import { getAuthToken, authHeader } from '@/lib/client-auth';
 import { PRICING_CONFIG } from '@/lib/pricing';
 
 type RegTarget = 'self' | 'child' | 'coach' | 'league_creator' | 'school_ad' | null;
@@ -176,10 +175,19 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim().replace(/\s+/g, ' ');
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
       toast({ title: "Invalid Email", description: "Please enter a valid email address (e.g. name@example.com).", variant: "destructive" });
+      return;
+    }
+    if (!cleanName || cleanName.length > 120) {
+      toast({ title: "Invalid Name", description: "Enter a name between 1 and 120 characters.", variant: "destructive" });
+      return;
+    }
+    if (password.length < 8 || password.length > 128) {
+      toast({ title: "Weak Password", description: "Use a password between 8 and 128 characters.", variant: "destructive" });
       return;
     }
 
@@ -187,7 +195,7 @@ export default function SignupPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       const user = userCredential.user;
-      await updateProfile(user, { displayName: name });
+      await updateProfile(user, { displayName: cleanName });
 
       const roleMap: Record<string, string> = {
         self: 'adult_player',
@@ -200,7 +208,7 @@ export default function SignupPage() {
 
       await setDoc(doc(db, 'users', user.uid), {
         id: user.uid,
-        fullName: name,
+        fullName: cleanName,
         email: cleanEmail,
         role,
         notificationsEnabled: true,
@@ -212,8 +220,8 @@ export default function SignupPage() {
       // Adult player: create matching player record
       if (regTarget === 'self') {
         await setDoc(doc(db, 'players', `p_${user.uid}`), {
-          firstName: name.split(' ')[0],
-          lastName: name.split(' ').slice(1).join(' '),
+          firstName: cleanName.split(' ')[0],
+          lastName: cleanName.split(' ').slice(1).join(' '),
           isMinor: false,
           userId: user.uid,
           hasLogin: true,
@@ -222,73 +230,24 @@ export default function SignupPage() {
         });
       }
 
-      toast({ title: "Account Created!", description: `Welcome to The Squad Hub.` });
-
-      // === PAID PLAN: redirect to Stripe Checkout with 5-day trial ===
-      const isPaid = planChoice && planChoice !== 'starter';
-      if (isPaid) {
-        const planDef = PLAN_DEFS[planChoice as string];
-        const resolvedPriceId = billingCycle === 'annual'
-          ? planDef?.annualPriceId
-          : planDef?.monthlyPriceId;
-        if (!resolvedPriceId) {
-          // Fallback: go to pricing if price ID missing
-          toast({ title: 'Plan Setup Issue', description: 'Please complete your upgrade from the pricing page.', variant: 'destructive' });
-          router.push('/pricing');
-          return;
-        }
-        try {
-          const token = await getAuthToken(auth);
-          const res = await fetch('/api/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-            body: JSON.stringify({
-              priceId: resolvedPriceId,
-              userId: user.uid,
-              billingCycle,
-              newUser: true,
-            }),
-          });
-          const data = await res.json();
-          if (data.url) {
-            window.location.href = data.url;
-            return;
-          }
-          throw new Error(data.error || 'Checkout initiation failed');
-        } catch (checkoutErr: any) {
-          toast({ title: 'Payment Redirect Failed', description: 'Account created. Please upgrade from the pricing page.', variant: 'destructive' });
-          router.push('/pricing');
-          return;
-        }
-      }
-
-      // === FREE / PLAYER / PARENT path ===
-      // Apply join code if entered
-      if (joinCode.trim() && (role === 'adult_player' || role === 'parent')) {
-        try {
-          const effectivePlayerId = `p_${user.uid}`;
-          await fetch('/api/teams/join', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader(await getAuthToken(auth)) },
-            body: JSON.stringify({ code: joinCode.trim().toUpperCase(), playerId: effectivePlayerId }),
-          });
-        } catch (_) {
-          // Non-critical — user can join from dashboard
-        }
-      }
-
-      // Role-based redirect
-      if (joinCode.trim() && (role === 'adult_player' || role === 'parent')) {
-        router.push('/feed');
-      } else if (role === 'coach' || role === 'admin') {
-        router.push('/teams/new');
-      } else if (role === 'parent') {
-        router.push('/family');
-      } else if (role === 'league_creator') {
-        router.push('/competition');
-      } else {
-        router.push('/teams/join');
-      }
+      const postVerificationPath =
+        planChoice && planChoice !== 'starter'
+          ? '/pricing'
+          : joinCode.trim()
+            ? `/teams/join?code=${encodeURIComponent(joinCode.trim().toUpperCase())}`
+            : role === 'parent'
+              ? '/family'
+              : role === 'league_creator'
+                ? '/competition'
+                : role === 'coach' || role === 'admin'
+                  ? '/teams/new'
+                  : '/teams/join';
+      sessionStorage.setItem('squad_post_verify_path', postVerificationPath);
+      await sendEmailVerification(user, {
+        url: `${window.location.origin}/login?verified=1`,
+      });
+      toast({ title: "Verify Your Email", description: "We sent a verification link before account access is enabled." });
+      router.push('/verify-email');
     } catch (error: any) {
       const code = error?.code || '';
       if (code === 'auth/email-already-in-use') {
@@ -701,6 +660,7 @@ export default function SignupPage() {
                   <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Full Name</Label>
                   <Input
                     required
+                    maxLength={120}
                     placeholder="John Smith"
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -712,6 +672,7 @@ export default function SignupPage() {
                   <Input
                     required
                     type="email"
+                    maxLength={254}
                     placeholder="you@example.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
@@ -723,7 +684,9 @@ export default function SignupPage() {
                   <Input
                     required
                     type="password"
-                    placeholder="Min. 6 characters"
+                    minLength={8}
+                    maxLength={128}
+                    placeholder="Min. 8 characters"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="h-12 rounded-xl bg-muted/30 border-muted font-semibold"

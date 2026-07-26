@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signInAnonymously, signOut, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, browserPopupRedirectResolver } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 import BrandLogo from '@/components/BrandLogo';
@@ -39,6 +39,10 @@ export default function LoginPage() {
   React.useEffect(() => {
     if (!isUserLoading && user) {
       const fetchRole = async () => {
+        if (!user.isAnonymous && !user.emailVerified) {
+          router.replace('/verify-email');
+          return;
+        }
         const returnPath = sessionStorage.getItem('squad_return_path');
         if (returnPath?.startsWith('/') && !returnPath.startsWith('//')) {
           sessionStorage.removeItem('squad_return_path');
@@ -49,6 +53,9 @@ export default function LoginPage() {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
+            if (user.email && data.email !== user.email) {
+              await updateDoc(userDoc.ref, { email: user.email });
+            }
             const tokenResult = await user.getIdTokenResult();
             if (tokenResult.claims.role === 'superadmin') {
               router.push('/admin');
@@ -72,11 +79,11 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password.trim());
+      await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
     } catch (error: any) {
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials.",
+        description: "The email or password is incorrect, or this account is unavailable.",
         variant: "destructive",
       });
       setIsLoading(false);
