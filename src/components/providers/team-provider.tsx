@@ -1968,7 +1968,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const response = await fetch('/api/teams/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify({ code, playerId }),
+      body: JSON.stringify({ code, playerId, position }),
     });
     return response.ok;
   }, [firebaseUser, firebaseAuth]);

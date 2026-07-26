@@ -1,129 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
+import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase-admin';
-import { verifyFirebaseToken } from '@/lib/api-auth';
-import {
-  enforceUserRateLimit,
-  readJsonBodyWithLimit,
-  RequestBodyError,
-} from '@/lib/server-request-guards';
+import { assertNonAnonymous, verifyFirebaseToken } from '@/lib/api-auth';
+import { enforceUserRateLimit, readJsonBodyWithLimit, RequestBodyError } from '@/lib/server-request-guards';
 
-function normalizeInviteCode(value: unknown): string {
-  return typeof value === 'string' ? value.trim().toUpperCase() : '';
+const CODE_PATTERN = /^[A-Z0-9_-]{4,32}$/;
+
+async function findTeamByCode(code: string) {
+  for (const field of ['code', 'teamCode', 'inviteCode']) {
+    const result = await adminDb.collection('teams').where(field, '==', code).limit(1).get();
+    if (!result.empty) return result.docs[0];
+  }
+  return null;
 }
 
-function isValidInviteCode(value: string): boolean {
-  return /^[A-Z0-9_-]{3,64}$/.test(value);
+function readCode(req: NextRequest) {
+  const code = req.nextUrl.searchParams.get('code')?.trim().toUpperCase() || '';
+  return CODE_PATTERN.test(code) ? code : '';
 }
 
-async function findTeamByInviteCode(inviteCode: string) {
-  const matches = await Promise.all(['inviteCode', 'teamCode', 'code'].map(field =>
-    adminDb.collection('teams').where(field, '==', inviteCode).limit(1).get()
-  ));
-  return [
-    ...new Map(
-      matches.flatMap(match => match.docs).map(team => [team.id, team])
-    ).values(),
-  ];
-}
-
-/** Resolve the squad name carried by an authenticated recruitment link. */
 export async function GET(req: NextRequest) {
   const auth = await verifyFirebaseToken(req);
   if (auth instanceof NextResponse) return auth;
-
-  try {
-    const rateLimit = await enforceUserRateLimit(
-      auth.uid,
-      'team-invite-preview',
-      30,
-      5 * 60 * 1000
-    );
-    if (rateLimit) return rateLimit;
-
-    const inviteCode = normalizeInviteCode(req.nextUrl.searchParams.get('code'));
-    if (!isValidInviteCode(inviteCode)) {
-      return NextResponse.json({ error: 'A valid invite code is required.' }, { status: 400 });
-    }
-    const teams = await findTeamByInviteCode(inviteCode);
-    if (teams.length !== 1) {
-      return NextResponse.json(
-        { error: teams.length ? 'Invite code is ambiguous.' : 'Invite code not found.' },
-        { status: 404 }
-      );
-    }
-    const team = teams[0].data();
-    return NextResponse.json({
-      teamId: teams[0].id,
-      teamName: team.name || team.teamName || 'Squad',
-    });
-  } catch (error) {
-    console.error('[teams/join] Invite lookup failed:', error);
-    return NextResponse.json({ error: 'Unable to verify this recruitment link.' }, { status: 500 });
-  }
+  const code = readCode(req);
+  if (!code) return NextResponse.json({ error: 'Enter a valid squad code.' }, { status: 400 });
+  const limited = await enforceUserRateLimit(auth.uid, 'team-join-preview', 30, 10 * 60 * 1000);
+  if (limited) return limited;
+  const teamSnapshot = await findTeamByCode(code);
+  if (!teamSnapshot) return NextResponse.json({ error: 'Squad code not found.' }, { status: 404 });
+  const team = teamSnapshot.data() || {};
+  return NextResponse.json({ teamId: teamSnapshot.id, teamName: String(team.name || team.teamName || 'Squad') });
 }
 
-/** Server-authorized team enrollment using an invite code. */
 export async function POST(req: NextRequest) {
   const auth = await verifyFirebaseToken(req);
   if (auth instanceof NextResponse) return auth;
+  const nonAnonymous = assertNonAnonymous(auth);
+  if (nonAnonymous) return nonAnonymous;
+
   try {
-    const rateLimit = await enforceUserRateLimit(
-      auth.uid,
-      'team-invite-join',
-      10,
-      10 * 60 * 1000
-    );
-    if (rateLimit) return rateLimit;
+    const limited = await enforceUserRateLimit(auth.uid, 'team-join', 10, 60 * 60 * 1000);
+    if (limited) return limited;
+    const body = await readJsonBodyWithLimit<Record<string, unknown>>(req, 4_000);
+    const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+    if (!CODE_PATTERN.test(code)) return NextResponse.json({ error: 'Enter a valid squad code.' }, { status: 400 });
+    const requestedPlayerId = typeof body.playerId === 'string' ? body.playerId : '';
+    const playerId = requestedPlayerId || `p_${auth.uid}`;
+    if (!/^p_[A-Za-z0-9_-]{1,200}$/.test(playerId)) return NextResponse.json({ error: 'Invalid athlete identity.' }, { status: 400 });
+    const position = typeof body.position === 'string' && body.position.length <= 80 ? body.position : 'Athlete';
 
-    const { code, playerId } = await readJsonBodyWithLimit<{
-      code?: unknown;
-      playerId?: unknown;
-    }>(req, 8_000);
-    const inviteCode = normalizeInviteCode(code);
-    if (
-      !isValidInviteCode(inviteCode) ||
-      typeof playerId !== 'string' ||
-      !/^[A-Za-z0-9_-]{1,200}$/.test(playerId)
-    ) {
-      return NextResponse.json({ error: 'A valid invite code and player are required.' }, { status: 400 });
-    }
-    const teams = await findTeamByInviteCode(inviteCode);
-    if (teams.length !== 1) return NextResponse.json({ error: teams.length ? 'Invite code is ambiguous.' : 'Invite code not found.' }, { status: 404 });
-
-    const playerRef = adminDb.collection('players').doc(playerId);
-    const [playerSnap, userSnap] = await Promise.all([playerRef.get(), adminDb.collection('users').doc(auth.uid).get()]);
-    if (!playerSnap.exists) return NextResponse.json({ error: 'Player not found.' }, { status: 404 });
-    const player = playerSnap.data()!;
-    if (player.userId !== auth.uid && player.parentId !== auth.uid) {
-      return NextResponse.json({ error: 'You may only enroll yourself or your own child.' }, { status: 403 });
-    }
-
-    const teamDoc = teams[0];
-    const team = teamDoc.data();
-    const memberId = playerId.startsWith('p_') ? auth.uid : playerId;
-    const name = playerId.startsWith('p_')
-      ? (userSnap.data()?.fullName || userSnap.data()?.name || 'Member')
-      : [player.firstName, player.lastName].filter(Boolean).join(' ') || 'Player';
+    const teamSnapshot = await findTeamByCode(code);
+    if (!teamSnapshot) return NextResponse.json({ error: 'Squad code not found.' }, { status: 404 });
+    const team = teamSnapshot.data() || {};
     const now = new Date().toISOString();
-    const batch = adminDb.batch();
-    batch.set(adminDb.collection('users').doc(auth.uid).collection('teamMemberships').doc(`${teamDoc.id}_${memberId}`), {
-      teamId: teamDoc.id, playerId: memberId, name: team.name || team.teamName || '', role: 'Member', code: inviteCode, joinedAt: now,
-    }, { merge: true });
-    batch.set(teamDoc.ref.collection('members').doc(memberId), {
-      id: memberId, userId: auth.uid, playerId, parentId: player.parentId || auth.uid, name,
-      role: 'Member', position: 'Player', joinedAt: now, avatar: player.photoURL || userSnap.data()?.avatarUrl || '',
-      ownerUserId: team.ownerUserId || '', teamId: teamDoc.id, schoolId: team.schoolId || null,
-      email: userSnap.data()?.email || auth.email || null, parentEmail: player.parentId ? (auth.email || null) : null,
-    }, { merge: true });
-    batch.update(playerRef, { primaryTeamId: teamDoc.id, joinedTeamIds: FieldValue.arrayUnion(teamDoc.id) });
-    await batch.commit();
-    return NextResponse.json({ teamId: teamDoc.id });
+    const userRef = adminDb.collection('users').doc(auth.uid);
+    const playerRef = adminDb.collection('players').doc(playerId);
+    const memberRef = teamSnapshot.ref.collection('members').doc(playerId === `p_${auth.uid}` ? auth.uid : playerId);
+    const membershipRef = userRef.collection('teamMemberships').doc(teamSnapshot.id);
+
+    await adminDb.runTransaction(async transaction => {
+      const [userSnapshot, memberSnapshot, playerSnapshot] = await Promise.all([
+        transaction.get(userRef), transaction.get(memberRef), transaction.get(playerRef),
+      ]);
+      const user = userSnapshot.data() || {};
+      const existingPlayer = playerSnapshot.data() || {};
+      if (playerId !== `p_${auth.uid}` && existingPlayer.parentId !== auth.uid) throw new Error('CHILD_FORBIDDEN');
+      const displayName = String(
+        existingPlayer.firstName
+          ? `${existingPlayer.firstName} ${existingPlayer.lastName || ''}`.trim()
+          : user.name || user.fullName || auth.email?.split('@')[0] || 'Athlete'
+      );
+      const avatar = String(user.avatar || user.avatarUrl || '');
+      if (!playerSnapshot.exists) {
+        const [firstName = 'Athlete', ...lastName] = displayName.split(/\s+/).filter(Boolean);
+        transaction.create(playerRef, {
+          id: playerId, firstName, lastName: lastName.join(' '), userId: auth.uid,
+          parentId: null, isMinor: false, hasLogin: true, createdAt: now, joinedTeamIds: [teamSnapshot.id],
+        });
+      } else {
+        transaction.set(playerRef, { userId: auth.uid, hasLogin: true, joinedTeamIds: admin.firestore.FieldValue.arrayUnion(teamSnapshot.id), updatedAt: now }, { merge: true });
+      }
+      transaction.set(memberRef, {
+        ...(memberSnapshot.data() || {}),
+        id: memberRef.id, userId: typeof existingPlayer.userId === 'string' || playerId === `p_${auth.uid}` ? (existingPlayer.userId || auth.uid) : auth.uid, playerId, teamId: teamSnapshot.id,
+        name: displayName, avatar, parentId: existingPlayer.parentId || null, role: 'Member', position, jersey: '',
+        status: 'active', joinedAt: memberSnapshot.data()?.joinedAt || now,
+      }, { merge: true });
+      transaction.set(membershipRef, {
+        teamId: teamSnapshot.id, name: String(team.name || team.teamName || 'Squad'), role: 'Member',
+        code, joinedAt: now, type: team.type || 'team', isPro: team.isPro === true, planId: team.planId || 'free',
+      }, { merge: true });
+    });
+    return NextResponse.json({ ok: true, teamId: teamSnapshot.id, playerId });
   } catch (error) {
-    if (error instanceof RequestBodyError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    console.error('[teams/join] Enrollment failed:', error);
-    return NextResponse.json({ error: 'Unable to join this team.' }, { status: 500 });
+    if (error instanceof RequestBodyError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof Error && error.message === 'CHILD_FORBIDDEN') return NextResponse.json({ error: 'You can only enroll a linked child profile.' }, { status: 403 });
+    console.error('[teams/join] Error:', error);
+    return NextResponse.json({ error: 'Unable to join the squad.' }, { status: 500 });
   }
 }
