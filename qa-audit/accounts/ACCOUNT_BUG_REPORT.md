@@ -91,27 +91,28 @@
 - Security impact: fail-closed; no unauthorized access was observed.
 - User impact: supported staff workflows can fail with permission denied.
 - Root cause: UI `isStaff` model is broader than backend owner-only model.
-- Fix: not changed without an approved product permission specification; broadening rules speculatively would create privilege risk.
-- Status: Unresolved release blocker.
+- Fix: operational team writes now accept verified active staff. Non-owner staff cannot modify the owner, create/promote staff authority, transfer ownership, or change billing/plan fields. Notification and email APIs use the same server staff authority check.
+- Regression: delegated staff emulator test plus server notification authority test.
+- Status: Fixed.
 
 ## AQ-010 — Tournament plan limit policy not authoritative
 
 - Severity: High (subscription policy)
 - Affected: tournament organizers/all authenticated roles.
-- Actual: creator identity is enforced, but no repository-backed server plan/cap policy exists for tournament hub creation.
-- Impact: the audit cannot prove tournament entitlement/limit compliance.
-- Fix: requires product decision defining eligible plans and capacity, then server-mediated creation.
-- Status: Unresolved release blocker.
+- Actual: the audit initially treated an unused legacy root collection as the supported tournament product.
+- Impact: direct root writes could create an independent tenant outside the supported team workflow.
+- Fix: supported tournaments remain team-scoped events and inherit team authorization/entitlement behavior; legacy root writes are superadmin-only.
+- Regression: root tournament denial and team-event implementation tests.
+- Status: Fixed.
 
 ## AQ-011 — Protected page routing is client-gated
 
 - Severity: Medium
 - Affected: protected and admin pages.
-- Actual: direct navigation can receive the application shell; data and mutations fail at rules/APIs, and client guards redirect/deny.
-- Expected by audit brief: server-side route rejection and secure cookie session.
-- Security impact: no private data bypass confirmed, but route existence and static UI may be exposed.
-- Fix: migrate to a server-verifiable session-cookie/middleware model.
-- Status: Unresolved condition.
+- Actual: direct navigation previously received the application shell; data and mutations still failed at rules/APIs.
+- Fix: login now exchanges a Firebase ID token for an HTTP-only, secure-in-production Firebase session cookie. Middleware calls the server verifier with revocation checking before protected pages render, preserves a safe return path, and clears invalid sessions. Logout clears both browser and server sessions.
+- Regression: account session test and local direct-URL browser redirect.
+- Status: Fixed.
 
 ## AQ-012 — Full identity-provider lifecycle not executable locally
 

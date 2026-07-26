@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useFirestore, useMemoFirebase, useUser, useCollection, useDoc, useStorage, useAuth } from '@/firebase';
-import { getAuthToken, authHeader } from '@/lib/client-auth';
+import { clearBrowserSession, getAuthToken, authHeader } from '@/lib/client-auth';
 import { isAlertRelevantToRecipient } from '@/lib/alert-audience';
 import { isBillableSquadSeat } from '@/lib/team-seat-policy';
 
@@ -3449,6 +3449,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
       if (!response.ok) throw new Error(payload.error || 'Unable to schedule account deletion.');
 
       const { signOut } = await import('firebase/auth');
+      await clearBrowserSession();
       await signOut(firebaseAuth);
       toast({
         title: 'Account Deletion Scheduled',

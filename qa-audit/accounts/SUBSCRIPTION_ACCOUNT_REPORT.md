@@ -38,9 +38,9 @@ The table reports capacity code, not a promise that every feature is intended fo
 
 Team and league creation previously relied on browser counts. Creation is now server-mediated, count and entitlement are read in one Firestore transaction, non-entitled states collapse to one slot, and direct Firestore creation is denied. This closes modified-payload and direct-request bypasses.
 
-## Unresolved
+## Remaining external verification
 
-- Tournament entitlement/cap has no authoritative product definition or server creation policy (AQ-010).
+- Supported tournaments are team-scoped events; legacy root tournament creation is closed. Starter versus paid tournament features still need visual Preview confirmation.
 - Stripe checkout, upgrade, downgrade, cancellation-at-period-end, payment failure, missing/deleted customer, duplicate subscription, and webhook ordering must be exercised in Stripe test mode.
 - The UI’s plan-specific navigation and every feature gate need responsive Preview verification.
 - Existing real users with unverified Firebase email state require an intentional rollout/migration plan before deploying verification enforcement.

@@ -37,6 +37,7 @@ beforeEach(async () => {
     await Promise.all([
       setDoc(doc(db, 'users', 'owner'), { role: 'coach', name: 'Owner' }),
       setDoc(doc(db, 'users', 'member'), { role: 'parent', name: 'Member' }),
+      setDoc(doc(db, 'users', 'staff'), { role: 'coach', name: 'Assistant Coach' }),
       setDoc(doc(db, 'users', 'outsider'), { role: 'coach', name: 'Outsider' }),
       setDoc(doc(db, 'users', 'youth'), {
         role: 'youth_player',
@@ -72,6 +73,20 @@ beforeEach(async () => {
         teamId: 'team-a',
         role: 'Member',
         position: 'Parent',
+      }),
+      setDoc(doc(db, 'teams', 'team-a', 'members', 'owner'), {
+        userId: 'owner',
+        ownerUserId: 'owner',
+        teamId: 'team-a',
+        role: 'Admin',
+        position: 'Head Coach',
+      }),
+      setDoc(doc(db, 'teams', 'team-a', 'members', 'staff'), {
+        userId: 'staff',
+        ownerUserId: 'owner',
+        teamId: 'team-a',
+        role: 'Member',
+        position: 'Assistant Coach',
       }),
       setDoc(doc(db, 'teams', 'team-a', 'members', 'child-player'), {
         userId: 'parent-account',
@@ -320,6 +335,58 @@ test('members cannot create or promote their own team membership', async () => {
     userId: 'member-2',
     ownerUserId: 'owner',
     teamId: 'team-a',
+  }));
+});
+
+test('delegated staff can run team operations without changing authority or billing', async () => {
+  const staffDb = authenticatedDb('staff');
+
+  await assertSucceeds(setDoc(doc(staffDb, 'teams', 'team-a', 'events', 'practice-a'), {
+    eventType: 'practice',
+    title: 'Staff practice',
+  }));
+  await assertSucceeds(setDoc(doc(staffDb, 'teams', 'team-a', 'drills', 'drill-a'), {
+    title: 'Passing',
+  }));
+  await assertSucceeds(setDoc(doc(staffDb, 'teams', 'team-a', 'members', 'player-a'), {
+    userId: 'player-a',
+    role: 'Member',
+    position: 'Player',
+    name: 'New Player',
+  }));
+  await assertSucceeds(setDoc(
+    doc(staffDb, 'teams', 'team-a', 'members', 'member'),
+    { name: 'Updated member', role: 'Member', position: 'Parent', userId: 'member', ownerUserId: 'owner', teamId: 'team-a' },
+  ));
+  await assertSucceeds(setDoc(
+    doc(staffDb, 'teams', 'team-a'),
+    { parentChatEnabled: true },
+    { merge: true },
+  ));
+
+  await assertFails(setDoc(doc(staffDb, 'teams', 'team-a', 'members', 'promoted'), {
+    userId: 'promoted',
+    role: 'Admin',
+    position: 'Head Coach',
+  }));
+  await assertFails(setDoc(
+    doc(staffDb, 'teams', 'team-a', 'members', 'member'),
+    { role: 'Admin', position: 'Head Coach' },
+    { merge: true },
+  ));
+  await assertFails(deleteDoc(doc(staffDb, 'teams', 'team-a', 'members', 'owner')));
+  await assertFails(setDoc(
+    doc(staffDb, 'teams', 'team-a'),
+    { planId: 'school', isPro: true },
+    { merge: true },
+  ));
+});
+
+test('unsupported root tournament hubs cannot bypass team-scoped tournament controls', async () => {
+  const ownerDb = authenticatedDb('owner');
+  await assertFails(setDoc(doc(ownerDb, 'tournaments', 'forged-hub'), {
+    creatorId: 'owner',
+    memberUserIds: ['owner'],
   }));
 });
 

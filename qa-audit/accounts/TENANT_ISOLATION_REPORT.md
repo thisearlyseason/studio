@@ -40,6 +40,6 @@ Cross-organization access failures: 0 successful breaches.
 
 Vercel Preview must test organization/team switching, back/forward cache, refresh, simultaneous tabs, uploaded media URLs, search indexes, exports/reports, notification deep links, deleted organization/team behavior, and two-device stale sessions. These require realistic browser and provider state and were not represented as automated passes.
 
-## Known isolation-adjacent condition
+## Isolation-adjacent fixes
 
-AQ-009 is fail-closed: delegated staff may be denied legitimate work. It is not a cross-tenant leak. AQ-011 allows a direct URL to render a shell, but no protected data/API access was obtained.
+Delegated staff operations now work without permitting role promotion, owner modification, or billing changes. Protected direct URLs are rejected by revocation-checked server sessions before the application shell renders.

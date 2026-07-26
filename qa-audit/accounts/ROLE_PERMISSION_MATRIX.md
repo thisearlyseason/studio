@@ -14,10 +14,10 @@ This matrix describes server-enforced behavior. “Conditional” means team-loc
 | Create team | Conditional | Conditional | Conditional | Conditional | Conditional | Conditional | Allowed |
 | Edit team identity | Denied | Denied | Denied | Conditional owner | Conditional owner | Conditional owner | Allowed |
 | Delete team | Denied | Denied | Denied | Conditional owner | Conditional owner | Conditional owner | Allowed |
-| Add/edit/remove members | Denied | Denied | Denied | Failed for non-owner staff | Failed for delegated staff | Conditional owner | Allowed |
-| Create/edit schedules | Denied | Denied | Denied | Failed for non-owner staff | Failed for delegated staff | Conditional owner | Allowed |
-| Enter scores/standings | Denied | Denied | Denied | Failed for non-owner staff | Failed for delegated staff | Conditional owner | Allowed |
-| Create drills/playbooks/docs | Denied | Denied | Denied | Failed for non-owner staff | Failed for delegated staff | Conditional owner | Allowed |
+| Add/edit/remove ordinary members | Denied | Denied | Denied | Conditional staff; authority changes owner-only | Conditional staff | Conditional staff | Allowed |
+| Create/edit schedules | Denied | Denied | Denied | Conditional staff | Conditional staff | Conditional staff | Allowed |
+| Enter scores/standings | Denied | Denied | Denied | Conditional staff | Conditional staff | Conditional staff | Allowed |
+| Create drills/playbooks/docs | Denied | Denied | Denied | Conditional staff | Conditional staff | Conditional staff | Allowed |
 | Read team chat | Conditional | Conditional | Conditional | Conditional | Conditional | Conditional | Allowed |
 | Send own chat message | Conditional | Conditional | Conditional | Conditional | Conditional | Conditional | Allowed |
 | Create/moderate chat | Denied | Denied | Denied | Conditional owner | Conditional owner | Conditional owner | Allowed |
@@ -43,5 +43,5 @@ This matrix describes server-enforced behavior. “Conditional” means team-loc
 - Global `admin` means an institutional/school account, not platform administrator.
 - `Admin` membership does not equal `superadmin`.
 - Billing and plan state are server-owned and cannot be written from the browser.
-- Tournament creation is creator-bound but does not currently have a clearly documented plan-cap policy; this remains a product-policy condition (AQ-010).
-- Direct URLs can render a client shell, but Firestore, Storage, and authenticated APIs deny unauthorized data/actions. Server-rendered route rejection remains a condition (AQ-011).
+- Supported tournaments are team-scoped events and inherit team/staff/plan controls. The unused legacy root tournament collection is admin-only.
+- Protected direct URLs require a revocation-checked HTTP-only Firebase session before the page renders.

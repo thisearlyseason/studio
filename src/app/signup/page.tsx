@@ -135,6 +135,7 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const auth = useAuth();
@@ -188,6 +189,10 @@ export default function SignupPage() {
     }
     if (password.length < 8 || password.length > 128) {
       toast({ title: "Weak Password", description: "Use a password between 8 and 128 characters.", variant: "destructive" });
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      toast({ title: "Passwords Do Not Match", description: "Re-enter the same password in both fields.", variant: "destructive" });
       return;
     }
 
@@ -692,13 +697,27 @@ export default function SignupPage() {
                     className="h-12 rounded-xl bg-muted/30 border-muted font-semibold"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1 text-muted-foreground">Confirm Password</Label>
+                  <Input
+                    required
+                    type="password"
+                    minLength={8}
+                    maxLength={128}
+                    autoComplete="new-password"
+                    placeholder="Re-enter your password"
+                    value={passwordConfirmation}
+                    onChange={e => setPasswordConfirmation(e.target.value)}
+                    className="h-12 rounded-xl bg-muted/30 border-muted font-semibold"
+                  />
+                </div>
               </div>
 
               <div className="bg-muted/40 p-3.5 rounded-xl flex items-start gap-2.5">
                 <ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-[10px] font-medium leading-relaxed text-muted-foreground">
                   {planChoice && planChoice !== 'starter'
-                    ? "Your account will be created, then you'll be taken to Stripe's secure checkout. Card details are collected upfront but you won't be charged for 5 days."
+                    ? "Verify your email first. After verification, you can continue to Stripe's secure checkout for the selected 5-day trial."
                     : "By creating an account you confirm you are 18+ and authorized to manage registration data for your organization."
                   }
                 </p>
@@ -713,7 +732,7 @@ export default function SignupPage() {
                   {isLoading
                     ? "Creating Account..."
                     : planChoice && planChoice !== 'starter'
-                      ? "Create Account & Continue to Payment"
+                      ? "Create Account & Verify Email"
                       : "Create Account"
                   }
                 </Button>

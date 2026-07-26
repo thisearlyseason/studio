@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, useUser } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
+import { clearBrowserSession, establishBrowserSession } from '@/lib/client-auth';
 
 const RESEND_COOLDOWN_MS = 60_000;
 
@@ -22,9 +23,19 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     if (!isUserLoading && !user) router.replace('/login');
     if (user?.emailVerified) {
-      const next = sessionStorage.getItem('squad_post_verify_path') || '/dashboard';
-      sessionStorage.removeItem('squad_post_verify_path');
-      router.replace(next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
+      void establishBrowserSession(user)
+        .then(() => {
+          const next = sessionStorage.getItem('squad_post_verify_path') || '/dashboard';
+          sessionStorage.removeItem('squad_post_verify_path');
+          router.replace(next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
+        })
+        .catch(() => {
+          toast({
+            title: 'Session Setup Failed',
+            description: 'Your verified login could not be secured. Please try again.',
+            variant: 'destructive',
+          });
+        });
     }
   }, [isUserLoading, router, user]);
 
@@ -38,6 +49,7 @@ export default function VerifyEmailPage() {
         toast({ title: 'Not Verified Yet', description: 'Open the link in your email, then try again.' });
         return;
       }
+      await establishBrowserSession(auth.currentUser);
       const next = sessionStorage.getItem('squad_post_verify_path') || '/dashboard';
       sessionStorage.removeItem('squad_post_verify_path');
       window.location.replace(next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
@@ -81,6 +93,7 @@ export default function VerifyEmailPage() {
             type="button"
             className="text-xs font-black uppercase text-muted-foreground hover:text-primary"
             onClick={async () => {
+              await clearBrowserSession();
               await signOut(auth);
               router.replace('/login');
             }}

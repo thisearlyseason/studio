@@ -8,7 +8,7 @@ Legend: **Pass** = automated evidence; **Blocked** = requires Preview/provider i
 | `adult-player-a` | adult player, verified, free | own profile and active team only | Correctly scoped | Pass | team membership rules |
 | `youth-a` | invited youth, verified by invite | linked player membership only | Linked member document resolves correctly | Pass | linked-youth emulator test |
 | `coach-owner-a` | coach, active paid | owner operations and bounded creation | Team/league creation is now server-authorized and capped | Pass | account creation policy + direct-write denials |
-| `assistant-a` | coach/member, staff position | normal coach operations in Team A, no billing | Some UI-presented writes remain owner-only | Fail | AQ-009 |
+| `assistant-a` | coach/member, staff position | normal coach operations in Team A, no billing/role promotion | Operational writes pass; billing, owner record, and promotion attempts fail | Pass | AQ-009 regression |
 | `school-owner-a` | admin, school active | own school metadata and bounded squads | Owner field variants now work; delegated workflow needs Preview | Blocked | AQ-008; manual M-18 |
 | `league-owner-a` | league creator, free | one league, own league only | direct creation bypass closed; isolation passes | Pass | league creation and query rules |
 | `superadmin-a` | superadmin claim | administrator routes/APIs | Rules and APIs recognize claim; UI lifecycle not manually run | Blocked | manual M-25 |
@@ -39,8 +39,8 @@ Legend: **Pass** = automated evidence; **Blocked** = requires Preview/provider i
 
 ## Automated totals
 
-- Focused account-policy tests: 12 passed, 0 failed.
-- Firestore/Storage authorization tests: 24 passed, 0 failed.
-- Full repository unit suite: 130 passed, 0 failed.
-- Combined repository unit plus rules suite: 154 passed, 0 failed.
+- Focused account-policy tests: 15 passed, 0 failed.
+- Firestore/Storage authorization tests: 26 passed, 0 failed.
+- Full repository unit suite: 133 passed, 0 failed.
+- Combined repository unit plus rules suite: 159 passed, 0 failed.
 - Manual account scenarios remaining: 30 (see release checklist).

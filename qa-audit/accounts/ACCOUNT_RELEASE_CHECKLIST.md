@@ -2,9 +2,9 @@
 
 ## Status
 
-**NOT READY**
+**READY WITH CONDITIONS**
 
-Automated account security checks pass, but AQ-009 and AQ-010 are unresolved high-priority workflow/policy blockers and the required Vercel Preview identity-provider/Stripe test-mode run has not been completed.
+All confirmed critical/high account-security and authorization defects found in this audit are fixed and locally verified. Production approval remains conditional on the required Vercel Preview identity-provider and Stripe test-mode run, plus an explicit rollout decision for existing unverified accounts.
 
 ## Completed
 
@@ -23,12 +23,15 @@ Automated account security checks pass, but AQ-009 and AQ-010 are unresolved hig
 - [x] Team/league creation limits are enforced by trusted server state.
 - [x] Legacy global league invitation PII is admin-only.
 - [x] Account deletion immediately disables/revokes and has purge regression coverage.
+- [x] Delegated staff can operate team workflows without promoting roles, changing billing, or modifying the owner.
+- [x] Supported tournaments remain team-scoped; unsupported root tournament tenant writes are closed.
+- [x] Protected direct URLs require revocation-checked HTTP-only server sessions.
+- [x] Signup requires matching password confirmation and accurately describes verification-before-payment.
+- [x] Local desktop/tablet/mobile landing checks have no horizontal overflow; mobile login/signup and direct-route behavior were browser-verified.
 - [x] TypeScript, lint (warnings only), unit, emulator rules, Next production build, and Functions build pass.
 
-## Release blockers
+## Deployment conditions
 
-- [ ] Resolve and regression-test the intended permissions for non-owner coaches, assistant coaches, managers, and delegated school administrators (AQ-009).
-- [ ] Define tournament plan eligibility/capacity and enforce creation server-side (AQ-010).
 - [ ] Run the Vercel Preview test matrix against isolated Firebase identities and Stripe test mode.
 - [ ] Define rollout behavior for pre-existing accounts whose Firebase email is currently unverified.
 
@@ -50,7 +53,7 @@ Automated account security checks pass, but AQ-009 and AQ-010 are unresolved hig
 - [ ] M-14 adult player complete workflow.
 - [ ] M-15 invited youth complete workflow.
 - [ ] M-16 coach owner complete workflow.
-- [ ] M-17 assistant coach/manager complete workflow after AQ-009.
+- [ ] M-17 assistant coach/manager complete Preview workflow (automated authority matrix passes).
 - [ ] M-18 school owner and delegated administrator complete workflow.
 - [ ] M-19 league creator and tournament creator complete workflow.
 - [ ] M-20 multi-organization/team switching, refresh, history, and simultaneous tabs.
@@ -73,24 +76,25 @@ Automated account security checks pass, but AQ-009 and AQ-010 are unresolved hig
 | Global roles found | 7 |
 | Subscription plans found | 5 |
 | Account/billing states represented in automated policy tests | 14 |
-| Focused account tests | 36 |
-| Focused tests passed | 36 |
+| Focused account tests | 41 |
+| Focused tests passed | 41 |
 | Focused tests failed | 0 |
 | Manual scenarios blocked/pending | 30 |
-| Full unit + rules tests | 154 passed, 0 failed |
+| Full unit + rules tests | 159 passed, 0 failed |
 | Critical bugs found/fixed/unresolved | 2 / 2 / 0 |
-| High bugs found/fixed/unresolved | 7 / 5 / 2 |
-| Medium bugs found/fixed/unresolved | 3 / 1 / 2 |
+| High bugs found/fixed/unresolved | 7 / 7 / 0 |
+| Medium bugs found/fixed/unresolved | 3 / 2 / 1 blocked external verification |
 | Low bugs | 0 |
-| Total bugs fixed | 8 |
-| Total bugs unresolved/blocked | 4 |
+| Total bugs fixed | 11 |
+| Total bugs unresolved | 0 confirmed code defects |
+| External verification conditions | 2 |
 | Confirmed cross-account breaches remaining | 0 |
 | Confirmed cross-organization breaches remaining | 0 |
-| Automated subscription-policy failures remaining | 1 (tournament policy gap) |
+| Automated subscription-policy failures remaining | 0 |
 | Automated authentication failures remaining | 0 |
 | Automated authorization security failures remaining | 0 |
-| Functional authorization mismatches remaining | 1 (staff vs owner) |
+| Functional authorization mismatches remaining | 0 confirmed |
 
 ## Required release decision
 
-Do not deploy these account changes to production until the two high blockers are resolved, the existing-user verification rollout is decided, and all 30 manual scenarios pass in Vercel Preview. This audit does not claim the application has no other bugs.
+Do not promote the Preview deployment to production until the existing-user verification rollout is decided and all 30 manual scenarios pass with isolated Firebase identities and Stripe test mode. This audit does not claim the application has no other bugs.

@@ -11,6 +11,8 @@ test('email-password signup requires verification before plan or tenant access',
 
   assert.match(signup, /sendEmailVerification/);
   assert.match(signup, /router\.push\('\/verify-email'\)/);
+  assert.match(signup, /password !== passwordConfirmation/);
+  assert.match(signup, /Confirm Password/);
   assert.match(auth, /auth\/email-not-verified/);
   assert.match(rules, /email_verified/);
   assert.match(rules, /hasActiveAccount/);
@@ -30,4 +32,23 @@ test('email changes require verification before the stored profile email changes
   assert.match(settings, /verifyBeforeUpdateEmail/);
   assert.match(settings, /saveProfileFields\(false\)/);
   assert.doesNotMatch(settings, /await updateEmail\(/);
+});
+
+test('protected pages require a revocation-checked HTTP-only server session', async () => {
+  const [middleware, sessionRoute, clientAuth] = await Promise.all([
+    source('../src/middleware.ts'),
+    source('../src/app/api/auth/session/route.ts'),
+    source('../src/lib/client-auth.ts'),
+  ]);
+
+  assert.match(middleware, /request\.cookies\.get\('__session'\)/);
+  assert.match(middleware, /fetch\(new URL\('\/api\/auth\/session'/);
+  assert.match(middleware, /pathname\.startsWith\('\/events\/register\/'\).*return false/);
+  assert.match(middleware, /pathname === '\/leagues'/);
+  assert.match(middleware, /pathname === '\/tournaments'/);
+  assert.match(sessionRoute, /createSessionCookie/);
+  assert.match(sessionRoute, /verifySessionCookie\(sessionCookie, true\)/);
+  assert.match(sessionRoute, /httpOnly: true/);
+  assert.match(clientAuth, /establishBrowserSession/);
+  assert.match(clientAuth, /clearBrowserSession/);
 });

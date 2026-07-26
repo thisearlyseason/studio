@@ -77,6 +77,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { PRICING_CONFIG } from '@/lib/pricing';
 import { deleteFCMToken } from '@/lib/fcm-client';
+import { clearBrowserSession } from '@/lib/client-auth';
 
 export default function SettingsPage() {
   const { 
@@ -285,6 +286,7 @@ export default function SettingsPage() {
       if (user?.id) {
         deleteFCMToken(user.id).catch(() => {});
       }
+      await clearBrowserSession();
       await signOut(auth);
       router.push('/login');
     } catch (error) {
